@@ -1,0 +1,37 @@
+get:
+  tags: [Workflows]
+  summary: List stored workflows (paginated)
+  operationId: listWorkflows
+  parameters:
+    - $ref: '../components/parameters.yaml#/PageLimit'
+    - $ref: '../components/parameters.yaml#/PageCursor'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/WorkflowList'
+post:
+  tags: [Workflows]
+  summary: Persist a workflow for editor storage (no versioning)
+  operationId: persistWorkflow
+  parameters:
+    - $ref: '../components/parameters.yaml#/IdempotencyKey'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/Workflow'
+  responses:
+    '201':
+      description: Created
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/WorkflowRef'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+    '409':
+      $ref: '../components/responses.yaml#/Conflict'

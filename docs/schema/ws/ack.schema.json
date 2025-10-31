@@ -1,0 +1,13 @@
+{
+  "$id": "https://astraflow.example.com/schema/ws.ack.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ack Payload",
+  "type": "object",
+  "required": ["ok", "for"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "for": { "type": "string" },
+    "info": { "type": "string" }
+  },
+  "additionalProperties": false
+}

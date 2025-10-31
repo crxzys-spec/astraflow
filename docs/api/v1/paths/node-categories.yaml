@@ -1,0 +1,11 @@
+get:
+  tags: [Nodes]
+  summary: List node categories
+  operationId: listNodeCategories
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/NodeCategoryList'

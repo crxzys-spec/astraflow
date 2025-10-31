@@ -1,0 +1,47 @@
+get:
+  tags: [Runs]
+  summary: List runs (paginated)
+  operationId: listRuns
+  parameters:
+    - $ref: '../components/parameters.yaml#/PageLimit'
+    - $ref: '../components/parameters.yaml#/PageCursor'
+    - name: status
+      in: query
+      required: false
+      schema:
+        $ref: '../components/schemas/index.yaml#/RunStatus'
+    - name: clientId
+      in: query
+      required: false
+      schema:
+        type: string
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/RunList'
+post:
+  tags: [Runs]
+  summary: Start a run using the in-memory workflow snapshot
+  operationId: startRun
+  parameters:
+    - $ref: '../components/parameters.yaml#/IdempotencyKey'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/RunStartRequest'
+  responses:
+    '202':
+      description: Accepted
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/RunRef'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+    '409':
+      $ref: '../components/responses.yaml#/Conflict'

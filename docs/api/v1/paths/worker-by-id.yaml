@@ -1,0 +1,15 @@
+get:
+  tags: [Workers]
+  summary: Get worker snapshot
+  operationId: getWorker
+  parameters:
+    - $ref: '../components/parameters.yaml#/WorkerId'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/Worker'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

@@ -1,0 +1,18 @@
+get:
+  tags: [Events]
+  summary: Global Server-Sent Events stream (firehose; no query parameters)
+  operationId: sseGlobalEvents
+  parameters:
+    - $ref: '../components/parameters.yaml#/LastEventID'
+  responses:
+    '200':
+      description: text/event-stream
+      headers:
+        Content-Type:
+          schema:
+            type: string
+            example: 'text/event-stream; charset=utf-8'
+      content:
+        text/event-stream:
+          schema:
+            type: string

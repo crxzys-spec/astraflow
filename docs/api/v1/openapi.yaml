@@ -1,0 +1,51 @@
+openapi: 3.1.0
+info:
+  title: Scheduler Public API (v1)
+  version: 1.3.0
+servers:
+  - url: https://scheduler.example.com
+security:
+  - bearerAuth: []
+tags:
+  - name: Runs
+  - name: Workflows
+  - name: Nodes
+  - name: Workers
+  - name: Events
+paths:
+  /api/v1/runs:
+    $ref: './paths/runs.yaml'
+  /api/v1/runs/{runId}:
+    $ref: './paths/run-by-id.yaml'
+  /api/v1/runs/{runId}/definition:
+    $ref: './paths/run-definition.yaml'
+  /api/v1/workflows:
+    $ref: './paths/workflows.yaml'
+  /api/v1/workflows/{workflowId}:
+    $ref: './paths/workflow-by-id.yaml'
+  /api/v1/nodes:
+    $ref: './paths/nodes.yaml'
+  /api/v1/nodes/{nodeId}:
+    $ref: './paths/node-by-id.yaml'
+  /api/v1/nodes:categories:
+    $ref: './paths/node-categories.yaml'
+  /api/v1/workers:
+    $ref: './paths/workers.yaml'
+  /api/v1/workers/{workerId}:
+    $ref: './paths/worker-by-id.yaml'
+  /api/v1/workers/{workerId}/commands:
+    $ref: './paths/worker-commands.yaml'
+  /api/v1/events:
+    $ref: './paths/events.yaml'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    $ref: './components/parameters.yaml'
+  responses:
+    $ref: './components/responses.yaml'
+  schemas:
+    $ref: './components/schemas/index.yaml'

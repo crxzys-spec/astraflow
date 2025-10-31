@@ -1,0 +1,2939 @@
+openapi: 3.1.0
+info:
+  title: Scheduler Public API (v1)
+  version: 1.3.0
+servers:
+- url: https://scheduler.example.com
+security:
+- bearerAuth: []
+tags:
+- name: Runs
+- name: Workflows
+- name: Nodes
+- name: Workers
+- name: Events
+paths:
+  /api/v1/runs:
+    get:
+      operationId: listRuns
+      parameters:
+      - explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          maximum: 200
+          minimum: 1
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          enum:
+          - queued
+          - running
+          - succeeded
+          - failed
+          - cancelled
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: clientId
+        required: false
+        schema:
+          title: code
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/listRuns_200_response"
+          description: OK
+      summary: List runs (paginated)
+      tags:
+      - Runs
+    post:
+      operationId: startRun
+      parameters:
+      - description: "Optional idempotency key for safe retries; if reused with a\
+          \ different body, return 409"
+        explode: false
+        in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          maxLength: 64
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/startRun_request"
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/startRun_202_response"
+          description: Accepted
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/startRun_400_response"
+          description: Invalid input
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/startRun_400_response"
+          description: "Conflict (e.g., idempotency-key reuse with different body)"
+      summary: Start a run using the in-memory workflow snapshot
+      tags:
+      - Runs
+  /api/v1/runs/{runId}:
+    get:
+      operationId: getRun
+      parameters:
+      - explode: false
+        in: path
+        name: runId
+        required: true
+        schema:
+          title: code
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/listRuns_200_response_items_inner"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/startRun_400_response"
+          description: Resource not found
+      summary: Get run summary
+      tags:
+      - Runs
+  /api/v1/runs/{runId}/definition:
+    get:
+      operationId: getRunDefinition
+      parameters:
+      - explode: false
+        in: path
+        name: runId
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/startRun_request_workflow"
+          description: OK
+          headers:
+            ETag:
+              description: Weak ETag based on definitionHash
+              explode: false
+              schema:
+                example: W/"sha256:9e22a4..."
+                type: string
+              style: simple
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/startRun_400_response"
+          description: Resource not found
+      summary: Get the immutable workflow snapshot used by this run
+      tags:
+      - Runs
+  /api/v1/workflows:
+    get:
+      operationId: listWorkflows
+      parameters:
+      - explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          maximum: 200
+          minimum: 1
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/listWorkflows_200_response"
+          description: OK
+      summary: List stored workflows (paginated)
+      tags:
+      - Workflows
+    post:
+      operationId: persistWorkflow
+      parameters:
+      - description: "Optional idempotency key for safe retries; if reused with a\
+          \ different body, return 409"
+        explode: false
+        in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          maxLength: 64
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/listWorkflows_200_response_items_inner"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/persistWorkflow_201_response"
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/startRun_400_response"
+          description: Invalid input
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/startRun_400_response"
+          description: "Conflict (e.g., idempotency-key reuse with different body)"
+      summary: Persist a workflow for editor storage (no versioning)
+      tags:
+      - Workflows
+  /api/v1/workflows/{workflowId}:
+    get:
+      operationId: getWorkflow
+      parameters:
+      - explode: false
+        in: path
+        name: workflowId
+        required: true
+        schema:
+          title: code
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/listWorkflows_200_response_items_inner"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/startRun_400_response"
+          description: Resource not found
+      summary: Read stored workflow (latest)
+      tags:
+      - Workflows
+  /api/v1/nodes:
+    get:
+      operationId: listNodes
+      parameters:
+      - explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          maximum: 200
+          minimum: 1
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: category
+        required: false
+        schema:
+          title: code
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: status
+        required: false
+        schema:
+          enum:
+          - draft
+          - published
+          - deprecated
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: tag
+        required: false
+        schema:
+          description: Filter by a single tag; may repeat
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: q
+        required: false
+        schema:
+          description: Search in type/label/description
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/listNodes_200_response"
+          description: OK
+          headers:
+            ETag:
+              description: Weak ETag for the catalog page
+              explode: false
+              schema:
+                type: string
+              style: simple
+      summary: List available nodes (catalog)
+      tags:
+      - Nodes
+  /api/v1/nodes/{nodeId}:
+    get:
+      operationId: getNode
+      parameters:
+      - explode: false
+        in: path
+        name: nodeId
+        required: true
+        schema:
+          title: code
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getNode_200_response"
+          description: OK
+          headers:
+            ETag:
+              description: Weak ETag based on the node definition content hash
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/startRun_400_response"
+          description: Resource not found
+      summary: Get a node definition
+      tags:
+      - Nodes
+  /api/v1/nodes:categories:
+    get:
+      operationId: listNodeCategories
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/listNodeCategories_200_response"
+          description: OK
+      summary: List node categories
+      tags:
+      - Nodes
+  /api/v1/workers:
+    get:
+      operationId: listWorkers
+      parameters:
+      - explode: true
+        in: query
+        name: queue
+        required: false
+        schema:
+          title: code
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          maximum: 200
+          minimum: 1
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/listWorkers_200_response"
+          description: OK
+      summary: List workers (scheduler view)
+      tags:
+      - Workers
+  /api/v1/workers/{workerId}:
+    get:
+      operationId: getWorker
+      parameters:
+      - explode: false
+        in: path
+        name: workerId
+        required: true
+        schema:
+          title: code
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/listWorkers_200_response_items_inner"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/startRun_400_response"
+          description: Resource not found
+      summary: Get worker snapshot
+      tags:
+      - Workers
+  /api/v1/workers/{workerId}/commands:
+    post:
+      operationId: sendWorkerCommand
+      parameters:
+      - explode: false
+        in: path
+        name: workerId
+        required: true
+        schema:
+          type: string
+        style: simple
+      - description: "Optional idempotency key for safe retries; if reused with a\
+          \ different body, return 409"
+        explode: false
+        in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          maxLength: 64
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/sendWorkerCommand_request"
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sendWorkerCommand_202_response"
+          description: Accepted
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/startRun_400_response"
+          description: Invalid input
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/startRun_400_response"
+          description: Resource not found
+      summary: Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)
+      tags:
+      - Workers
+  /api/v1/events:
+    get:
+      operationId: sseGlobalEvents
+      parameters:
+      - description: Resume SSE from a specific monotonic event id
+        explode: false
+        in: header
+        name: Last-Event-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            text/event-stream:
+              schema:
+                type: string
+          description: text/event-stream
+          headers:
+            Content-Type:
+              explode: false
+              schema:
+                example: text/event-stream; charset=utf-8
+                type: string
+              style: simple
+      summary: Global Server-Sent Events stream (firehose; no query parameters)
+      tags:
+      - Events
+components:
+  parameters: {}
+  responses: {}
+  schemas:
+    listRuns_200_response_items_inner_error:
+      example:
+        code: code
+        details:
+          key: ""
+        message: message
+      properties:
+        code:
+          title: code
+          type: string
+        message:
+          title: code
+          type: string
+        details:
+          additionalProperties: true
+          title: details
+          type: object
+          nullable: true
+      required:
+      - code
+      - message
+      title: listRuns_200_response_items_inner_error
+      nullable: true
+    listRuns_200_response_items_inner_artifacts_inner:
+      example:
+        resourceId: resourceId
+        workerId: workerId
+        metadata:
+          key: ""
+        inline: true
+        type: type
+        expiresAt: 2000-01-23T04:56:07.000+00:00
+        sizeBytes: 0
+      properties:
+        resourceId:
+          title: code
+          type: string
+        workerId:
+          title: code
+          type: string
+        type:
+          title: code
+          type: string
+        sizeBytes:
+          minimum: 0
+          title: sizeBytes
+          type: integer
+          nullable: true
+        inline:
+          title: inline
+          type: boolean
+          nullable: true
+        expiresAt:
+          format: date-time
+          title: expiresAt
+          type: string
+          nullable: true
+        metadata:
+          additionalProperties: true
+          title: metadata
+          type: object
+          nullable: true
+      required:
+      - resourceId
+      - type
+      - workerId
+      title: listRuns_200_response_items_inner_artifacts_inner
+    listRuns_200_response_items_inner_nodes_inner:
+      example:
+        workerId: workerId
+        metadata:
+          key: ""
+        startedAt: 2000-01-23T04:56:07.000+00:00
+        ackDeadline: 2000-01-23T04:56:07.000+00:00
+        error:
+          code: code
+          details:
+            key: ""
+          message: message
+        pendingAck: true
+        finishedAt: 2000-01-23T04:56:07.000+00:00
+        dispatchId: dispatchId
+        result:
+          key: ""
+        resourceRefs:
+        - key: ""
+        - key: ""
+        nodeId: nodeId
+        taskId: taskId
+        seq: 6
+        status: queued
+        affinity:
+          key: ""
+        artifacts:
+        - key: ""
+        - key: ""
+      properties:
+        nodeId:
+          title: code
+          type: string
+        taskId:
+          title: code
+          type: string
+        status:
+          enum:
+          - queued
+          - running
+          - succeeded
+          - failed
+          - cancelled
+          title: status
+          type: string
+        workerId:
+          title: workerId
+          type: string
+          nullable: true
+        startedAt:
+          format: date-time
+          title: expiresAt
+          type: string
+          nullable: true
+        finishedAt:
+          format: date-time
+          title: expiresAt
+          type: string
+          nullable: true
+        seq:
+          title: seq
+          type: integer
+          nullable: true
+        pendingAck:
+          description: True when the scheduler has dispatched the node and is waiting
+            for a worker ACK.
+          title: pendingAck
+          type: boolean
+          nullable: true
+        dispatchId:
+          description: Envelope id of the last cmd.dispatch frame for this node.
+          title: dispatchId
+          type: string
+          nullable: true
+        ackDeadline:
+          description: Scheduler-side deadline for receiving the ACK for the last
+            dispatch.
+          format: date-time
+          title: ackDeadline
+          type: string
+          nullable: true
+        resourceRefs:
+          items:
+            additionalProperties: true
+            type: object
+          title: resourceRefs
+          type: array
+        affinity:
+          additionalProperties: true
+          title: metadata
+          type: object
+          nullable: true
+        artifacts:
+          items:
+            additionalProperties: true
+            type: object
+          title: artifacts
+          type: array
+        result:
+          additionalProperties: true
+          title: metadata
+          type: object
+          nullable: true
+        metadata:
+          additionalProperties: true
+          title: metadata
+          type: object
+          nullable: true
+        error:
+          $ref: "#/components/schemas/listRuns_200_response_items_inner_error"
+      required:
+      - nodeId
+      - status
+      - taskId
+      title: listRuns_200_response_items_inner_nodes_inner
+    listRuns_200_response_items_inner:
+      example:
+        clientId: clientId
+        nodes:
+        - workerId: workerId
+          metadata:
+            key: ""
+          startedAt: 2000-01-23T04:56:07.000+00:00
+          ackDeadline: 2000-01-23T04:56:07.000+00:00
+          error:
+            code: code
+            details:
+              key: ""
+            message: message
+          pendingAck: true
+          finishedAt: 2000-01-23T04:56:07.000+00:00
+          dispatchId: dispatchId
+          result:
+            key: ""
+          resourceRefs:
+          - key: ""
+          - key: ""
+          nodeId: nodeId
+          taskId: taskId
+          seq: 6
+          status: queued
+          affinity:
+            key: ""
+          artifacts:
+          - key: ""
+          - key: ""
+        - workerId: workerId
+          metadata:
+            key: ""
+          startedAt: 2000-01-23T04:56:07.000+00:00
+          ackDeadline: 2000-01-23T04:56:07.000+00:00
+          error:
+            code: code
+            details:
+              key: ""
+            message: message
+          pendingAck: true
+          finishedAt: 2000-01-23T04:56:07.000+00:00
+          dispatchId: dispatchId
+          result:
+            key: ""
+          resourceRefs:
+          - key: ""
+          - key: ""
+          nodeId: nodeId
+          taskId: taskId
+          seq: 6
+          status: queued
+          affinity:
+            key: ""
+          artifacts:
+          - key: ""
+          - key: ""
+        startedAt: 2000-01-23T04:56:07.000+00:00
+        runId: runId
+        definitionHash: definitionHash
+        error:
+          code: code
+          details:
+            key: ""
+          message: message
+        status: queued
+        finishedAt: 2000-01-23T04:56:07.000+00:00
+        artifacts:
+        - resourceId: resourceId
+          workerId: workerId
+          metadata:
+            key: ""
+          inline: true
+          type: type
+          expiresAt: 2000-01-23T04:56:07.000+00:00
+          sizeBytes: 0
+        - resourceId: resourceId
+          workerId: workerId
+          metadata:
+            key: ""
+          inline: true
+          type: type
+          expiresAt: 2000-01-23T04:56:07.000+00:00
+          sizeBytes: 0
+      properties:
+        runId:
+          title: code
+          type: string
+        status:
+          enum:
+          - queued
+          - running
+          - succeeded
+          - failed
+          - cancelled
+          title: status
+          type: string
+        definitionHash:
+          title: code
+          type: string
+        clientId:
+          title: code
+          type: string
+        startedAt:
+          format: date-time
+          title: startedAt
+          type: string
+          nullable: true
+        finishedAt:
+          format: date-time
+          title: expiresAt
+          type: string
+          nullable: true
+        error:
+          $ref: "#/components/schemas/listRuns_200_response_items_inner_error"
+        artifacts:
+          items:
+            $ref: "#/components/schemas/listRuns_200_response_items_inner_artifacts_inner"
+          title: artifacts
+          type: array
+          nullable: true
+        nodes:
+          items:
+            $ref: "#/components/schemas/listRuns_200_response_items_inner_nodes_inner"
+          title: nodes
+          type: array
+          nullable: true
+      required:
+      - clientId
+      - definitionHash
+      - runId
+      - status
+      title: listRuns_200_response_items_inner
+    listRuns_200_response:
+      example:
+        nextCursor: nextCursor
+        items:
+        - clientId: clientId
+          nodes:
+          - workerId: workerId
+            metadata:
+              key: ""
+            startedAt: 2000-01-23T04:56:07.000+00:00
+            ackDeadline: 2000-01-23T04:56:07.000+00:00
+            error:
+              code: code
+              details:
+                key: ""
+              message: message
+            pendingAck: true
+            finishedAt: 2000-01-23T04:56:07.000+00:00
+            dispatchId: dispatchId
+            result:
+              key: ""
+            resourceRefs:
+            - key: ""
+            - key: ""
+            nodeId: nodeId
+            taskId: taskId
+            seq: 6
+            status: queued
+            affinity:
+              key: ""
+            artifacts:
+            - key: ""
+            - key: ""
+          - workerId: workerId
+            metadata:
+              key: ""
+            startedAt: 2000-01-23T04:56:07.000+00:00
+            ackDeadline: 2000-01-23T04:56:07.000+00:00
+            error:
+              code: code
+              details:
+                key: ""
+              message: message
+            pendingAck: true
+            finishedAt: 2000-01-23T04:56:07.000+00:00
+            dispatchId: dispatchId
+            result:
+              key: ""
+            resourceRefs:
+            - key: ""
+            - key: ""
+            nodeId: nodeId
+            taskId: taskId
+            seq: 6
+            status: queued
+            affinity:
+              key: ""
+            artifacts:
+            - key: ""
+            - key: ""
+          startedAt: 2000-01-23T04:56:07.000+00:00
+          runId: runId
+          definitionHash: definitionHash
+          error:
+            code: code
+            details:
+              key: ""
+            message: message
+          status: queued
+          finishedAt: 2000-01-23T04:56:07.000+00:00
+          artifacts:
+          - resourceId: resourceId
+            workerId: workerId
+            metadata:
+              key: ""
+            inline: true
+            type: type
+            expiresAt: 2000-01-23T04:56:07.000+00:00
+            sizeBytes: 0
+          - resourceId: resourceId
+            workerId: workerId
+            metadata:
+              key: ""
+            inline: true
+            type: type
+            expiresAt: 2000-01-23T04:56:07.000+00:00
+            sizeBytes: 0
+        - clientId: clientId
+          nodes:
+          - workerId: workerId
+            metadata:
+              key: ""
+            startedAt: 2000-01-23T04:56:07.000+00:00
+            ackDeadline: 2000-01-23T04:56:07.000+00:00
+            error:
+              code: code
+              details:
+                key: ""
+              message: message
+            pendingAck: true
+            finishedAt: 2000-01-23T04:56:07.000+00:00
+            dispatchId: dispatchId
+            result:
+              key: ""
+            resourceRefs:
+            - key: ""
+            - key: ""
+            nodeId: nodeId
+            taskId: taskId
+            seq: 6
+            status: queued
+            affinity:
+              key: ""
+            artifacts:
+            - key: ""
+            - key: ""
+          - workerId: workerId
+            metadata:
+              key: ""
+            startedAt: 2000-01-23T04:56:07.000+00:00
+            ackDeadline: 2000-01-23T04:56:07.000+00:00
+            error:
+              code: code
+              details:
+                key: ""
+              message: message
+            pendingAck: true
+            finishedAt: 2000-01-23T04:56:07.000+00:00
+            dispatchId: dispatchId
+            result:
+              key: ""
+            resourceRefs:
+            - key: ""
+            - key: ""
+            nodeId: nodeId
+            taskId: taskId
+            seq: 6
+            status: queued
+            affinity:
+              key: ""
+            artifacts:
+            - key: ""
+            - key: ""
+          startedAt: 2000-01-23T04:56:07.000+00:00
+          runId: runId
+          definitionHash: definitionHash
+          error:
+            code: code
+            details:
+              key: ""
+            message: message
+          status: queued
+          finishedAt: 2000-01-23T04:56:07.000+00:00
+          artifacts:
+          - resourceId: resourceId
+            workerId: workerId
+            metadata:
+              key: ""
+            inline: true
+            type: type
+            expiresAt: 2000-01-23T04:56:07.000+00:00
+            sizeBytes: 0
+          - resourceId: resourceId
+            workerId: workerId
+            metadata:
+              key: ""
+            inline: true
+            type: type
+            expiresAt: 2000-01-23T04:56:07.000+00:00
+            sizeBytes: 0
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/listRuns_200_response_items_inner"
+          title: items
+          type: array
+        nextCursor:
+          title: nextCursor
+          type: string
+          nullable: true
+      required:
+      - items
+      title: listRuns_200_response
+    startRun_request_workflow_metadata:
+      additionalProperties: true
+      example:
+        environment: environment
+        name: name
+        description: description
+        tags:
+        - tags
+        - tags
+      properties:
+        name:
+          title: code
+          type: string
+        description:
+          title: code
+          type: string
+        tags:
+          items:
+            title: code
+            type: string
+          type: array
+        environment:
+          title: code
+          type: string
+      required:
+      - name
+      title: startRun_request_workflow_metadata
+    startRun_request_workflow_nodes_inner_package:
+      additionalProperties: true
+      example:
+        name: name
+        version: version
+      properties:
+        name:
+          title: code
+          type: string
+        version:
+          title: code
+          type: string
+      required:
+      - name
+      - version
+      title: startRun_request_workflow_nodes_inner_package
+    startRun_request_workflow_nodes_inner_position:
+      additionalProperties: true
+      example:
+        x: 0.8008281904610115
+        "y": 6.027456183070403
+      properties:
+        x:
+          type: number
+        "y":
+          type: number
+      required:
+      - x
+      - "y"
+      title: startRun_request_workflow_nodes_inner_position
+    startRun_request_workflow_nodes_inner_results:
+      additionalProperties: true
+      description: Most recent execution echo by worker
+      example:
+        done: false
+        status: PENDING
+      properties:
+        status:
+          description: Worker-level node status echo
+          enum:
+          - PENDING
+          - RUNNING
+          - SUCCEEDED
+          - FAILED
+          type: string
+        done:
+          default: false
+          type: boolean
+      title: startRun_request_workflow_nodes_inner_results
+    startRun_request_workflow_nodes_inner_schema:
+      additionalProperties: true
+      description: Optional JSON Schemas for parameters/results
+      example:
+        parameters:
+          key: ""
+        results:
+          key: ""
+      properties:
+        parameters:
+          additionalProperties: true
+          title: meta
+          type: object
+        results:
+          additionalProperties: true
+          title: meta
+          type: object
+      title: startRun_request_workflow_nodes_inner_schema
+    startRun_request_workflow_nodes_inner_ui_inputPorts_inner_binding:
+      additionalProperties: true
+      example:
+        mode: read
+        path: path
+      properties:
+        path:
+          description: e.g.
+          type: string
+        mode:
+          enum:
+          - read
+          - write
+          - two_way
+          type: string
+      required:
+      - mode
+      - path
+      title: startRun_request_workflow_nodes_inner_ui_inputPorts_inner_binding
+    startRun_request_workflow_nodes_inner_ui_inputPorts_inner:
+      additionalProperties: true
+      example:
+        binding:
+          mode: read
+          path: path
+        label: label
+        key: key
+      properties:
+        key:
+          title: code
+          type: string
+        label:
+          title: code
+          type: string
+        binding:
+          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_inputPorts_inner_binding"
+      required:
+      - binding
+      - key
+      - label
+      title: startRun_request_workflow_nodes_inner_ui_inputPorts_inner
+    startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options_oneOf_inner:
+      additionalProperties: true
+      properties:
+        label:
+          title: code
+          type: string
+        value:
+          title: code
+          type: string
+      required:
+      - label
+      - value
+      title: startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options_oneOf_inner
+    startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options:
+      description: "Enum options; strings or {label,value} pairs"
+      oneOf:
+      - items:
+          type: string
+        type: array
+      - items:
+          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options_oneOf_inner"
+        type: array
+      title: startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+    startRun_request_workflow_nodes_inner_ui_widgets_inner_options:
+      additionalProperties: true
+      example:
+        helpText: helpText
+        min: 1.4658129805029452
+        max: 5.962133916683182
+        collapsed: true
+        options:
+        - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+        - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+        readOnly: true
+        step: 5.637376656633329
+        placeholder: placeholder
+        required: true
+      properties:
+        placeholder:
+          title: code
+          type: string
+        helpText:
+          title: code
+          type: string
+        required:
+          type: boolean
+        readOnly:
+          type: boolean
+        collapsed:
+          type: boolean
+        min:
+          type: number
+        max:
+          type: number
+        step:
+          type: number
+        options:
+          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options"
+      title: startRun_request_workflow_nodes_inner_ui_widgets_inner_options
+    startRun_request_workflow_nodes_inner_ui_widgets_inner:
+      additionalProperties: true
+      example:
+        component: component
+        options:
+          helpText: helpText
+          min: 1.4658129805029452
+          max: 5.962133916683182
+          collapsed: true
+          options:
+          - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+          - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+          readOnly: true
+          step: 5.637376656633329
+          placeholder: placeholder
+          required: true
+        binding:
+          mode: read
+          path: path
+        label: label
+        key: key
+      properties:
+        key:
+          title: code
+          type: string
+        label:
+          title: code
+          type: string
+        component:
+          description: string|number|enum|json...
+          type: string
+        binding:
+          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_inputPorts_inner_binding"
+        options:
+          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_widgets_inner_options"
+      required:
+      - binding
+      - component
+      - key
+      - label
+      title: startRun_request_workflow_nodes_inner_ui_widgets_inner
+    startRun_request_workflow_nodes_inner_ui:
+      additionalProperties: true
+      example:
+        outputPorts:
+        - binding:
+            mode: read
+            path: path
+          label: label
+          key: key
+        - binding:
+            mode: read
+            path: path
+          label: label
+          key: key
+        inputPorts:
+        - binding:
+            mode: read
+            path: path
+          label: label
+          key: key
+        - binding:
+            mode: read
+            path: path
+          label: label
+          key: key
+        widgets:
+        - component: component
+          options:
+            helpText: helpText
+            min: 1.4658129805029452
+            max: 5.962133916683182
+            collapsed: true
+            options:
+            - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+            - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+            readOnly: true
+            step: 5.637376656633329
+            placeholder: placeholder
+            required: true
+          binding:
+            mode: read
+            path: path
+          label: label
+          key: key
+        - component: component
+          options:
+            helpText: helpText
+            min: 1.4658129805029452
+            max: 5.962133916683182
+            collapsed: true
+            options:
+            - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+            - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+            readOnly: true
+            step: 5.637376656633329
+            placeholder: placeholder
+            required: true
+          binding:
+            mode: read
+            path: path
+          label: label
+          key: key
+      properties:
+        inputPorts:
+          items:
+            $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_inputPorts_inner"
+          type: array
+        outputPorts:
+          items:
+            $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_inputPorts_inner"
+          type: array
+        widgets:
+          items:
+            $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_widgets_inner"
+          type: array
+      title: startRun_request_workflow_nodes_inner_ui
+    startRun_request_workflow_nodes_inner:
+      additionalProperties: true
+      example:
+        schema:
+          parameters:
+            key: ""
+          results:
+            key: ""
+        package:
+          name: name
+          version: version
+        ui:
+          outputPorts:
+          - binding:
+              mode: read
+              path: path
+            label: label
+            key: key
+          - binding:
+              mode: read
+              path: path
+            label: label
+            key: key
+          inputPorts:
+          - binding:
+              mode: read
+              path: path
+            label: label
+            key: key
+          - binding:
+              mode: read
+              path: path
+            label: label
+            key: key
+          widgets:
+          - component: component
+            options:
+              helpText: helpText
+              min: 1.4658129805029452
+              max: 5.962133916683182
+              collapsed: true
+              options:
+              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+              readOnly: true
+              step: 5.637376656633329
+              placeholder: placeholder
+              required: true
+            binding:
+              mode: read
+              path: path
+            label: label
+            key: key
+          - component: component
+            options:
+              helpText: helpText
+              min: 1.4658129805029452
+              max: 5.962133916683182
+              collapsed: true
+              options:
+              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+              readOnly: true
+              step: 5.637376656633329
+              placeholder: placeholder
+              required: true
+            binding:
+              mode: read
+              path: path
+            label: label
+            key: key
+        id: id
+        label: label
+        position:
+          x: 0.8008281904610115
+          "y": 6.027456183070403
+        type: type
+        parameters:
+          key: ""
+        results:
+          done: false
+          status: PENDING
+      properties:
+        id:
+          description: Node UUID
+          type: string
+        type:
+          description: e.g. "playwright.open_page"
+          type: string
+        package:
+          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_package"
+        label:
+          title: code
+          type: string
+        position:
+          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_position"
+        parameters:
+          additionalProperties: true
+          description: Free-form parameter payload
+          type: object
+        results:
+          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_results"
+        schema:
+          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_schema"
+        ui:
+          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui"
+      required:
+      - id
+      - label
+      - position
+      - type
+      title: startRun_request_workflow_nodes_inner
+    startRun_request_workflow_edges_inner_source:
+      additionalProperties: true
+      example:
+        node: node
+        port: port
+      properties:
+        node:
+          description: Node UUID
+          type: string
+        port:
+          description: Port key defined by the node UI
+          type: string
+      required:
+      - node
+      - port
+      title: startRun_request_workflow_edges_inner_source
+    startRun_request_workflow_edges_inner:
+      additionalProperties: true
+      example:
+        id: id
+        source:
+          node: node
+          port: port
+        target:
+          node: node
+          port: port
+      properties:
+        id:
+          title: code
+          type: string
+        source:
+          $ref: "#/components/schemas/startRun_request_workflow_edges_inner_source"
+        target:
+          $ref: "#/components/schemas/startRun_request_workflow_edges_inner_source"
+      required:
+      - id
+      - source
+      - target
+      title: startRun_request_workflow_edges_inner
+    startRun_request_workflow_runtimes_value_workerHints:
+      additionalProperties: true
+      example:
+        package: package
+        minVersion: minVersion
+      properties:
+        package:
+          title: code
+          type: string
+        minVersion:
+          title: code
+          type: string
+      title: startRun_request_workflow_runtimes_value_workerHints
+    startRun_request_workflow_runtimes_value:
+      example:
+        workerHints:
+          package: package
+          minVersion: minVersion
+      properties:
+        workerHints:
+          $ref: "#/components/schemas/startRun_request_workflow_runtimes_value_workerHints"
+      title: startRun_request_workflow_runtimes_value
+    startRun_request_workflow:
+      additionalProperties: {}
+      example:
+        metadata:
+          environment: environment
+          name: name
+          description: description
+          tags:
+          - tags
+          - tags
+        schemaVersion: schemaVersion
+        nodes:
+        - schema:
+            parameters:
+              key: ""
+            results:
+              key: ""
+          package:
+            name: name
+            version: version
+          ui:
+            outputPorts:
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            inputPorts:
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            widgets:
+            - component: component
+              options:
+                helpText: helpText
+                min: 1.4658129805029452
+                max: 5.962133916683182
+                collapsed: true
+                options:
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                readOnly: true
+                step: 5.637376656633329
+                placeholder: placeholder
+                required: true
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - component: component
+              options:
+                helpText: helpText
+                min: 1.4658129805029452
+                max: 5.962133916683182
+                collapsed: true
+                options:
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                readOnly: true
+                step: 5.637376656633329
+                placeholder: placeholder
+                required: true
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+          id: id
+          label: label
+          position:
+            x: 0.8008281904610115
+            "y": 6.027456183070403
+          type: type
+          parameters:
+            key: ""
+          results:
+            done: false
+            status: PENDING
+        - schema:
+            parameters:
+              key: ""
+            results:
+              key: ""
+          package:
+            name: name
+            version: version
+          ui:
+            outputPorts:
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            inputPorts:
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            widgets:
+            - component: component
+              options:
+                helpText: helpText
+                min: 1.4658129805029452
+                max: 5.962133916683182
+                collapsed: true
+                options:
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                readOnly: true
+                step: 5.637376656633329
+                placeholder: placeholder
+                required: true
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - component: component
+              options:
+                helpText: helpText
+                min: 1.4658129805029452
+                max: 5.962133916683182
+                collapsed: true
+                options:
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                readOnly: true
+                step: 5.637376656633329
+                placeholder: placeholder
+                required: true
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+          id: id
+          label: label
+          position:
+            x: 0.8008281904610115
+            "y": 6.027456183070403
+          type: type
+          parameters:
+            key: ""
+          results:
+            done: false
+            status: PENDING
+        runtimes:
+          key:
+            workerHints:
+              package: package
+              minVersion: minVersion
+        edges:
+        - id: id
+          source:
+            node: node
+            port: port
+          target:
+            node: node
+            port: port
+        - id: id
+          source:
+            node: node
+            port: port
+          target:
+            node: node
+            port: port
+        id: id
+        tags:
+        - tags
+        - tags
+      properties:
+        id:
+          description: Workflow UUID
+          type: string
+        schemaVersion:
+          description: e.g. "2025-10"
+          pattern: "^[0-9]{4}-[0-9]{2}$"
+          type: string
+        metadata:
+          $ref: "#/components/schemas/startRun_request_workflow_metadata"
+        nodes:
+          items:
+            $ref: "#/components/schemas/startRun_request_workflow_nodes_inner"
+          minItems: 1
+          type: array
+        edges:
+          items:
+            $ref: "#/components/schemas/startRun_request_workflow_edges_inner"
+          minItems: 0
+          type: array
+        runtimes:
+          additionalProperties:
+            $ref: "#/components/schemas/startRun_request_workflow_runtimes_value"
+          description: Runtime hints keyed by runtime name
+        tags:
+          items:
+            type: string
+          type: array
+      required:
+      - edges
+      - id
+      - nodes
+      - schemaVersion
+      title: startRun_request_workflow
+    startRun_request:
+      properties:
+        workflow:
+          $ref: "#/components/schemas/startRun_request_workflow"
+        clientId:
+          description: Caller-provided client instance id
+          title: clientId
+          type: string
+      required:
+      - clientId
+      - workflow
+      title: startRun_request
+    startRun_202_response:
+      example:
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        clientId: clientId
+        runId: runId
+        definitionHash: definitionHash
+        status: queued
+      properties:
+        runId:
+          title: code
+          type: string
+        status:
+          enum:
+          - queued
+          - running
+          - succeeded
+          - failed
+          - cancelled
+          title: status
+          type: string
+        definitionHash:
+          title: code
+          type: string
+        clientId:
+          title: code
+          type: string
+        createdAt:
+          format: date-time
+          title: createdAt
+          type: string
+      required:
+      - clientId
+      - createdAt
+      - definitionHash
+      - runId
+      - status
+      title: startRun_202_response
+    startRun_400_response:
+      example:
+        requestId: requestId
+        details:
+          key: ""
+        error: error
+        message: message
+      properties:
+        error:
+          title: code
+          type: string
+        message:
+          title: code
+          type: string
+        requestId:
+          title: code
+          type: string
+        details:
+          additionalProperties: true
+          title: metadata
+          type: object
+          nullable: true
+      required:
+      - error
+      - message
+      title: startRun_400_response
+    listWorkflows_200_response_items_inner:
+      additionalProperties: true
+      example:
+        metadata:
+          environment: environment
+          name: name
+          description: description
+          tags:
+          - tags
+          - tags
+        schemaVersion: schemaVersion
+        nodes:
+        - schema:
+            parameters:
+              key: ""
+            results:
+              key: ""
+          package:
+            name: name
+            version: version
+          ui:
+            outputPorts:
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            inputPorts:
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            widgets:
+            - component: component
+              options:
+                helpText: helpText
+                min: 1.4658129805029452
+                max: 5.962133916683182
+                collapsed: true
+                options:
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                readOnly: true
+                step: 5.637376656633329
+                placeholder: placeholder
+                required: true
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - component: component
+              options:
+                helpText: helpText
+                min: 1.4658129805029452
+                max: 5.962133916683182
+                collapsed: true
+                options:
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                readOnly: true
+                step: 5.637376656633329
+                placeholder: placeholder
+                required: true
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+          id: id
+          label: label
+          position:
+            x: 0.8008281904610115
+            "y": 6.027456183070403
+          type: type
+          parameters:
+            key: ""
+          results:
+            done: false
+            status: PENDING
+        - schema:
+            parameters:
+              key: ""
+            results:
+              key: ""
+          package:
+            name: name
+            version: version
+          ui:
+            outputPorts:
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            inputPorts:
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            widgets:
+            - component: component
+              options:
+                helpText: helpText
+                min: 1.4658129805029452
+                max: 5.962133916683182
+                collapsed: true
+                options:
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                readOnly: true
+                step: 5.637376656633329
+                placeholder: placeholder
+                required: true
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - component: component
+              options:
+                helpText: helpText
+                min: 1.4658129805029452
+                max: 5.962133916683182
+                collapsed: true
+                options:
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                readOnly: true
+                step: 5.637376656633329
+                placeholder: placeholder
+                required: true
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+          id: id
+          label: label
+          position:
+            x: 0.8008281904610115
+            "y": 6.027456183070403
+          type: type
+          parameters:
+            key: ""
+          results:
+            done: false
+            status: PENDING
+        runtimes:
+          key:
+            workerHints:
+              package: package
+              minVersion: minVersion
+        edges:
+        - id: id
+          source:
+            node: node
+            port: port
+          target:
+            node: node
+            port: port
+        - id: id
+          source:
+            node: node
+            port: port
+          target:
+            node: node
+            port: port
+        id: id
+        tags:
+        - tags
+        - tags
+      properties:
+        id:
+          description: Workflow UUID
+          type: string
+        schemaVersion:
+          description: e.g. "2025-10"
+          pattern: "^[0-9]{4}-[0-9]{2}$"
+          type: string
+        metadata:
+          $ref: "#/components/schemas/startRun_request_workflow_metadata"
+        nodes:
+          items:
+            $ref: "#/components/schemas/startRun_request_workflow_nodes_inner"
+          minItems: 1
+          type: array
+        edges:
+          items:
+            $ref: "#/components/schemas/startRun_request_workflow_edges_inner"
+          minItems: 0
+          type: array
+        runtimes:
+          additionalProperties:
+            $ref: "#/components/schemas/startRun_request_workflow_runtimes_value"
+          description: Runtime hints keyed by runtime name
+        tags:
+          items:
+            type: string
+          type: array
+      required:
+      - edges
+      - id
+      - nodes
+      - schemaVersion
+      title: listWorkflows_200_response_items_inner
+    listWorkflows_200_response:
+      example:
+        nextCursor: nextCursor
+        items:
+        - metadata:
+            environment: environment
+            name: name
+            description: description
+            tags:
+            - tags
+            - tags
+          schemaVersion: schemaVersion
+          nodes:
+          - schema:
+              parameters:
+                key: ""
+              results:
+                key: ""
+            package:
+              name: name
+              version: version
+            ui:
+              outputPorts:
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              inputPorts:
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              widgets:
+              - component: component
+                options:
+                  helpText: helpText
+                  min: 1.4658129805029452
+                  max: 5.962133916683182
+                  collapsed: true
+                  options:
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  readOnly: true
+                  step: 5.637376656633329
+                  placeholder: placeholder
+                  required: true
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - component: component
+                options:
+                  helpText: helpText
+                  min: 1.4658129805029452
+                  max: 5.962133916683182
+                  collapsed: true
+                  options:
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  readOnly: true
+                  step: 5.637376656633329
+                  placeholder: placeholder
+                  required: true
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+            id: id
+            label: label
+            position:
+              x: 0.8008281904610115
+              "y": 6.027456183070403
+            type: type
+            parameters:
+              key: ""
+            results:
+              done: false
+              status: PENDING
+          - schema:
+              parameters:
+                key: ""
+              results:
+                key: ""
+            package:
+              name: name
+              version: version
+            ui:
+              outputPorts:
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              inputPorts:
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              widgets:
+              - component: component
+                options:
+                  helpText: helpText
+                  min: 1.4658129805029452
+                  max: 5.962133916683182
+                  collapsed: true
+                  options:
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  readOnly: true
+                  step: 5.637376656633329
+                  placeholder: placeholder
+                  required: true
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - component: component
+                options:
+                  helpText: helpText
+                  min: 1.4658129805029452
+                  max: 5.962133916683182
+                  collapsed: true
+                  options:
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  readOnly: true
+                  step: 5.637376656633329
+                  placeholder: placeholder
+                  required: true
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+            id: id
+            label: label
+            position:
+              x: 0.8008281904610115
+              "y": 6.027456183070403
+            type: type
+            parameters:
+              key: ""
+            results:
+              done: false
+              status: PENDING
+          runtimes:
+            key:
+              workerHints:
+                package: package
+                minVersion: minVersion
+          edges:
+          - id: id
+            source:
+              node: node
+              port: port
+            target:
+              node: node
+              port: port
+          - id: id
+            source:
+              node: node
+              port: port
+            target:
+              node: node
+              port: port
+          id: id
+          tags:
+          - tags
+          - tags
+        - metadata:
+            environment: environment
+            name: name
+            description: description
+            tags:
+            - tags
+            - tags
+          schemaVersion: schemaVersion
+          nodes:
+          - schema:
+              parameters:
+                key: ""
+              results:
+                key: ""
+            package:
+              name: name
+              version: version
+            ui:
+              outputPorts:
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              inputPorts:
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              widgets:
+              - component: component
+                options:
+                  helpText: helpText
+                  min: 1.4658129805029452
+                  max: 5.962133916683182
+                  collapsed: true
+                  options:
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  readOnly: true
+                  step: 5.637376656633329
+                  placeholder: placeholder
+                  required: true
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - component: component
+                options:
+                  helpText: helpText
+                  min: 1.4658129805029452
+                  max: 5.962133916683182
+                  collapsed: true
+                  options:
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  readOnly: true
+                  step: 5.637376656633329
+                  placeholder: placeholder
+                  required: true
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+            id: id
+            label: label
+            position:
+              x: 0.8008281904610115
+              "y": 6.027456183070403
+            type: type
+            parameters:
+              key: ""
+            results:
+              done: false
+              status: PENDING
+          - schema:
+              parameters:
+                key: ""
+              results:
+                key: ""
+            package:
+              name: name
+              version: version
+            ui:
+              outputPorts:
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              inputPorts:
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              widgets:
+              - component: component
+                options:
+                  helpText: helpText
+                  min: 1.4658129805029452
+                  max: 5.962133916683182
+                  collapsed: true
+                  options:
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  readOnly: true
+                  step: 5.637376656633329
+                  placeholder: placeholder
+                  required: true
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - component: component
+                options:
+                  helpText: helpText
+                  min: 1.4658129805029452
+                  max: 5.962133916683182
+                  collapsed: true
+                  options:
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+                  readOnly: true
+                  step: 5.637376656633329
+                  placeholder: placeholder
+                  required: true
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+            id: id
+            label: label
+            position:
+              x: 0.8008281904610115
+              "y": 6.027456183070403
+            type: type
+            parameters:
+              key: ""
+            results:
+              done: false
+              status: PENDING
+          runtimes:
+            key:
+              workerHints:
+                package: package
+                minVersion: minVersion
+          edges:
+          - id: id
+            source:
+              node: node
+              port: port
+            target:
+              node: node
+              port: port
+          - id: id
+            source:
+              node: node
+              port: port
+            target:
+              node: node
+              port: port
+          id: id
+          tags:
+          - tags
+          - tags
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/listWorkflows_200_response_items_inner"
+          title: items
+          type: array
+        nextCursor:
+          title: nextCursor
+          type: string
+          nullable: true
+      required:
+      - items
+      title: listWorkflows_200_response
+    persistWorkflow_201_response:
+      example:
+        workflowId: workflowId
+      properties:
+        workflowId:
+          title: code
+          type: string
+      required:
+      - workflowId
+      title: persistWorkflow_201_response
+    listNodes_200_response_items_inner:
+      additionalProperties: true
+      example:
+        description: description
+        label: label
+        type: type
+        category: category
+        status: draft
+        tags:
+        - tags
+        - tags
+      properties:
+        type:
+          description: Unique type id
+          type: string
+        status:
+          enum:
+          - draft
+          - published
+          - deprecated
+          type: string
+        category:
+          title: code
+          type: string
+        label:
+          title: code
+          type: string
+        description:
+          title: code
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+      required:
+      - category
+      - label
+      - status
+      - type
+      title: listNodes_200_response_items_inner
+    listNodes_200_response:
+      additionalProperties: {}
+      example:
+        nextCursor: nextCursor
+        items:
+        - description: description
+          label: label
+          type: type
+          category: category
+          status: draft
+          tags:
+          - tags
+          - tags
+        - description: description
+          label: label
+          type: type
+          category: category
+          status: draft
+          tags:
+          - tags
+          - tags
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/listNodes_200_response_items_inner"
+          type: array
+        nextCursor:
+          title: nextCursor
+          type: string
+          nullable: true
+      required:
+      - items
+      title: listNodes_200_response
+    getNode_200_response_runtimes_value:
+      additionalProperties: true
+      example:
+        handler: handler
+        config:
+          key: ""
+      properties:
+        config:
+          additionalProperties: true
+          description: Runtime default config
+          type: object
+        handler:
+          description: Entry handler name in runtime
+          type: string
+      title: getNode_200_response_runtimes_value
+    getNode_200_response_schema:
+      additionalProperties: true
+      example:
+        parameters:
+          key: ""
+        results:
+          key: ""
+      properties:
+        parameters:
+          additionalProperties: true
+          description: JSON Schema (parameters)
+          type: object
+        results:
+          additionalProperties: true
+          description: JSON Schema (results)
+          type: object
+      required:
+      - parameters
+      - results
+      title: getNode_200_response_schema
+    getNode_200_response:
+      additionalProperties: {}
+      example:
+        schema:
+          parameters:
+            key: ""
+          results:
+            key: ""
+        extensions:
+          key: ""
+        metadata:
+          key: ""
+        runtimes:
+          key:
+            handler: handler
+            config:
+              key: ""
+        ui:
+          outputPorts:
+          - binding:
+              mode: read
+              path: path
+            label: label
+            key: key
+          - binding:
+              mode: read
+              path: path
+            label: label
+            key: key
+          inputPorts:
+          - binding:
+              mode: read
+              path: path
+            label: label
+            key: key
+          - binding:
+              mode: read
+              path: path
+            label: label
+            key: key
+          widgets:
+          - component: component
+            options:
+              helpText: helpText
+              min: 1.4658129805029452
+              max: 5.962133916683182
+              collapsed: true
+              options:
+              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+              readOnly: true
+              step: 5.637376656633329
+              placeholder: placeholder
+              required: true
+            binding:
+              mode: read
+              path: path
+            label: label
+            key: key
+          - component: component
+            options:
+              helpText: helpText
+              min: 1.4658129805029452
+              max: 5.962133916683182
+              collapsed: true
+              options:
+              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
+              readOnly: true
+              step: 5.637376656633329
+              placeholder: placeholder
+              required: true
+            binding:
+              mode: read
+              path: path
+            label: label
+            key: key
+        description: description
+        label: label
+        type: type
+        category: category
+        conditions:
+          key: ""
+        status: draft
+        tags:
+        - tags
+        - tags
+      properties:
+        type:
+          title: code
+          type: string
+        status:
+          enum:
+          - draft
+          - published
+          - deprecated
+          type: string
+        category:
+          title: code
+          type: string
+        label:
+          title: code
+          type: string
+        description:
+          title: code
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+        runtimes:
+          additionalProperties:
+            $ref: "#/components/schemas/getNode_200_response_runtimes_value"
+          description: Implementation declarations per runtime namespace
+        schema:
+          $ref: "#/components/schemas/getNode_200_response_schema"
+        ui:
+          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui"
+        conditions:
+          additionalProperties: true
+          description: "Reserved: gating rules / pre-run checks"
+          type: object
+        extensions:
+          additionalProperties: true
+          description: "Reserved: extensibility hooks"
+          type: object
+        metadata:
+          additionalProperties: true
+          description: "Reserved: docs, example links, observability tags"
+          type: object
+      required:
+      - category
+      - label
+      - schema
+      - status
+      - type
+      title: getNode_200_response
+    listNodeCategories_200_response_items_inner:
+      additionalProperties: true
+      example:
+        id: id
+        title: title
+        order: 0
+      properties:
+        id:
+          title: code
+          type: string
+        title:
+          title: code
+          type: string
+        order:
+          default: 0
+          type: integer
+      required:
+      - id
+      - title
+      title: listNodeCategories_200_response_items_inner
+    listNodeCategories_200_response:
+      example:
+        items:
+        - id: id
+          title: title
+          order: 0
+        - id: id
+          title: title
+          order: 0
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/listNodeCategories_200_response_items_inner"
+          title: items
+          type: array
+      required:
+      - items
+      title: listNodeCategories_200_response
+    listWorkers_200_response_items_inner_packages_inner:
+      example:
+        name: name
+        version: version
+        status: installed
+      properties:
+        name:
+          title: code
+          type: string
+        version:
+          title: code
+          type: string
+        status:
+          enum:
+          - installed
+          - installing
+          - uninstalling
+          - removed
+          - failed
+          - unknown
+          title: status
+          type: string
+      title: listWorkers_200_response_items_inner_packages_inner
+    listWorkers_200_response_items_inner:
+      example:
+        hostname: hostname
+        lastHeartbeatAt: 2000-01-23T04:56:07.000+00:00
+        queues:
+        - queues
+        - queues
+        meta:
+          key: ""
+        id: id
+        packages:
+        - name: name
+          version: version
+          status: installed
+        - name: name
+          version: version
+          status: installed
+      properties:
+        id:
+          title: code
+          type: string
+        hostname:
+          title: code
+          type: string
+        lastHeartbeatAt:
+          format: date-time
+          title: lastHeartbeatAt
+          type: string
+        queues:
+          items:
+            type: string
+          title: queues
+          type: array
+        packages:
+          items:
+            $ref: "#/components/schemas/listWorkers_200_response_items_inner_packages_inner"
+          title: packages
+          type: array
+        meta:
+          additionalProperties: true
+          title: meta
+          type: object
+      required:
+      - id
+      - lastHeartbeatAt
+      - queues
+      title: listWorkers_200_response_items_inner
+    listWorkers_200_response:
+      example:
+        nextCursor: nextCursor
+        items:
+        - hostname: hostname
+          lastHeartbeatAt: 2000-01-23T04:56:07.000+00:00
+          queues:
+          - queues
+          - queues
+          meta:
+            key: ""
+          id: id
+          packages:
+          - name: name
+            version: version
+            status: installed
+          - name: name
+            version: version
+            status: installed
+        - hostname: hostname
+          lastHeartbeatAt: 2000-01-23T04:56:07.000+00:00
+          queues:
+          - queues
+          - queues
+          meta:
+            key: ""
+          id: id
+          packages:
+          - name: name
+            version: version
+            status: installed
+          - name: name
+            version: version
+            status: installed
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/listWorkers_200_response_items_inner"
+          title: items
+          type: array
+        nextCursor:
+          title: nextCursor
+          type: string
+          nullable: true
+      title: listWorkers_200_response
+    sendWorkerCommand_request_oneOf:
+      properties:
+        type:
+          title: type
+      required:
+      - type
+      title: sendWorkerCommand_request_oneOf
+    sendWorkerCommand_request_oneOf_1:
+      properties:
+        type:
+          title: type
+        queue:
+          title: code
+          type: string
+      required:
+      - queue
+      - type
+      title: sendWorkerCommand_request_oneOf_1
+    sendWorkerCommand_request_oneOf_2:
+      properties:
+        type:
+          title: type
+        name:
+          title: code
+          type: string
+        version:
+          title: code
+          type: string
+      required:
+      - name
+      - type
+      title: sendWorkerCommand_request_oneOf_2
+    sendWorkerCommand_request_oneOf_3:
+      properties:
+        type:
+          title: type
+        name:
+          title: code
+          type: string
+      required:
+      - name
+      - type
+      title: sendWorkerCommand_request_oneOf_3
+    sendWorkerCommand_request:
+      additionalProperties: {}
+      oneOf:
+      - $ref: "#/components/schemas/sendWorkerCommand_request_oneOf"
+      - $ref: "#/components/schemas/sendWorkerCommand_request_oneOf_1"
+      - $ref: "#/components/schemas/sendWorkerCommand_request_oneOf_2"
+      - $ref: "#/components/schemas/sendWorkerCommand_request_oneOf_3"
+      title: sendWorkerCommand_request
+    sendWorkerCommand_202_response:
+      example:
+        workerId: workerId
+        commandId: commandId
+        acceptedAt: 2000-01-23T04:56:07.000+00:00
+      properties:
+        commandId:
+          title: code
+          type: string
+        workerId:
+          title: code
+          type: string
+        acceptedAt:
+          format: date-time
+          title: lastHeartbeatAt
+          type: string
+      required:
+      - acceptedAt
+      - commandId
+      - workerId
+      title: sendWorkerCommand_202_response
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: JWT
+      scheme: bearer
+      type: http

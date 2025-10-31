@@ -1,0 +1,34 @@
+{
+  "$id": "https://astraflow.example.com/schema/ws.heartbeat.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Heartbeat Payload",
+  "type": "object",
+  "required": ["healthy", "metrics"],
+  "properties": {
+    "healthy": { "type": "boolean" },
+    "metrics": {
+      "type": "object",
+      "required": ["inflight"],
+      "properties": {
+        "cpu_pct": { "type": "number", "minimum": 0 },
+        "mem_pct": { "type": "number", "minimum": 0 },
+        "disk_pct": { "type": "number", "minimum": 0 },
+        "inflight": { "type": "integer", "minimum": 0 },
+        "latency_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Optional end-to-end latency estimate for latest task."
+        }
+      },
+      "additionalProperties": true
+    },
+    "packages": {
+      "type": "object",
+      "properties": {
+        "drift": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

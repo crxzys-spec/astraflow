@@ -1,0 +1,27 @@
+get:
+  tags: [Workers]
+  summary: List workers (scheduler view)
+  operationId: listWorkers
+  parameters:
+    - name: queue
+      in: query
+      required: false
+      schema:
+        type: string
+    - $ref: '../components/parameters.yaml#/PageLimit'
+    - $ref: '../components/parameters.yaml#/PageCursor'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '../components/schemas/index.yaml#/Worker'
+              nextCursor:
+                type: string
+                nullable: true

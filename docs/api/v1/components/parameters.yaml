@@ -1,0 +1,48 @@
+RunId:
+  name: runId
+  in: path
+  required: true
+  schema:
+    type: string
+WorkflowId:
+  name: workflowId
+  in: path
+  required: true
+  schema:
+    type: string
+WorkerId:
+  name: workerId
+  in: path
+  required: true
+  schema:
+    type: string
+IdempotencyKey:
+  name: Idempotency-Key
+  in: header
+  required: false
+  schema:
+    type: string
+    maxLength: 64
+  description: Optional idempotency key for safe retries; if reused with a different body, return 409
+PageLimit:
+  name: limit
+  in: query
+  required: false
+  schema:
+    type: integer
+    minimum: 1
+    maximum: 200
+    default: 50
+PageCursor:
+  name: cursor
+  in: query
+  required: false
+  schema:
+    type: string
+LastEventID:
+  name: Last-Event-ID
+  in: header
+  required: false
+  schema:
+    type: string
+  description: Resume SSE from a specific monotonic event id

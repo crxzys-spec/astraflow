@@ -1,0 +1,15 @@
+get:
+  tags: [Runs]
+  summary: Get run summary
+  operationId: getRun
+  parameters:
+    - $ref: '../components/parameters.yaml#/RunId'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/Run'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

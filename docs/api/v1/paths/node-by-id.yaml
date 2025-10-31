@@ -1,0 +1,24 @@
+get:
+  tags: [Nodes]
+  summary: Get a node definition
+  operationId: getNode
+  parameters:
+    - name: nodeId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: OK
+      headers:
+        ETag:
+          description: Weak ETag based on the node definition content hash
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/NodeDefinition'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

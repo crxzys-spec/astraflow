@@ -1,0 +1,2 @@
+datamodel-code-generator>=0.25,<1.0
+PyYAML>=6.0,<7.0

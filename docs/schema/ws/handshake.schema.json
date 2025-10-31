@@ -1,0 +1,31 @@
+{
+  "$id": "https://astraflow.example.com/schema/ws.handshake.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Handshake Payload",
+  "type": "object",
+  "required": ["protocol", "auth", "worker"],
+  "properties": {
+    "protocol": { "type": "integer", "minimum": 1 },
+    "auth": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["token", "mtls"] },
+        "token": { "type": ["string", "null"] },
+        "fingerprint": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "worker": {
+      "type": "object",
+      "required": ["id", "version", "hostname"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "hostname": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

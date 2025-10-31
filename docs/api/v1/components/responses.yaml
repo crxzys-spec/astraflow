@@ -1,0 +1,18 @@
+BadRequest:
+  description: Invalid input
+  content:
+    application/json:
+      schema:
+        $ref: './schemas/index.yaml#/Error'
+NotFound:
+  description: Resource not found
+  content:
+    application/json:
+      schema:
+        $ref: './schemas/index.yaml#/Error'
+Conflict:
+  description: Conflict (e.g., idempotency-key reuse with different body)
+  content:
+    application/json:
+      schema:
+        $ref: './schemas/index.yaml#/Error'

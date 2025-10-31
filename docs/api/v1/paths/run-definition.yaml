@@ -1,0 +1,21 @@
+get:
+  tags: [Runs]
+  summary: Get the immutable workflow snapshot used by this run
+  operationId: getRunDefinition
+  parameters:
+    - $ref: '../components/parameters.yaml#/RunId'
+  responses:
+    '200':
+      description: OK
+      headers:
+        ETag:
+          description: Weak ETag based on definitionHash
+          schema:
+            type: string
+            example: 'W/"sha256:9e22a4..."'
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/Workflow'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

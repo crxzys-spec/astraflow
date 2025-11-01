@@ -1,9 +1,20 @@
-﻿import { nanoid } from 'nanoid';
-import type { EdgeEndpoint } from '../../../api/models/edgeEndpoint';
-import type { Workflow as WorkflowDefinition } from '../../../api/models/workflow';
-import type { WorkflowEdge } from '../../../api/models/workflowEdge';
-import type { WorkflowNode } from '../../../api/models/workflowNode';
-import type { WorkflowNodeSchema } from '../../../api/models/workflowNodeSchema';
+import { nanoid } from "nanoid";
+import type { EdgeEndpoint } from "../../../api/models/edgeEndpoint";
+import type { Workflow as WorkflowDefinition } from "../../../api/models/workflow";
+import type { WorkflowEdge } from "../../../api/models/workflowEdge";
+import type { WorkflowNode } from "../../../api/models/workflowNode";
+import { WorkflowNodeStatus } from "../../../api/models/workflowNodeStatus";
+import type { WorkflowMetadata } from "../../../api/models/workflowMetadata";
+import type { WorkflowNodeSchema } from "../../../api/models/workflowNodeSchema";
+import type { NodeUI } from "../../../api/models/nodeUI";
+import type { UIBinding } from "../../../api/models/uIBinding";
+import { UIBindingMode } from "../../../api/models/uIBindingMode";
+import type { UIPort } from "../../../api/models/uIPort";
+import type { UIWidget } from "../../../api/models/uIWidget";
+import type { ManifestBinding } from "../../../api/models/manifestBinding";
+import type { ManifestNodeUI } from "../../../api/models/manifestNodeUI";
+import type { ManifestPort } from "../../../api/models/manifestPort";
+import type { ManifestWidget } from "../../../api/models/manifestWidget";
 import type {
   WorkflowDraft,
   WorkflowEdgeDraft,
@@ -11,11 +22,43 @@ import type {
   WorkflowNodeDraft,
   WorkflowPaletteNode,
   XYPosition
-} from '../types.ts';
-import { buildDefaultsFromSchema } from './schemaDefaults.ts';
-import type { JsonSchema } from './schemaDefaults.ts';
+} from "../types.ts";
+import { buildDefaultsFromSchema } from "./schemaDefaults.ts";
+import type { JsonSchema } from "./schemaDefaults.ts";
 
-const clone = <T>(value: T): T => (value === undefined ? value : (JSON.parse(JSON.stringify(value)) as T));
+const clone = <T>(value: T): T =>
+  value === undefined ? value : (JSON.parse(JSON.stringify(value)) as T);
+
+const coerceBinding = (binding?: ManifestBinding): UIBinding => ({
+  path: binding?.path ?? "",
+  mode: (binding?.mode ?? "write") as UIBindingMode
+});
+
+const coercePorts = (ports?: ManifestPort[]): UIPort[] | undefined =>
+  ports?.map((port) => ({
+    key: port.key,
+    label: port.label,
+    binding: coerceBinding(port.binding)
+  }));
+
+const coerceWidgets = (widgets?: ManifestWidget[]): UIWidget[] | undefined =>
+  widgets?.map((widget) => ({
+    key: widget.key,
+    label: widget.label,
+    component: widget.component,
+    binding: coerceBinding(widget.binding),
+    options: widget.options as UIWidget["options"]
+  }));
+
+const coerceManifestUi = (ui?: ManifestNodeUI | null): NodeUI | undefined => {
+  if (!ui) {
+    return undefined;
+  }
+  return {
+    inputPorts: coercePorts(ui.inputPorts),
+    widgets: coerceWidgets(ui.widgets)
+  };
+};
 
 const nodeDefaultsFromSchema = (schema?: WorkflowNodeSchema | Record<string, unknown> | null) => {
   const container = (schema ?? {}) as { parameters?: JsonSchema; results?: JsonSchema };
@@ -27,15 +70,15 @@ const nodeDefaultsFromSchema = (schema?: WorkflowNodeSchema | Record<string, unk
   };
 };
 
+const mapEndpoint = (endpoint: EdgeEndpoint): WorkflowEdgeEndpointDraft => ({
+  nodeId: endpoint.node,
+  portId: endpoint.port
+});
+
 const mapEdgeToDraft = (edge: WorkflowEdge): WorkflowEdgeDraft => ({
   id: edge.id ?? nanoid(),
   source: mapEndpoint(edge.source),
   target: mapEndpoint(edge.target)
-});
-
-const mapEndpoint = (endpoint: EdgeEndpoint): WorkflowEdgeEndpointDraft => ({
-  nodeId: endpoint.node,
-  portId: endpoint.port
 });
 
 export const workflowDefinitionToDraft = (definition: WorkflowDefinition): WorkflowDraft => {
@@ -47,12 +90,12 @@ export const workflowDefinitionToDraft = (definition: WorkflowDefinition): Workf
       id: node.id,
       label: node.label,
       nodeKind: node.type,
-    status: node.status ?? "draft",
-    category: node.category ?? "uncategorised",
-    description: node.description,
-    tags: node.tags,
-    packageName: node.package?.name,
-    packageVersion: node.package?.version,
+      status: node.status ?? WorkflowNodeStatus.draft,
+      category: node.category ?? "uncategorised",
+      description: node.description,
+      tags: node.tags,
+      packageName: node.package?.name,
+      packageVersion: node.package?.version,
       parameters: clone(node.parameters ?? defaultParams),
       results: clone(node.results ?? defaultResults),
       schema: node.schema,
@@ -69,7 +112,6 @@ export const workflowDefinitionToDraft = (definition: WorkflowDefinition): Workf
 
   const edges: WorkflowEdgeDraft[] = (definition.edges ?? []).map(mapEdgeToDraft);
 
-  // populate dependencies
   edges.forEach((edge) => {
     const target = nodes[edge.target.nodeId];
     if (target && !target.dependencies.includes(edge.source.nodeId)) {
@@ -93,10 +135,10 @@ export const workflowDraftToDefinition = (draft: WorkflowDraft): WorkflowDefinit
     id: node.id,
     type: node.nodeKind,
     package: {
-      name: node.packageName ?? '',
-      version: node.packageVersion ?? ''
+      name: node.packageName ?? "",
+      version: node.packageVersion ?? ""
     },
-    status: node.status ?? "draft",
+    status: (node.status ?? WorkflowNodeStatus.draft) as WorkflowNodeStatus,
     category: node.category ?? "uncategorised",
     label: node.label,
     description: node.description,
@@ -114,10 +156,14 @@ export const workflowDraftToDefinition = (draft: WorkflowDraft): WorkflowDefinit
     target: { node: edge.target.nodeId, port: edge.target.portId }
   }));
 
+  const metadata: WorkflowMetadata = draft.metadata ?? {
+    name: draft.id
+  };
+
   return {
     id: draft.id,
     schemaVersion: draft.schemaVersion,
-    metadata: draft.metadata,
+    metadata,
     nodes,
     edges,
     tags: draft.tags
@@ -137,7 +183,7 @@ export const createNodeDraftFromTemplate = (
     id: nodeId,
     label: manifestNode.label,
     nodeKind: manifestNode.type,
-    status: manifestNode.status,
+    status: manifestNode.status ?? WorkflowNodeStatus.draft,
     category: manifestNode.category,
     description: manifestNode.description,
     tags: manifestNode.tags,
@@ -146,7 +192,7 @@ export const createNodeDraftFromTemplate = (
     parameters,
     results,
     schema,
-    ui: manifestNode.ui,
+    ui: coerceManifestUi(manifestNode.ui),
     position,
     dependencies: [],
     resources: []
@@ -163,13 +209,3 @@ export const ensureUniqueNodeId = (existing: Record<string, WorkflowNodeDraft>, 
   }
   return baseId;
 };
-
-
-
-
-
-
-
-
-
-

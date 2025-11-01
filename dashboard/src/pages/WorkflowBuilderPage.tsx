@@ -1,42 +1,62 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetPackageQueryOptions,
   useGetPackage,
   useGetWorkflow,
-  useListPackages
+  useListPackages,
+  useStartRun
 } from "../api/endpoints";
+import type { StartRunMutationError } from "../api/endpoints";
+import type { AxiosError } from "axios";
 import { WidgetRegistryProvider, useWorkflowStore } from "../features/workflow";
-import type { WorkflowPaletteNode, XYPosition } from "../features/workflow";
+import { workflowDraftToDefinition } from "../features/workflow/utils/converters";
+import type { WorkflowDefinition, WorkflowPaletteNode, XYPosition } from "../features/workflow";
 import WorkflowCanvas from "../features/workflow/components/WorkflowCanvas";
-import WorkflowPalette from "../features/workflow/components/WorkflowPalette";
-import type { PaletteNode } from "../features/workflow/components/WorkflowPalette";
+import WorkflowPalette, { type PaletteNode } from "../features/workflow/components/WorkflowPalette";
 import NodeInspector from "../features/workflow/components/NodeInspector";
 
 const STALE_TIME_MS = 5 * 60_000;
 
+const createEmptyWorkflow = (id: string, name: string): WorkflowDefinition => ({
+  id,
+  schemaVersion: "2025-10",
+  metadata: { name },
+  nodes: [],
+  edges: []
+});
+
+type RunMessage =
+  | { type: "success"; runId?: string; text: string }
+  | { type: "error"; text: string };
+
 const WorkflowBuilderPage = () => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { workflowId } = useParams<{ workflowId: string }>();
+
   const loadWorkflow = useWorkflowStore((state) => state.loadWorkflow);
   const resetWorkflow = useWorkflowStore((state) => state.resetWorkflow);
   const workflow = useWorkflowStore((state) => state.workflow);
   const addNodeFromTemplate = useWorkflowStore((state) => state.addNodeFromTemplate);
-  const queryClient = useQueryClient();
+
   const [selectedPackageName, setSelectedPackageName] = useState<string>();
   const [selectedVersion, setSelectedVersion] = useState<string>();
+  const [runMessage, setRunMessage] = useState<RunMessage | null>(null);
 
-  const workflowQuery = useGetWorkflow(workflowId ?? "", {
-    query: {
-      enabled: Boolean(workflowId)
-    }
+  const isNewSession = !workflowId || workflowId === "new";
+  const workflowKey = !isNewSession ? workflowId : undefined;
+
+  const workflowQuery = useGetWorkflow(workflowKey ?? "", {
+    query: { enabled: Boolean(workflowKey) }
   });
 
   const packagesQuery = useListPackages({
-    query: {
-      staleTime: STALE_TIME_MS
-    }
+    query: { staleTime: STALE_TIME_MS }
   });
+
+  const startRun = useStartRun(undefined, queryClient);
 
   const packageSummaries = packagesQuery.data?.data?.items ?? [];
 
@@ -44,9 +64,8 @@ const WorkflowBuilderPage = () => {
     (packageName: string) => {
       setSelectedPackageName(packageName);
       const summary = packageSummaries.find((item) => item.name === packageName);
-      const preferredVersion = summary
-        ? summary.defaultVersion ?? summary.latestVersion ?? summary.versions?.[0]
-        : undefined;
+      const preferredVersion =
+        summary?.defaultVersion ?? summary?.latestVersion ?? summary?.versions?.[0];
       setSelectedVersion(preferredVersion);
     },
     [packageSummaries]
@@ -55,6 +74,38 @@ const WorkflowBuilderPage = () => {
   const handleSelectVersion = useCallback((version: string) => {
     setSelectedVersion(version || undefined);
   }, []);
+
+  useEffect(() => {
+    if (isNewSession && !workflow) {
+      const localId = workflowId && workflowId !== "new" ? workflowId : "wf-local";
+      const localName =
+        workflowId && workflowId !== "new" ? `Workflow ${workflowId}` : "Local Builder Session";
+      loadWorkflow(createEmptyWorkflow(localId, localName));
+    }
+  }, [isNewSession, workflow, workflowId, loadWorkflow]);
+
+  useEffect(() => {
+    if (workflowQuery.data?.data) {
+      loadWorkflow(workflowQuery.data.data);
+    }
+  }, [workflowQuery.data, loadWorkflow]);
+
+  const queryError = workflowQuery.error as AxiosError | undefined;
+  const notFound =
+    Boolean(workflowKey) &&
+    workflowQuery.isError &&
+    queryError?.response?.status === 404;
+  const loadError =
+    Boolean(workflowKey) &&
+    workflowQuery.isError &&
+    queryError?.response?.status !== 404 &&
+    workflowQuery.error != null;
+
+  useEffect(() => {
+    if (notFound) {
+      resetWorkflow();
+    }
+  }, [notFound, resetWorkflow]);
 
   useEffect(() => {
     if (!packageSummaries.length) {
@@ -68,7 +119,8 @@ const WorkflowBuilderPage = () => {
     if (!currentSummary) {
       const first = packageSummaries[0];
       setSelectedPackageName(first.name);
-      const preferredVersion = first.defaultVersion ?? first.latestVersion ?? first.versions?.[0];
+      const preferredVersion =
+        first.defaultVersion ?? first.latestVersion ?? first.versions?.[0];
       setSelectedVersion(preferredVersion);
       return;
     }
@@ -89,29 +141,18 @@ const WorkflowBuilderPage = () => {
         : undefined
       : undefined,
     {
-      query: {
-        enabled: Boolean(selectedPackageName),
-        staleTime: STALE_TIME_MS
-      }
+      query: { enabled: Boolean(selectedPackageName), staleTime: STALE_TIME_MS }
     }
   );
-
-  useEffect(() => {
-    if (workflowQuery.data?.data) {
-      loadWorkflow(workflowQuery.data.data);
-    }
-  }, [workflowQuery.data, loadWorkflow]);
-
-  useEffect(() => () => resetWorkflow(), [resetWorkflow]);
 
   const manifestNodes = packageDetailQuery.data?.data?.manifest?.nodes ?? [];
 
   const paletteItems = useMemo<PaletteNode[]>(
     () =>
       manifestNodes.map((node) => ({
-        type: node.type,
-        label: node.label,
-        category: node.category,
+        type: node.type ?? "",
+        label: node.label ?? node.type ?? "",
+        category: node.category ?? "uncategorised",
         description: node.description,
         tags: node.tags,
         status: node.status
@@ -157,24 +198,71 @@ const WorkflowBuilderPage = () => {
     [addNodeFromTemplate, queryClient, selectedPackageName]
   );
 
-  if (!workflowId) {
-    return <div className="card">Workflow ID is missing.</div>;
-  }
+  const handleRunWorkflow = useCallback(() => {
+    if (!workflow) {
+      return;
+    }
+    const definition = workflowDraftToDefinition(workflow);
+    setRunMessage(null);
 
-  if (workflowQuery.isLoading) {
-    return <div className="card">Loading workflow...</div>;
-  }
+    startRun.mutate(
+      { data: { clientId: "builder-ui", workflow: definition } },
+      {
+        onSuccess: (result) => {
+          const run = result.data;
+          const runId = run?.runId;
+          setRunMessage({
+            type: "success",
+            runId,
+            text: runId ? `Run ${runId} queued` : "Run queued successfully"
+          });
+          if (runId) {
+            setTimeout(() => navigate(`/runs/${runId}`), 1200);
+          }
+        },
+        onError: (error: StartRunMutationError) => {
+          const message =
+            error.response?.data?.message ?? error.message ?? "Failed to start run";
+          setRunMessage({ type: "error", text: message });
+        }
+      }
+    );
+  }, [navigate, startRun, workflow]);
 
-  if (workflowQuery.isError) {
+  if (notFound) {
     return (
-      <div className="card">
-        <p className="error">Failed to load workflow: {(workflowQuery.error as Error).message}</p>
+      <div className="card stack">
+        <h2>Workflow not found</h2>
+        <p className="text-subtle">
+          The workflow "{workflowId}" does not exist. You can start a new session instead.
+        </p>
+        <div className="builder-actions">
+          <button className="btn" type="button" onClick={() => navigate("/workflows/new")}>
+            Start new builder session
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="card stack">
+        <h2>Unable to load workflow</h2>
+        <p className="error">
+          {(queryError?.response?.data as { message?: string })?.message ??
+            queryError?.message ??
+            "An unexpected error occurred."}
+        </p>
+        <button className="btn" type="button" onClick={() => workflowKey && workflowQuery.refetch()}>
+          Retry
+        </button>
       </div>
     );
   }
 
   if (!workflow) {
-    return <div className="card">Workflow not available.</div>;
+    return <div className="card">Initializing builder...</div>;
   }
 
   const packagesError = packagesQuery.isError ? (packagesQuery.error as Error) : undefined;
@@ -183,34 +271,61 @@ const WorkflowBuilderPage = () => {
     : undefined;
 
   return (
-    <div className="workflow-builder stack">
-      <div className="card">
-        <h2>{workflow.metadata?.name ?? "Workflow Builder"}</h2>
-        <p className="text-subtle">ID: {workflow.id}</p>
-      </div>
-      <WidgetRegistryProvider>
-        <div className="workflow-builder__body">
-          <WorkflowPalette
-            packages={packageSummaries}
-            selectedPackageName={selectedPackageName}
-            selectedVersion={selectedVersion}
-            onSelectPackage={handleSelectPackage}
-            onSelectVersion={handleSelectVersion}
-            nodes={paletteItems}
-            isLoadingPackages={packagesQuery.isLoading}
-            isLoadingNodes={packageDetailQuery.isLoading}
-            packagesError={packagesError}
-            nodesError={packageDetailError}
-            onRetryPackages={() => packagesQuery.refetch()}
-            onRetryNodes={selectedPackageName ? () => packageDetailQuery.refetch() : undefined}
-          />
-          <div className="card workflow-canvas-card">
+    <WidgetRegistryProvider>
+      <section className="builder-screen">
+        <header className="builder-toolbar card">
+          <div className="builder-meta">
+            <span className="builder-meta__title">{workflow.metadata?.name ?? "Untitled Workflow"}</span>
+            <span className="builder-meta__subtitle">ID: {workflow.id}</span>
+          </div>
+          <div className="builder-actions">
+            {runMessage && (
+              <span
+                className={`builder-alert builder-alert--${runMessage.type}`}
+                role={runMessage.type === "error" ? "alert" : "status"}
+              >
+                {runMessage.text}
+              </span>
+            )}
+            <button
+              className="btn btn--primary"
+              type="button"
+              onClick={handleRunWorkflow}
+              disabled={startRun.isPending}
+            >
+              {startRun.isPending ? "Launching..." : "Run Workflow"}
+            </button>
+          </div>
+        </header>
+
+        <div className="builder-grid">
+          <div className="builder-panel card card--surface">
+            <WorkflowPalette
+              packages={packageSummaries}
+              selectedPackageName={selectedPackageName}
+              selectedVersion={selectedVersion}
+              onSelectPackage={handleSelectPackage}
+              onSelectVersion={handleSelectVersion}
+              nodes={paletteItems}
+              isLoadingPackages={packagesQuery.isLoading}
+              isLoadingNodes={packageDetailQuery.isLoading}
+              packagesError={packagesError}
+              nodesError={packageDetailError}
+              onRetryPackages={() => packagesQuery.refetch()}
+              onRetryNodes={selectedPackageName ? () => packageDetailQuery.refetch() : undefined}
+            />
+          </div>
+
+          <div className="builder-canvas card card--canvas">
             <WorkflowCanvas onNodeDrop={handleNodeDrop} />
           </div>
-          <NodeInspector />
+
+          <div className="builder-inspector card card--surface">
+            <NodeInspector />
+          </div>
         </div>
-      </WidgetRegistryProvider>
-    </div>
+      </section>
+    </WidgetRegistryProvider>
   );
 };
 

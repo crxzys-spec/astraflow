@@ -22,7 +22,7 @@ DEFAULT_PAYLOAD: Dict[str, Any] = {
         "nodes": [
             {
                 "id": "node-1",
-                "type": "example.echo",
+                "type": "example.pkg.echo",
                 "package": {"name": "example.pkg", "version": "1.0.0"},
                 "status": "published",
                 "category": "Utilities",

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "1.0.0",
+  "name": "example.pkg",
+  "version": "1.0.0",
+  "description": "Example echo package used for smoke testing the worker pipeline.",
+  "adapters": [
+    {
+      "name": "echo",
+      "entrypoint": "adapters.echo",
+      "capabilities": [
+        "example.pkg.echo"
+      ]
+    }
+  ],
+  "python": {
+    "requires": ">=3.10,<3.12",
+    "dependencies": []
+  },
+  "nodes": [
+    {
+      "type": "example.pkg.echo",
+      "status": "published",
+      "category": "Examples",
+      "label": "Echo Message",
+      "description": "Emits the provided message as the node output.",
+      "tags": [
+        "example",
+        "echo"
+      ],
+      "adapter": "echo",
+      "handler": "echo",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "string",
+              "description": "Message that will be returned verbatim.",
+              "default": ""
+            }
+          },
+          "required": []
+        },
+        "results": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "description": "Execution status.",
+              "enum": [
+                "succeeded",
+                "failed"
+              ]
+            },
+            "outputs": {
+              "type": "object",
+              "properties": {
+                "echo": {
+                  "type": "string",
+                  "description": "Echoed message value."
+                }
+              },
+              "required": []
+            }
+          },
+          "required": []
+        }
+      },
+      "ui": {
+        "widgets": [
+          {
+            "key": "message",
+            "label": "Message",
+            "component": "TextInput",
+            "binding": {
+              "path": "/parameters/message"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "resources": [],
+  "hooks": {
+    "install": [],
+    "uninstall": []
+  }
+}

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import shutil
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -134,32 +135,68 @@ class PackageManager:
     def _register_handlers(self, package_dir: Path, manifest: Dict[str, Any]) -> None:
         package_name = manifest["name"]
         version = manifest["version"]
+        # Ensure the package modules are importable during handler registration.
+        package_sys_path = str(package_dir)
+        if package_sys_path not in sys.path:
+            sys.path.insert(0, package_sys_path)
+
+        adapter_entrypoints: dict[str, str] = {}
         adapters = manifest.get("adapters", [])
         for adapter in adapters:
             entrypoint = adapter.get("entrypoint")
-            runtime = adapter.get("runtime")
+            name = adapter.get("name")
+            if not entrypoint or not name:
+                LOGGER.warning("Skipping adapter with missing name/entrypoint: %s", adapter)
+                continue
+            adapter_entrypoints[name] = entrypoint
             capabilities = adapter.get("capabilities", [])
             metadata = adapter.get("metadata", {})
             for capability in capabilities:
+                handler_name = capability.split(".")[-1]
                 handler_key = capability
-                self._registry.register(package_name, version, handler_key, entrypoint, metadata=metadata | {"runtime": runtime})
+                resolved_entrypoint = self._build_entrypoint(entrypoint, handler_name)
+                self._registry.register(
+                    package_name,
+                    version,
+                    handler_key,
+                    resolved_entrypoint,
+                    metadata=metadata | {"adapter": name},
+                )
+
         nodes = manifest.get("nodes", [])
         for node in nodes:
-            runtimes = node.get("runtimes", {})
-            for runtime_name, runtime_cfg in runtimes.items():
-                handler_key = f"{node.get('type')}::{runtime_name}"
-                handler_name = runtime_cfg.get("handler")
-                if handler_name:
-                    entrypoint = self._resolve_node_entrypoint(manifest, runtime_name, handler_name)
-                    self._registry.register(package_name, version, handler_key, entrypoint, metadata={"node": node.get("type")})
+            adapter_name = node.get("adapter")
+            handler_name = node.get("handler")
+            node_type = node.get("type")
+            if not adapter_name or not handler_name or not node_type:
+                LOGGER.warning("Skipping node with missing adapter/handler/type: %s", node)
+                continue
+            entrypoint = adapter_entrypoints.get(adapter_name)
+            if not entrypoint:
+                LOGGER.warning(
+                    "Node %s references unknown adapter %s", node_type, adapter_name
+                )
+                continue
+            resolved_entrypoint = self._build_entrypoint(entrypoint, handler_name)
+            metadata = {
+                "node": node_type,
+                "adapter": adapter_name,
+                "config": node.get("config", {}),
+            }
+            self._registry.register(
+                package_name,
+                version,
+                node_type,
+                resolved_entrypoint,
+                metadata=metadata,
+            )
 
     @staticmethod
-    def _resolve_node_entrypoint(manifest: Dict[str, Any], runtime_name: str, handler_name: str) -> str:
-        for adapter in manifest.get("adapters", []):
-            if adapter.get("runtime") == runtime_name:
-                entrypoint = adapter.get("entrypoint")
-                if not entrypoint:
-                    continue
-                module_name, attr = entrypoint.split(":", 1)
-                return f"{module_name}:{attr}.{handler_name}"
-        raise ValueError(f"Unable to resolve handler {handler_name} for runtime {runtime_name}")
+    def _build_entrypoint(module_path: str, handler_name: str) -> str:
+        if ":" in module_path:
+            module_name, base_attr = module_path.split(":", 1)
+            target_attr = (
+                base_attr if base_attr.split(".")[-1] == handler_name else f"{base_attr}.{handler_name}"
+            )
+            return f"{module_name}:{target_attr}"
+        return f"{module_path}:{handler_name}"

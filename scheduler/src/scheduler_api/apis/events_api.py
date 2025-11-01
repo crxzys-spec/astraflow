@@ -23,7 +23,7 @@ from fastapi import (  # noqa: F401
 )
 
 from scheduler_api.models.extra_models import TokenModel  # noqa: F401
-from pydantic import StrictStr
+from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
 from scheduler_api.security_api import get_token_bearerAuth
@@ -45,7 +45,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
     response_model_by_alias=True,
 )
 async def sse_global_events(
-    last_event_id: Annotated[Optional[StrictStr], Header(description="Resume SSE from a specific monotonic event id")] = None,
+    last_event_id: Annotated[Optional[StrictStr], Field(description="Resume SSE from a specific monotonic event id")] = Header(None, description="Resume SSE from a specific monotonic event id"),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),

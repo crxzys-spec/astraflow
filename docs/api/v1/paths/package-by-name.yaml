@@ -1,0 +1,25 @@
+get:
+  tags: [Packages]
+  summary: Get package detail
+  operationId: getPackage
+  parameters:
+    - name: packageName
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: version
+      in: query
+      required: false
+      description: Specific package version to retrieve. Defaults to the latest available version.
+      schema:
+        type: string
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/PackageDetail'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

@@ -9,7 +9,7 @@ security:
 tags:
 - name: Runs
 - name: Workflows
-- name: Nodes
+- name: Packages
 - name: Workers
 - name: Events
 paths:
@@ -269,127 +269,57 @@ paths:
       summary: Read stored workflow (latest)
       tags:
       - Workflows
-  /api/v1/nodes:
+  /api/v1/packages:
     get:
-      operationId: listNodes
-      parameters:
-      - explode: true
-        in: query
-        name: limit
-        required: false
-        schema:
-          default: 50
-          maximum: 200
-          minimum: 1
-          type: integer
-        style: form
-      - explode: true
-        in: query
-        name: cursor
-        required: false
-        schema:
-          type: string
-        style: form
-      - explode: true
-        in: query
-        name: category
-        required: false
-        schema:
-          title: code
-          type: string
-        style: form
-      - explode: true
-        in: query
-        name: status
-        required: false
-        schema:
-          enum:
-          - draft
-          - published
-          - deprecated
-          type: string
-        style: form
-      - explode: true
-        in: query
-        name: tag
-        required: false
-        schema:
-          description: Filter by a single tag; may repeat
-          type: string
-        style: form
-      - explode: true
-        in: query
-        name: q
-        required: false
-        schema:
-          description: Search in type/label/description
-          type: string
-        style: form
+      operationId: listPackages
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/listNodes_200_response"
+                $ref: "#/components/schemas/listPackages_200_response"
           description: OK
-          headers:
-            ETag:
-              description: Weak ETag for the catalog page
-              explode: false
-              schema:
-                type: string
-              style: simple
-      summary: List available nodes (catalog)
+      summary: List available packages
       tags:
-      - Nodes
-  /api/v1/nodes/{nodeId}:
+      - Packages
+  /api/v1/packages/{packageName}:
     get:
-      operationId: getNode
+      operationId: getPackage
       parameters:
       - explode: false
         in: path
-        name: nodeId
+        name: packageName
         required: true
         schema:
           title: code
           type: string
         style: simple
+      - description: Specific package version to retrieve. Defaults to the latest
+          available version.
+        explode: true
+        in: query
+        name: version
+        required: false
+        schema:
+          title: code
+          type: string
+        style: form
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/getNode_200_response"
+                $ref: "#/components/schemas/getPackage_200_response"
           description: OK
-          headers:
-            ETag:
-              description: Weak ETag based on the node definition content hash
-              explode: false
-              schema:
-                type: string
-              style: simple
         "404":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/startRun_400_response"
           description: Resource not found
-      summary: Get a node definition
+      summary: Get package detail
       tags:
-      - Nodes
-  /api/v1/nodes:categories:
-    get:
-      operationId: listNodeCategories
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/listNodeCategories_200_response"
-          description: OK
-      summary: List node categories
-      tags:
-      - Nodes
+      - Packages
   /api/v1/workers:
     get:
       operationId: listWorkers
@@ -1095,28 +1025,9 @@ components:
       - x
       - "y"
       title: startRun_request_workflow_nodes_inner_position
-    startRun_request_workflow_nodes_inner_results:
-      additionalProperties: true
-      description: Most recent execution echo by worker
-      example:
-        done: false
-        status: PENDING
-      properties:
-        status:
-          description: Worker-level node status echo
-          enum:
-          - PENDING
-          - RUNNING
-          - SUCCEEDED
-          - FAILED
-          type: string
-        done:
-          default: false
-          type: boolean
-      title: startRun_request_workflow_nodes_inner_results
     startRun_request_workflow_nodes_inner_schema:
       additionalProperties: true
-      description: Optional JSON Schemas for parameters/results
+      description: JSON Schemas for parameters/results.
       example:
         parameters:
           key: ""
@@ -1173,81 +1084,12 @@ components:
       - key
       - label
       title: startRun_request_workflow_nodes_inner_ui_inputPorts_inner
-    startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options_oneOf_inner:
-      additionalProperties: true
-      properties:
-        label:
-          title: code
-          type: string
-        value:
-          title: code
-          type: string
-      required:
-      - label
-      - value
-      title: startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options_oneOf_inner
-    startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options:
-      description: "Enum options; strings or {label,value} pairs"
-      oneOf:
-      - items:
-          type: string
-        type: array
-      - items:
-          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options_oneOf_inner"
-        type: array
-      title: startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-    startRun_request_workflow_nodes_inner_ui_widgets_inner_options:
-      additionalProperties: true
-      example:
-        helpText: helpText
-        min: 1.4658129805029452
-        max: 5.962133916683182
-        collapsed: true
-        options:
-        - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-        - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-        readOnly: true
-        step: 5.637376656633329
-        placeholder: placeholder
-        required: true
-      properties:
-        placeholder:
-          title: code
-          type: string
-        helpText:
-          title: code
-          type: string
-        required:
-          type: boolean
-        readOnly:
-          type: boolean
-        collapsed:
-          type: boolean
-        min:
-          type: number
-        max:
-          type: number
-        step:
-          type: number
-        options:
-          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options"
-      title: startRun_request_workflow_nodes_inner_ui_widgets_inner_options
     startRun_request_workflow_nodes_inner_ui_widgets_inner:
       additionalProperties: true
       example:
         component: component
         options:
-          helpText: helpText
-          min: 1.4658129805029452
-          max: 5.962133916683182
-          collapsed: true
-          options:
-          - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-          - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-          readOnly: true
-          step: 5.637376656633329
-          placeholder: placeholder
-          required: true
+          key: ""
         binding:
           mode: read
           path: path
@@ -1266,7 +1108,9 @@ components:
         binding:
           $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_inputPorts_inner_binding"
         options:
-          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_widgets_inner_options"
+          additionalProperties: true
+          title: meta
+          type: object
       required:
       - binding
       - component
@@ -1301,17 +1145,7 @@ components:
         widgets:
         - component: component
           options:
-            helpText: helpText
-            min: 1.4658129805029452
-            max: 5.962133916683182
-            collapsed: true
-            options:
-            - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-            - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-            readOnly: true
-            step: 5.637376656633329
-            placeholder: placeholder
-            required: true
+            key: ""
           binding:
             mode: read
             path: path
@@ -1319,17 +1153,7 @@ components:
           key: key
         - component: component
           options:
-            helpText: helpText
-            min: 1.4658129805029452
-            max: 5.962133916683182
-            collapsed: true
-            options:
-            - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-            - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-            readOnly: true
-            step: 5.637376656633329
-            placeholder: placeholder
-            required: true
+            key: ""
           binding:
             mode: read
             path: path
@@ -1360,6 +1184,12 @@ components:
         package:
           name: name
           version: version
+        description: description
+        label: label
+        type: type
+        tags:
+        - tags
+        - tags
         ui:
           outputPorts:
           - binding:
@@ -1386,17 +1216,7 @@ components:
           widgets:
           - component: component
             options:
-              helpText: helpText
-              min: 1.4658129805029452
-              max: 5.962133916683182
-              collapsed: true
-              options:
-              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-              readOnly: true
-              step: 5.637376656633329
-              placeholder: placeholder
-              required: true
+              key: ""
             binding:
               mode: read
               path: path
@@ -1404,33 +1224,22 @@ components:
             key: key
           - component: component
             options:
-              helpText: helpText
-              min: 1.4658129805029452
-              max: 5.962133916683182
-              collapsed: true
-              options:
-              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-              readOnly: true
-              step: 5.637376656633329
-              placeholder: placeholder
-              required: true
+              key: ""
             binding:
               mode: read
               path: path
             label: label
             key: key
         id: id
-        label: label
         position:
           x: 0.8008281904610115
           "y": 6.027456183070403
-        type: type
+        category: category
         parameters:
           key: ""
         results:
-          done: false
-          status: PENDING
+          key: ""
+        status: draft
       properties:
         id:
           description: Node UUID
@@ -1440,25 +1249,49 @@ components:
           type: string
         package:
           $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_package"
+        status:
+          description: Node lifecycle state.
+          enum:
+          - draft
+          - published
+          - deprecated
+          type: string
+        category:
+          description: Group/category shown in the builder palette.
+          type: string
         label:
           title: code
           type: string
+        description:
+          description: Longer description of the node behaviour.
+          type: string
+        tags:
+          description: Keywords for search/filter.
+          items:
+            title: code
+            type: string
+          type: array
         position:
           $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_position"
         parameters:
           additionalProperties: true
-          description: Free-form parameter payload
+          description: Default parameter payload seeded from the manifest schema.
           type: object
         results:
-          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_results"
+          additionalProperties: true
+          description: Default results payload seeded from the manifest schema.
+          type: object
         schema:
           $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_schema"
         ui:
           $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui"
       required:
+      - category
       - id
       - label
+      - package
       - position
+      - status
       - type
       title: startRun_request_workflow_nodes_inner
     startRun_request_workflow_edges_inner_source:
@@ -1500,28 +1333,6 @@ components:
       - source
       - target
       title: startRun_request_workflow_edges_inner
-    startRun_request_workflow_runtimes_value_workerHints:
-      additionalProperties: true
-      example:
-        package: package
-        minVersion: minVersion
-      properties:
-        package:
-          title: code
-          type: string
-        minVersion:
-          title: code
-          type: string
-      title: startRun_request_workflow_runtimes_value_workerHints
-    startRun_request_workflow_runtimes_value:
-      example:
-        workerHints:
-          package: package
-          minVersion: minVersion
-      properties:
-        workerHints:
-          $ref: "#/components/schemas/startRun_request_workflow_runtimes_value_workerHints"
-      title: startRun_request_workflow_runtimes_value
     startRun_request_workflow:
       additionalProperties: {}
       example:
@@ -1542,6 +1353,12 @@ components:
           package:
             name: name
             version: version
+          description: description
+          label: label
+          type: type
+          tags:
+          - tags
+          - tags
           ui:
             outputPorts:
             - binding:
@@ -1568,17 +1385,7 @@ components:
             widgets:
             - component: component
               options:
-                helpText: helpText
-                min: 1.4658129805029452
-                max: 5.962133916683182
-                collapsed: true
-                options:
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                readOnly: true
-                step: 5.637376656633329
-                placeholder: placeholder
-                required: true
+                key: ""
               binding:
                 mode: read
                 path: path
@@ -1586,33 +1393,22 @@ components:
               key: key
             - component: component
               options:
-                helpText: helpText
-                min: 1.4658129805029452
-                max: 5.962133916683182
-                collapsed: true
-                options:
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                readOnly: true
-                step: 5.637376656633329
-                placeholder: placeholder
-                required: true
+                key: ""
               binding:
                 mode: read
                 path: path
               label: label
               key: key
           id: id
-          label: label
           position:
             x: 0.8008281904610115
             "y": 6.027456183070403
-          type: type
+          category: category
           parameters:
             key: ""
           results:
-            done: false
-            status: PENDING
+            key: ""
+          status: draft
         - schema:
             parameters:
               key: ""
@@ -1621,6 +1417,12 @@ components:
           package:
             name: name
             version: version
+          description: description
+          label: label
+          type: type
+          tags:
+          - tags
+          - tags
           ui:
             outputPorts:
             - binding:
@@ -1647,17 +1449,7 @@ components:
             widgets:
             - component: component
               options:
-                helpText: helpText
-                min: 1.4658129805029452
-                max: 5.962133916683182
-                collapsed: true
-                options:
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                readOnly: true
-                step: 5.637376656633329
-                placeholder: placeholder
-                required: true
+                key: ""
               binding:
                 mode: read
                 path: path
@@ -1665,38 +1457,22 @@ components:
               key: key
             - component: component
               options:
-                helpText: helpText
-                min: 1.4658129805029452
-                max: 5.962133916683182
-                collapsed: true
-                options:
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                readOnly: true
-                step: 5.637376656633329
-                placeholder: placeholder
-                required: true
+                key: ""
               binding:
                 mode: read
                 path: path
               label: label
               key: key
           id: id
-          label: label
           position:
             x: 0.8008281904610115
             "y": 6.027456183070403
-          type: type
+          category: category
           parameters:
             key: ""
           results:
-            done: false
-            status: PENDING
-        runtimes:
-          key:
-            workerHints:
-              package: package
-              minVersion: minVersion
+            key: ""
+          status: draft
         edges:
         - id: id
           source:
@@ -1736,17 +1512,16 @@ components:
             $ref: "#/components/schemas/startRun_request_workflow_edges_inner"
           minItems: 0
           type: array
-        runtimes:
-          additionalProperties:
-            $ref: "#/components/schemas/startRun_request_workflow_runtimes_value"
-          description: Runtime hints keyed by runtime name
         tags:
+          description: Workflow-level tags.
           items:
+            title: code
             type: string
           type: array
       required:
       - edges
       - id
+      - metadata
       - nodes
       - schemaVersion
       title: startRun_request_workflow
@@ -1845,6 +1620,12 @@ components:
           package:
             name: name
             version: version
+          description: description
+          label: label
+          type: type
+          tags:
+          - tags
+          - tags
           ui:
             outputPorts:
             - binding:
@@ -1871,17 +1652,7 @@ components:
             widgets:
             - component: component
               options:
-                helpText: helpText
-                min: 1.4658129805029452
-                max: 5.962133916683182
-                collapsed: true
-                options:
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                readOnly: true
-                step: 5.637376656633329
-                placeholder: placeholder
-                required: true
+                key: ""
               binding:
                 mode: read
                 path: path
@@ -1889,33 +1660,22 @@ components:
               key: key
             - component: component
               options:
-                helpText: helpText
-                min: 1.4658129805029452
-                max: 5.962133916683182
-                collapsed: true
-                options:
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                readOnly: true
-                step: 5.637376656633329
-                placeholder: placeholder
-                required: true
+                key: ""
               binding:
                 mode: read
                 path: path
               label: label
               key: key
           id: id
-          label: label
           position:
             x: 0.8008281904610115
             "y": 6.027456183070403
-          type: type
+          category: category
           parameters:
             key: ""
           results:
-            done: false
-            status: PENDING
+            key: ""
+          status: draft
         - schema:
             parameters:
               key: ""
@@ -1924,6 +1684,12 @@ components:
           package:
             name: name
             version: version
+          description: description
+          label: label
+          type: type
+          tags:
+          - tags
+          - tags
           ui:
             outputPorts:
             - binding:
@@ -1950,17 +1716,7 @@ components:
             widgets:
             - component: component
               options:
-                helpText: helpText
-                min: 1.4658129805029452
-                max: 5.962133916683182
-                collapsed: true
-                options:
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                readOnly: true
-                step: 5.637376656633329
-                placeholder: placeholder
-                required: true
+                key: ""
               binding:
                 mode: read
                 path: path
@@ -1968,38 +1724,22 @@ components:
               key: key
             - component: component
               options:
-                helpText: helpText
-                min: 1.4658129805029452
-                max: 5.962133916683182
-                collapsed: true
-                options:
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                readOnly: true
-                step: 5.637376656633329
-                placeholder: placeholder
-                required: true
+                key: ""
               binding:
                 mode: read
                 path: path
               label: label
               key: key
           id: id
-          label: label
           position:
             x: 0.8008281904610115
             "y": 6.027456183070403
-          type: type
+          category: category
           parameters:
             key: ""
           results:
-            done: false
-            status: PENDING
-        runtimes:
-          key:
-            workerHints:
-              package: package
-              minVersion: minVersion
+            key: ""
+          status: draft
         edges:
         - id: id
           source:
@@ -2039,17 +1779,15 @@ components:
             $ref: "#/components/schemas/startRun_request_workflow_edges_inner"
           minItems: 0
           type: array
-        runtimes:
-          additionalProperties:
-            $ref: "#/components/schemas/startRun_request_workflow_runtimes_value"
-          description: Runtime hints keyed by runtime name
         tags:
+          description: Workflow-level tags.
           items:
             type: string
           type: array
       required:
       - edges
       - id
+      - metadata
       - nodes
       - schemaVersion
       title: listWorkflows_200_response_items_inner
@@ -2074,6 +1812,12 @@ components:
             package:
               name: name
               version: version
+            description: description
+            label: label
+            type: type
+            tags:
+            - tags
+            - tags
             ui:
               outputPorts:
               - binding:
@@ -2100,17 +1844,7 @@ components:
               widgets:
               - component: component
                 options:
-                  helpText: helpText
-                  min: 1.4658129805029452
-                  max: 5.962133916683182
-                  collapsed: true
-                  options:
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  readOnly: true
-                  step: 5.637376656633329
-                  placeholder: placeholder
-                  required: true
+                  key: ""
                 binding:
                   mode: read
                   path: path
@@ -2118,33 +1852,22 @@ components:
                 key: key
               - component: component
                 options:
-                  helpText: helpText
-                  min: 1.4658129805029452
-                  max: 5.962133916683182
-                  collapsed: true
-                  options:
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  readOnly: true
-                  step: 5.637376656633329
-                  placeholder: placeholder
-                  required: true
+                  key: ""
                 binding:
                   mode: read
                   path: path
                 label: label
                 key: key
             id: id
-            label: label
             position:
               x: 0.8008281904610115
               "y": 6.027456183070403
-            type: type
+            category: category
             parameters:
               key: ""
             results:
-              done: false
-              status: PENDING
+              key: ""
+            status: draft
           - schema:
               parameters:
                 key: ""
@@ -2153,6 +1876,12 @@ components:
             package:
               name: name
               version: version
+            description: description
+            label: label
+            type: type
+            tags:
+            - tags
+            - tags
             ui:
               outputPorts:
               - binding:
@@ -2179,17 +1908,7 @@ components:
               widgets:
               - component: component
                 options:
-                  helpText: helpText
-                  min: 1.4658129805029452
-                  max: 5.962133916683182
-                  collapsed: true
-                  options:
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  readOnly: true
-                  step: 5.637376656633329
-                  placeholder: placeholder
-                  required: true
+                  key: ""
                 binding:
                   mode: read
                   path: path
@@ -2197,38 +1916,22 @@ components:
                 key: key
               - component: component
                 options:
-                  helpText: helpText
-                  min: 1.4658129805029452
-                  max: 5.962133916683182
-                  collapsed: true
-                  options:
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  readOnly: true
-                  step: 5.637376656633329
-                  placeholder: placeholder
-                  required: true
+                  key: ""
                 binding:
                   mode: read
                   path: path
                 label: label
                 key: key
             id: id
-            label: label
             position:
               x: 0.8008281904610115
               "y": 6.027456183070403
-            type: type
+            category: category
             parameters:
               key: ""
             results:
-              done: false
-              status: PENDING
-          runtimes:
-            key:
-              workerHints:
-                package: package
-                minVersion: minVersion
+              key: ""
+            status: draft
           edges:
           - id: id
             source:
@@ -2265,6 +1968,12 @@ components:
             package:
               name: name
               version: version
+            description: description
+            label: label
+            type: type
+            tags:
+            - tags
+            - tags
             ui:
               outputPorts:
               - binding:
@@ -2291,17 +2000,7 @@ components:
               widgets:
               - component: component
                 options:
-                  helpText: helpText
-                  min: 1.4658129805029452
-                  max: 5.962133916683182
-                  collapsed: true
-                  options:
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  readOnly: true
-                  step: 5.637376656633329
-                  placeholder: placeholder
-                  required: true
+                  key: ""
                 binding:
                   mode: read
                   path: path
@@ -2309,33 +2008,22 @@ components:
                 key: key
               - component: component
                 options:
-                  helpText: helpText
-                  min: 1.4658129805029452
-                  max: 5.962133916683182
-                  collapsed: true
-                  options:
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  readOnly: true
-                  step: 5.637376656633329
-                  placeholder: placeholder
-                  required: true
+                  key: ""
                 binding:
                   mode: read
                   path: path
                 label: label
                 key: key
             id: id
-            label: label
             position:
               x: 0.8008281904610115
               "y": 6.027456183070403
-            type: type
+            category: category
             parameters:
               key: ""
             results:
-              done: false
-              status: PENDING
+              key: ""
+            status: draft
           - schema:
               parameters:
                 key: ""
@@ -2344,6 +2032,12 @@ components:
             package:
               name: name
               version: version
+            description: description
+            label: label
+            type: type
+            tags:
+            - tags
+            - tags
             ui:
               outputPorts:
               - binding:
@@ -2370,17 +2064,7 @@ components:
               widgets:
               - component: component
                 options:
-                  helpText: helpText
-                  min: 1.4658129805029452
-                  max: 5.962133916683182
-                  collapsed: true
-                  options:
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  readOnly: true
-                  step: 5.637376656633329
-                  placeholder: placeholder
-                  required: true
+                  key: ""
                 binding:
                   mode: read
                   path: path
@@ -2388,38 +2072,22 @@ components:
                 key: key
               - component: component
                 options:
-                  helpText: helpText
-                  min: 1.4658129805029452
-                  max: 5.962133916683182
-                  collapsed: true
-                  options:
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-                  readOnly: true
-                  step: 5.637376656633329
-                  placeholder: placeholder
-                  required: true
+                  key: ""
                 binding:
                   mode: read
                   path: path
                 label: label
                 key: key
             id: id
-            label: label
             position:
               x: 0.8008281904610115
               "y": 6.027456183070403
-            type: type
+            category: category
             parameters:
               key: ""
             results:
-              done: false
-              status: PENDING
-          runtimes:
-            key:
-              workerHints:
-                package: package
-                minVersion: minVersion
+              key: ""
+            status: draft
           edges:
           - id: id
             source:
@@ -2462,28 +2130,169 @@ components:
       required:
       - workflowId
       title: persistWorkflow_201_response
-    listNodes_200_response_items_inner:
+    listPackages_200_response_items_inner:
+      additionalProperties: true
+      example:
+        latestVersion: latestVersion
+        versions:
+        - versions
+        - versions
+        name: name
+        description: description
+        defaultVersion: defaultVersion
+      properties:
+        name:
+          title: code
+          type: string
+        description:
+          title: code
+          type: string
+        latestVersion:
+          title: code
+          type: string
+        defaultVersion:
+          title: code
+          type: string
+        versions:
+          items:
+            type: string
+          type: array
+      required:
+      - name
+      - versions
+      title: listPackages_200_response_items_inner
+    listPackages_200_response:
+      example:
+        items:
+        - latestVersion: latestVersion
+          versions:
+          - versions
+          - versions
+          name: name
+          description: description
+          defaultVersion: defaultVersion
+        - latestVersion: latestVersion
+          versions:
+          - versions
+          - versions
+          name: name
+          description: description
+          defaultVersion: defaultVersion
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/listPackages_200_response_items_inner"
+          title: items
+          type: array
+      required:
+      - items
+      title: listPackages_200_response
+    getPackage_200_response_manifest_adapters_inner:
+      additionalProperties: true
+      example:
+        idempotency: idempotency
+        metadata:
+          key: ""
+        capabilities:
+        - capabilities
+        - capabilities
+        entrypoint: entrypoint
+        name: name
+        description: description
+      properties:
+        name:
+          title: code
+          type: string
+        entrypoint:
+          pattern: "^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_.]*$"
+          type: string
+        capabilities:
+          items:
+            title: code
+            type: string
+          minItems: 1
+          type: array
+        description:
+          title: code
+          type: string
+        idempotency:
+          title: code
+          type: string
+        metadata:
+          additionalProperties: true
+          title: meta
+          type: object
+      required:
+      - capabilities
+      - entrypoint
+      - name
+      title: getPackage_200_response_manifest_adapters_inner
+    getPackage_200_response_manifest_python:
+      additionalProperties: true
+      example:
+        requires: requires
+        dependencies:
+        - dependencies
+        - dependencies
+      properties:
+        requires:
+          title: code
+          type: string
+        dependencies:
+          items:
+            type: string
+          type: array
+      required:
+      - requires
+      title: getPackage_200_response_manifest_python
+    getPackage_200_response_manifest_nodes_inner_schema_parameters:
+      oneOf:
+      - additionalProperties: true
+        title: meta
+        type: object
+      - type: boolean
+      title: getPackage_200_response_manifest_nodes_inner_schema_parameters
+    getPackage_200_response_manifest_nodes_inner_schema:
+      additionalProperties: true
+      example:
+        parameters:
+          key: ""
+        results: null
+      properties:
+        parameters:
+          $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_schema_parameters"
+        results:
+          $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_schema_parameters"
+      title: getPackage_200_response_manifest_nodes_inner_schema
+    getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner_binding:
+      additionalProperties: true
+      example:
+        mode: read
+        path: path
+      properties:
+        path:
+          title: code
+          type: string
+        mode:
+          enum:
+          - read
+          - write
+          - two_way
+          type: string
+      required:
+      - path
+      title: getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner_binding
+    getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner:
       additionalProperties: true
       example:
         description: description
+        binding:
+          mode: read
+          path: path
         label: label
-        type: type
-        category: category
-        status: draft
-        tags:
-        - tags
-        - tags
+        key: key
       properties:
-        type:
-          description: Unique type id
-          type: string
-        status:
-          enum:
-          - draft
-          - published
-          - deprecated
-          type: string
-        category:
+        key:
           title: code
           type: string
         label:
@@ -2492,120 +2301,108 @@ components:
         description:
           title: code
           type: string
-        tags:
-          items:
-            type: string
-          type: array
+        binding:
+          $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner_binding"
       required:
-      - category
+      - binding
+      - key
       - label
-      - status
-      - type
-      title: listNodes_200_response_items_inner
-    listNodes_200_response:
-      additionalProperties: {}
+      title: getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner
+    getPackage_200_response_manifest_nodes_inner_ui_widgets_inner:
+      additionalProperties: true
       example:
-        nextCursor: nextCursor
-        items:
-        - description: description
-          label: label
-          type: type
-          category: category
-          status: draft
-          tags:
-          - tags
-          - tags
-        - description: description
-          label: label
-          type: type
-          category: category
-          status: draft
-          tags:
-          - tags
-          - tags
+        component: component
+        options:
+          key: ""
+        binding:
+          mode: read
+          path: path
+        label: label
+        key: key
       properties:
-        items:
+        key:
+          title: code
+          type: string
+        label:
+          title: code
+          type: string
+        component:
+          title: code
+          type: string
+        binding:
+          $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner_binding"
+        options:
+          additionalProperties: true
+          title: meta
+          type: object
+      required:
+      - binding
+      - component
+      - key
+      - label
+      title: getPackage_200_response_manifest_nodes_inner_ui_widgets_inner
+    getPackage_200_response_manifest_nodes_inner_ui:
+      additionalProperties: true
+      example:
+        inputPorts:
+        - description: description
+          binding:
+            mode: read
+            path: path
+          label: label
+          key: key
+        - description: description
+          binding:
+            mode: read
+            path: path
+          label: label
+          key: key
+        widgets:
+        - component: component
+          options:
+            key: ""
+          binding:
+            mode: read
+            path: path
+          label: label
+          key: key
+        - component: component
+          options:
+            key: ""
+          binding:
+            mode: read
+            path: path
+          label: label
+          key: key
+      properties:
+        inputPorts:
           items:
-            $ref: "#/components/schemas/listNodes_200_response_items_inner"
+            $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner"
           type: array
-        nextCursor:
-          title: nextCursor
-          type: string
-          nullable: true
-      required:
-      - items
-      title: listNodes_200_response
-    getNode_200_response_runtimes_value:
+        widgets:
+          items:
+            $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_ui_widgets_inner"
+          type: array
+      title: getPackage_200_response_manifest_nodes_inner_ui
+    getPackage_200_response_manifest_nodes_inner:
       additionalProperties: true
-      example:
-        handler: handler
-        config:
-          key: ""
-      properties:
-        config:
-          additionalProperties: true
-          description: Runtime default config
-          type: object
-        handler:
-          description: Entry handler name in runtime
-          type: string
-      title: getNode_200_response_runtimes_value
-    getNode_200_response_schema:
-      additionalProperties: true
-      example:
-        parameters:
-          key: ""
-        results:
-          key: ""
-      properties:
-        parameters:
-          additionalProperties: true
-          description: JSON Schema (parameters)
-          type: object
-        results:
-          additionalProperties: true
-          description: JSON Schema (results)
-          type: object
-      required:
-      - parameters
-      - results
-      title: getNode_200_response_schema
-    getNode_200_response:
-      additionalProperties: {}
       example:
         schema:
           parameters:
             key: ""
-          results:
-            key: ""
-        extensions:
-          key: ""
-        metadata:
-          key: ""
-        runtimes:
-          key:
-            handler: handler
-            config:
-              key: ""
+          results: null
+        handler: handler
+        adapter: adapter
         ui:
-          outputPorts:
-          - binding:
-              mode: read
-              path: path
-            label: label
-            key: key
-          - binding:
-              mode: read
-              path: path
-            label: label
-            key: key
           inputPorts:
-          - binding:
+          - description: description
+            binding:
               mode: read
               path: path
             label: label
             key: key
-          - binding:
+          - description: description
+            binding:
               mode: read
               path: path
             label: label
@@ -2613,17 +2410,7 @@ components:
           widgets:
           - component: component
             options:
-              helpText: helpText
-              min: 1.4658129805029452
-              max: 5.962133916683182
-              collapsed: true
-              options:
-              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-              readOnly: true
-              step: 5.637376656633329
-              placeholder: placeholder
-              required: true
+              key: ""
             binding:
               mode: read
               path: path
@@ -2631,17 +2418,7 @@ components:
             key: key
           - component: component
             options:
-              helpText: helpText
-              min: 1.4658129805029452
-              max: 5.962133916683182
-              collapsed: true
-              options:
-              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-              - startRun_request_workflow_nodes_inner_ui_widgets_inner_options_options
-              readOnly: true
-              step: 5.637376656633329
-              placeholder: placeholder
-              required: true
+              key: ""
             binding:
               mode: read
               path: path
@@ -2651,7 +2428,7 @@ components:
         label: label
         type: type
         category: category
-        conditions:
+        config:
           key: ""
         status: draft
         tags:
@@ -2659,7 +2436,7 @@ components:
         - tags
       properties:
         type:
-          title: code
+          pattern: "^[A-Za-z0-9_.-]+$"
           type: string
         status:
           enum:
@@ -2680,71 +2457,443 @@ components:
           items:
             type: string
           type: array
-        runtimes:
-          additionalProperties:
-            $ref: "#/components/schemas/getNode_200_response_runtimes_value"
-          description: Implementation declarations per runtime namespace
+        adapter:
+          pattern: "^[A-Za-z0-9_.-]+$"
+          type: string
+        handler:
+          pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+          type: string
+        config:
+          additionalProperties: true
+          default: {}
+          description: Optional static configuration forwarded to the handler.
+          type: object
         schema:
-          $ref: "#/components/schemas/getNode_200_response_schema"
+          $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_schema"
         ui:
-          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui"
-        conditions:
-          additionalProperties: true
-          description: "Reserved: gating rules / pre-run checks"
-          type: object
-        extensions:
-          additionalProperties: true
-          description: "Reserved: extensibility hooks"
-          type: object
-        metadata:
-          additionalProperties: true
-          description: "Reserved: docs, example links, observability tags"
-          type: object
+          $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_ui"
       required:
+      - adapter
       - category
+      - handler
       - label
       - schema
       - status
       - type
-      title: getNode_200_response
-    listNodeCategories_200_response_items_inner:
+      title: getPackage_200_response_manifest_nodes_inner
+    getPackage_200_response_manifest_resources_inner:
       additionalProperties: true
       example:
-        id: id
-        title: title
-        order: 0
+        path: path
+        sha256: sha256
+        type: type
       properties:
-        id:
+        path:
           title: code
           type: string
-        title:
+        type:
           title: code
           type: string
-        order:
-          default: 0
-          type: integer
+        sha256:
+          pattern: "^[A-Fa-f0-9]{64}$"
+          type: string
       required:
-      - id
-      - title
-      title: listNodeCategories_200_response_items_inner
-    listNodeCategories_200_response:
+      - path
+      - type
+      title: getPackage_200_response_manifest_resources_inner
+    getPackage_200_response_manifest_hooks:
+      additionalProperties: true
       example:
-        items:
-        - id: id
-          title: title
-          order: 0
-        - id: id
-          title: title
-          order: 0
+        uninstall:
+        - uninstall
+        - uninstall
+        install:
+        - install
+        - install
       properties:
-        items:
+        install:
           items:
-            $ref: "#/components/schemas/listNodeCategories_200_response_items_inner"
-          title: items
+            type: string
           type: array
+        uninstall:
+          items:
+            type: string
+          type: array
+      title: getPackage_200_response_manifest_hooks
+    getPackage_200_response_manifest_signature:
+      additionalProperties: true
+      example:
+        sha256: sha256
+        signedBy: signedBy
+        signedAt: signedAt
+      properties:
+        sha256:
+          pattern: "^[A-Fa-f0-9]{64}$"
+          type: string
+        signedAt:
+          title: code
+          type: string
+        signedBy:
+          title: code
+          type: string
+      title: getPackage_200_response_manifest_signature
+    getPackage_200_response_manifest:
+      additionalProperties: {}
+      example:
+        python:
+          requires: requires
+          dependencies:
+          - dependencies
+          - dependencies
+        schemaVersion: schemaVersion
+        adapters:
+        - idempotency: idempotency
+          metadata:
+            key: ""
+          capabilities:
+          - capabilities
+          - capabilities
+          entrypoint: entrypoint
+          name: name
+          description: description
+        - idempotency: idempotency
+          metadata:
+            key: ""
+          capabilities:
+          - capabilities
+          - capabilities
+          entrypoint: entrypoint
+          name: name
+          description: description
+        nodes:
+        - schema:
+            parameters:
+              key: ""
+            results: null
+          handler: handler
+          adapter: adapter
+          ui:
+            inputPorts:
+            - description: description
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - description: description
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            widgets:
+            - component: component
+              options:
+                key: ""
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - component: component
+              options:
+                key: ""
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+          description: description
+          label: label
+          type: type
+          category: category
+          config:
+            key: ""
+          status: draft
+          tags:
+          - tags
+          - tags
+        - schema:
+            parameters:
+              key: ""
+            results: null
+          handler: handler
+          adapter: adapter
+          ui:
+            inputPorts:
+            - description: description
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - description: description
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            widgets:
+            - component: component
+              options:
+                key: ""
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+            - component: component
+              options:
+                key: ""
+              binding:
+                mode: read
+                path: path
+              label: label
+              key: key
+          description: description
+          label: label
+          type: type
+          category: category
+          config:
+            key: ""
+          status: draft
+          tags:
+          - tags
+          - tags
+        signature:
+          sha256: sha256
+          signedBy: signedBy
+          signedAt: signedAt
+        name: name
+        description: description
+        resources:
+        - path: path
+          sha256: sha256
+          type: type
+        - path: path
+          sha256: sha256
+          type: type
+        version: version
+        hooks:
+          uninstall:
+          - uninstall
+          - uninstall
+          install:
+          - install
+          - install
+      properties:
+        schemaVersion:
+          description: Manifest schema version (semver).
+          pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+          type: string
+        name:
+          description: Package identifier (lowercase with dots/underscores).
+          pattern: "^[a-z0-9]+([._-][a-z0-9]+)*$"
+          type: string
+        version:
+          description: Package version in semver format.
+          pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z\\.-]+)?$"
+          type: string
+        description:
+          description: Short summary of the package.
+          type: string
+        adapters:
+          items:
+            $ref: "#/components/schemas/getPackage_200_response_manifest_adapters_inner"
+          minItems: 1
+          type: array
+        python:
+          $ref: "#/components/schemas/getPackage_200_response_manifest_python"
+        nodes:
+          items:
+            $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner"
+          minItems: 1
+          type: array
+        resources:
+          items:
+            $ref: "#/components/schemas/getPackage_200_response_manifest_resources_inner"
+          type: array
+        hooks:
+          $ref: "#/components/schemas/getPackage_200_response_manifest_hooks"
+        signature:
+          $ref: "#/components/schemas/getPackage_200_response_manifest_signature"
       required:
-      - items
-      title: listNodeCategories_200_response
+      - adapters
+      - description
+      - name
+      - nodes
+      - python
+      - schemaVersion
+      - version
+      title: getPackage_200_response_manifest
+    getPackage_200_response:
+      additionalProperties: {}
+      example:
+        manifest:
+          python:
+            requires: requires
+            dependencies:
+            - dependencies
+            - dependencies
+          schemaVersion: schemaVersion
+          adapters:
+          - idempotency: idempotency
+            metadata:
+              key: ""
+            capabilities:
+            - capabilities
+            - capabilities
+            entrypoint: entrypoint
+            name: name
+            description: description
+          - idempotency: idempotency
+            metadata:
+              key: ""
+            capabilities:
+            - capabilities
+            - capabilities
+            entrypoint: entrypoint
+            name: name
+            description: description
+          nodes:
+          - schema:
+              parameters:
+                key: ""
+              results: null
+            handler: handler
+            adapter: adapter
+            ui:
+              inputPorts:
+              - description: description
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - description: description
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              widgets:
+              - component: component
+                options:
+                  key: ""
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - component: component
+                options:
+                  key: ""
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+            description: description
+            label: label
+            type: type
+            category: category
+            config:
+              key: ""
+            status: draft
+            tags:
+            - tags
+            - tags
+          - schema:
+              parameters:
+                key: ""
+              results: null
+            handler: handler
+            adapter: adapter
+            ui:
+              inputPorts:
+              - description: description
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - description: description
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              widgets:
+              - component: component
+                options:
+                  key: ""
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+              - component: component
+                options:
+                  key: ""
+                binding:
+                  mode: read
+                  path: path
+                label: label
+                key: key
+            description: description
+            label: label
+            type: type
+            category: category
+            config:
+              key: ""
+            status: draft
+            tags:
+            - tags
+            - tags
+          signature:
+            sha256: sha256
+            signedBy: signedBy
+            signedAt: signedAt
+          name: name
+          description: description
+          resources:
+          - path: path
+            sha256: sha256
+            type: type
+          - path: path
+            sha256: sha256
+            type: type
+          version: version
+          hooks:
+            uninstall:
+            - uninstall
+            - uninstall
+            install:
+            - install
+            - install
+        name: name
+        version: version
+        availableVersions:
+        - availableVersions
+        - availableVersions
+      properties:
+        name:
+          title: code
+          type: string
+        version:
+          title: code
+          type: string
+        availableVersions:
+          items:
+            type: string
+          type: array
+        manifest:
+          $ref: "#/components/schemas/getPackage_200_response_manifest"
+      required:
+      - manifest
+      - name
+      - version
+      title: getPackage_200_response
     listWorkers_200_response_items_inner_packages_inner:
       example:
         name: name

@@ -77,7 +77,7 @@ async def list_runs(
 )
 async def start_run(
     start_run_request: StartRunRequest = Body(None, description=""),
-    idempotency_key: Annotated[Optional[StrictStr], Header(description="Optional idempotency key for safe retries; if reused with a different body, return 409")] = None,
+    idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")] = Header(None, description="Optional idempotency key for safe retries; if reused with a different body, return 409", max_length=64),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),

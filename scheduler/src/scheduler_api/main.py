@@ -14,13 +14,14 @@
 
 from fastapi import FastAPI
 
+from scheduler_api.control_plane import router as ControlPlaneRouter
+from scheduler_api.catalog import catalog
+
 from scheduler_api.apis.events_api import router as EventsApiRouter
-from scheduler_api.apis.nodes_api import router as NodesApiRouter
+from scheduler_api.apis.packages_api import router as PackagesApiRouter
 from scheduler_api.apis.runs_api import router as RunsApiRouter
 from scheduler_api.apis.workers_api import router as WorkersApiRouter
 from scheduler_api.apis.workflows_api import router as WorkflowsApiRouter
-from scheduler_api.control_plane.ws import router as ControlPlaneRouter
-from scheduler_api.control_plane.orchestrator import run_orchestrator
 
 app = FastAPI(
     title="Scheduler Public API (v1)",
@@ -29,7 +30,7 @@ app = FastAPI(
 )
 
 app.include_router(EventsApiRouter)
-app.include_router(NodesApiRouter)
+app.include_router(PackagesApiRouter)
 app.include_router(RunsApiRouter)
 app.include_router(WorkersApiRouter)
 app.include_router(WorkflowsApiRouter)
@@ -37,5 +38,5 @@ app.include_router(ControlPlaneRouter)
 
 
 @app.on_event("startup")
-async def _start_orchestrator() -> None:
-    run_orchestrator.ensure_started()
+def _load_package_catalog() -> None:
+    catalog.reload()

@@ -25,8 +25,8 @@ def resolve_cli() -> str:
         candidates.append(env_cli)
     candidates.extend(
         [
-            "openapi-generator-cli",
             "openapi-generator-cli.cmd",
+            "openapi-generator-cli",
         ]
     )
 
@@ -84,18 +84,21 @@ def main() -> None:
                 if node.startswith("#/schemas/"):
                     node = node.replace("#/schemas/", "#/components/schemas/")
                 if node.startswith("#/parameters/"):
-                    node = node.replace("#/parameters/", "#/components/parameters/")
+                    node = node.replace(
+                        "#/parameters/", "#/components/parameters/")
                 if node.startswith("#/responses/"):
-                    node = node.replace("#/responses/", "#/components/responses/")
+                    node = node.replace(
+                        "#/responses/", "#/components/responses/")
                 return node
             return node
 
         spec = transform_refs(spec)
 
-        spec_path.write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
+        spec_path.write_text(
+            yaml.safe_dump(spec, sort_keys=False), encoding="utf-8"
+        )
 
-        cmd = [
-            cli,
+        base_cmd = [
             "generate",
             "-i",
             "openapi.yaml",
@@ -106,7 +109,18 @@ def main() -> None:
             "--additional-properties",
             "packageName=scheduler_api",
         ]
-        subprocess.run(cmd, check=True, cwd=str(spec_dir))
+        if cli.lower().endswith(".ps1"):
+            exec_cmd = [
+                "powershell.exe",
+                "-NoLogo",
+                "-NoProfile",
+                "-File",
+                cli,
+                *base_cmd,
+            ]
+        else:
+            exec_cmd = [cli, *base_cmd]
+        subprocess.run(exec_cmd, check=True, cwd=str(spec_dir))
 
 
 if __name__ == "__main__":

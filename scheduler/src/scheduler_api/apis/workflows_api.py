@@ -73,7 +73,7 @@ async def list_workflows(
 )
 async def persist_workflow(
     list_workflows200_response_items_inner: ListWorkflows200ResponseItemsInner = Body(None, description=""),
-    idempotency_key: Annotated[Optional[StrictStr], Header(description="Optional idempotency key for safe retries; if reused with a different body, return 409")] = None,
+    idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")] = Header(None, description="Optional idempotency key for safe retries; if reused with a different body, return 409", max_length=64),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),

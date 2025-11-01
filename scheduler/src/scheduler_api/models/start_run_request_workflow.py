@@ -27,7 +27,6 @@ from scheduler_api.models.object import object
 from scheduler_api.models.start_run_request_workflow_edges_inner import StartRunRequestWorkflowEdgesInner
 from scheduler_api.models.start_run_request_workflow_metadata import StartRunRequestWorkflowMetadata
 from scheduler_api.models.start_run_request_workflow_nodes_inner import StartRunRequestWorkflowNodesInner
-from scheduler_api.models.start_run_request_workflow_runtimes_value import StartRunRequestWorkflowRuntimesValue
 try:
     from typing import Self
 except ImportError:
@@ -39,13 +38,12 @@ class StartRunRequestWorkflow(object):
     """ # noqa: E501
     id: StrictStr = Field(description="Workflow UUID")
     schema_version: Annotated[str, Field(strict=True)] = Field(description="e.g. \"2025-10\"", alias="schemaVersion")
-    metadata: Optional[StartRunRequestWorkflowMetadata] = None
+    metadata: StartRunRequestWorkflowMetadata
     nodes: Annotated[List[StartRunRequestWorkflowNodesInner], Field(min_length=1)]
     edges: Annotated[List[StartRunRequestWorkflowEdgesInner], Field(min_length=0)]
-    runtimes: Optional[Dict[str, StartRunRequestWorkflowRuntimesValue]] = Field(default=None, description="Runtime hints keyed by runtime name")
-    tags: Optional[List[StrictStr]] = None
+    tags: Optional[List[StrictStr]] = Field(default=None, description="Workflow-level tags.")
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "schemaVersion", "metadata", "nodes", "edges", "runtimes", "tags"]
+    __properties: ClassVar[List[str]] = ["id", "schemaVersion", "metadata", "nodes", "edges", "tags"]
 
     @field_validator('schema_version')
     def schema_version_validate_regular_expression(cls, value):
@@ -110,13 +108,6 @@ class StartRunRequestWorkflow(object):
                 if _item:
                     _items.append(_item.to_dict())
             _dict['edges'] = _items
-        # override the default output from pydantic by calling `to_dict()` of each value in runtimes (dict)
-        _field_dict = {}
-        if self.runtimes:
-            for _key in self.runtimes:
-                if self.runtimes[_key]:
-                    _field_dict[_key] = self.runtimes[_key].to_dict()
-            _dict['runtimes'] = _field_dict
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -139,12 +130,6 @@ class StartRunRequestWorkflow(object):
             "metadata": StartRunRequestWorkflowMetadata.from_dict(obj.get("metadata")) if obj.get("metadata") is not None else None,
             "nodes": [StartRunRequestWorkflowNodesInner.from_dict(_item) for _item in obj.get("nodes")] if obj.get("nodes") is not None else None,
             "edges": [StartRunRequestWorkflowEdgesInner.from_dict(_item) for _item in obj.get("edges")] if obj.get("edges") is not None else None,
-            "runtimes": dict(
-                (_k, StartRunRequestWorkflowRuntimesValue.from_dict(_v))
-                for _k, _v in obj.get("runtimes").items()
-            )
-            if obj.get("runtimes") is not None
-            else None,
             "tags": obj.get("tags")
         })
         # store additional fields in additional_properties

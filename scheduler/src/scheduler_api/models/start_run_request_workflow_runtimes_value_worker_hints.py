@@ -21,7 +21,7 @@ import json
 
 
 from pydantic import ConfigDict, Field, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List
 from scheduler_api.models.object import object
 try:
     from typing import Self
@@ -32,8 +32,8 @@ class StartRunRequestWorkflowRuntimesValueWorkerHints(object):
     """
     StartRunRequestWorkflowRuntimesValueWorkerHints
     """ # noqa: E501
-    package: Optional[StrictStr] = None
-    min_version: Optional[StrictStr] = Field(default=None, alias="minVersion")
+    package: StrictStr
+    min_version: StrictStr = Field(alias="minVersion")
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["package", "minVersion"]
 

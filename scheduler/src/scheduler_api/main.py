@@ -15,14 +15,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from scheduler_api.control_plane import router as ControlPlaneRouter
-from scheduler_api.catalog import catalog
-
 from scheduler_api.apis.events_api import router as EventsApiRouter
 from scheduler_api.apis.packages_api import router as PackagesApiRouter
 from scheduler_api.apis.runs_api import router as RunsApiRouter
 from scheduler_api.apis.workers_api import router as WorkersApiRouter
 from scheduler_api.apis.workflows_api import router as WorkflowsApiRouter
+from scheduler_api.catalog import catalog
+from scheduler_api.control_plane import router as ControlPlaneRouter
+from scheduler_api.db.migrations import upgrade_database
+from scheduler_api.db.seed_data import seed_demo_workflow
 
 app = FastAPI(
     title="Scheduler Public API (v1)",
@@ -51,5 +52,7 @@ app.include_router(ControlPlaneRouter)
 
 
 @app.on_event("startup")
-def _load_package_catalog() -> None:
+def _startup() -> None:
+    upgrade_database()
     catalog.reload()
+    seed_demo_workflow()

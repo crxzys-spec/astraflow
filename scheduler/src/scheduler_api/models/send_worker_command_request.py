@@ -50,7 +50,7 @@ class SendWorkerCommandRequest(object):
     # data type: SendWorkerCommandRequestOneOf3
     oneof_schema_4_validator: Optional[SendWorkerCommandRequestOneOf3] = None
     actual_instance: Optional[Union[SendWorkerCommandRequestOneOf, SendWorkerCommandRequestOneOf1, SendWorkerCommandRequestOneOf2, SendWorkerCommandRequestOneOf3]] = None
-    one_of_schemas: List[str] = Literal["SendWorkerCommandRequestOneOf", "SendWorkerCommandRequestOneOf1", "SendWorkerCommandRequestOneOf2", "SendWorkerCommandRequestOneOf3"]
+    one_of_schemas: ClassVar[List[str]] = ["SendWorkerCommandRequestOneOf", "SendWorkerCommandRequestOneOf1", "SendWorkerCommandRequestOneOf2", "SendWorkerCommandRequestOneOf3"]
 
     model_config = {
         "validate_assignment": True,

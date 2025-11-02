@@ -21,10 +21,8 @@ import re  # noqa: F401
 
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, ValidationError, field_validator
-from typing import Any, Dict, List, Optional
-from typing import Union, Any, List, TYPE_CHECKING, Optional, Dict
-from typing_extensions import Literal
-from pydantic import StrictStr, Field
+from typing import Any, ClassVar, Dict, List, Optional, Union
+from typing import TYPE_CHECKING
 try:
     from typing import Self
 except ImportError:
@@ -41,7 +39,7 @@ class GetPackage200ResponseManifestNodesInnerRuntimesValueConfig(BaseModel):
     # data type: bool
     oneof_schema_2_validator: Optional[StrictBool] = None
     actual_instance: Optional[Union[Dict[str, object], bool]] = None
-    one_of_schemas: List[str] = Literal["Dict[str, object]", "bool"]
+    one_of_schemas: ClassVar[List[str]] = ["Dict[str, object]", "bool"]
 
     model_config = {
         "validate_assignment": True,
@@ -150,5 +148,4 @@ class GetPackage200ResponseManifestNodesInnerRuntimesValueConfig(BaseModel):
     def to_str(self) -> str:
         """Returns the string representation of the actual instance"""
         return pprint.pformat(self.model_dump())
-
 

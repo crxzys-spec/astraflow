@@ -14,9 +14,9 @@ class Adapter(BaseModel):
         extra='forbid',
     )
     name: str = Field(..., description='Unique adapter name within the package.')
-    entrypoint: constr(pattern=r'^[A-Za-z_][A-Za-z0-9_.]*$') = Field(
-        ..., description='Python module path containing adapter handlers.'
-    )
+    entrypoint: constr(
+        pattern=r'^[A-Za-z_][A-Za-z0-9_.]*(?::[A-Za-z_][A-Za-z0-9_.]*)?$'
+    ) = Field(..., description='Python module path containing adapter handlers.')
     capabilities: list[str] = Field(
         ...,
         description='Capabilities registered by this adapter (used for dispatch).',
@@ -137,6 +137,7 @@ class NodeUI(BaseModel):
     )
     inputPorts: Optional[list[Port]] = []
     widgets: Optional[list[Widget]] = []
+    outputPorts: Optional[list[Port]] = []
 
 
 class Node(BaseModel):

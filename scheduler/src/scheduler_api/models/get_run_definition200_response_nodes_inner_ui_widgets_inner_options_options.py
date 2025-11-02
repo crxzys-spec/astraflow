@@ -21,11 +21,9 @@ import re  # noqa: F401
 
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, ValidationError, field_validator
-from typing import Any, List, Optional
+from typing import Any, ClassVar, List, Optional, Union
 from scheduler_api.models.get_run_definition200_response_nodes_inner_ui_widgets_inner_options_options_one_of_inner import GetRunDefinition200ResponseNodesInnerUiWidgetsInnerOptionsOptionsOneOfInner
-from typing import Union, Any, List, TYPE_CHECKING, Optional, Dict
-from typing_extensions import Literal
-from pydantic import StrictStr, Field
+from typing import TYPE_CHECKING
 try:
     from typing import Self
 except ImportError:
@@ -42,7 +40,7 @@ class GetRunDefinition200ResponseNodesInnerUiWidgetsInnerOptionsOptions(BaseMode
     # data type: List[GetRunDefinition200ResponseNodesInnerUiWidgetsInnerOptionsOptionsOneOfInner]
     oneof_schema_2_validator: Optional[List[GetRunDefinition200ResponseNodesInnerUiWidgetsInnerOptionsOptionsOneOfInner]] = None
     actual_instance: Optional[Union[List[GetRunDefinition200ResponseNodesInnerUiWidgetsInnerOptionsOptionsOneOfInner], List[str]]] = None
-    one_of_schemas: List[str] = Literal["List[GetRunDefinition200ResponseNodesInnerUiWidgetsInnerOptionsOptionsOneOfInner]", "List[str]"]
+    one_of_schemas: ClassVar[List[str]] = ["List[GetRunDefinition200ResponseNodesInnerUiWidgetsInnerOptionsOptionsOneOfInner]", "List[str]"]
 
     model_config = {
         "validate_assignment": True,
@@ -151,5 +149,4 @@ class GetRunDefinition200ResponseNodesInnerUiWidgetsInnerOptionsOptions(BaseMode
     def to_str(self) -> str:
         """Returns the string representation of the actual instance"""
         return pprint.pformat(self.model_dump())
-
 

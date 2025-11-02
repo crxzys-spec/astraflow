@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { ReactFlowProvider } from "reactflow";
 import {
   getGetPackageQueryOptions,
   useGetPackage,
@@ -317,7 +318,9 @@ const WorkflowBuilderPage = () => {
           </div>
 
           <div className="builder-canvas card card--canvas">
-            <WorkflowCanvas onNodeDrop={handleNodeDrop} />
+            <ReactFlowProvider>
+              <WorkflowCanvas onNodeDrop={handleNodeDrop} />
+            </ReactFlowProvider>
           </div>
 
           <div className="builder-inspector card card--surface">

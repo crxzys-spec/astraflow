@@ -10,6 +10,17 @@
       "capabilities": [
         "example.pkg.echo"
       ]
+    },
+    {
+      "name": "demo",
+      "entrypoint": "adapters.demo",
+      "capabilities": [
+        "example.pkg.load_config",
+        "example.pkg.transform_text",
+        "example.pkg.delay",
+        "example.pkg.send_notification",
+        "example.pkg.audit_log"
+      ]
     }
   ],
   "python": {
@@ -72,7 +83,451 @@
           {
             "key": "message",
             "label": "Message",
-            "component": "TextInput",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/message"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "example.pkg.load_config",
+      "status": "published",
+      "category": "Examples",
+      "label": "Load Configuration",
+      "description": "Parses a JSON configuration string and returns the resulting object.",
+      "tags": [
+        "example",
+        "config"
+      ],
+      "adapter": "demo",
+      "handler": "load_config",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "config": {
+              "type": "string",
+              "description": "JSON payload that will be parsed.",
+              "default": "{\n  \"feature\": true,\n  \"threshold\": 0.75\n}"
+            }
+          },
+          "required": [
+            "config"
+          ]
+        },
+        "results": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "succeeded",
+                "failed"
+              ]
+            },
+            "config": {
+              "type": "object",
+              "description": "Parsed configuration object."
+            },
+            "keyCount": {
+              "type": "integer",
+              "description": "Number of top-level keys in the configuration."
+            },
+            "error": {
+              "type": "string",
+              "description": "Error message when parsing fails."
+            }
+          },
+          "required": [
+            "status"
+          ]
+        }
+      },
+      "ui": {
+        "outputPorts": [
+          {
+            "key": "output",
+            "label": "Config",
+            "binding": {
+              "path": "/results/config"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "config",
+            "label": "Configuration JSON",
+            "component": "json",
+            "binding": {
+              "path": "/parameters/config"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "example.pkg.transform_text",
+      "status": "published",
+      "category": "Examples",
+      "label": "Transform Text",
+      "description": "Applies a formatting mode to the provided text.",
+      "tags": [
+        "example",
+        "text"
+      ],
+      "adapter": "demo",
+      "handler": "transform_text",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "Text to transform.",
+              "default": ""
+            },
+            "mode": {
+              "type": "string",
+              "description": "Transformation mode.",
+              "enum": [
+                "uppercase",
+                "lowercase",
+                "title",
+                "reverse"
+              ],
+              "default": "uppercase"
+            }
+          },
+          "required": [
+            "text"
+          ]
+        },
+        "results": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "succeeded",
+                "failed"
+              ]
+            },
+            "output": {
+              "type": "string",
+              "description": "Transformed text."
+            },
+            "modeApplied": {
+              "type": "string",
+              "description": "Transformation mode that was applied."
+            }
+          },
+          "required": [
+            "status"
+          ]
+        }
+      },
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "input",
+            "label": "Text",
+            "binding": {
+              "path": "/parameters/text"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "output",
+            "label": "Transformed",
+            "binding": {
+              "path": "/results/output"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "text",
+            "label": "Text",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/text"
+            }
+          },
+          {
+            "key": "mode",
+            "label": "Mode",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/mode"
+            },
+            "options": {
+              "helperText": "Choose between uppercase, lowercase, title, or reverse."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "example.pkg.delay",
+      "status": "published",
+      "category": "Examples",
+      "label": "Delay",
+      "description": "Waits for the specified duration to simulate a long-running task.",
+      "tags": [
+        "example",
+        "timing"
+      ],
+      "adapter": "demo",
+      "handler": "delay",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "durationSeconds": {
+              "type": "number",
+              "description": "Number of seconds to wait.",
+              "minimum": 0,
+              "default": 1
+            }
+          },
+          "required": [
+            "durationSeconds"
+          ]
+        },
+        "results": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "succeeded",
+                "failed"
+              ]
+            },
+            "durationSeconds": {
+              "type": "number",
+              "description": "Actual time waited in seconds."
+            }
+          },
+          "required": [
+            "status"
+          ]
+        }
+      },
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "input",
+            "label": "Start",
+            "binding": {
+              "path": "/parameters/durationSeconds"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "output",
+            "label": "Done",
+            "binding": {
+              "path": "/results/durationSeconds"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "durationSeconds",
+            "label": "Duration (seconds)",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/durationSeconds"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "example.pkg.send_notification",
+      "status": "published",
+      "category": "Examples",
+      "label": "Send Notification",
+      "description": "Simulates sending a notification to a recipient.",
+      "tags": [
+        "example",
+        "notification"
+      ],
+      "adapter": "demo",
+      "handler": "send_notification",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "recipient": {
+              "type": "string",
+              "description": "Target recipient identifier.",
+              "default": ""
+            },
+            "channel": {
+              "type": "string",
+              "description": "Delivery channel name.",
+              "default": "email"
+            },
+            "message": {
+              "type": "string",
+              "description": "Notification message content.",
+              "default": "Hello from AstraFlow!"
+            }
+          },
+          "required": [
+            "recipient",
+            "message"
+          ]
+        },
+        "results": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "succeeded",
+                "failed"
+              ]
+            },
+            "notificationId": {
+              "type": "string",
+              "description": "Generated identifier for the notification."
+            }
+          },
+          "required": [
+            "status"
+          ]
+        }
+      },
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "input",
+            "label": "Payload",
+            "binding": {
+              "path": "/parameters/message"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "output",
+            "label": "Notification",
+            "binding": {
+              "path": "/results/notificationId"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "recipient",
+            "label": "Recipient",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/recipient"
+            }
+          },
+          {
+            "key": "channel",
+            "label": "Channel",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/channel"
+            }
+          },
+          {
+            "key": "message",
+            "label": "Message",
+            "component": "textarea",
+            "binding": {
+              "path": "/parameters/message"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "example.pkg.audit_log",
+      "status": "published",
+      "category": "Examples",
+      "label": "Audit Log",
+      "description": "Writes an audit log entry containing contextual information.",
+      "tags": [
+        "example",
+        "logging"
+      ],
+      "adapter": "demo",
+      "handler": "audit_log",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "string",
+              "description": "Log level for the entry.",
+              "default": "info"
+            },
+            "message": {
+              "type": "string",
+              "description": "Message to include in the audit log.",
+              "default": "Workflow step completed."
+            }
+          }
+        },
+        "results": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "succeeded",
+                "failed"
+              ]
+            },
+            "entry": {
+              "type": "object",
+              "description": "Audit log details that were recorded."
+            }
+          },
+          "required": [
+            "status"
+          ]
+        }
+      },
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "input",
+            "label": "Event",
+            "binding": {
+              "path": "/parameters/message"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "level",
+            "label": "Level",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/level"
+            }
+          },
+          {
+            "key": "message",
+            "label": "Message",
+            "component": "textarea",
             "binding": {
               "path": "/parameters/message"
             }

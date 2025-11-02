@@ -137,6 +137,7 @@ export interface Node {
 export interface NodeUI {
   inputPorts?: Port[];
   widgets?: Widget[];
+  outputPorts?: Port[];
 }
 export interface Port {
   /**

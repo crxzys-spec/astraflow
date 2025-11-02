@@ -21,11 +21,9 @@ import re  # noqa: F401
 
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, ValidationError, field_validator
-from typing import Any, List, Optional
+from typing import Any, ClassVar, List, Optional, Union
 from scheduler_api.models.start_run_request_workflow_nodes_inner_runtimes_value_config_options_one_of_inner import StartRunRequestWorkflowNodesInnerRuntimesValueConfigOptionsOneOfInner
-from typing import Union, Any, List, TYPE_CHECKING, Optional, Dict
-from typing_extensions import Literal
-from pydantic import StrictStr, Field
+from typing import TYPE_CHECKING
 try:
     from typing import Self
 except ImportError:
@@ -42,7 +40,7 @@ class StartRunRequestWorkflowNodesInnerRuntimesValueConfigOptions(BaseModel):
     # data type: List[StartRunRequestWorkflowNodesInnerRuntimesValueConfigOptionsOneOfInner]
     oneof_schema_2_validator: Optional[List[StartRunRequestWorkflowNodesInnerRuntimesValueConfigOptionsOneOfInner]] = None
     actual_instance: Optional[Union[List[StartRunRequestWorkflowNodesInnerRuntimesValueConfigOptionsOneOfInner], List[str]]] = None
-    one_of_schemas: List[str] = Literal["List[StartRunRequestWorkflowNodesInnerRuntimesValueConfigOptionsOneOfInner]", "List[str]"]
+    one_of_schemas: ClassVar[List[str]] = ["List[StartRunRequestWorkflowNodesInnerRuntimesValueConfigOptionsOneOfInner]", "List[str]"]
 
     model_config = {
         "validate_assignment": True,
@@ -151,5 +149,4 @@ class StartRunRequestWorkflowNodesInnerRuntimesValueConfigOptions(BaseModel):
     def to_str(self) -> str:
         """Returns the string representation of the actual instance"""
         return pprint.pformat(self.model_dump())
-
 

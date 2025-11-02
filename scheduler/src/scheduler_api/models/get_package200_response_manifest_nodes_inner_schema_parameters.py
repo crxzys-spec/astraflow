@@ -41,7 +41,7 @@ class GetPackage200ResponseManifestNodesInnerSchemaParameters(BaseModel):
     # data type: bool
     oneof_schema_2_validator: Optional[StrictBool] = None
     actual_instance: Optional[Union[Dict[str, object], bool]] = None
-    one_of_schemas: List[str] = Literal["Dict[str, object]", "bool"]
+    one_of_schemas: ClassVar[List[str]] = ["Dict[str, object]", "bool"]
 
     model_config = {
         "validate_assignment": True,

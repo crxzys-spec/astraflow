@@ -45,8 +45,8 @@ class GetPackage200ResponseManifestAdaptersInner(object):
     @field_validator('entrypoint')
     def entrypoint_validate_regular_expression(cls, value):
         """Validates the regular expression"""
-        if not re.match(r"^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_.]*$", value):
-            raise ValueError(r"must validate the regular expression /^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_.]*$/")
+        if not re.match(r"^[A-Za-z_][A-Za-z0-9_.]*(?::[A-Za-z_][A-Za-z0-9_.]*)?$", value):
+            raise ValueError(r"must validate the regular expression /^[A-Za-z_][A-Za-z0-9_.]*(?::[A-Za-z_][A-Za-z0-9_.]*)?$/")
         return value
 
     model_config = {

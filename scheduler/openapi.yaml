@@ -2204,7 +2204,7 @@ components:
           title: code
           type: string
         entrypoint:
-          pattern: "^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_.]*$"
+          pattern: "^[A-Za-z_][A-Za-z0-9_.]*(?::[A-Za-z_][A-Za-z0-9_.]*)?$"
           type: string
         capabilities:
           items:

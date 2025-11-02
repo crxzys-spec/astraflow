@@ -84,7 +84,7 @@
         "entrypoint": {
           "type": "string",
           "description": "Python module path containing adapter handlers.",
-          "pattern": "^[A-Za-z_][A-Za-z0-9_.]*$"
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.]*(?::[A-Za-z_][A-Za-z0-9_.]*)?$"
         },
         "capabilities": {
           "type": "array",
@@ -216,6 +216,13 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/Widget"
+          },
+          "default": []
+        },
+        "outputPorts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Port"
           },
           "default": []
         }

@@ -1,11 +1,20 @@
 import { useMemo } from "react";
-import type { ReactElement } from "react";
 import { useWorkflowStore } from "../store";
-import { useWidgetRegistry, registerBuiltinWidgets } from "../widgets";
-import { getBindingValue, isBindingEditable, resolveWidgetBinding, setBindingValue } from "../utils/binding";
-import type { NodePortDefinition, NodeWidgetDefinition, WorkflowNodeDraft } from "../types";
+import type { NodePortDefinition, WorkflowNodeDraft } from "../types";
 
-registerBuiltinWidgets();
+const formatPackageId = (node: WorkflowNodeDraft) => {
+  if (!node.packageName) {
+    return "-";
+  }
+  return `${node.packageName}@${node.packageVersion ?? "latest"}`;
+};
+
+const formatTags = (tags: string[] | undefined) => {
+  if (!tags || tags.length === 0) {
+    return "-";
+  }
+  return tags.join(", ");
+};
 
 const NodeMeta = ({ node }: { node: WorkflowNodeDraft }) => (
   <div className="card inspector__summary">
@@ -15,26 +24,24 @@ const NodeMeta = ({ node }: { node: WorkflowNodeDraft }) => (
     </header>
     <dl className="data-grid inspector__meta-grid">
       <div>
+        <dt>Node ID</dt>
+        <dd>{node.id}</dd>
+      </div>
+      <div>
         <dt>Package</dt>
-        <dd>
-          {node.packageName ? `${node.packageName}@${node.packageVersion ?? "latest"}` : "-"}
-        </dd>
+        <dd>{formatPackageId(node)}</dd>
       </div>
       <div>
-        <dt>Adapter</dt>
-        <dd>{node.adapter ?? "-"}</dd>
+        <dt>Category</dt>
+        <dd>{node.category ?? "-"}</dd>
       </div>
       <div>
-        <dt>Handler</dt>
-        <dd>{node.handler ?? "-"}</dd>
+        <dt>Status</dt>
+        <dd>{node.status ?? "-"}</dd>
       </div>
       <div>
-        <dt>Dependencies</dt>
-        <dd>{node.dependencies.length ? node.dependencies.join(", ") : "-"}</dd>
-      </div>
-      <div>
-        <dt>Concurrency Key</dt>
-        <dd>{node.concurrencyKey ?? "-"}</dd>
+        <dt>Tags</dt>
+        <dd>{formatTags(node.tags)}</dd>
       </div>
     </dl>
   </div>
@@ -78,17 +85,9 @@ const collectPorts = (
   return declared;
 };
 
-interface WidgetEntry {
-  widget: NodeWidgetDefinition;
-  element: ReactElement;
-  key: string;
-}
-
 export const NodeInspector = () => {
-  const { resolve } = useWidgetRegistry();
   const selectedNodeId = useWorkflowStore((state) => state.selectedNodeId);
   const workflow = useWorkflowStore((state) => state.workflow);
-  const updateNode = useWorkflowStore((state) => state.updateNode);
 
   const node = selectedNodeId ? workflow?.nodes[selectedNodeId] : undefined;
 
@@ -116,42 +115,6 @@ export const NodeInspector = () => {
     };
   }, [node, workflow]);
 
-  const widgets = useMemo<WidgetEntry[]>(() => {
-    if (!node?.ui?.widgets?.length) {
-      return [];
-    }
-    return node.ui.widgets.reduce<WidgetEntry[]>((accumulator, widget) => {
-      const binding = resolveWidgetBinding(widget);
-      if (!binding) {
-        return accumulator;
-      }
-      const registration = resolve(widget);
-      if (!registration) {
-        return accumulator;
-      }
-      const value = getBindingValue(node, binding);
-      const readOnly = !isBindingEditable(widget.binding?.mode) || binding.root === "results";
-
-      const handleChange = (nextValue: unknown) => {
-        updateNode(node.id, (current) => setBindingValue(current, binding, nextValue));
-      };
-
-      const element = (
-        <registration.component
-          key={widget.key}
-          widget={widget}
-          node={node}
-          value={value}
-          onChange={handleChange}
-          readOnly={readOnly}
-        />
-      );
-
-      accumulator.push({ widget, element, key: widget.key });
-      return accumulator;
-    }, []);
-  }, [node, resolve, updateNode]);
-
   if (!node) {
     return (
       <div className="card inspector inspector--empty">
@@ -175,10 +138,9 @@ export const NodeInspector = () => {
                 {ports.inputs.map((port) => (
                   <li key={`input-${port.key}`} className="inspector__port">
                     <div className="inspector__port-header">
-                      <span className="inspector__port-key">{port.key}</span>
+                      <span className="inspector__port-label">{port.label}</span>
                       {port.origin === "inferred" && <span className="badge badge--muted">inferred</span>}
                     </div>
-                    <div className="inspector__port-label">{port.label}</div>
                     {port.bindingPath && (
                       <div className="inspector__port-binding">
                         <span>Binding</span>
@@ -199,10 +161,9 @@ export const NodeInspector = () => {
                 {ports.outputs.map((port) => (
                   <li key={`output-${port.key}`} className="inspector__port">
                     <div className="inspector__port-header">
-                      <span className="inspector__port-key">{port.key}</span>
+                      <span className="inspector__port-label">{port.label}</span>
                       {port.origin === "inferred" && <span className="badge badge--muted">inferred</span>}
                     </div>
-                    <div className="inspector__port-label">{port.label}</div>
                     {port.bindingPath && (
                       <div className="inspector__port-binding">
                         <span>Binding</span>
@@ -222,16 +183,24 @@ export const NodeInspector = () => {
         <header className="card__header">
           <h3>Parameters</h3>
         </header>
-        {!widgets.length ? (
-          <p className="text-subtle">No editable widgets declared for this node.</p>
+        {Object.keys(node.parameters ?? {}).length ? (
+          <pre className="inspector__payload">
+            {JSON.stringify(node.parameters, null, 2)}
+          </pre>
         ) : (
-          <div className="inspector__widgets">
-            {widgets.map((entry) => (
-              <div key={entry.key} className="inspector__widget">
-                {entry.element}
-              </div>
-            ))}
-          </div>
+          <p className="text-subtle inspector__payload-empty">No parameters defined.</p>
+        )}
+      </div>
+      <div className="card inspector__panel">
+        <header className="card__header">
+          <h3>Results</h3>
+        </header>
+        {Object.keys(node.results ?? {}).length ? (
+          <pre className="inspector__payload">
+            {JSON.stringify(node.results, null, 2)}
+          </pre>
+        ) : (
+          <p className="text-subtle inspector__payload-empty">No results captured yet.</p>
         )}
       </div>
     </aside>

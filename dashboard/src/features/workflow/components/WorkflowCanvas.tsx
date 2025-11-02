@@ -1,5 +1,5 @@
 import type { DragEvent, MouseEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactFlow, { Background, Controls, useReactFlow } from "reactflow";
 import type { Connection, Edge, EdgeChange, EdgeTypes, Node, NodeChange, NodeTypes } from "reactflow";
 import "reactflow/dist/style.css";
@@ -37,7 +37,8 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   const setSelectedNode = useWorkflowStore((state) => state.setSelectedNode);
   const addEdge = useWorkflowStore((state) => state.addEdge);
   const removeEdge = useWorkflowStore((state) => state.removeEdge);
-  const { project } = useReactFlow();
+  const { project, getEdges } = useReactFlow();
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string>();
 
   const nodes: Node[] = useMemo(
     () => (workflow ? buildFlowNodes(workflow, selectedNodeId) : []),
@@ -94,10 +95,13 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
       changes.forEach((change) => {
         if (change.type === "remove") {
           removeEdge(change.id);
+          if (selectedEdgeId === change.id) {
+            setSelectedEdgeId(undefined);
+          }
         }
       });
     },
-    [removeEdge]
+    [removeEdge, selectedEdgeId, setSelectedEdgeId]
   );
 
   const onConnect = useCallback(
@@ -118,22 +122,28 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   const onNodeClick = useCallback(
     (_: MouseEvent, node: Node) => {
       setSelectedNode(node.id);
+      setSelectedEdgeId(undefined);
     },
-    [setSelectedNode]
+    [setSelectedEdgeId, setSelectedNode]
   );
 
   const onSelectionChange = useCallback(
-    ({ nodes }: { nodes: Node[] }) => {
+    ({ nodes, edges }: { nodes: Node[]; edges: Edge[] }) => {
       if (nodes.length) {
         setSelectedNode(nodes[0].id);
+        setSelectedEdgeId(undefined);
+        return;
       }
+      setSelectedNode(undefined);
+      setSelectedEdgeId(edges.length ? edges[0].id : undefined);
     },
-    [setSelectedNode]
+    [setSelectedNode, setSelectedEdgeId]
   );
 
   const handlePaneClick = useCallback(() => {
     setSelectedNode(undefined);
-  }, [setSelectedNode]);
+    setSelectedEdgeId(undefined);
+  }, [setSelectedNode, setSelectedEdgeId]);
 
   const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     if (event.dataTransfer.types.includes(WORKFLOW_NODE_DRAG_FORMAT)) {
@@ -178,6 +188,58 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
     },
     [onNodeDrop, project]
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const isEditableTarget = (target: EventTarget | null): boolean => {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+      if (target.isContentEditable) {
+        return true;
+      }
+      const tagName = target.tagName;
+      if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT") {
+        return true;
+      }
+      const role = target.getAttribute("role");
+      return role === "textbox" || role === "combobox";
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Delete" && event.key !== "Backspace") {
+        return;
+      }
+      const activeElement = document.activeElement;
+      if (isEditableTarget(activeElement) || isEditableTarget(event.target)) {
+        return;
+      }
+      if (selectedNodeId) {
+        event.preventDefault();
+        removeNode(selectedNodeId);
+        return;
+      }
+      const selectedEdges = getEdges().filter((edge) => edge.selected);
+      if (selectedEdges.length || selectedEdgeId) {
+        event.preventDefault();
+        const idsToRemove = selectedEdges.length ? selectedEdges.map((edge) => edge.id) : [selectedEdgeId];
+        idsToRemove.forEach((edgeId) => {
+          if (edgeId) {
+            removeEdge(edgeId);
+          }
+        });
+        setSelectedEdgeId(undefined);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [getEdges, removeEdge, removeNode, selectedEdgeId, selectedNodeId, setSelectedEdgeId]);
 
   if (!workflow) {
     return <div className="workflow-canvas__empty">Select a workflow to start.</div>;

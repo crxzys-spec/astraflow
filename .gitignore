@@ -1,0 +1,19 @@
+﻿# Python caches and environments
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+
+# Local runtime data
+var/
+
+# Worker runtime caches
+worker/**/__pycache__/
+
+# Scheduler generated caches
+scheduler/**/__pycache__/
+
+# IDE / tooling
+.vscode/

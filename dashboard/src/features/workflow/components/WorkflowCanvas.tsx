@@ -1,12 +1,13 @@
 import type { DragEvent, MouseEvent } from "react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import ReactFlow, { Background, Controls, useReactFlow } from "reactflow";
-import type { Connection, Edge, EdgeChange, Node, NodeChange } from "reactflow";
+import type { Connection, Edge, EdgeChange, EdgeTypes, Node, NodeChange, NodeTypes } from "reactflow";
 import "reactflow/dist/style.css";
 import { nanoid } from "nanoid";
 import { useWorkflowStore } from "../store.ts";
 import { buildFlowEdges, buildFlowNodes } from "../utils/flowTransforms.ts";
 import type { WorkflowEdgeDraft, XYPosition } from "../types.ts";
+import { WorkflowNode } from "../nodes";
 import {
   WORKFLOW_NODE_DRAG_FORMAT,
   WORKFLOW_NODE_DRAG_PACKAGE_KEY,
@@ -21,8 +22,16 @@ interface WorkflowCanvasProps {
   ) => void;
 }
 
+const NODE_TYPES: NodeTypes = {
+  workflow: WorkflowNode,
+  default: WorkflowNode
+};
+
+const EDGE_TYPES: EdgeTypes = {};
+
 const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   const workflow = useWorkflowStore((state) => state.workflow);
+  const selectedNodeId = useWorkflowStore((state) => state.selectedNodeId);
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const removeNode = useWorkflowStore((state) => state.removeNode);
   const setSelectedNode = useWorkflowStore((state) => state.setSelectedNode);
@@ -30,22 +39,52 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   const removeEdge = useWorkflowStore((state) => state.removeEdge);
   const { project } = useReactFlow();
 
-  const nodes: Node[] = useMemo(() => (workflow ? buildFlowNodes(workflow) : []), [workflow]);
+  const nodes: Node[] = useMemo(
+    () => (workflow ? buildFlowNodes(workflow, selectedNodeId) : []),
+    [workflow, selectedNodeId]
+  );
   const edges: Edge[] = useMemo(() => (workflow ? buildFlowEdges(workflow) : []), [workflow]);
+
+  const pendingPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const rafRef = useRef<number>();
+
+  useEffect(
+    () => () => {
+      if (rafRef.current !== undefined) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    },
+    []
+  );
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
+      let hasPositionUpdate = false;
       changes.forEach((change) => {
         if (change.type === "position" && change.position) {
-          updateNode(change.id, (node) => ({
-            ...node,
-            position: { x: change.position!.x, y: change.position!.y }
-          }));
+          pendingPositionsRef.current.set(change.id, {
+            x: change.position.x,
+            y: change.position.y
+          });
+          hasPositionUpdate = true;
         }
         if (change.type === "remove") {
           removeNode(change.id);
         }
       });
+
+      if (hasPositionUpdate && rafRef.current === undefined) {
+        rafRef.current = requestAnimationFrame(() => {
+          pendingPositionsRef.current.forEach((position, nodeId) => {
+            updateNode(nodeId, (node) => ({
+              ...node,
+              position
+            }));
+          });
+          pendingPositionsRef.current.clear();
+          rafRef.current = undefined;
+        });
+      }
     },
     [removeNode, updateNode]
   );
@@ -85,10 +124,16 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
 
   const onSelectionChange = useCallback(
     ({ nodes }: { nodes: Node[] }) => {
-      setSelectedNode(nodes.length ? nodes[0].id : undefined);
+      if (nodes.length) {
+        setSelectedNode(nodes[0].id);
+      }
     },
     [setSelectedNode]
   );
+
+  const handlePaneClick = useCallback(() => {
+    setSelectedNode(undefined);
+  }, [setSelectedNode]);
 
   const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     if (event.dataTransfer.types.includes(WORKFLOW_NODE_DRAG_FORMAT)) {
@@ -143,11 +188,14 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        nodeTypes={NODE_TYPES}
+        edgeTypes={EDGE_TYPES}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
         onSelectionChange={onSelectionChange}
+        onPaneClick={handlePaneClick}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         fitView

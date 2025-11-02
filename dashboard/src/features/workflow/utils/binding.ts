@@ -10,7 +10,7 @@ export interface BindingResolution {
 
 const decodePointerSegment = (segment: string) => segment.replace(/~1/g, "/").replace(/~0/g, "~");
 
-const normaliseBindingPath = (path: string): BindingResolution | undefined => {
+export const resolveBindingPath = (path: string): BindingResolution | undefined => {
   if (!path) {
     return undefined;
   }
@@ -84,7 +84,7 @@ export const setBindingValue = (
 };
 
 export const resolveWidgetBinding = (widget: NodeWidgetDefinition): BindingResolution | undefined =>
-  normaliseBindingPath(widget.binding?.path ?? "");
+  resolveBindingPath(widget.binding?.path ?? "");
 
 const editableModes: UIBindingMode[] = ["write", "two_way"];
 

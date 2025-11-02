@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { useWorkflowStore } from "../store";
 import { useWidgetRegistry, registerBuiltinWidgets } from "../widgets";
 import { getBindingValue, isBindingEditable, resolveWidgetBinding, setBindingValue } from "../utils/binding";
-import type { NodeWidgetDefinition, WorkflowNodeDraft } from "../types";
+import type { NodePortDefinition, NodeWidgetDefinition, WorkflowNodeDraft } from "../types";
 
 registerBuiltinWidgets();
 
@@ -21,6 +21,14 @@ const NodeMeta = ({ node }: { node: WorkflowNodeDraft }) => (
         </dd>
       </div>
       <div>
+        <dt>Adapter</dt>
+        <dd>{node.adapter ?? "-"}</dd>
+      </div>
+      <div>
+        <dt>Handler</dt>
+        <dd>{node.handler ?? "-"}</dd>
+      </div>
+      <div>
         <dt>Dependencies</dt>
         <dd>{node.dependencies.length ? node.dependencies.join(", ") : "-"}</dd>
       </div>
@@ -31,6 +39,44 @@ const NodeMeta = ({ node }: { node: WorkflowNodeDraft }) => (
     </dl>
   </div>
 );
+
+type PortOrigin = "declared" | "inferred";
+
+interface InspectorPort {
+  key: string;
+  label: string;
+  bindingPath?: string | null;
+  bindingMode?: string | null;
+  origin: PortOrigin;
+}
+
+const collectPorts = (
+  ports: NodePortDefinition[] | undefined,
+  fallbackKeys: Set<string>
+): InspectorPort[] => {
+  const declared = (ports ?? []).map<InspectorPort>((port) => ({
+    key: port.key,
+    label: port.label,
+    bindingPath: port.binding?.path ?? null,
+    bindingMode: port.binding?.mode ?? null,
+    origin: "declared"
+  }));
+  const declaredKeys = new Set(declared.map((port) => port.key));
+
+  fallbackKeys.forEach((key) => {
+    if (!declaredKeys.has(key)) {
+      declared.push({
+        key,
+        label: key,
+        bindingPath: null,
+        bindingMode: null,
+        origin: "inferred"
+      });
+    }
+  });
+
+  return declared;
+};
 
 interface WidgetEntry {
   widget: NodeWidgetDefinition;
@@ -45,6 +91,30 @@ export const NodeInspector = () => {
   const updateNode = useWorkflowStore((state) => state.updateNode);
 
   const node = selectedNodeId ? workflow?.nodes[selectedNodeId] : undefined;
+
+  const ports = useMemo(() => {
+    if (!node) {
+      return { inputs: [] as InspectorPort[], outputs: [] as InspectorPort[] };
+    }
+
+    const fallbackInputs = new Set<string>();
+    const fallbackOutputs = new Set<string>();
+    workflow?.edges.forEach((edge) => {
+      const inputKey = edge.target.portId;
+      const outputKey = edge.source.portId;
+      if (edge.target.nodeId === node.id && inputKey) {
+        fallbackInputs.add(inputKey);
+      }
+      if (edge.source.nodeId === node.id && outputKey) {
+        fallbackOutputs.add(outputKey);
+      }
+    });
+
+    return {
+      inputs: collectPorts(node.ui?.inputPorts, fallbackInputs),
+      outputs: collectPorts(node.ui?.outputPorts, fallbackOutputs)
+    };
+  }, [node, workflow]);
 
   const widgets = useMemo<WidgetEntry[]>(() => {
     if (!node?.ui?.widgets?.length) {
@@ -93,6 +163,61 @@ export const NodeInspector = () => {
   return (
     <aside className="inspector">
       <NodeMeta node={node} />
+      <div className="card inspector__panel">
+        <header className="card__header">
+          <h3>Ports</h3>
+        </header>
+        <div className="inspector__ports">
+          <div className="inspector__ports-column">
+            <h4 className="inspector__ports-heading">Inputs</h4>
+            {ports.inputs.length ? (
+              <ul className="inspector__port-list">
+                {ports.inputs.map((port) => (
+                  <li key={`input-${port.key}`} className="inspector__port">
+                    <div className="inspector__port-header">
+                      <span className="inspector__port-key">{port.key}</span>
+                      {port.origin === "inferred" && <span className="badge badge--muted">inferred</span>}
+                    </div>
+                    <div className="inspector__port-label">{port.label}</div>
+                    {port.bindingPath && (
+                      <div className="inspector__port-binding">
+                        <span>Binding</span>
+                        <code className="inspector__port-code">{port.bindingPath}</code>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-subtle">No input ports.</p>
+            )}
+          </div>
+          <div className="inspector__ports-column">
+            <h4 className="inspector__ports-heading">Outputs</h4>
+            {ports.outputs.length ? (
+              <ul className="inspector__port-list">
+                {ports.outputs.map((port) => (
+                  <li key={`output-${port.key}`} className="inspector__port">
+                    <div className="inspector__port-header">
+                      <span className="inspector__port-key">{port.key}</span>
+                      {port.origin === "inferred" && <span className="badge badge--muted">inferred</span>}
+                    </div>
+                    <div className="inspector__port-label">{port.label}</div>
+                    {port.bindingPath && (
+                      <div className="inspector__port-binding">
+                        <span>Binding</span>
+                        <code className="inspector__port-code">{port.bindingPath}</code>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-subtle">No output ports.</p>
+            )}
+          </div>
+        </div>
+      </div>
       <div className="card inspector__panel">
         <header className="card__header">
           <h3>Parameters</h3>

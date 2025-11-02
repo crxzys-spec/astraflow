@@ -29,10 +29,18 @@ import type { JsonSchema } from "./schemaDefaults.ts";
 const clone = <T>(value: T): T =>
   value === undefined ? value : (JSON.parse(JSON.stringify(value)) as T);
 
-const coerceBinding = (binding?: ManifestBinding): UIBinding => ({
-  path: binding?.path ?? "",
-  mode: (binding?.mode ?? "write") as UIBindingMode
-});
+const coerceBinding = (binding?: ManifestBinding): UIBinding => {
+  const rawMode = binding?.mode;
+  const safeMode =
+    rawMode === UIBindingMode.read || rawMode === UIBindingMode.two_way
+      ? rawMode
+      : UIBindingMode.write;
+
+  return {
+    path: binding?.path ?? "",
+    mode: safeMode
+  };
+};
 
 const coercePorts = (ports?: ManifestPort[]): UIPort[] | undefined =>
   ports?.map((port) => ({
@@ -54,8 +62,10 @@ const coerceManifestUi = (ui?: ManifestNodeUI | null): NodeUI | undefined => {
   if (!ui) {
     return undefined;
   }
+  const manifestWithOutputs = ui as ManifestNodeUI & { outputPorts?: ManifestPort[] };
   return {
     inputPorts: coercePorts(ui.inputPorts),
+    outputPorts: coercePorts(manifestWithOutputs.outputPorts),
     widgets: coerceWidgets(ui.widgets)
   };
 };
@@ -130,6 +140,40 @@ export const workflowDefinitionToDraft = (definition: WorkflowDefinition): Workf
   };
 };
 
+const normalizeBinding = (binding?: UIBinding): UIBinding => {
+  if (!binding) {
+    return { path: "", mode: UIBindingMode.write };
+  }
+  const normalisedMode =
+    binding.mode === UIBindingMode.read || binding.mode === UIBindingMode.two_way
+      ? binding.mode
+      : UIBindingMode.write;
+  return {
+    path: binding.path ?? "",
+    mode: normalisedMode
+  };
+};
+
+const normalizeNodeUi = (ui?: NodeUI | null): NodeUI | undefined => {
+  if (!ui) {
+    return undefined;
+  }
+  return {
+    inputPorts: ui.inputPorts?.map((port) => ({
+      ...port,
+      binding: normalizeBinding(port.binding)
+    })),
+    outputPorts: ui.outputPorts?.map((port) => ({
+      ...port,
+      binding: normalizeBinding(port.binding)
+    })),
+    widgets: ui.widgets?.map((widget) => ({
+      ...widget,
+      binding: normalizeBinding(widget.binding)
+    }))
+  };
+};
+
 export const workflowDraftToDefinition = (draft: WorkflowDraft): WorkflowDefinition => {
   const nodes: WorkflowNode[] = Object.values(draft.nodes).map((node) => ({
     id: node.id,
@@ -147,7 +191,7 @@ export const workflowDraftToDefinition = (draft: WorkflowDraft): WorkflowDefinit
     parameters: clone(node.parameters),
     results: clone(node.results),
     schema: node.schema,
-    ui: node.ui
+    ui: normalizeNodeUi(node.ui)
   }));
 
   const edges: WorkflowEdge[] = draft.edges.map((edge) => ({

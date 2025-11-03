@@ -345,8 +345,8 @@ RAW_DEMO_WORKFLOW_JSON = r"""{
       "category": "Examples",
       "label": "Stream Feedback",
       "position": {
-        "x": -150,
-        "y": -260
+        "x": 0,
+        "y": 0
       },
       "parameters": {
         "prompt": "",
@@ -431,8 +431,8 @@ RAW_DEMO_WORKFLOW_JSON = r"""{
       "category": "Examples",
       "label": "Schedule Delivery",
       "position": {
-        "x": 120,
-        "y": 120
+        "x": 0,
+        "y": 550
       },
       "parameters": {
         "durationSeconds": 1.5

@@ -1,5 +1,5 @@
 ﻿import clsx from "clsx";
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import type { NodeProps } from "reactflow";
 import { Handle, Position } from "reactflow";
@@ -123,6 +123,7 @@ const mergePorts = (
 const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) => {
   const nodeId = data?.nodeId ?? id;
   const workflowNode = useWorkflowStore((state) => state.workflow?.nodes[nodeId]);
+  const workflowEdges = useWorkflowStore((state) => state.workflow?.edges ?? []);
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const { resolve } = useWidgetRegistry();
 
@@ -154,6 +155,43 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
   const adapter = workflowNode?.adapter ?? data?.adapter;
   const handler = workflowNode?.handler ?? data?.handler;
   const widgets = workflowNode?.ui?.widgets ?? data?.widgets ?? [];
+  const [connectedWidgetExpansion, setConnectedWidgetExpansion] = useState<Record<string, boolean>>({});
+
+  const parameterInputBindings = useMemo(() => {
+    const connected = new Set<string>();
+    if (!workflowNode) {
+      return connected;
+    }
+    const bindingByPortKey = new Map<string, string>();
+    (workflowNode.ui?.inputPorts ?? []).forEach((port) => {
+      const binding = resolveBindingPath(port.binding?.path ?? "");
+      if (binding && binding.root === "parameters") {
+        bindingByPortKey.set(port.key, `${binding.root}:${binding.path.join("/")}`);
+      }
+    });
+    workflowEdges.forEach((edge) => {
+      if (edge.target.nodeId !== nodeId || !edge.target.portId) {
+        return;
+      }
+      const bindingKey = bindingByPortKey.get(edge.target.portId);
+      if (bindingKey) {
+        connected.add(bindingKey);
+      }
+    });
+    return connected;
+  }, [workflowEdges, nodeId, workflowNode]);
+
+  useEffect(() => {
+    setConnectedWidgetExpansion((previous) => {
+      const next: Record<string, boolean> = {};
+      parameterInputBindings.forEach((key) => {
+        if (previous[key]) {
+          next[key] = true;
+        }
+      });
+      return next;
+    });
+  }, [parameterInputBindings]);
 
   const widgetElements = useMemo<ReactElement[]>(() => {
     if (!workflowNode || !widgets.length) {
@@ -169,25 +207,62 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
         return accumulator;
       }
       const value = getBindingValue(workflowNode, binding);
-      const readOnly = !isBindingEditable(widget.binding?.mode) || binding.root === "results";
+      const bindingKey = `${binding.root}:${binding.path.join("/")}`;
+      const coveredByInput = binding.root === "parameters" && parameterInputBindings.has(bindingKey);
+      const readOnly =
+        !isBindingEditable(widget.binding?.mode) || binding.root === "results" || coveredByInput;
+      const isExpanded = !coveredByInput || connectedWidgetExpansion[bindingKey] === true;
 
       const handleChange = (nextValue: unknown) => {
         updateNode(nodeId, (current) => setBindingValue(current, binding, nextValue));
       };
 
       accumulator.push(
-        <registration.component
+        <div
           key={widget.key}
-          widget={widget}
-          node={workflowNode}
-          value={value}
-          onChange={handleChange}
-          readOnly={readOnly}
-        />
+          className={clsx("workflow-node__widget-wrapper", {
+            "workflow-node__widget-wrapper--upstream": coveredByInput,
+          })}
+        >
+          {coveredByInput && (
+            <div className="workflow-node__widget-meta">
+              <span className="workflow-node__widget-hint">Provided by upstream connection</span>
+              <button
+                type="button"
+                className="workflow-node__widget-toggle"
+                onClick={() =>
+                  setConnectedWidgetExpansion((previous) => ({
+                    ...previous,
+                    [bindingKey]: !isExpanded,
+                  }))
+                }
+              >
+                {isExpanded ? "Hide" : "View"}
+              </button>
+            </div>
+          )}
+          {(!coveredByInput || isExpanded) && (
+            <registration.component
+              widget={widget}
+              node={workflowNode}
+              value={value}
+              onChange={handleChange}
+              readOnly={readOnly}
+            />
+          )}
+        </div>
       );
       return accumulator;
     }, []);
-  }, [nodeId, resolve, updateNode, widgets, workflowNode]);
+  }, [
+    connectedWidgetExpansion,
+    nodeId,
+    parameterInputBindings,
+    resolve,
+    updateNode,
+    widgets,
+    workflowNode,
+  ]);
 
   const stageClass =
     stage && stage.length

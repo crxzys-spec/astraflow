@@ -201,10 +201,20 @@ export const NodeInspector = () => {
                       {port.origin === "inferred" && <span className="badge badge--muted">inferred</span>}
                     </div>
                     {port.bindingPath && (
-                      <div className="inspector__port-binding">
-                        <span>Binding</span>
-                        <code className="inspector__port-code">{port.bindingPath}</code>
-                      </div>
+                      <>
+                        <div className="inspector__port-binding">
+                          <span className="inspector__port-binding-label">Binding</span>
+                          <code className="inspector__port-code">{port.bindingPath}</code>
+                        </div>
+                        {port.bindingMode && (
+                          <div className="inspector__port-mode">
+                            Mode
+                            <span className="inspector__port-mode-value">
+                              {port.bindingMode.toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </li>
                 ))}
@@ -224,10 +234,20 @@ export const NodeInspector = () => {
                       {port.origin === "inferred" && <span className="badge badge--muted">inferred</span>}
                     </div>
                     {port.bindingPath && (
-                      <div className="inspector__port-binding">
-                        <span>Binding</span>
-                        <code className="inspector__port-code">{port.bindingPath}</code>
-                      </div>
+                      <>
+                        <div className="inspector__port-binding">
+                          <span className="inspector__port-binding-label">Binding</span>
+                          <code className="inspector__port-code">{port.bindingPath}</code>
+                        </div>
+                        {port.bindingMode && (
+                          <div className="inspector__port-mode">
+                            Mode
+                            <span className="inspector__port-mode-value">
+                              {port.bindingMode.toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </li>
                 ))}

@@ -48,6 +48,63 @@ This document captures the backend positioning for AstraFlow, detailing the role
 
 ## 3. Node Package Model
 
+### 3.1 Adapter feedback example
+
+Packages can stream execution telemetry back to the scheduler through the `FeedbackPublisher` exposed on the `ExecutionContext`. A typical async adapter might look like:
+
+```python
+from worker.agent.runner.context import ExecutionContext
+from shared.models.ws.feedback import FeedbackChannel
+
+
+class SummariseAdapter:
+    async def async_run(self, ctx: ExecutionContext):
+        reporter = ctx.feedback
+
+        if reporter:
+            await reporter.send(
+                stage="running",
+                progress=0.05,
+                message="Downloading source articles…",
+            )
+
+        articles = await self._load_articles(ctx.params["urls"])
+
+        if reporter:
+            reporter.send_nowait(
+                stage="streaming",
+                message="Tokenising input",
+                chunks=[{"channel": FeedbackChannel.log, "text": "Loaded %d articles" % len(articles)}],
+            )
+
+        summary_tokens = []
+        async for token in self._llm_stream(articles):
+            summary_tokens.append(token)
+            if reporter:
+                reporter.send_nowait(
+                    stage="streaming",
+                    chunks=[{"channel": FeedbackChannel.llm, "text": token}],
+                    progress=min(0.95, 0.05 + len(summary_tokens) / 2000),  # crude heuristic
+                )
+
+        summary = "".join(summary_tokens)
+
+        if reporter:
+            await reporter.send(
+                stage="finalising",
+                progress=0.99,
+                message="Streaming complete, packaging result",
+            )
+
+        return {
+            "status": "SUCCEEDED",
+            "outputs": {"summary": summary},
+            "metadata": {"token_count": len(summary_tokens)},
+        }
+```
+
+For synchronous adapters, call `ctx.feedback.send_nowait(...)` (or `emit_text`) to avoid blocking the handler. The reporter takes care of serialising payloads to `task.feedback` frames; packages do not have to manage WebSocket details.
+
 ### Package Layout Example
 ```
 crawlerx_playwright/
@@ -80,7 +137,7 @@ crawlerx_playwright/
         "playwright.open_page",
         "playwright.click",
         "playwright.input",
-        "... etc
+        "... etc"
       ],
       "idempotency": "per_request",
       "metadata": {

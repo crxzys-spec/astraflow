@@ -31,7 +31,7 @@ This document captures the backend positioning for AstraFlow, detailing the role
 ## 2. Communication Channels
 
 ### WebSocket Control Plane
-- **Worker ->Scheduler**: registration, heartbeat updates, execution results, package install acknowledgements, logs.
+- **Worker ->Scheduler**: registration, heartbeat updates, execution results, incremental task feedback (progress/logs/LLM tokens), package install acknowledgements.
 - **Scheduler ->Worker**: package install/uninstall commands, manual controls (Drain/Rebind), task dispatch notifications.
 - **Specification**: WebSocket frame structure is defined in `docs/comm-protocol.md`, with authoritative JSON Schema under `docs/schema/ws/`.
 - **Message format** (JSON examples):

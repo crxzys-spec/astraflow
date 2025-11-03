@@ -1,4 +1,4 @@
-# Scheduler ⟷ Worker Control-Plane (Comm Protocol)
+# Scheduler �?Worker Control-Plane (Comm Protocol)
 
 This document defines the message envelope, payload schemas, session lifecycle, reliability/ordering, security/tenancy, and observability for the AstraFlow scheduler–worker control-plane.
 
@@ -28,17 +28,17 @@ See: `docs/schema/ws/ws.envelope.schema.json`.
 
 ## 2. Session Lifecycle (Worker-side State Machine)
 
-`NEW → HANDSHAKING → REGISTERED → HEARTBEATING → DRAINING → CLOSED` (errors go to `BACKOFF`, then retry to `NEW`).
+`NEW �?HANDSHAKING �?REGISTERED �?HEARTBEATING �?DRAINING �?CLOSED` (errors go to `BACKOFF`, then retry to `NEW`).
 
 Key transitions
 
-- **NEW** → send `handshake` (token or mTLS)
-- **HANDSHAKING** ← recv `ack` / `error`
-- **REGISTERED** ← send `register` (capabilities, pkg inventory)
-- **HEARTBEATING** ← periodic `heartbeat` (healthy true/false)
-- **DRAINING** ← scheduler sends `cmd.drain` (stop taking new; finish in-flight)
-- **CLOSED** ← graceful close or idle timeout / missed heartbeats
-- **BACKOFF** ← auth/network error; exponential backoff (jitter) then reconnect
+- **NEW** �?send `handshake` (token or mTLS)
+- **HANDSHAKING** �?recv `ack` / `error`
+- **REGISTERED** �?send `register` (capabilities, pkg inventory)
+- **HEARTBEATING** �?periodic `heartbeat` (healthy true/false)
+- **DRAINING** �?scheduler sends `cmd.drain` (stop taking new; finish in-flight)
+- **CLOSED** �?graceful close or idle timeout / missed heartbeats
+- **BACKOFF** �?auth/network error; exponential backoff (jitter) then reconnect
 
 Reconnect reconciliation (§4.4): scheduler compares `worker_id` and last `session_id`; stale bindings (orphaned in-flight tasks) are resolved per policy.
 
@@ -46,16 +46,15 @@ Reconnect reconciliation (§4.4): scheduler compares `worker_id` and last `sessi
 
 ## 3. Message Payload Schemas
 
-- `handshake` → `ws.handshake.schema.json`
-- `register` → `ws.register.schema.json`
-- `ack` → `ws.ack.schema.json`
-- `heartbeat` → `ws.heartbeat.schema.json`
-- `cmd.dispatch` → `ws.cmd.dispatch.schema.json`
-- `result` → `ws.result.schema.json`
-- `error` → `ws.error.schema.json`
-- `pkg.install` / `pkg.uninstall` / `pkg.event` → corresponding `ws.pkg.*.schema.json`
-
-Schemas are trimmed for readability here; see JSON files for full constraints.
+- `handshake` -> `ws.handshake.schema.json`
+- `register` -> `ws.register.schema.json`
+- `ack` -> `ws.ack.schema.json`
+- `heartbeat` -> `ws.heartbeat.schema.json`
+- `cmd.dispatch` -> `ws.cmd.dispatch.schema.json`
+- `feedback` -> `ws.feedback.schema.json`
+- `result` -> `ws.result.schema.json`
+- `error` -> `ws.error.schema.json`
+- `pkg.install` / `pkg.uninstall` / `pkg.event` -> corresponding `ws.pkg.*.schema.json`
 
 ### 3.1 Dispatch resources and affinity
 
@@ -75,6 +74,19 @@ The free-form `parameters` object remains unchanged; packages can continue to in
 
 Workers set `inline=true` when the payload already contains the data body. Otherwise, consumers must resolve the reference via the worker resource registry (see `docs/resource-affinity-and-artifacts.md`).
 
+
+### 3.3 Feedback streaming (adapter telemetry)
+
+Workers may emit incremental execution telemetry through the `feedback` payload while a node is running:
+
+- `stage` - optional scheduler hint such as `running`, `streaming`, `waiting_inputs`.
+- `progress` - normalized 0-1 progress for progress bars.
+- `message` - human friendly status text exposed to dashboards.
+- `chunks[]` - ordered fragments per channel (`stdout`, `stderr`, `log`, `llm`, etc.) carrying either UTF-8 text or base64 data along with MIME type and metadata.
+- `metrics` - ad-hoc numeric gauges (loss, iterations, throughput).
+
+Feedback is incremental; workers must still emit a terminal `result` payload when execution completes. The scheduler can translate feedback into SSE notifications (`node.state`, `node.result.delta`) for UI consumption.
+
 ---
 
 ## 4. Reliability & Ordering
@@ -87,7 +99,7 @@ Workers set `inline=true` when the payload already contains the data body. Other
 
 ### 4.2 Sequence Numbers
 - Maintain **per-run** stream: `seq` strictly increases for `cmd.dispatch` and `result`.
-- On gap → respond `E.RESULT.SEQ_GAP`; sender retries from last acked `seq`.
+- On gap �?respond `E.RESULT.SEQ_GAP`; sender retries from last acked `seq`.
 
 ### 4.3 Duplicate Policy
 - **Result duplicates**: accept **first**; subsequent with same `(task_id, seq)` drop & ack.
@@ -96,8 +108,8 @@ Workers set `inline=true` when the payload already contains the data body. Other
 ### 4.4 Reconnect & Stale Reconciliation
 - Worker reconnects with `handshake` + `register`.
 - Scheduler checks orphaned tasks for that `worker_id`:
-  - Lease **expired** → requeue (replay).
-  - Lease **valid** but new session → mark old session lost, rebind tasks; late duplicate results are dropped via idempotency.
+  - Lease **expired** �?requeue (replay).
+  - Lease **valid** but new session �?mark old session lost, rebind tasks; late duplicate results are dropped via idempotency.
 
 ---
 
@@ -137,22 +149,22 @@ Workers set `inline=true` when the payload already contains the data body. Other
 - Structured JSON with `tenant`, `sender.id`, `type`, `id`, `corr`, `code`, `seq`.
 
 **Threshold guidance (defaults; per-tenant overrides)**
-- `mem_pct ≥ 90%` or `disk_pct ≥ 95%` → auto-drain
-- `inflight_tasks ≥ max_parallel` & sustained → consider scaling/rebinding
-- Missed heartbeats: 1× WARN, 2× DEGRADED, 3× UNHEALTHY → mark lost & rebind
+- `mem_pct �?90%` or `disk_pct �?95%` �?auto-drain
+- `inflight_tasks �?max_parallel` & sustained �?consider scaling/rebinding
+- Missed heartbeats: 1× WARN, 2× DEGRADED, 3× UNHEALTHY �?mark lost & rebind
 
 ---
 
 ## 8. Example Exchange
 
-1. Worker → `handshake` (`ack.request=true`)
-2. Scheduler → `ack {for: handshake.id}`
-3. Worker → `register`
-4. Scheduler → `cmd.dispatch` (`corr=task_id, seq=1, ack.request=true`)
-5. Worker → `ack {for: cmd.id}`
-6. Worker → `result` (`corr=task_id, seq=1`)
-7. Scheduler → `ack {for: result.id}`
-8. Worker → periodic `heartbeat`
+1. Worker �?`handshake` (`ack.request=true`)
+2. Scheduler �?`ack {for: handshake.id}`
+3. Worker �?`register`
+4. Scheduler �?`cmd.dispatch` (`corr=task_id, seq=1, ack.request=true`)
+5. Worker �?`ack {for: cmd.id}`
+6. Worker �?`result` (`corr=task_id, seq=1`)
+7. Scheduler �?`ack {for: result.id}`
+8. Worker �?periodic `heartbeat`
 
 ---
 

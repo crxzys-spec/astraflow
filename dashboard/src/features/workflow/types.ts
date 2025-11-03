@@ -4,9 +4,11 @@ import type { WorkflowEdge as ApiWorkflowEdge } from '../../api/models/workflowE
 import type { WorkflowMetadata } from '../../api/models/workflowMetadata';
 import type { WorkflowNode as ApiWorkflowNode } from '../../api/models/workflowNode';
 import type { WorkflowNodeSchema } from '../../api/models/workflowNodeSchema';
+import type { RunArtifact } from '../../api/models/runArtifact';
 import type { NodeUI } from '../../api/models/nodeUI';
 import type { UIPort } from '../../api/models/uIPort';
 import type { UIWidget } from '../../api/models/uIWidget';
+import type { WorkflowNodeState } from '../../api/models/workflowNodeState';
 
 export type WorkflowDefinition = ApiWorkflow;
 export type WorkflowDefinitionNode = ApiWorkflowNode;
@@ -43,6 +45,10 @@ export interface WorkflowNodeDraft {
   affinity?: Record<string, unknown>;
   concurrencyKey?: string;
   metadata?: Record<string, unknown>;
+  state?: WorkflowNodeState;
+  runtimeResult?: Record<string, unknown> | null;
+  runtimeArtifacts?: RunArtifact[] | null;
+  runtimeSummary?: string | null;
 }
 
 export interface WorkflowEdgeDraft {
@@ -83,6 +89,8 @@ export interface WorkflowStoreState {
   selectedNodeId?: string;
 }
 
+export type WorkflowNodeStateUpdateMap = Record<string, WorkflowNodeState | null | undefined>;
+
 export interface WorkflowStoreActions {
   loadWorkflow: (definition: WorkflowDefinition) => void;
   resetWorkflow: () => void;
@@ -103,6 +111,16 @@ export interface WorkflowStoreActions {
   ) => void;
   removeEdge: (edgeId: string) => void;
   markDirty: () => void;
+  updateNodeStates: (updates: WorkflowNodeStateUpdateMap) => void;
+  updateNodeRuntime: (
+    nodeId: string,
+    payload: {
+      result?: Record<string, unknown> | null;
+      artifacts?: RunArtifact[] | null;
+      summary?: string | null;
+    }
+  ) => void;
+  resetRunState: () => void;
 }
 
 export type WorkflowStore = WorkflowStoreState & WorkflowStoreActions;

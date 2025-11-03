@@ -8,7 +8,7 @@ import type { ManifestAdapterMetadata } from './manifestAdapterMetadata';
 
 export interface ManifestAdapter {
   name: string;
-  /** @pattern ^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_.]*$ */
+  /** @pattern ^[A-Za-z_][A-Za-z0-9_.]*(?::[A-Za-z_][A-Za-z0-9_.]*)?$ */
   entrypoint: string;
   /** @minItems 1 */
   capabilities: string[];

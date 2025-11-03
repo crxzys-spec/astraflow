@@ -9,6 +9,7 @@ import type { WorkflowNodeStatus } from './workflowNodeStatus';
 import type { WorkflowNodePosition } from './workflowNodePosition';
 import type { WorkflowNodeParameters } from './workflowNodeParameters';
 import type { WorkflowNodeResults } from './workflowNodeResults';
+import type { WorkflowNodeState } from './workflowNodeState';
 import type { WorkflowNodeSchema } from './workflowNodeSchema';
 import type { NodeUI } from './nodeUI';
 
@@ -32,6 +33,8 @@ export interface WorkflowNode {
   parameters?: WorkflowNodeParameters;
   /** Default results payload seeded from the manifest schema. */
   results?: WorkflowNodeResults;
+  /** Platform-managed execution hints surfaced in the builder (optional). */
+  state?: WorkflowNodeState;
   /** JSON Schemas for parameters/results. */
   schema?: WorkflowNodeSchema;
   ui?: NodeUI;

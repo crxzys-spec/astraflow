@@ -11,6 +11,7 @@ import type { RunNodeStatusArtifactsItem } from './runNodeStatusArtifactsItem';
 import type { RunNodeStatusResult } from './runNodeStatusResult';
 import type { RunNodeStatusMetadata } from './runNodeStatusMetadata';
 import type { ResultError } from './resultError';
+import type { WorkflowNodeState } from './workflowNodeState';
 
 export interface RunNodeStatus {
   nodeId: string;
@@ -47,6 +48,8 @@ export interface RunNodeStatus {
   result?: RunNodeStatusResult;
   /** @nullable */
   metadata?: RunNodeStatusMetadata;
+  /** @nullable */
+  state?: WorkflowNodeState | null;
   /** @nullable */
   error?: ResultError;
 }

@@ -1,10 +1,12 @@
 ﻿import { nanoid } from 'nanoid';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import type { WorkflowNodeState } from '../../api/models/workflowNodeState';
 import type {
   WorkflowDraft,
   WorkflowEdgeDraft,
   WorkflowNodeDraft,
+  WorkflowNodeStateUpdateMap,
   WorkflowPaletteNode,
   WorkflowStore,
   WorkflowStoreState,
@@ -33,6 +35,19 @@ const removeDependency = (node: WorkflowNodeDraft | undefined, dependencyId: str
   if (!node) return;
   node.dependencies = node.dependencies.filter((id) => id !== dependencyId);
 };
+
+const cloneState = (value: WorkflowNodeState | null | undefined): WorkflowNodeState | undefined => {
+  if (value == null) {
+    return undefined;
+  }
+  return JSON.parse(JSON.stringify(value)) as WorkflowNodeState;
+};
+
+const statesEqual = (left: WorkflowNodeState | undefined, right: WorkflowNodeState | undefined): boolean =>
+  JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+
+const cloneRuntimeResult = (value: Record<string, unknown> | null | undefined) =>
+  value == null ? null : (JSON.parse(JSON.stringify(value)) as Record<string, unknown>);
 
 export const useWorkflowStore = create<WorkflowStore>()(
   immer((set, get) => ({
@@ -164,7 +179,66 @@ export const useWorkflowStore = create<WorkflowStore>()(
           workflow.dirty = true;
         }
       });
-    }
+    },
+
+    updateNodeStates: (updates: WorkflowNodeStateUpdateMap) => {
+      set((state) => {
+        const workflow = state.workflow;
+        if (!workflow) {
+          return;
+        }
+        Object.entries(updates).forEach(([nodeId, nextState]) => {
+          const node = workflow.nodes[nodeId];
+          if (!node) {
+            return;
+          }
+          const normalized = cloneState(nextState);
+          if (statesEqual(node.state, normalized)) {
+            return;
+          }
+          node.state = normalized;
+        });
+      });
+    },
+
+    updateNodeRuntime: (nodeId, payload) => {
+      set((state) => {
+        const workflow = state.workflow;
+        if (!workflow) {
+          return;
+        }
+        const node = workflow.nodes[nodeId];
+        if (!node) {
+          return;
+        }
+        if (payload.result !== undefined) {
+          node.runtimeResult = cloneRuntimeResult(payload.result);
+        }
+        if (payload.artifacts !== undefined) {
+          node.runtimeArtifacts = payload.artifacts
+            ? JSON.parse(JSON.stringify(payload.artifacts))
+            : null;
+        }
+        if (payload.summary !== undefined) {
+          node.runtimeSummary = payload.summary ?? null;
+        }
+      });
+    },
+
+    resetRunState: () => {
+      set((state) => {
+        const workflow = state.workflow;
+        if (!workflow) {
+          return;
+        }
+        Object.values(workflow.nodes).forEach((node) => {
+          node.state = undefined;
+          node.runtimeResult = null;
+          node.runtimeArtifacts = null;
+          node.runtimeSummary = null;
+        });
+      });
+    },
   }))
 );
 

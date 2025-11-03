@@ -19,7 +19,8 @@
         "example.pkg.transform_text",
         "example.pkg.delay",
         "example.pkg.send_notification",
-        "example.pkg.audit_log"
+        "example.pkg.audit_log",
+        "example.pkg.feedback_demo"
       ]
     }
   ],
@@ -530,6 +531,108 @@
             "component": "textarea",
             "binding": {
               "path": "/parameters/message"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "example.pkg.feedback_demo",
+      "status": "published",
+      "category": "Examples",
+      "label": "Feedback Showcase",
+      "description": "Streams progress, metrics, and live tokens using task feedback.",
+      "tags": [
+        "example",
+        "feedback",
+        "streaming"
+      ],
+      "adapter": "demo",
+      "handler": "feedback_showcase",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "description": "Text that will be streamed token-by-token.",
+              "default": "Hello AstraFlow!"
+            },
+            "tokenDelayMs": {
+              "type": "number",
+              "description": "Delay in milliseconds between emitted tokens.",
+              "default": 80,
+              "minimum": 0
+            }
+          },
+          "required": []
+        },
+        "results": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "succeeded",
+                "failed"
+              ]
+            },
+            "summary": {
+              "type": "string",
+              "description": "Concatenated token stream produced by the demo."
+            },
+            "tokenCount": {
+              "type": "integer",
+              "description": "Number of tokens emitted during the stream."
+            }
+          },
+          "required": [
+            "status"
+          ]
+        }
+      },
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "prompt",
+            "label": "Prompt",
+            "binding": {
+              "path": "/parameters/prompt"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "summary",
+            "label": "Summary",
+            "binding": {
+              "path": "/results/summary"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "prompt",
+            "label": "Prompt",
+            "component": "textarea",
+            "binding": {
+              "path": "/parameters/prompt"
+            },
+            "options": {
+              "rows": 3
+            }
+          },
+          {
+            "key": "tokenDelayMs",
+            "label": "Token Delay (ms)",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/tokenDelayMs"
+            },
+            "options": {
+              "min": 0,
+              "step": 10
             }
           }
         ]

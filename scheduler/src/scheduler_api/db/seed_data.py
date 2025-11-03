@@ -91,6 +91,53 @@ DEMO_WORKFLOW_DEFINITION: Dict[str, Any] = {
             },
         },
         {
+            "id": "node-feedback",
+            "type": "example.pkg.feedback_demo",
+            "package": {"name": "example.pkg", "version": "1.0.0"},
+            "adapter": "demo",
+            "handler": "feedback_showcase",
+            "status": "published",
+            "category": "Examples",
+            "label": "Feedback Showcase",
+            "position": {"x": -200, "y": -200},
+            "parameters": {
+                "prompt": "Streaming live feedback from AstraFlow!",
+                "tokenDelayMs": 80,
+            },
+            "ui": {
+                "inputPorts": [
+                    {
+                        "key": "prompt",
+                        "label": "Prompt",
+                        "binding": {"path": "/parameters/prompt", "mode": "write"},
+                    }
+                ],
+                "outputPorts": [
+                    {
+                        "key": "summary",
+                        "label": "Summary",
+                        "binding": {"path": "/results/summary", "mode": "write"},
+                    }
+                ],
+                "widgets": [
+                    {
+                        "key": "prompt",
+                        "label": "Prompt",
+                        "component": "textarea",
+                        "binding": {"path": "/parameters/prompt", "mode": "write"},
+                        "options": {"rows": 3},
+                    },
+                    {
+                        "key": "tokenDelayMs",
+                        "label": "Token Delay (ms)",
+                        "component": "number",
+                        "binding": {"path": "/parameters/tokenDelayMs", "mode": "write"},
+                        "options": {"min": 0, "step": 10},
+                    },
+                ],
+            },
+        },
+        {
             "id": "node-delay",
             "type": "example.pkg.delay",
             "package": {"name": "example.pkg", "version": "1.0.0"},
@@ -216,9 +263,10 @@ DEMO_WORKFLOW_DEFINITION: Dict[str, Any] = {
     ],
     "edges": [
         {"id": "edge-1", "source": {"node": "node-config", "port": "output"}, "target": {"node": "node-transform", "port": "input"}},
-        {"id": "edge-2", "source": {"node": "node-transform", "port": "output"}, "target": {"node": "node-delay", "port": "input"}},
-        {"id": "edge-3", "source": {"node": "node-delay", "port": "output"}, "target": {"node": "node-notify", "port": "input"}},
-        {"id": "edge-4", "source": {"node": "node-notify", "port": "output"}, "target": {"node": "node-audit", "port": "input"}},
+        {"id": "edge-2", "source": {"node": "node-transform", "port": "output"}, "target": {"node": "node-feedback", "port": "prompt"}},
+        {"id": "edge-3", "source": {"node": "node-transform", "port": "output"}, "target": {"node": "node-delay", "port": "input"}},
+        {"id": "edge-4", "source": {"node": "node-delay", "port": "output"}, "target": {"node": "node-notify", "port": "input"}},
+        {"id": "edge-5", "source": {"node": "node-notify", "port": "output"}, "target": {"node": "node-audit", "port": "input"}},
     ],
 }
 

@@ -143,6 +143,12 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
     typeof runtimeState?.progress === "number"
       ? Math.max(0, Math.min(1, runtimeState.progress))
       : undefined;
+  const progressPercent =
+    typeof progress === "number" ? Math.round(progress * 100) : undefined;
+  const progressDisplay =
+    typeof progressPercent === "number"
+      ? Math.max(0, Math.min(100, progressPercent))
+      : undefined;
   const inputPorts = mergePorts(workflowNode?.ui?.inputPorts, data?.fallbackInputPorts);
   const outputPorts = mergePorts(workflowNode?.ui?.outputPorts, data?.fallbackOutputPorts);
   const adapter = workflowNode?.adapter ?? data?.adapter;
@@ -209,7 +215,15 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
               )}
             >
               {formatStage(stage)}
-              {typeof progress === "number" ? ` (${Math.round(progress * 100)}%)` : ""}
+              {typeof progressDisplay === "number" && (
+                <span className="workflow-node__stage-progress">
+                  (
+                  <span className="workflow-node__stage-progress-value">
+                    {progressDisplay.toString().padStart(3, "\u00a0")}
+                  </span>
+                  %)
+                </span>
+              )}
             </span>
           )}
           {status && <span className="workflow-node__status">{status}</span>}

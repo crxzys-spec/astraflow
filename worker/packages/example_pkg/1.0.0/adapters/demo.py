@@ -10,6 +10,7 @@ import uuid
 from typing import Any, Dict
 
 from worker.agent.runner.context import ExecutionContext
+from shared.models.ws.feedback import FeedbackChannel
 
 LOGGER = logging.getLogger(__name__)
 
@@ -115,3 +116,65 @@ async def audit_log(context: ExecutionContext) -> Dict[str, Any]:
     "entry": entry,
   }
 
+
+
+async def feedback_showcase(context: ExecutionContext) -> Dict[str, Any]:
+  """Demonstrate streaming feedback, progress, metrics, and binary chunks."""
+  prompt = context.params.get("prompt") or "Hello from AstraFlow!"
+  delay_ms = context.params.get("tokenDelayMs", 80)
+  try:
+    delay = max(0.0, float(delay_ms) / 1000.0)
+  except (TypeError, ValueError):
+    delay = 0.08
+  reporter = context.feedback
+  tokens = list(prompt)
+  total = len(tokens) or 1
+  assembled: list[str] = []
+  counter_width = len(str(total))
+  if reporter:
+    await reporter.send(
+      stage="initialising",
+      progress=0.02,
+      message=f"Streaming tokens {0:0{counter_width}d}/{total:0{counter_width}d} (000.0%)",
+      metrics={"tokens_total": total},
+    )
+  for index, token in enumerate(tokens):
+    assembled.append(token)
+    await asyncio.sleep(delay)
+    if reporter:
+      streamed = index + 1
+      fraction = streamed / total
+      progress = round(0.05 + 0.8 * fraction, 4)
+      percent = round(fraction * 100, 1)
+      await reporter.send(
+        stage="streaming",
+        progress=progress,
+        message=f"Streaming tokens {streamed:0{counter_width}d}/{total:0{counter_width}d} ({percent:05.1f}%)",
+        chunks=[{"channel": FeedbackChannel.llm.value, "text": token}],
+        metrics={"tokens_streamed": streamed, "percent_complete": percent},
+      )
+  summary = "".join(assembled)
+  if reporter:
+    await reporter.send(
+      stage="streaming",
+      message="Preview image ready",
+      chunks=[{
+        "channel": FeedbackChannel.custom.value,
+        "mime_type": "image/png",
+        "data_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=",
+        "metadata": {"description": "1x1 AstraFlow pixel"}
+      }],
+    )
+    await reporter.send(
+      stage="finalising",
+      progress=0.98,
+      message=f"Summarising feedback tokens ({total:0{counter_width}d}/{total:0{counter_width}d})",
+      chunks=[{"channel": FeedbackChannel.log.value, "text": f"Generated {total} tokens"}],
+      metrics={"tokens_total": total},
+    )
+    await reporter.send(
+      stage="succeeded",
+      progress=1.0,
+      message=f"Feedback demo complete ({total:0{counter_width}d}/{total:0{counter_width}d})",
+    )
+  return {"status": "succeeded", "summary": summary, "tokenCount": len(summary)}

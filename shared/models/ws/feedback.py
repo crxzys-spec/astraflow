@@ -72,3 +72,8 @@ class WsFeedback(BaseModel):
         None,
         description='Implementation-defined details; forwarded to observability sinks.',
     )
+
+
+# Backwards compatible aliases used throughout the worker/scheduler codebase.
+FeedbackChannel = Channel
+FeedbackPayload = WsFeedback

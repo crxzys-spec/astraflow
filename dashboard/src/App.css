@@ -434,6 +434,20 @@ button {
   color: rgba(226, 232, 240, 0.9);
 }
 
+.workflow-node__stage-progress {
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.workflow-node__stage-progress-value {
+  display: inline-block;
+  min-width: 3ch;
+  text-align: right;
+}
+
 .workflow-node__stage--queued {
   border-color: rgba(96, 165, 250, 0.35);
   background: rgba(30, 64, 175, 0.24);

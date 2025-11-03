@@ -141,6 +141,7 @@ class PackageManager:
             sys.path.insert(0, package_sys_path)
 
         adapter_entrypoints: dict[str, str] = {}
+        adapter_metadata: dict[str, dict[str, Any]] = {}
         adapters = manifest.get("adapters", [])
         for adapter in adapters:
             entrypoint = adapter.get("entrypoint")
@@ -149,19 +150,7 @@ class PackageManager:
                 LOGGER.warning("Skipping adapter with missing name/entrypoint: %s", adapter)
                 continue
             adapter_entrypoints[name] = entrypoint
-            capabilities = adapter.get("capabilities", [])
-            metadata = adapter.get("metadata", {})
-            for capability in capabilities:
-                handler_name = capability.split(".")[-1]
-                handler_key = capability
-                resolved_entrypoint = self._build_entrypoint(entrypoint, handler_name)
-                self._registry.register(
-                    package_name,
-                    version,
-                    handler_key,
-                    resolved_entrypoint,
-                    metadata=metadata | {"adapter": name},
-                )
+            adapter_metadata[name] = adapter.get("metadata", {})
 
         nodes = manifest.get("nodes", [])
         for node in nodes:
@@ -178,11 +167,14 @@ class PackageManager:
                 )
                 continue
             resolved_entrypoint = self._build_entrypoint(entrypoint, handler_name)
-            metadata = {
-                "node": node_type,
-                "adapter": adapter_name,
-                "config": node.get("config", {}),
-            }
+            metadata = dict(adapter_metadata.get(adapter_name, {}))
+            metadata.update(
+                {
+                    "node": node_type,
+                    "adapter": adapter_name,
+                    "config": node.get("config", {}),
+                }
+            )
             self._registry.register(
                 package_name,
                 version,

@@ -350,13 +350,10 @@ export const updateRunDefinitionNodeState = (
     }
     const currentPriority = getStagePriority(currentState.stage);
     if (currentPriority > 0) {
-      console.log("[builder] skip node.state null", nodeId, "keep", currentState.stage);
       return;
     }
-    console.log("[builder] accept node.state null", nodeId, "no current priority");
     return;
   }
-  console.log("[builder] apply node.state", nodeId, "stage", state.stage);
   const updates: WorkflowNodeStateUpdateMap = { [nodeId]: state };
   updateWorkflowDefinitionNodeStates(queryClient, runId, updates);
 };
@@ -393,17 +390,6 @@ export const applyRunDefinitionSnapshot = (
       const currentStage = currentState.stage;
       const currentPriority = getStagePriority(currentStage);
       const nextPriority = getStagePriority(nextStage);
-      console.log(
-        "[builder snapshot] candidate",
-        node.nodeId,
-        "current",
-        currentStage,
-        "next",
-        nextStage,
-        currentPriority,
-        "->",
-        nextPriority,
-      );
       if (currentPriority > 0 && nextPriority === 0) {
         return;
       }
@@ -411,7 +397,6 @@ export const applyRunDefinitionSnapshot = (
         return;
       }
     }
-    console.log("[builder snapshot] accept", node.nodeId, "stage", nextStage);
     stateUpdates[node.nodeId] = nextState;
   });
   const runtimeUpdates = nodes.reduce<Record<string, WorkflowNodeRuntimeUpdate>>((acc, node) => {

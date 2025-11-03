@@ -26,7 +26,11 @@ export const buildFlowNodes = (workflow: WorkflowDraft, selectedNodeId?: string)
     data: {
       nodeId: node.id,
       label: node.label,
-      status: (node.results?.status as string | undefined) ?? undefined,
+      status: node.status,
+      stage: node.state?.stage,
+      progress: typeof node.state?.progress === "number" ? node.state.progress : undefined,
+      message: typeof node.state?.message === "string" ? node.state.message : undefined,
+      lastUpdatedAt: node.state?.lastUpdatedAt,
       packageName: node.packageName,
       packageVersion: node.packageVersion,
       adapter: node.adapter,
@@ -47,3 +51,7 @@ export const buildFlowEdges = (workflow: WorkflowDraft): Edge[] =>
     targetHandle: edge.target.portId,
     data: edge.metadata
   }));
+
+
+
+

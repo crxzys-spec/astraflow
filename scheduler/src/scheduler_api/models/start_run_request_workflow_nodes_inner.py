@@ -26,6 +26,7 @@ from scheduler_api.models.object import object
 from scheduler_api.models.start_run_request_workflow_nodes_inner_package import StartRunRequestWorkflowNodesInnerPackage
 from scheduler_api.models.start_run_request_workflow_nodes_inner_position import StartRunRequestWorkflowNodesInnerPosition
 from scheduler_api.models.start_run_request_workflow_nodes_inner_schema import StartRunRequestWorkflowNodesInnerSchema
+from scheduler_api.models.start_run_request_workflow_nodes_inner_state import StartRunRequestWorkflowNodesInnerState
 from scheduler_api.models.start_run_request_workflow_nodes_inner_ui import StartRunRequestWorkflowNodesInnerUi
 try:
     from typing import Self
@@ -47,10 +48,11 @@ class StartRunRequestWorkflowNodesInner(object):
     position: StartRunRequestWorkflowNodesInnerPosition
     parameters: Optional[Dict[str, Any]] = Field(default=None, description="Default parameter payload seeded from the manifest schema.")
     results: Optional[Dict[str, Any]] = Field(default=None, description="Default results payload seeded from the manifest schema.")
+    state: Optional[StartRunRequestWorkflowNodesInnerState] = None
     var_schema: Optional[StartRunRequestWorkflowNodesInnerSchema] = Field(default=None, alias="schema")
     ui: Optional[StartRunRequestWorkflowNodesInnerUi] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "type", "package", "status", "category", "label", "description", "tags", "position", "parameters", "results", "schema", "ui"]
+    __properties: ClassVar[List[str]] = ["id", "type", "package", "status", "category", "label", "description", "tags", "position", "parameters", "results", "state", "schema", "ui"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
@@ -104,6 +106,9 @@ class StartRunRequestWorkflowNodesInner(object):
         # override the default output from pydantic by calling `to_dict()` of position
         if self.position:
             _dict['position'] = self.position.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of state
+        if self.state:
+            _dict['state'] = self.state.to_dict()
         # override the default output from pydantic by calling `to_dict()` of var_schema
         if self.var_schema:
             _dict['schema'] = self.var_schema.to_dict()
@@ -138,6 +143,7 @@ class StartRunRequestWorkflowNodesInner(object):
             "position": StartRunRequestWorkflowNodesInnerPosition.from_dict(obj.get("position")) if obj.get("position") is not None else None,
             "parameters": obj.get("parameters"),
             "results": obj.get("results"),
+            "state": StartRunRequestWorkflowNodesInnerState.from_dict(obj.get("state")) if obj.get("state") is not None else None,
             "schema": StartRunRequestWorkflowNodesInnerSchema.from_dict(obj.get("schema")) if obj.get("schema") is not None else None,
             "ui": StartRunRequestWorkflowNodesInnerUi.from_dict(obj.get("ui")) if obj.get("ui") is not None else None
         })

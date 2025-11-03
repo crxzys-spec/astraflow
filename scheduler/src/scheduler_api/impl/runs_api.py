@@ -88,13 +88,13 @@ class RunsApiImpl(BaseRunsApi):
         self,
         runId: str,
     ) -> StartRunRequestWorkflow:
-        record = await run_registry.get(runId)
-        if not record:
+        workflow = await run_registry.get_workflow_with_state(runId)
+        if not workflow:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Run {runId} not found",
             )
-        return record.workflow
+        return workflow
 
     def _ensure_initial_node(self, workflow: StartRunRequestWorkflow) -> None:
         self._select_initial_node(workflow)

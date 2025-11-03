@@ -6,6 +6,8 @@ import asyncio
 import copy
 import hashlib
 import json
+import logging
+import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional
@@ -24,8 +26,17 @@ from scheduler_api.models.list_runs200_response_items_inner_nodes_inner import (
 from scheduler_api.models.start_run202_response import StartRun202Response
 from scheduler_api.models.start_run_request import StartRunRequest
 from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkflow
+from scheduler_api.sse import event_publisher
+from scheduler_api.sse.mappers import (
+    node_result_snapshot_envelope,
+    node_state_envelope,
+    run_snapshot_envelope,
+    run_state_envelope,
+)
 from shared.models.ws import result as ws_result
 from shared.models.ws.error import ErrorPayload
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _utc_now() -> datetime:
@@ -232,6 +243,64 @@ class RunRecord:
             "metadata": data.get("metadata"),
         }
 
+    def _extract_node_message(self, node: NodeState) -> Optional[str]:
+        if not node.metadata:
+            return None
+        message = node.metadata.get("message") or node.metadata.get("statusMessage")
+        if isinstance(message, str) and message.strip():
+            return message
+        return None
+
+    def _extract_node_progress(self, node: NodeState) -> Optional[float]:
+        if not node.metadata:
+            return None
+        raw = node.metadata.get("progress")
+        try:
+            value = float(raw)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(value):
+            return None
+        return max(0.0, min(1.0, value))
+
+    def _build_node_state_payload(
+        self,
+        node: NodeState,
+        *,
+        last_updated_at: Optional[datetime],
+    ) -> Dict[str, Any]:
+        state: Dict[str, Any] = {"stage": node.status}
+        progress = self._extract_node_progress(node)
+        if progress is not None:
+            state["progress"] = progress
+        message = self._extract_node_message(node)
+        if message:
+            state["message"] = message
+        if last_updated_at:
+            state["lastUpdatedAt"] = last_updated_at.isoformat()
+        elif node.metadata and isinstance(node.metadata.get("lastUpdatedAt"), str):
+            state["lastUpdatedAt"] = node.metadata["lastUpdatedAt"]
+        if node.error:
+            state["error"] = node.error.to_dict()
+        return state
+
+    def _build_workflow_snapshot(self, record: RunRecord) -> StartRunRequestWorkflow:
+        workflow_dict = record.workflow.to_dict()
+        nodes = workflow_dict.get("nodes", [])
+        for node_payload in nodes:
+            node_id = node_payload.get("id")
+            if not node_id:
+                continue
+            node_state = record.nodes.get(node_id)
+            if not node_state:
+                continue
+            state_payload = self._build_node_state_payload(
+                node_state,
+                last_updated_at=node_state.finished_at or node_state.started_at,
+            )
+            node_payload["state"] = state_payload
+        return StartRunRequestWorkflow.from_dict(workflow_dict)
+
     def _format_node(self, node: NodeState) -> Dict[str, Any]:
         payload: Dict[str, Any] = {
             "nodeId": node.node_id,
@@ -268,6 +337,12 @@ class RunRecord:
             payload["metadata"] = node.metadata
         if node.error:
             payload["error"] = node.error.to_dict()
+        state_payload = self._build_node_state_payload(
+            node,
+            last_updated_at=node.finished_at or node.started_at,
+        )
+        if state_payload:
+            payload["state"] = state_payload
         return payload
 
 
@@ -278,6 +353,207 @@ class RunRegistry:
         self._runs: Dict[str, RunRecord] = {}
         self._lock = asyncio.Lock()
 
+    async def _publish_run_state(self, record: RunRecord) -> None:
+        if not record.client_id:
+            return
+        envelope = run_state_envelope(
+            tenant=record.tenant,
+            client_session_id=record.client_id,
+            run_id=record.run_id,
+            status=record.status,
+            started_at=record.started_at,
+            finished_at=record.finished_at,
+            reason=record.error.message if record.error else None,
+            occurred_at=_utc_now(),
+        )
+        try:
+            await event_publisher.publish(envelope)
+        except Exception:  # noqa: BLE001
+            LOGGER.exception("Failed to publish run state event run=%s", record.run_id)
+
+    async def _publish_run_snapshot(self, record: RunRecord) -> None:
+        if not record.client_id:
+            return
+        summary = record.to_summary()
+        payload = summary.model_dump(by_alias=True, exclude_none=True, mode="json")
+        nodes_payload = payload.pop("nodes", None)
+        envelope = run_snapshot_envelope(
+            tenant=record.tenant,
+            client_session_id=record.client_id,
+            run=payload,
+            nodes=nodes_payload,
+            occurred_at=_utc_now(),
+        )
+        try:
+            await event_publisher.publish(envelope)
+        except Exception:  # noqa: BLE001
+            LOGGER.exception("Failed to publish run snapshot event run=%s", record.run_id)
+
+    async def _publish_node_state(self, record: RunRecord, node: NodeState) -> None:
+        if not record.client_id:
+            return
+        progress = self._extract_node_progress(node)
+        message = self._extract_node_message(node)
+        error_payload = node.error.to_dict() if node.error else None
+        occurred_at = _utc_now()
+        envelope = node_state_envelope(
+            tenant=record.tenant,
+            client_session_id=record.client_id,
+            run_id=record.run_id,
+            node_id=node.node_id,
+            stage=node.status,
+            progress=progress,
+            message=message,
+            error=error_payload,
+            occurred_at=occurred_at,
+            last_updated_at=occurred_at,
+        )
+        try:
+            await event_publisher.publish(envelope)
+        except Exception:  # noqa: BLE001
+            LOGGER.exception(
+                "Failed to publish node state event run=%s node=%s",
+                record.run_id,
+                node.node_id,
+            )
+
+    async def _publish_node_snapshot(
+        self,
+        record: RunRecord,
+        node: NodeState,
+        *,
+        complete: bool,
+    ) -> None:
+        if not record.client_id:
+            return
+        content: Dict[str, Any]
+        if isinstance(node.result, dict):
+            content = node.result
+        elif node.result is None:
+            content = {}
+        else:
+            content = {"value": node.result}
+
+        envelope = node_result_snapshot_envelope(
+            tenant=record.tenant,
+            client_session_id=record.client_id,
+            run_id=record.run_id,
+            node_id=node.node_id,
+            revision=(node.seq or 0),
+            content=content,
+            artifacts=node.artifacts,
+            complete=complete,
+            summary=(
+                node.error.message if node.error else node.metadata.get("message")
+                if node.metadata
+                else None
+            ),
+            occurred_at=_utc_now(),
+        )
+        try:
+            await event_publisher.publish(envelope)
+        except Exception:  # noqa: BLE001
+            LOGGER.exception(
+                "Failed to publish node result snapshot run=%s node=%s",
+                record.run_id,
+                node.node_id,
+            )
+
+    def _extract_node_message(self, node: NodeState) -> Optional[str]:
+        metadata = node.metadata or {}
+        message = metadata.get("message") or metadata.get("statusMessage")
+        if isinstance(message, str) and message.strip():
+            return message
+        return None
+
+    def _extract_node_progress(self, node: NodeState) -> Optional[float]:
+        metadata = node.metadata or {}
+        raw = metadata.get("progress")
+        try:
+            value = float(raw)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(value):
+            return None
+        return max(0.0, min(1.0, value))
+
+    def _build_node_state_payload(
+        self,
+        node: NodeState,
+        *,
+        last_updated_at: Optional[datetime],
+    ) -> Dict[str, Any]:
+        state: Dict[str, Any] = {"stage": node.status}
+        progress = self._extract_node_progress(node)
+        if progress is not None:
+            state["progress"] = progress
+        message = self._extract_node_message(node)
+        if message:
+            state["message"] = message
+        if last_updated_at:
+            state["lastUpdatedAt"] = last_updated_at.isoformat()
+        elif node.metadata and isinstance(node.metadata.get("lastUpdatedAt"), str):
+            state["lastUpdatedAt"] = node.metadata["lastUpdatedAt"]
+        if node.error:
+            state["error"] = node.error.to_dict()
+        return state
+
+    def _build_workflow_snapshot(self, record: RunRecord) -> StartRunRequestWorkflow:
+        workflow_dict = record.workflow.to_dict()
+        nodes = workflow_dict.get("nodes", [])
+        for node_payload in nodes:
+            node_id = node_payload.get("id")
+            if not node_id:
+                continue
+            node_state = record.nodes.get(node_id)
+            if not node_state:
+                continue
+            state_payload = self._build_node_state_payload(
+                node_state,
+                last_updated_at=node_state.finished_at or node_state.started_at,
+            )
+            node_payload["state"] = state_payload
+        return StartRunRequestWorkflow.from_dict(workflow_dict)
+
+    def _format_node(self, node: NodeState) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            "nodeId": node.node_id,
+            "taskId": node.task_id,
+            "status": node.status,
+        }
+        if node.worker_id:
+            payload["workerId"] = node.worker_id
+        if node.started_at:
+            payload["startedAt"] = node.started_at
+        if node.finished_at:
+            payload["finishedAt"] = node.finished_at
+        if node.seq is not None:
+            payload["seq"] = node.seq
+        if node.pending_ack:
+            payload["pendingAck"] = True
+        if node.dispatch_id:
+            payload["dispatchId"] = node.dispatch_id
+        if node.ack_deadline:
+            payload["ackDeadline"] = node.ack_deadline
+        if node.resource_refs:
+            payload["resourceRefs"] = node.resource_refs
+        if node.affinity:
+            payload["affinity"] = node.affinity
+        if node.artifacts:
+            payload["artifacts"] = node.artifacts
+        if node.result is not None:
+            payload["result"] = node.result
+        if node.metadata is not None:
+            payload["metadata"] = node.metadata
+        if node.error:
+            payload["error"] = node.error.to_dict()
+        state_payload = self._build_node_state_payload(
+            node,
+            last_updated_at=node.finished_at or node.started_at,
+        )
+        if state_payload:
+            payload["state"] = state_payload
+        return payload
     async def create_run(
         self,
         *,
@@ -297,7 +573,10 @@ class RunRegistry:
             )
             self._initialise_nodes(record)
             self._runs[run_id] = record
-            return copy.deepcopy(record)
+            snapshot = copy.deepcopy(record)
+        await self._publish_run_state(snapshot)
+        await self._publish_run_snapshot(snapshot)
+        return snapshot
 
     async def get(self, run_id: str) -> Optional[RunRecord]:
         async with self._lock:
@@ -312,6 +591,14 @@ class RunRegistry:
                 if record.find_node_by_task(task_id):
                     return copy.deepcopy(record)
         return None
+
+    async def get_workflow_with_state(self, run_id: str) -> Optional[StartRunRequestWorkflow]:
+        async with self._lock:
+            record = self._runs.get(run_id)
+            if not record:
+                return None
+            snapshot = copy.deepcopy(record)
+        return self._build_workflow_snapshot(snapshot)
 
     async def snapshot(self) -> List[RunRecord]:
         async with self._lock:
@@ -350,8 +637,10 @@ class RunRegistry:
             record = self._runs.get(run_id)
             if not record:
                 return None
+            previous_status = record.status
+            timestamp = _utc_now()
             record.status = "running"
-            record.started_at = record.started_at or _utc_now()
+            record.started_at = record.started_at or timestamp
             record.worker_id = worker_id
             record.task_id = task_id
             record.node_id = node_id
@@ -362,7 +651,7 @@ class RunRegistry:
             node_state = record.get_node(node_id, task_id=task_id)
             node_state.status = "running"
             node_state.worker_id = worker_id
-            node_state.started_at = _utc_now()
+            node_state.started_at = timestamp
             node_state.finished_at = None
             node_state.seq = seq_used
             if resource_refs is not None:
@@ -375,7 +664,15 @@ class RunRegistry:
             node_state.dispatch_id = dispatch_id
             node_state.ack_deadline = ack_deadline
             record.refresh_rollup()
-            return copy.deepcopy(record)
+            new_status = record.status
+            record_snapshot = copy.deepcopy(record)
+            node_snapshot = copy.deepcopy(node_state)
+        tasks = [self._publish_node_state(record_snapshot, node_snapshot)]
+        if new_status != previous_status:
+            tasks.append(self._publish_run_state(record_snapshot))
+        tasks.append(self._publish_run_snapshot(record_snapshot))
+        await asyncio.gather(*tasks)
+        return record_snapshot
 
     async def mark_acknowledged(
         self,
@@ -391,10 +688,18 @@ class RunRegistry:
             node_state = record.nodes.get(node_id)
             if not node_state or node_state.dispatch_id != dispatch_id:
                 return copy.deepcopy(record)
+            previous_status = record.status
             node_state.pending_ack = False
             node_state.ack_deadline = None
             record.refresh_rollup()
-            return copy.deepcopy(record)
+            record_snapshot = copy.deepcopy(record)
+            node_snapshot = copy.deepcopy(node_state)
+        tasks = [self._publish_node_state(record_snapshot, node_snapshot)]
+        if record_snapshot.status != previous_status:
+            tasks.append(self._publish_run_state(record_snapshot))
+        tasks.append(self._publish_run_snapshot(record_snapshot))
+        await asyncio.gather(*tasks)
+        return record_snapshot
 
     async def reset_after_ack_timeout(
         self,
@@ -410,6 +715,7 @@ class RunRegistry:
             node_state = record.nodes.get(node_id)
             if not node_state or node_state.dispatch_id != dispatch_id:
                 return copy.deepcopy(record)
+            previous_status = record.status
             previous_worker = node_state.worker_id
             previous_node_type = node_state.node_type
             previous_package_name = node_state.package_name
@@ -439,7 +745,15 @@ class RunRegistry:
             if record.package_version == previous_package_version:
                 record.package_version = None
             record.refresh_rollup()
-            return copy.deepcopy(record)
+            new_status = record.status
+            record_snapshot = copy.deepcopy(record)
+            node_snapshot = copy.deepcopy(node_state)
+        tasks = [self._publish_node_state(record_snapshot, node_snapshot)]
+        if new_status != previous_status:
+            tasks.append(self._publish_run_state(record_snapshot))
+        tasks.append(self._publish_run_snapshot(record_snapshot))
+        await asyncio.gather(*tasks)
+        return record_snapshot
 
     async def record_result(
         self,
@@ -450,10 +764,12 @@ class RunRegistry:
             record = self._runs.get(run_id)
             if not record:
                 return None, []
+            previous_status = record.status
             status = _normalise_status(payload.status.value)
             node_state = record.find_node_by_task(payload.task_id) or record.get_node(payload.task_id, task_id=payload.task_id)
+            timestamp = _utc_now()
             node_state.status = status
-            node_state.finished_at = _utc_now()
+            node_state.finished_at = timestamp
             node_state.result = payload.result
             node_state.metadata = payload.metadata
             node_state.artifacts = [
@@ -487,7 +803,22 @@ class RunRegistry:
                     ready.append(self._build_dispatch_request(record, dependent))
 
             record.refresh_rollup()
-            return copy.deepcopy(record), ready
+            new_status = record.status
+            record_snapshot = copy.deepcopy(record)
+            node_snapshot = copy.deepcopy(node_state)
+        tasks = [
+            self._publish_node_state(record_snapshot, node_snapshot),
+            self._publish_node_snapshot(
+                record_snapshot,
+                node_snapshot,
+                complete=status in FINAL_STATUSES,
+            ),
+        ]
+        if new_status != previous_status:
+            tasks.append(self._publish_run_state(record_snapshot))
+        tasks.append(self._publish_run_snapshot(record_snapshot))
+        await asyncio.gather(*tasks)
+        return record_snapshot, ready
 
     async def record_command_error(
         self,
@@ -507,6 +838,7 @@ class RunRegistry:
                 )
             if not record:
                 return None, []
+            previous_status = record.status
             details = payload.context.details if payload.context and payload.context.details else None
             error = ListRuns200ResponseItemsInnerError(
                 code=payload.code,
@@ -520,13 +852,24 @@ class RunRegistry:
                 node_state = record.find_node_by_task(task_id)
             if not node_state and record.node_id:
                 node_state = record.nodes.get(record.node_id)
+            node_snapshot = None
             if node_state:
                 node_state.status = "failed"
                 node_state.finished_at = _utc_now()
                 node_state.error = error
                 node_state.enqueued = False
+                node_snapshot = copy.deepcopy(node_state)
             record.refresh_rollup()
-            return copy.deepcopy(record), []
+            record_snapshot = copy.deepcopy(record)
+        tasks = []
+        if node_snapshot is not None:
+            tasks.append(self._publish_node_state(record_snapshot, node_snapshot))
+        if record_snapshot.status != previous_status:
+            tasks.append(self._publish_run_state(record_snapshot))
+        tasks.append(self._publish_run_snapshot(record_snapshot))
+        if tasks:
+            await asyncio.gather(*tasks)
+        return record_snapshot, []
 
     async def to_list_response(
         self,

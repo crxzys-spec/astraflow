@@ -20,10 +20,10 @@ import json
 
 
 
-from pydantic import ConfigDict, Field, StrictStr
+from pydantic import ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from scheduler_api.models.list_workflows200_response_items_inner_nodes_inner_position import ListWorkflows200ResponseItemsInnerNodesInnerPosition
-from scheduler_api.models.list_workflows200_response_items_inner_nodes_inner_results import ListWorkflows200ResponseItemsInnerNodesInnerResults
+from scheduler_api.models.list_workflows200_response_items_inner_nodes_inner_state import ListWorkflows200ResponseItemsInnerNodesInnerState
 from scheduler_api.models.list_workflows200_response_items_inner_nodes_inner_ui import ListWorkflows200ResponseItemsInnerNodesInnerUi
 from scheduler_api.models.object import object
 from scheduler_api.models.start_run_request_workflow_nodes_inner_package import StartRunRequestWorkflowNodesInnerPackage
@@ -39,15 +39,27 @@ class ListWorkflows200ResponseItemsInnerNodesInner(object):
     """ # noqa: E501
     id: StrictStr = Field(description="Node UUID")
     type: StrictStr = Field(description="e.g. \"playwright.open_page\"")
-    package: Optional[StartRunRequestWorkflowNodesInnerPackage] = None
+    package: StartRunRequestWorkflowNodesInnerPackage
+    status: StrictStr = Field(description="Node lifecycle state.")
+    category: StrictStr = Field(description="Group/category shown in the builder palette.")
     label: StrictStr
+    description: Optional[StrictStr] = Field(default=None, description="Longer description of the node behaviour.")
+    tags: Optional[List[StrictStr]] = Field(default=None, description="Keywords for search/filter.")
     position: ListWorkflows200ResponseItemsInnerNodesInnerPosition
-    parameters: Optional[Dict[str, Any]] = Field(default=None, description="Free-form parameter payload")
-    results: Optional[ListWorkflows200ResponseItemsInnerNodesInnerResults] = None
+    parameters: Optional[Dict[str, Any]] = Field(default=None, description="Default parameter payload seeded from the manifest schema.")
+    results: Optional[Dict[str, Any]] = Field(default=None, description="Default results payload seeded from the manifest schema.")
+    state: Optional[ListWorkflows200ResponseItemsInnerNodesInnerState] = None
     var_schema: Optional[StartRunRequestWorkflowNodesInnerSchema] = Field(default=None, alias="schema")
     ui: Optional[ListWorkflows200ResponseItemsInnerNodesInnerUi] = None
     additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["id", "type", "package", "label", "position", "parameters", "results", "schema", "ui"]
+    __properties: ClassVar[List[str]] = ["id", "type", "package", "status", "category", "label", "description", "tags", "position", "parameters", "results", "state", "schema", "ui"]
+
+    @field_validator('status')
+    def status_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in ('draft', 'published', 'deprecated',):
+            raise ValueError("must be one of enum values ('draft', 'published', 'deprecated')")
+        return value
 
     model_config = {
         "populate_by_name": True,
@@ -94,9 +106,9 @@ class ListWorkflows200ResponseItemsInnerNodesInner(object):
         # override the default output from pydantic by calling `to_dict()` of position
         if self.position:
             _dict['position'] = self.position.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of results
-        if self.results:
-            _dict['results'] = self.results.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of state
+        if self.state:
+            _dict['state'] = self.state.to_dict()
         # override the default output from pydantic by calling `to_dict()` of var_schema
         if self.var_schema:
             _dict['schema'] = self.var_schema.to_dict()
@@ -123,10 +135,15 @@ class ListWorkflows200ResponseItemsInnerNodesInner(object):
             "id": obj.get("id"),
             "type": obj.get("type"),
             "package": StartRunRequestWorkflowNodesInnerPackage.from_dict(obj.get("package")) if obj.get("package") is not None else None,
+            "status": obj.get("status"),
+            "category": obj.get("category"),
             "label": obj.get("label"),
+            "description": obj.get("description"),
+            "tags": obj.get("tags"),
             "position": ListWorkflows200ResponseItemsInnerNodesInnerPosition.from_dict(obj.get("position")) if obj.get("position") is not None else None,
             "parameters": obj.get("parameters"),
-            "results": ListWorkflows200ResponseItemsInnerNodesInnerResults.from_dict(obj.get("results")) if obj.get("results") is not None else None,
+            "results": obj.get("results"),
+            "state": ListWorkflows200ResponseItemsInnerNodesInnerState.from_dict(obj.get("state")) if obj.get("state") is not None else None,
             "schema": StartRunRequestWorkflowNodesInnerSchema.from_dict(obj.get("schema")) if obj.get("schema") is not None else None,
             "ui": ListWorkflows200ResponseItemsInnerNodesInnerUi.from_dict(obj.get("ui")) if obj.get("ui") is not None else None
         })

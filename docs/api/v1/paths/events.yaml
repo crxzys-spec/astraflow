@@ -4,6 +4,7 @@ get:
   operationId: sseGlobalEvents
   parameters:
     - $ref: '../components/parameters.yaml#/LastEventID'
+    - $ref: '../components/parameters.yaml#/ClientSessionId'
   responses:
     '200':
       description: text/event-stream
@@ -16,3 +17,5 @@ get:
         text/event-stream:
           schema:
             type: string
+            description: |
+              Stream of SSE frames. Each `data:` line contains a JSON payload that conforms to `UiEventEnvelope`.

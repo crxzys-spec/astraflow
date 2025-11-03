@@ -177,6 +177,9 @@ RunNodeStatus:
       type: object
       additionalProperties: true
       nullable: true
+    state:
+      $ref: '#/WorkflowNodeState'
+      nullable: true
     error:
       $ref: '#/ResultError'
       nullable: true
@@ -600,6 +603,9 @@ WorkflowNode:
       type: object
       description: Default results payload seeded from the manifest schema.
       additionalProperties: true
+    state:
+      $ref: '#/WorkflowNodeState'
+      description: Platform-managed execution hints surfaced in the builder (optional).
     schema:
       type: object
       description: JSON Schemas for parameters/results.
@@ -640,6 +646,468 @@ NodeUI:
       type: array
       items:
         $ref: '#/UIWidget'
+UiEventType:
+  type: string
+  enum:
+  - run.status
+  - run.snapshot
+  - run.metrics
+  - node.state
+  - node.status
+  - node.result.snapshot
+  - node.result.delta
+  - node.error
+  - artifact.ready
+  - artifact.removed
+  - command.ack
+  - command.error
+  - worker.heartbeat
+  - worker.package
+UiEventScope:
+  type: object
+  required:
+  - tenant
+  properties:
+    tenant:
+      type: string
+    runId:
+      type: string
+      nullable: true
+    workerId:
+      type: string
+      nullable: true
+    clientSessionId:
+      type: string
+      nullable: true
+    clientInstanceId:
+      type: string
+      nullable: true
+UiEventEnvelope:
+  type: object
+  required:
+  - version
+  - id
+  - type
+  - occurredAt
+  - scope
+  - data
+  properties:
+    version:
+      type: string
+      enum:
+      - v1
+    id:
+      type: string
+    type:
+      $ref: '#/UiEventType'
+    occurredAt:
+      type: string
+      format: date-time
+    scope:
+      $ref: '#/UiEventScope'
+    replayed:
+      type: boolean
+      nullable: true
+    correlationId:
+      type: string
+      nullable: true
+    meta:
+      type: object
+      additionalProperties: true
+      nullable: true
+    data:
+      $ref: '#/UiEventPayload'
+UiEventPayload:
+  oneOf:
+  - $ref: '#/RunStatusEvent'
+  - $ref: '#/RunSnapshotEvent'
+  - $ref: '#/RunMetricsEvent'
+  - $ref: '#/NodeStateEvent'
+  - $ref: '#/NodeStatusEvent'
+  - $ref: '#/NodeResultSnapshotEvent'
+  - $ref: '#/NodeResultDeltaEvent'
+  - $ref: '#/NodeErrorEvent'
+  - $ref: '#/ArtifactEvent'
+  - $ref: '#/CommandAckEvent'
+  - $ref: '#/CommandErrorEvent'
+  - $ref: '#/WorkerHeartbeatEvent'
+  - $ref: '#/WorkerPackageSseEvent'
+RunStatusEvent:
+  type: object
+  required:
+  - kind
+  - runId
+  - status
+  properties:
+    kind:
+      const: run.status
+    runId:
+      type: string
+    status:
+      $ref: '#/RunStatus'
+    startedAt:
+      type: string
+      format: date-time
+      nullable: true
+    finishedAt:
+      type: string
+      format: date-time
+      nullable: true
+    reason:
+      type: string
+      nullable: true
+RunSnapshotEvent:
+  type: object
+  required:
+  - kind
+  - run
+  properties:
+    kind:
+      const: run.snapshot
+    run:
+      $ref: '#/Run'
+    nodes:
+      type: array
+      items:
+        $ref: '#/RunNodeStatus'
+      nullable: true
+RunMetricsEvent:
+  type: object
+  required:
+  - kind
+  - runId
+  - metric
+  - value
+  properties:
+    kind:
+      const: run.metrics
+    runId:
+      type: string
+    metric:
+      type: string
+    value:
+      type: number
+    tags:
+      type: object
+      additionalProperties:
+        type: string
+      nullable: true
+NodeStateEvent:
+  type: object
+  required:
+  - kind
+  - runId
+  - nodeId
+  - state
+  properties:
+    kind:
+      const: node.state
+    runId:
+      type: string
+    nodeId:
+      type: string
+    state:
+      $ref: '#/WorkflowNodeState'
+NodeStatusEvent:
+  type: object
+  required:
+  - kind
+  - runId
+  - nodeId
+  - status
+  properties:
+    kind:
+      const: node.status
+    runId:
+      type: string
+    nodeId:
+      type: string
+    status:
+      type: string
+      enum:
+      - queued
+      - dispatching
+      - running
+      - completed
+      - failed
+      - cancelled
+    workerId:
+      type: string
+      nullable: true
+    seq:
+      type: integer
+      nullable: true
+    ackPending:
+      type: boolean
+      nullable: true
+NodeResultSnapshotEvent:
+  type: object
+  required:
+  - kind
+  - runId
+  - nodeId
+  - revision
+  - content
+  properties:
+    kind:
+      const: node.result.snapshot
+    runId:
+      type: string
+    nodeId:
+      type: string
+    revision:
+      type: integer
+      minimum: 0
+    format:
+      type: string
+      enum:
+      - json
+      - binary
+      - text
+      default: json
+    content:
+      type: object
+      additionalProperties: true
+    artifacts:
+      type: array
+      items:
+        $ref: '#/RunArtifact'
+      nullable: true
+    summary:
+      type: string
+      nullable: true
+    complete:
+      type: boolean
+      default: false
+NodeResultDeltaEvent:
+  type: object
+  required:
+  - kind
+  - runId
+  - nodeId
+  - revision
+  - sequence
+  - operation
+  properties:
+    kind:
+      const: node.result.delta
+    runId:
+      type: string
+    nodeId:
+      type: string
+    revision:
+      type: integer
+      minimum: 0
+    sequence:
+      type: integer
+      minimum: 0
+    operation:
+      type: string
+      enum:
+      - append
+      - replace
+      - patch
+    path:
+      type: string
+      pattern: '^(/[^/]+)*$'
+      nullable: true
+    payload:
+      type: object
+      additionalProperties: true
+      nullable: true
+    patches:
+      type: array
+      items:
+        $ref: '#/JsonPatchOperation'
+      nullable: true
+    chunkMeta:
+      type: object
+      additionalProperties: true
+      nullable: true
+    terminal:
+      type: boolean
+      default: false
+NodeErrorEvent:
+  type: object
+  required:
+  - kind
+  - runId
+  - nodeId
+  - error
+  properties:
+    kind:
+      const: node.error
+    runId:
+      type: string
+    nodeId:
+      type: string
+    error:
+      $ref: '#/ResultError'
+ArtifactEvent:
+  type: object
+  required:
+  - kind
+  - runId
+  - artifactId
+  properties:
+    kind:
+      type: string
+      enum:
+      - artifact.ready
+      - artifact.removed
+    runId:
+      type: string
+    nodeId:
+      type: string
+      nullable: true
+    artifactId:
+      type: string
+    url:
+      type: string
+      nullable: true
+    expiresAt:
+      type: string
+      format: date-time
+      nullable: true
+    sizeBytes:
+      type: integer
+      nullable: true
+CommandAckEvent:
+  type: object
+  required:
+  - kind
+  - commandId
+  - workerId
+  properties:
+    kind:
+      const: command.ack
+    commandId:
+      type: string
+    workerId:
+      type: string
+    receivedAt:
+      type: string
+      format: date-time
+      nullable: true
+CommandErrorEvent:
+  type: object
+  required:
+  - kind
+  - commandId
+  - workerId
+  - error
+  properties:
+    kind:
+      const: command.error
+    commandId:
+      type: string
+    workerId:
+      type: string
+    error:
+      $ref: '#/ResultError'
+WorkerHeartbeatEvent:
+  type: object
+  required:
+  - kind
+  - workerId
+  - at
+  properties:
+    kind:
+      const: worker.heartbeat
+    workerId:
+      type: string
+    at:
+      type: string
+      format: date-time
+    queues:
+      type: array
+      items:
+        type: string
+      nullable: true
+    capacity:
+      type: object
+      additionalProperties: true
+      nullable: true
+WorkerPackageSseEvent:
+  type: object
+  required:
+  - kind
+  - workerId
+  - package
+  - status
+  properties:
+    kind:
+      const: worker.package
+    workerId:
+      type: string
+    package:
+      type: string
+    version:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum:
+      - installing
+      - installed
+      - removing
+      - removed
+      - failed
+    message:
+      type: string
+      nullable: true
+JsonPatchOperation:
+  type: object
+  required:
+  - op
+  - path
+  properties:
+    op:
+      type: string
+      enum:
+      - add
+      - remove
+      - replace
+      - copy
+      - move
+      - test
+    path:
+      type: string
+      description: JSON Pointer path.
+    from:
+      type: string
+      description: Source path (for move/copy).
+      nullable: true
+    value:
+      description: Value payload for add/replace/test.
+      nullable: true
+WorkflowNodeState:
+  type: object
+  description: Scheduler-owned runtime hints attached to a workflow node during builder playback or run overlays.
+  additionalProperties: true
+  properties:
+    stage:
+      type: string
+      description: Current scheduler-reported stage (e.g. idle, queued, running, completed, failed).
+    progress:
+      type: number
+      minimum: 0
+      maximum: 1
+      nullable: true
+      description: Optional 0-1 normalized progress indicator.
+    lastUpdatedAt:
+      type: string
+      format: date-time
+      nullable: true
+      description: ISO-8601 timestamp for the last state transition.
+    message:
+      type: string
+      nullable: true
+      description: Human-friendly hint surfaced to the UI.
+    error:
+      $ref: '#/ResultError'
+      nullable: true
+      description: Optional terminal error surfaced when the node fails.
 UIPort:
   type: object
   additionalProperties: false

@@ -1,4 +1,4 @@
-# Worker–Scheduler Architecture
+﻿# Worker-Scheduler Architecture
 
 This document captures the backend positioning for AstraFlow, detailing the roles, communication channels, package lifecycle, runtime management, scheduling strategy, and rollout plan for the Scheduler and Worker services.
 
@@ -12,7 +12,7 @@ This document captures the backend positioning for AstraFlow, detailing the role
   - WebSocket control channel for dispatching scheduling directives and receiving execution feedback.
 - **Scheduling workflow**:
   - Continue using `ExecutionDispatcher` to emit `RunTaskCommand`.
-  - Select appropriate Workers based on Worker–package mappings and assign dedicated queues.
+  - Select appropriate Workers based on Worker-package mappings and assign dedicated queues.
   - Monitor Worker health; trigger rebind or drain operations when anomalies are detected.
 
 ### Worker Server
@@ -31,8 +31,8 @@ This document captures the backend positioning for AstraFlow, detailing the role
 ## 2. Communication Channels
 
 ### WebSocket Control Plane
-- **Worker → Scheduler**: registration, heartbeat updates, execution results, package install acknowledgements, logs.
-- **Scheduler → Worker**: package install/uninstall commands, manual controls (Drain/Rebind), task dispatch notifications.
+- **Worker ->Scheduler**: registration, heartbeat updates, execution results, package install acknowledgements, logs.
+- **Scheduler ->Worker**: package install/uninstall commands, manual controls (Drain/Rebind), task dispatch notifications.
 - **Specification**: WebSocket frame structure is defined in `docs/comm-protocol.md`, with authoritative JSON Schema under `docs/schema/ws/`.
 - **Message format** (JSON examples):
   ```json
@@ -50,11 +50,16 @@ This document captures the backend positioning for AstraFlow, detailing the role
 ### Package Layout Example
 ```
 crawlerx_playwright/
-├── manifest.json
-├── adapters/crawlerx_playwright/*.py
-├── resources/...
-├── scripts/install_extra.sh
-└── requirements.txt
+鈹溾攢鈹€ manifest.json
+鈹溾攢鈹€ adapters/crawlerx_playwright/*.py
+鈹溾攢鈹€ resources/...
+鈹溾攢鈹€ scripts/install_extra.sh
+鈹斺攢鈹€ requirements.txt
+ manifest.json
+ adapters/crawlerx_playwright/*.py
+ resources/...
+ scripts/install_extra.sh
+ requirements.txt
 ```
 
 
@@ -74,7 +79,7 @@ crawlerx_playwright/
         "playwright.open_page",
         "playwright.click",
         "playwright.input",
-        "... 等"
+        "... etc
       ],
       "idempotency": "per_request",
       "metadata": {
@@ -86,7 +91,7 @@ crawlerx_playwright/
     "requires": ">=3.10,<3.12",
     "dependencies": [
       "playwright==1.47.2",
-      "...其它依赖"
+      "...other dependencies"
     ]
   },
   "nodes": [
@@ -259,7 +264,7 @@ crawlerx_playwright/
       "extensions": {},
       "metadata": {}
     },
-    "...其他节点..."
+    "...other nodes..."
   ],
   "resources": [
     { "path": "resources/chromium", "type": "download", "sha256": "..." }
@@ -625,6 +630,7 @@ The workflow definition serves as the contract between the drag-and-connect edit
   "tags": ["web", "smoke"]
 }
 ```
+Each entry under `workflow.nodes[]` may include a `state` object populated by the scheduler during execution. The schema mirrors `WorkflowNodeState` from the public API and supplies the latest stage, progress, and failure details so the builder can surface live feedback without mutating package-controlled `parameters` or `results`.
 
 This payload is stored alongside the manifest-driven catalog. When a run is triggered, the Scheduler selects adapters by `type` and dispatches `RunTaskCommand` messages per node following the defined edges. Per-node parameters are passed through exactly as authored in the workflow JSON.
 
@@ -704,7 +710,7 @@ This payload is stored alongside the manifest-driven catalog. When a run is trig
      -H "Content-Type: application/json" \
      -d @docs/examples/run-request.json
    ```
-5. Observe scheduler logs: `cmd.dispatch` should be sent with `ack.request=true`, followed by `result` or `command.error` frames. The in-memory run registry powers `/api/v1/runs` so you can confirm status transitions (`running` → `succeeded`/`failed`).
+5. Observe scheduler logs: `cmd.dispatch` should be sent with `ack.request=true`, followed by `result` or `command.error` frames. The in-memory run registry powers `/api/v1/runs` so you can confirm status transitions (`running` ->`succeeded`/`failed`).
 6. If the worker emits `command.error`, verify the scheduler responds with an ACK and the run status changes to `failed` with error metadata.
 
 
@@ -715,8 +721,14 @@ See `docs/resource-affinity-and-artifacts.md` for the full design of artifact re
 - Workers expose a unified `ResourceRegistry` to store large files, browser sessions, torch models, and other reusable assets, reporting their state via heartbeat metrics.
 - Result payloads can return lightweight references (`resourceId`, `workerId`, `type`, metadata) instead of inlining large data, while dispatch parameters support `resourceRef` to enforce worker affinity.
 - The scheduler maintains an affinity registry so follow-up tasks stick to the worker that owns the required resource; platform-level guardrails control inline size limits, TTL, and eviction policies.
-- Lifecycle hooks (register → lease → touch → release → cleanup) coordinate between packages, worker runtime, and scheduler to reclaim resources safely.
+- Lifecycle hooks (register ->lease ->touch ->release ->cleanup) coordinate between packages, worker runtime, and scheduler to reclaim resources safely.
 - `/api/v1/runs` responses now include per-node state and aggregated artifacts so UIs can inspect which worker handled each step and which resources are available for reuse. Each node also exposes `pendingAck`, `dispatchId`, and `ackDeadline` so operators can spot dispatch retries or stalled acknowledgements directly from the REST view.
 inate between packages, worker runtime, and scheduler to reclaim resources safely.
 
 Use that document as the authoritative blueprint when implementing resource-aware dispatch, artifact storage, and session/model reuse.
+
+
+
+
+
+

@@ -48,8 +48,9 @@ class ListRuns200ResponseItemsInnerNodesInner(BaseModel):
     artifacts: Optional[List[Dict[str, Any]]] = None
     result: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
+    state: Optional[Dict[str, Any]] = None
     error: Optional[ListRuns200ResponseItemsInnerError] = None
-    __properties: ClassVar[List[str]] = ["nodeId", "taskId", "status", "workerId", "startedAt", "finishedAt", "seq", "pendingAck", "dispatchId", "ackDeadline", "resourceRefs", "affinity", "artifacts", "result", "metadata", "error"]
+    __properties: ClassVar[List[str]] = ["nodeId", "taskId", "status", "workerId", "startedAt", "finishedAt", "seq", "pendingAck", "dispatchId", "ackDeadline", "resourceRefs", "affinity", "artifacts", "result", "metadata", "state", "error"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
@@ -125,8 +126,8 @@ class ListRuns200ResponseItemsInnerNodesInner(BaseModel):
             "artifacts": obj.get("artifacts"),
             "result": obj.get("result"),
             "metadata": obj.get("metadata"),
+            "state": obj.get("state"),
             "error": ListRuns200ResponseItemsInnerError.from_dict(obj.get("error")) if obj.get("error") is not None else None
         })
         return _obj
-
 

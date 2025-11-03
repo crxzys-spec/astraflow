@@ -44,7 +44,7 @@ class PackagesApiImpl(BasePackagesApi):
         except PackageCatalogError as exc:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
-        manifest_dict = detail["manifest"].model_dump(by_alias=True, mode="json")
+        manifest_dict = detail["manifest"].model_dump(by_alias=True, exclude_none=True, mode="json")
         manifest_model = GetPackage200ResponseManifest.from_dict(manifest_dict)
 
         return GetPackage200Response(

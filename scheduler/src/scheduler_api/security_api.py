@@ -19,7 +19,7 @@ from fastapi.security.api_key import APIKeyCookie, APIKeyHeader, APIKeyQuery  # 
 from scheduler_api.models.extra_models import TokenModel
 
 
-bearer_auth = HTTPBearer()
+bearer_auth = HTTPBearer(auto_error=False)
 
 
 def get_token_bearerAuth(credentials: HTTPAuthorizationCredentials = Depends(bearer_auth)) -> TokenModel:
@@ -32,5 +32,8 @@ def get_token_bearerAuth(credentials: HTTPAuthorizationCredentials = Depends(bea
     :rtype: TokenModel | None
     """
 
-    ...
+    if credentials is None:
+        # Development-friendly default identity until JWT is wired up.
+        return TokenModel(sub="anonymous")
 
+    return TokenModel(sub=credentials.credentials or "anonymous")

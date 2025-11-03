@@ -379,6 +379,12 @@ button {
   border-radius: 1rem;
   color: #e2e8f0;
   overflow: visible;
+  outline: 2px solid transparent;
+  outline-offset: 4px;
+  transition:
+    border-color 0.2s ease,
+    outline-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .workflow-node--selected,
@@ -405,6 +411,113 @@ button {
   font-weight: 600;
   font-size: 0.95rem;
   letter-spacing: 0.01em;
+}
+
+.workflow-node__header-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.workflow-node__stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(30, 41, 59, 0.65);
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.workflow-node__stage--queued {
+  border-color: rgba(96, 165, 250, 0.35);
+  background: rgba(30, 64, 175, 0.24);
+  color: #93c5fd;
+}
+
+.workflow-node__stage--running {
+  border-color: rgba(250, 204, 21, 0.45);
+  background: rgba(202, 138, 4, 0.25);
+  color: #fde68a;
+}
+
+.workflow-node__stage--succeeded {
+  border-color: rgba(22, 163, 74, 0.45);
+  background: rgba(22, 163, 74, 0.22);
+  color: #bbf7d0;
+}
+
+.workflow-node__stage--failed {
+  border-color: rgba(239, 68, 68, 0.55);
+  background: rgba(239, 68, 68, 0.25);
+  color: #fecaca;
+}
+.workflow-node__stage--cancelled {
+  border-color: rgba(148, 163, 184, 0.5);
+  background: rgba(71, 85, 105, 0.35);
+  color: rgba(226, 232, 240, 0.85);
+}
+
+.workflow-node--stage-queued {
+  border-color: rgba(96, 165, 250, 0.35);
+  outline-color: rgba(96, 165, 250, 0.35);
+  box-shadow: 0 0 14px rgba(96, 165, 250, 0.22);
+}
+
+.workflow-node--stage-running {
+  border-color: rgba(234, 179, 8, 0.55);
+  outline-color: rgba(234, 179, 8, 0.65);
+  box-shadow:
+    0 0 0 3px rgba(234, 179, 8, 0.15),
+    0 0 28px rgba(234, 179, 8, 0.35);
+  animation: workflow-node-pulse 1.6s ease-in-out infinite;
+}
+
+.workflow-node--stage-succeeded {
+  border-color: rgba(74, 222, 128, 0.5);
+  outline-color: rgba(74, 222, 128, 0.55);
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.25);
+}
+
+.workflow-node--stage-failed {
+  border-color: rgba(248, 113, 113, 0.65);
+  outline-color: rgba(248, 113, 113, 0.7);
+  box-shadow:
+    0 0 0 3px rgba(248, 113, 113, 0.18),
+    0 0 26px rgba(239, 68, 68, 0.34);
+}
+
+.workflow-node--stage-cancelled {
+  border-color: rgba(148, 163, 184, 0.4);
+  outline-color: rgba(148, 163, 184, 0.45);
+  box-shadow: 0 0 18px rgba(148, 163, 184, 0.2);
+}
+
+.workflow-node--selected.workflow-node--stage-running {
+  animation: workflow-node-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes workflow-node-pulse {
+  0% {
+    box-shadow:
+      0 0 0 3px rgba(234, 179, 8, 0.12),
+      0 0 26px rgba(234, 179, 8, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px rgba(234, 179, 8, 0.24),
+      0 0 34px rgba(234, 179, 8, 0.4);
+  }
+  100% {
+    box-shadow:
+      0 0 0 3px rgba(234, 179, 8, 0.12),
+      0 0 26px rgba(234, 179, 8, 0.3);
+  }
 }
 
 .workflow-node__status {
@@ -1959,3 +2072,5 @@ button {
 .run-detail__json-value--null {
   color: rgba(148, 163, 184, 0.7);
 }
+
+

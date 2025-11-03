@@ -45,6 +45,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
     response_model_by_alias=True,
 )
 async def sse_global_events(
+    client_session_id: Annotated[StrictStr, Field(description="Frontend-generated session identifier (UUID) used to route SSE events.")] = Query(None, description="Frontend-generated session identifier (UUID) used to route SSE events.", alias="clientSessionId"),
     last_event_id: Annotated[Optional[StrictStr], Field(description="Resume SSE from a specific monotonic event id")] = Header(None, description="Resume SSE from a specific monotonic event id"),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -52,4 +53,4 @@ async def sse_global_events(
 ) -> str:
     if not BaseEventsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseEventsApi.subclasses[0]().sse_global_events(last_event_id)
+    return await BaseEventsApi.subclasses[0]().sse_global_events(client_session_id, last_event_id)

@@ -1,6 +1,22 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useGetRun, useGetRunDefinition } from "../api/endpoints";
+import { UiEventType } from "../api/models/uiEventType";
+import type { RunStatusEvent } from "../api/models/runStatusEvent";
+import type { RunSnapshotEvent } from "../api/models/runSnapshotEvent";
+import type { NodeStateEvent } from "../api/models/nodeStateEvent";
+import type { NodeResultSnapshotEvent } from "../api/models/nodeResultSnapshotEvent";
+import type { NodeErrorEvent } from "../api/models/nodeErrorEvent";
+import { sseClient } from "../lib/sseClient";
+import { getClientSessionId } from "../lib/clientSession";
+import {
+  applyRunDefinitionSnapshot,
+  replaceRunSnapshot,
+  updateRunCaches,
+  updateRunDefinitionNodeState,
+  updateRunNode,
+} from "../lib/sseCache";
 import StatusBadge from "../components/StatusBadge";
 
 type DetailPanel = "run" | "workflow";
@@ -55,7 +71,7 @@ const renderJsonNode = (
   path: string,
   label?: string,
   depth = 0,
-): JSX.Element => {
+): ReactElement => {
   if (Array.isArray(value)) {
     const title = label ?? "Array";
     return (
@@ -176,6 +192,7 @@ export const RunDetailPage = () => {
   const workflowDefinition = definitionQuery.data?.data;
   const workflowLink = workflowDefinition?.id;
   const runData = runQuery.data?.data;
+  const queryClient = useQueryClient();
 
   const rawPayload = activePanel === "workflow" ? workflowDefinition : runData;
   const normalizedPayload = useMemo<JsonValue | undefined>(() => {
@@ -198,6 +215,121 @@ export const RunDetailPage = () => {
       setActivePanel("run");
     }
   }, [workflowDefinition, activePanel]);
+
+  useEffect(() => {
+    // Ensure client session id exists even if this page is opened directly.
+    getClientSessionId();
+  }, []);
+
+  useEffect(() => {
+    if (!runId) {
+      return;
+    }
+
+    const unsubscribe = sseClient.subscribe((event) => {
+      if (event.scope?.runId !== runId) {
+        return;
+      }
+      if (event.type === UiEventType.runstatus && event.data?.kind === "run.status") {
+        const payload = event.data as RunStatusEvent;
+        updateRunCaches(queryClient, runId, (run) => {
+          if (run.runId !== payload.runId) {
+            return run;
+          }
+          const next = { ...run, status: payload.status };
+          if (payload.startedAt !== undefined) {
+            next.startedAt = payload.startedAt ?? null;
+          }
+          if (payload.finishedAt !== undefined) {
+            next.finishedAt = payload.finishedAt ?? null;
+          }
+          if (payload.status === "failed" && payload.reason) {
+            const existingError =
+              run.error && typeof run.error === "object" ? run.error : undefined;
+            next.error = {
+              code: existingError?.code ?? "run.failed",
+              message: payload.reason,
+              details: existingError?.details,
+            };
+          }
+          return next;
+        });
+      } else if (
+        event.type === UiEventType.runsnapshot &&
+        event.data?.kind === "run.snapshot" &&
+        event.data.run?.runId === runId
+      ) {
+        const snapshot = event.data as RunSnapshotEvent;
+        replaceRunSnapshot(queryClient, runId, snapshot.run, snapshot.nodes ?? null);
+        applyRunDefinitionSnapshot(queryClient, runId, snapshot.nodes ?? null);
+      } else if (event.type === UiEventType.nodestate && event.data?.kind === "node.state") {
+        const payload = event.data as NodeStateEvent;
+        updateRunNode(queryClient, runId, payload.nodeId, (node) => {
+          const next = { ...node };
+          if (payload.state?.stage) {
+            next.status = payload.state.stage as typeof node.status;
+          }
+          if (payload.state?.error !== undefined) {
+            next.error = payload.state.error ?? null;
+          }
+          if (payload.state?.message !== undefined) {
+            const base =
+              next.metadata && typeof next.metadata === "object"
+                ? { ...(next.metadata as Record<string, unknown>) }
+                : {};
+            if (payload.state.message === null) {
+              delete (base as Record<string, unknown>).statusMessage;
+              delete (base as Record<string, unknown>).message;
+              next.metadata = Object.keys(base).length > 0 ? base : null;
+            } else {
+              (base as Record<string, unknown>).statusMessage = payload.state.message;
+              (base as Record<string, unknown>).message = payload.state.message;
+              next.metadata = base;
+            }
+          }
+          if (payload.state) {
+            next.state = {
+              ...payload.state,
+              stage: payload.state.stage ?? next.status,
+            };
+          } else {
+            next.state = {
+              ...(next.state ?? {}),
+              stage: next.status,
+            };
+          }
+          return next;
+        });
+        updateRunDefinitionNodeState(queryClient, runId, payload.nodeId, payload.state ?? undefined);
+      } else if (
+        event.type === UiEventType.noderesultsnapshot &&
+        event.data?.kind === "node.result.snapshot"
+      ) {
+        const payload = event.data as NodeResultSnapshotEvent;
+        updateRunNode(queryClient, runId, payload.nodeId, (node) => ({
+          ...node,
+          result: payload.content ?? null,
+          artifacts: payload.artifacts ?? node.artifacts ?? null,
+        }));
+      } else if (event.type === UiEventType.nodeerror && event.data?.kind === "node.error") {
+        const payload = event.data as NodeErrorEvent;
+        updateRunNode(queryClient, runId, payload.nodeId, (node) => ({
+          ...node,
+          status: "failed",
+          error: payload.error,
+          state: {
+            ...(node.state ?? {}),
+            stage: "failed",
+            error: payload.error,
+          },
+        }));
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [queryClient, runId]);
 
   useEffect(() => {
     setCopyStatus("idle");
@@ -356,8 +488,26 @@ export const RunDetailPage = () => {
                           <dt>Finished</dt>
                           <dd>{node.finishedAt ?? "-"}</dd>
                         </div>
+                        {node.state?.message && (
+                          <div>
+                            <dt>Message</dt>
+                            <dd>{node.state.message}</dd>
+                          </div>
+                        )}
+                        {typeof node.state?.progress === "number" && (
+                          <div>
+                            <dt>Progress</dt>
+                            <dd>{`${Math.round((node.state.progress ?? 0) * 100)}%`}</dd>
+                          </div>
+                        )}
+                        {node.state?.lastUpdatedAt && (
+                          <div>
+                            <dt>Updated</dt>
+                            <dd>{node.state.lastUpdatedAt}</dd>
+                          </div>
+                        )}
                       </dl>
-                      {node.error && (
+                    {node.error && (
                         <details className="run-detail__node-section">
                           <summary>Error</summary>
                           <pre className="run-detail__payload">
@@ -453,3 +603,4 @@ export const RunDetailPage = () => {
 };
 
 export default RunDetailPage;
+

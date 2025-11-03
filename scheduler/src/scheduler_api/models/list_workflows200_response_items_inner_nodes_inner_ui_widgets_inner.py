@@ -23,7 +23,6 @@ import json
 from pydantic import ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from scheduler_api.models.list_workflows200_response_items_inner_nodes_inner_ui_input_ports_inner_binding import ListWorkflows200ResponseItemsInnerNodesInnerUiInputPortsInnerBinding
-from scheduler_api.models.list_workflows200_response_items_inner_nodes_inner_ui_widgets_inner_options import ListWorkflows200ResponseItemsInnerNodesInnerUiWidgetsInnerOptions
 from scheduler_api.models.object import object
 try:
     from typing import Self
@@ -38,7 +37,7 @@ class ListWorkflows200ResponseItemsInnerNodesInnerUiWidgetsInner(object):
     label: StrictStr
     component: StrictStr = Field(description="string|number|enum|json...")
     binding: ListWorkflows200ResponseItemsInnerNodesInnerUiInputPortsInnerBinding
-    options: Optional[ListWorkflows200ResponseItemsInnerNodesInnerUiWidgetsInnerOptions] = None
+    options: Optional[Dict[str, Any]] = None
     additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["key", "label", "component", "binding", "options"]
 
@@ -84,9 +83,6 @@ class ListWorkflows200ResponseItemsInnerNodesInnerUiWidgetsInner(object):
         # override the default output from pydantic by calling `to_dict()` of binding
         if self.binding:
             _dict['binding'] = self.binding.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of options
-        if self.options:
-            _dict['options'] = self.options.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -108,7 +104,7 @@ class ListWorkflows200ResponseItemsInnerNodesInnerUiWidgetsInner(object):
             "label": obj.get("label"),
             "component": obj.get("component"),
             "binding": ListWorkflows200ResponseItemsInnerNodesInnerUiInputPortsInnerBinding.from_dict(obj.get("binding")) if obj.get("binding") is not None else None,
-            "options": ListWorkflows200ResponseItemsInnerNodesInnerUiWidgetsInnerOptions.from_dict(obj.get("options")) if obj.get("options") is not None else None
+            "options": obj.get("options")
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

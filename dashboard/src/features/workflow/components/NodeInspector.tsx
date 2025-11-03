@@ -123,9 +123,81 @@ export const NodeInspector = () => {
     );
   }
 
+  const runtimeState = node.state ?? null;
+  const runtimeStage = runtimeState?.stage ?? "-";
+  const runtimeProgress =
+    typeof runtimeState?.progress === "number"
+      ? Math.max(0, Math.min(1, runtimeState.progress))
+      : undefined;
+  const runtimeMessage = runtimeState?.message ?? null;
+  const runtimeUpdatedAt = runtimeState?.lastUpdatedAt ?? null;
+  const runtimeError = runtimeState?.error;
+  const runtimeResult = node.runtimeResult ?? null;
+  const runtimeSummary = node.runtimeSummary ?? null;
+  const runtimeArtifacts = node.runtimeArtifacts ?? null;
+
   return (
     <aside className="inspector">
       <NodeMeta node={node} />
+      <div className="card inspector__panel">
+        <header className="card__header">
+          <h3>Execution State</h3>
+        </header>
+        {runtimeState ? (
+          <>
+            <dl className="data-grid inspector__meta-grid">
+              <div>
+                <dt>Stage</dt>
+                <dd>{runtimeStage}</dd>
+              </div>
+              <div>
+                <dt>Progress</dt>
+                <dd>{runtimeProgress !== undefined ? `${Math.round(runtimeProgress * 100)}%` : "-"}</dd>
+              </div>
+              <div>
+                <dt>Last Updated</dt>
+                <dd>{runtimeUpdatedAt ?? "-"}</dd>
+              </div>
+            </dl>
+            {runtimeMessage && <p className="text-subtle">{runtimeMessage}</p>}
+            {runtimeError && (
+              <details>
+                <summary>Error</summary>
+                <pre className="inspector__payload">
+                  {JSON.stringify(runtimeError, null, 2)}
+                </pre>
+              </details>
+            )}
+          </>
+        ) : (
+          <p className="text-subtle inspector__payload-empty">No execution data yet.</p>
+        )}
+      </div>
+      <div className="card inspector__panel">
+        <header className="card__header">
+          <h3>Runtime Result</h3>
+          {runtimeSummary && <span className="text-subtle">{runtimeSummary}</span>}
+        </header>
+        {runtimeResult === null ? (
+          <p className="text-subtle inspector__payload-empty">Result not available yet.</p>
+        ) : (
+          <pre className="inspector__payload">
+            {JSON.stringify(runtimeResult, null, 2)}
+          </pre>
+        )}
+      </div>
+      <div className="card inspector__panel">
+        <header className="card__header">
+          <h3>Runtime Artifacts</h3>
+        </header>
+        {runtimeArtifacts === null ? (
+          <p className="text-subtle inspector__payload-empty">No artifacts produced.</p>
+        ) : (
+          <pre className="inspector__payload">
+            {JSON.stringify(runtimeArtifacts, null, 2)}
+          </pre>
+        )}
+      </div>
       <div className="card inspector__panel">
         <header className="card__header">
           <h3>Ports</h3>
@@ -193,14 +265,16 @@ export const NodeInspector = () => {
       </div>
       <div className="card inspector__panel">
         <header className="card__header">
-          <h3>Results</h3>
+          <h3>Design Results</h3>
         </header>
         {Object.keys(node.results ?? {}).length ? (
           <pre className="inspector__payload">
             {JSON.stringify(node.results, null, 2)}
           </pre>
         ) : (
-          <p className="text-subtle inspector__payload-empty">No results captured yet.</p>
+          <p className="text-subtle inspector__payload-empty">
+            No design-time results defined.
+          </p>
         )}
       </div>
     </aside>

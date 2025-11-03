@@ -1,4 +1,4 @@
-import clsx from "clsx";
+﻿import clsx from "clsx";
 import { memo, useMemo } from "react";
 import type { ReactElement } from "react";
 import type { NodeProps } from "reactflow";
@@ -21,6 +21,10 @@ interface WorkflowNodeData {
   nodeId: string;
   label?: string;
   status?: string;
+  stage?: string;
+  progress?: number;
+  message?: string;
+  lastUpdatedAt?: string;
   packageName?: string;
   packageVersion?: string;
   adapter?: string;
@@ -40,6 +44,11 @@ const formatPackage = (node?: WorkflowNodeData | WorkflowNodeDraft) => {
   const version = node?.packageVersion ?? "latest";
   return `${name}@${version}`;
 };
+
+const formatStage = (stage: string): string =>
+  stage
+    .replace(/[\s._-]+/g, " ")
+    .replace(/^\w/, (char) => char.toUpperCase());
 
 const describeSchemaType = (schema?: JsonSchema) => {
   if (!schema) {
@@ -119,6 +128,21 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
 
   const displayLabel = workflowNode?.label ?? data?.label ?? nodeId;
   const status = workflowNode?.status ?? data?.status;
+  const runtimeState =
+    workflowNode?.state ??
+    (data?.stage
+      ? {
+          stage: data.stage,
+          progress: data.progress,
+          message: data.message,
+          lastUpdatedAt: data.lastUpdatedAt,
+        }
+      : undefined);
+  const stage = runtimeState?.stage;
+  const progress =
+    typeof runtimeState?.progress === "number"
+      ? Math.max(0, Math.min(1, runtimeState.progress))
+      : undefined;
   const inputPorts = mergePorts(workflowNode?.ui?.inputPorts, data?.fallbackInputPorts);
   const outputPorts = mergePorts(workflowNode?.ui?.outputPorts, data?.fallbackOutputPorts);
   const adapter = workflowNode?.adapter ?? data?.adapter;
@@ -159,11 +183,37 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
     }, []);
   }, [nodeId, resolve, updateNode, widgets, workflowNode]);
 
+  const stageClass =
+    stage && stage.length
+      ? stage
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+      : undefined;
+
+  const nodeClassName = clsx("workflow-node", {
+    "workflow-node--selected": selected,
+    ...(stageClass ? { [`workflow-node--stage-${stageClass}`]: true } : {}),
+  });
+
   return (
-    <div className={clsx("workflow-node", { "workflow-node--selected": selected })}>
+    <div className={nodeClassName}>
       <header className="workflow-node__header">
         <span className="workflow-node__label">{displayLabel}</span>
-        {status && <span className="workflow-node__status">{status}</span>}
+        <div className="workflow-node__header-badges">
+          {stage && (
+            <span
+              className={clsx(
+                "workflow-node__stage",
+                stageClass ? `workflow-node__stage--${stageClass}` : undefined,
+              )}
+            >
+              {formatStage(stage)}
+              {typeof progress === "number" ? ` (${Math.round(progress * 100)}%)` : ""}
+            </span>
+          )}
+          {status && <span className="workflow-node__status">{status}</span>}
+        </div>
       </header>
       <div className="workflow-node__body">
         <div className="workflow-node__ports workflow-node__ports--inputs">
@@ -261,3 +311,9 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
 WorkflowNode.displayName = "WorkflowNode";
 
 export default WorkflowNode;
+
+
+
+
+
+

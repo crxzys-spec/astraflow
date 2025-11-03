@@ -15,6 +15,7 @@ class BaseEventsApi:
         BaseEventsApi.subclasses = BaseEventsApi.subclasses + (cls,)
     async def sse_global_events(
         self,
+        client_session_id: Annotated[StrictStr, Field(description="Frontend-generated session identifier (UUID) used to route SSE events.")],
         last_event_id: Annotated[Optional[StrictStr], Field(description="Resume SSE from a specific monotonic event id")],
     ) -> str:
         ...

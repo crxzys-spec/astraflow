@@ -46,6 +46,7 @@ import type {
   RunList,
   RunRef,
   RunStartRequest,
+  SseGlobalEventsParams,
   Worker,
   WorkerCommand,
   Workflow,
@@ -1069,37 +1070,38 @@ export const useSendWorkerCommand = <TError = AxiosError<BadRequestResponse | No
  * @summary Global Server-Sent Events stream (firehose; no query parameters)
  */
 export const sseGlobalEvents = (
-     options?: AxiosRequestConfig
+    params: SseGlobalEventsParams, options?: AxiosRequestConfig
  ): Promise<AxiosResponse<string>> => {
     
     
     return axios.default.get(
       `/api/v1/events`,{
         responseType: 'text',
-    ...options,}
+    ...options,
+        params: {...params, ...options?.params},}
     );
   }
 
 
 
 
-export const getSseGlobalEventsQueryKey = () => {
+export const getSseGlobalEventsQueryKey = (params?: SseGlobalEventsParams,) => {
     return [
-    `/api/v1/events`
+    `/api/v1/events`, ...(params ? [params]: [])
     ] as const;
     }
 
     
-export const getSseGlobalEventsQueryOptions = <TData = Awaited<ReturnType<typeof sseGlobalEvents>>, TError = AxiosError<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof sseGlobalEvents>>, TError, TData>>, axios?: AxiosRequestConfig}
+export const getSseGlobalEventsQueryOptions = <TData = Awaited<ReturnType<typeof sseGlobalEvents>>, TError = AxiosError<unknown>>(params: SseGlobalEventsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof sseGlobalEvents>>, TError, TData>>, axios?: AxiosRequestConfig}
 ) => {
 
 const {query: queryOptions, axios: axiosOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getSseGlobalEventsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getSseGlobalEventsQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof sseGlobalEvents>>> = ({ signal }) => sseGlobalEvents({ signal, ...axiosOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof sseGlobalEvents>>> = ({ signal }) => sseGlobalEvents(params, { signal, ...axiosOptions });
 
       
 
@@ -1113,7 +1115,7 @@ export type SseGlobalEventsQueryError = AxiosError<unknown>
 
 
 export function useSseGlobalEvents<TData = Awaited<ReturnType<typeof sseGlobalEvents>>, TError = AxiosError<unknown>>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof sseGlobalEvents>>, TError, TData>> & Pick<
+ params: SseGlobalEventsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof sseGlobalEvents>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof sseGlobalEvents>>,
           TError,
@@ -1123,7 +1125,7 @@ export function useSseGlobalEvents<TData = Awaited<ReturnType<typeof sseGlobalEv
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
 export function useSseGlobalEvents<TData = Awaited<ReturnType<typeof sseGlobalEvents>>, TError = AxiosError<unknown>>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof sseGlobalEvents>>, TError, TData>> & Pick<
+ params: SseGlobalEventsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof sseGlobalEvents>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof sseGlobalEvents>>,
           TError,
@@ -1133,7 +1135,7 @@ export function useSseGlobalEvents<TData = Awaited<ReturnType<typeof sseGlobalEv
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
 export function useSseGlobalEvents<TData = Awaited<ReturnType<typeof sseGlobalEvents>>, TError = AxiosError<unknown>>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof sseGlobalEvents>>, TError, TData>>, axios?: AxiosRequestConfig}
+ params: SseGlobalEventsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof sseGlobalEvents>>, TError, TData>>, axios?: AxiosRequestConfig}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
 /**
@@ -1141,11 +1143,11 @@ export function useSseGlobalEvents<TData = Awaited<ReturnType<typeof sseGlobalEv
  */
 
 export function useSseGlobalEvents<TData = Awaited<ReturnType<typeof sseGlobalEvents>>, TError = AxiosError<unknown>>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof sseGlobalEvents>>, TError, TData>>, axios?: AxiosRequestConfig}
+ params: SseGlobalEventsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof sseGlobalEvents>>, TError, TData>>, axios?: AxiosRequestConfig}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> } {
 
-  const queryOptions = getSseGlobalEventsQueryOptions(options)
+  const queryOptions = getSseGlobalEventsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> };
 

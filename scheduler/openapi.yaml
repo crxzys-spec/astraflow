@@ -448,11 +448,22 @@ paths:
         schema:
           type: string
         style: simple
+      - description: Frontend-generated session identifier (UUID) used to route SSE
+          events.
+        explode: true
+        in: query
+        name: clientSessionId
+        required: true
+        schema:
+          type: string
+        style: form
       responses:
         "200":
           content:
             text/event-stream:
               schema:
+                description: |
+                  Stream of SSE frames. Each `data:` line contains a JSON payload that conforms to `UiEventEnvelope`.
                 type: string
           description: text/event-stream
           headers:
@@ -1025,6 +1036,66 @@ components:
       - x
       - "y"
       title: startRun_request_workflow_nodes_inner_position
+    startRun_request_workflow_nodes_inner_state_error:
+      description: Optional terminal error surfaced when the node fails.
+      example:
+        code: code
+        details:
+          key: ""
+        message: message
+      properties:
+        code:
+          title: code
+          type: string
+        message:
+          title: code
+          type: string
+        details:
+          additionalProperties: true
+          title: metadata
+          type: object
+          nullable: true
+      required:
+      - code
+      - message
+      title: startRun_request_workflow_nodes_inner_state_error
+      nullable: true
+    startRun_request_workflow_nodes_inner_state:
+      additionalProperties: true
+      description: Platform-managed execution hints surfaced in the builder (optional).
+      example:
+        stage: stage
+        lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+        progress: 0.14658129805029452
+        message: message
+        error:
+          code: code
+          details:
+            key: ""
+          message: message
+      properties:
+        stage:
+          description: "Current scheduler-reported stage (e.g. idle, queued, running,\
+            \ completed, failed)."
+          type: string
+        progress:
+          description: Optional 0-1 normalized progress indicator.
+          maximum: 1
+          minimum: 0
+          type: number
+          nullable: true
+        lastUpdatedAt:
+          description: ISO-8601 timestamp for the last state transition.
+          format: date-time
+          type: string
+          nullable: true
+        message:
+          description: Human-friendly hint surfaced to the UI.
+          type: string
+          nullable: true
+        error:
+          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_state_error"
+      title: startRun_request_workflow_nodes_inner_state
     startRun_request_workflow_nodes_inner_schema:
       additionalProperties: true
       description: JSON Schemas for parameters/results.
@@ -1234,6 +1305,16 @@ components:
         position:
           x: 0.8008281904610115
           "y": 6.027456183070403
+        state:
+          stage: stage
+          lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+          progress: 0.14658129805029452
+          message: message
+          error:
+            code: code
+            details:
+              key: ""
+            message: message
         category: category
         parameters:
           key: ""
@@ -1281,6 +1362,8 @@ components:
           additionalProperties: true
           description: Default results payload seeded from the manifest schema.
           type: object
+        state:
+          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_state"
         schema:
           $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_schema"
         ui:
@@ -1403,6 +1486,16 @@ components:
           position:
             x: 0.8008281904610115
             "y": 6.027456183070403
+          state:
+            stage: stage
+            lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+            progress: 0.14658129805029452
+            message: message
+            error:
+              code: code
+              details:
+                key: ""
+              message: message
           category: category
           parameters:
             key: ""
@@ -1467,6 +1560,16 @@ components:
           position:
             x: 0.8008281904610115
             "y": 6.027456183070403
+          state:
+            stage: stage
+            lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+            progress: 0.14658129805029452
+            message: message
+            error:
+              code: code
+              details:
+                key: ""
+              message: message
           category: category
           parameters:
             key: ""
@@ -1670,6 +1773,16 @@ components:
           position:
             x: 0.8008281904610115
             "y": 6.027456183070403
+          state:
+            stage: stage
+            lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+            progress: 0.14658129805029452
+            message: message
+            error:
+              code: code
+              details:
+                key: ""
+              message: message
           category: category
           parameters:
             key: ""
@@ -1734,6 +1847,16 @@ components:
           position:
             x: 0.8008281904610115
             "y": 6.027456183070403
+          state:
+            stage: stage
+            lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+            progress: 0.14658129805029452
+            message: message
+            error:
+              code: code
+              details:
+                key: ""
+              message: message
           category: category
           parameters:
             key: ""
@@ -1862,6 +1985,16 @@ components:
             position:
               x: 0.8008281904610115
               "y": 6.027456183070403
+            state:
+              stage: stage
+              lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+              progress: 0.14658129805029452
+              message: message
+              error:
+                code: code
+                details:
+                  key: ""
+                message: message
             category: category
             parameters:
               key: ""
@@ -1926,6 +2059,16 @@ components:
             position:
               x: 0.8008281904610115
               "y": 6.027456183070403
+            state:
+              stage: stage
+              lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+              progress: 0.14658129805029452
+              message: message
+              error:
+                code: code
+                details:
+                  key: ""
+                message: message
             category: category
             parameters:
               key: ""
@@ -2018,6 +2161,16 @@ components:
             position:
               x: 0.8008281904610115
               "y": 6.027456183070403
+            state:
+              stage: stage
+              lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+              progress: 0.14658129805029452
+              message: message
+              error:
+                code: code
+                details:
+                  key: ""
+                message: message
             category: category
             parameters:
               key: ""
@@ -2082,6 +2235,16 @@ components:
             position:
               x: 0.8008281904610115
               "y": 6.027456183070403
+            state:
+              stage: stage
+              lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+              progress: 0.14658129805029452
+              message: message
+              error:
+                code: code
+                details:
+                  key: ""
+                message: message
             category: category
             parameters:
               key: ""

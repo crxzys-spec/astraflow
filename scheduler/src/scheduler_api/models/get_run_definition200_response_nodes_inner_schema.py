@@ -30,7 +30,7 @@ except ImportError:
 
 class GetRunDefinition200ResponseNodesInnerSchema(object):
     """
-    Optional JSON Schemas for parameters/results
+    JSON Schemas for parameters/results.
     """ # noqa: E501
     parameters: Optional[Dict[str, Any]] = None
     results: Optional[Dict[str, Any]] = None

@@ -46,3 +46,10 @@ LastEventID:
   schema:
     type: string
   description: Resume SSE from a specific monotonic event id
+ClientSessionId:
+  name: clientSessionId
+  in: query
+  required: true
+  schema:
+    type: string
+  description: Frontend-generated session identifier (UUID) used to route SSE events.

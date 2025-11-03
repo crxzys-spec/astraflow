@@ -12,6 +12,7 @@ from fastapi.encoders import jsonable_encoder
 from shared.models.ws.envelope import Ack, Role, Sender, WsEnvelope
 from shared.models.ws.error import ErrorPayload
 from shared.models.ws.pkg.event import PackageEvent
+from shared.models.ws.feedback import FeedbackPayload
 from shared.models.ws.result import ResultPayload
 from shared.models.ws.handshake import HandshakePayload
 from shared.models.ws.heartbeat import HeartbeatPayload
@@ -109,6 +110,11 @@ async def worker_control_endpoint(websocket: WebSocket) -> None:
                     result.run_id,
                     artifacts_count,
                 )
+                await _maybe_ack(envelope, websocket)
+
+            elif message_type == "feedback":
+                feedback = FeedbackPayload.model_validate(envelope.payload)
+                await run_registry.record_feedback(feedback)
                 await _maybe_ack(envelope, websocket)
 
             elif message_type == "command.error":

@@ -157,6 +157,51 @@ def node_result_snapshot_envelope(
             runId=run_id,
             clientSessionId=client_session_id,
         ),
-        data=payload,
+    data=payload,
+)
+
+
+def node_result_delta_envelope(
+    *,
+    tenant: str,
+    client_session_id: str,
+    run_id: str,
+    node_id: str,
+    revision: int,
+    sequence: int,
+    operation: str,
+    path: Optional[str] = None,
+    payload: Optional[Dict[str, Any]] = None,
+    chunk_meta: Optional[Dict[str, Any]] = None,
+    terminal: bool = False,
+    occurred_at: Optional[datetime] = None,
+) -> UiEventEnvelope:
+    payload_raw = {
+        "kind": UiEventType.NODE_RESULT_DELTA.value,
+        "runId": run_id,
+        "nodeId": node_id,
+        "revision": max(revision, 0),
+        "sequence": max(sequence, 0),
+        "operation": operation,
+        "path": path,
+        "payload": payload,
+        "chunkMeta": chunk_meta,
+        "terminal": terminal,
+    }
+    event_payload = {
+        key: value
+        for key, value in payload_raw.items()
+        if value is not None
+    }
+    return UiEventEnvelope(
+        id="pending",
+        type=UiEventType.NODE_RESULT_DELTA,
+        occurredAt=occurred_at or datetime.now(timezone.utc),
+        scope=UiEventScope(
+            tenant=tenant,
+            runId=run_id,
+            clientSessionId=client_session_id,
+        ),
+        data=event_payload,
     )
 

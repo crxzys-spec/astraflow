@@ -28,6 +28,7 @@ from scheduler_api.models.start_run_request import StartRunRequest
 from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkflow
 from scheduler_api.sse import event_publisher
 from scheduler_api.sse.mappers import (
+    node_result_delta_envelope,
     node_result_snapshot_envelope,
     node_state_envelope,
     run_snapshot_envelope,
@@ -35,6 +36,7 @@ from scheduler_api.sse.mappers import (
 )
 from shared.models.ws import result as ws_result
 from shared.models.ws.error import ErrorPayload
+from shared.models.ws.feedback import FeedbackPayload
 
 LOGGER = logging.getLogger(__name__)
 
@@ -269,7 +271,14 @@ class RunRecord:
         *,
         last_updated_at: Optional[datetime],
     ) -> Dict[str, Any]:
-        state: Dict[str, Any] = {"stage": node.status}
+        metadata = node.metadata or {}
+        stage_hint = metadata.get("stage")
+        stage_value = (
+            stage_hint.strip()
+            if isinstance(stage_hint, str) and stage_hint.strip()
+            else node.status
+        )
+        state: Dict[str, Any] = {"stage": stage_value}
         progress = self._extract_node_progress(node)
         if progress is not None:
             state["progress"] = progress
@@ -455,6 +464,44 @@ class RunRegistry:
         except Exception:  # noqa: BLE001
             LOGGER.exception(
                 "Failed to publish node result snapshot run=%s node=%s",
+                record.run_id,
+                node.node_id,
+            )
+
+    async def _publish_node_result_delta(
+        self,
+        record: RunRecord,
+        node: NodeState,
+        *,
+        revision: int,
+        sequence: int,
+        operation: str,
+        path: Optional[str],
+        payload: Optional[Dict[str, Any]],
+        chunk_meta: Optional[Dict[str, Any]],
+        terminal: bool = False,
+    ) -> None:
+        if not record.client_id:
+            return
+        envelope = node_result_delta_envelope(
+            tenant=record.tenant,
+            client_session_id=record.client_id,
+            run_id=record.run_id,
+            node_id=node.node_id,
+            revision=revision,
+            sequence=sequence,
+            operation=operation,
+            path=path,
+            payload=payload,
+            chunk_meta=chunk_meta,
+            terminal=terminal,
+            occurred_at=_utc_now(),
+        )
+        try:
+            await event_publisher.publish(envelope)
+        except Exception:  # noqa: BLE001
+            LOGGER.exception(
+                "Failed to publish node result delta run=%s node=%s",
                 record.run_id,
                 node.node_id,
             )
@@ -819,6 +866,102 @@ class RunRegistry:
         tasks.append(self._publish_run_snapshot(record_snapshot))
         await asyncio.gather(*tasks)
         return record_snapshot, ready
+
+    async def record_feedback(
+        self,
+        payload: FeedbackPayload,
+    ) -> None:
+        async with self._lock:
+            record = self._runs.get(payload.run_id)
+            if not record:
+                return
+            node_state = (
+                record.find_node_by_task(payload.task_id)
+                or record.nodes.get(payload.task_id)
+                or record.get_node(payload.task_id, task_id=payload.task_id)
+            )
+            metadata = node_state.metadata or {}
+            node_state.metadata = metadata
+            changed_state = False
+            now = _utc_now()
+            metadata["lastUpdatedAt"] = now.isoformat()
+            if payload.stage:
+                metadata["stage"] = payload.stage
+                changed_state = True
+            if payload.progress is not None:
+                metadata["progress"] = payload.progress
+                changed_state = True
+            if payload.message:
+                metadata["message"] = payload.message
+                changed_state = True
+            if payload.metrics:
+                metrics = metadata.setdefault("metrics", {})
+                metrics.update(payload.metrics)
+                changed_state = True
+
+            chunk_events: List[Dict[str, Any]] = []
+            if payload.chunks:
+                feedback_meta: Dict[str, Any] = metadata.setdefault("feedback", {})
+                seq = int(feedback_meta.get("sequence", 0))
+                revision = node_state.seq or 0
+                for chunk in payload.chunks:
+                    seq += 1
+                    chunk_dict = chunk.model_dump(exclude_none=True)
+                    chunk_events.append(
+                        {
+                            "revision": revision,
+                            "sequence": seq,
+                            "chunk": chunk_dict,
+                        }
+                    )
+                feedback_meta["sequence"] = seq
+                changed_state = True
+
+            record_snapshot: Optional[RunRecord] = None
+            node_snapshot: Optional[NodeState] = None
+            if changed_state or chunk_events:
+                record_snapshot = copy.deepcopy(record)
+                node_snapshot = record_snapshot.nodes.get(node_state.node_id)
+                if node_snapshot is None:
+                    node_snapshot = copy.deepcopy(node_state)
+            publish_node_state = changed_state and record_snapshot and node_snapshot
+        tasks: List[asyncio.Future[Any]] = []
+        if publish_node_state:
+            tasks.append(self._publish_node_state(record_snapshot, node_snapshot))
+        if chunk_events and record_snapshot:
+            node_for_delta = node_snapshot or record_snapshot.nodes.get(node_state.node_id)
+            for event in chunk_events:
+                chunk = event["chunk"]
+                channel = chunk.get("channel") or "log"
+                mime_type = chunk.get("mime_type")
+                payload_body: Dict[str, Any] = {}
+                if "text" in chunk and chunk["text"] is not None:
+                    payload_body["text"] = chunk["text"]
+                if "data_base64" in chunk and chunk["data_base64"] is not None:
+                    payload_body["data"] = chunk["data_base64"]
+                if mime_type:
+                    payload_body["mimeType"] = mime_type
+                chunk_meta = {"channel": channel}
+                if chunk.get("metadata"):
+                    chunk_meta["metadata"] = chunk["metadata"]
+                terminal = False
+                if isinstance(chunk.get("metadata"), dict):
+                    terminal = bool(chunk["metadata"].get("terminal"))
+                tasks.append(
+                    self._publish_node_result_delta(
+                        record_snapshot,
+                        node_for_delta or node_state,
+                        revision=event["revision"],
+                        sequence=event["sequence"],
+                        operation="append",
+                        path=f"/channels/{channel}" if channel else None,
+                        payload=payload_body or None,
+                        chunk_meta=chunk_meta or None,
+                        terminal=terminal,
+                    )
+                )
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def record_command_error(
         self,

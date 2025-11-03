@@ -40,6 +40,7 @@ This document captures the backend positioning for AstraFlow, detailing the role
   { "type": "heartbeat", "status": { ... }, "packages": [ ... ] }
   { "type": "package.install", "package": "crawlerx_playwright", "version": "2025.10.0", "url": "...", "sha256": "..." }
   { "type": "task.dispatch", "runId": "...", "taskId": "...", "nodeId": "...", "package": {"name": "...", "version": "2025.10.0"}, "parameters": { ... } }
+  { "type": "feedback", "runId": "...", "taskId": "...", "stage": "streaming", "progress": 0.42, "message": "LLM streaming", "chunks": [{ "channel": "llm", "text": "Hello" }] }
   { "type": "task.result", "runId": "...", "taskId": "...", "nodeId": "...", "status": "SUCCEEDED", "result": { ... } }
   ```
 - **Reliability requirements**: ACK with retry, keepalive pings, resync state after reconnect.

@@ -20,6 +20,7 @@ from pydantic import BaseModel, ValidationError
 from shared.models.ws.envelope import Ack, Role, Sender, WsEnvelope
 from shared.models.ws.cmd.dispatch import CommandDispatchPayload
 from shared.models.ws.result import Artifact, ResultPayload
+from shared.models.ws.feedback import FeedbackPayload
 from shared.models.ws.error import ErrorPayload
 from shared.models.ws.pkg.event import PackageEvent
 from shared.models.ws.handshake import Auth, HandshakePayload, Mode, Worker
@@ -446,6 +447,7 @@ class ControlPlaneConnection:
 
     def _build_execution_context(self, dispatch: CommandDispatchPayload) -> "ExecutionContext":
         from .runner import ExecutionContext  # local import to avoid cycles
+        from .feedback import FeedbackPublisher
 
         run_id = dispatch.run_id
         task_id = dispatch.task_id
@@ -479,6 +481,7 @@ class ControlPlaneConnection:
             metadata=metadata,
             resource_refs=resource_refs,
             resource_registry=self.resource_registry,
+            feedback=FeedbackPublisher(self, run_id=run_id, task_id=task_id),
         )
 
     def _lease_resources(self, dispatch: CommandDispatchPayload) -> dict[str, ResourceHandle]:
@@ -566,6 +569,12 @@ class ControlPlaneConnection:
         """Emit a task result frame."""
 
         message = self._build_envelope("result", payload, request_ack=True, corr=corr, seq=seq)
+        await self._send(message)
+
+    async def send_feedback(self, payload: FeedbackPayload | dict[str, Any] | BaseModel, *, corr: Optional[str] = None, seq: Optional[int] = None) -> None:
+        """Emit an incremental task feedback frame."""
+
+        message = self._build_envelope("feedback", payload, request_ack=False, corr=corr, seq=seq)
         await self._send(message)
 
     async def send_command_error(

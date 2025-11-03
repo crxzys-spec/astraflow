@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from shared.models.ws.cmd.dispatch import ResourceRef
     from ..resource_registry import ResourceRegistry, ResourceHandle
+    from ..feedback import FeedbackPublisher
 
 
 @dataclass
@@ -26,3 +27,4 @@ class ExecutionContext:
     resource_refs: Optional[List["ResourceRef"]] = None
     resource_registry: Optional["ResourceRegistry"] = None
     leased_resources: Optional[Dict[str, "ResourceHandle"]] = None
+    feedback: Optional["FeedbackPublisher"] = None

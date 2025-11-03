@@ -4,43 +4,71 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, confloat, conint, constr
 
 
-class FeedbackChannel(Enum):
-    stdout = "stdout"
-    stderr = "stderr"
-    log = "log"
-    llm = "llm"
-    metric = "metric"
-    custom = "custom"
+class Channel(Enum):
+    stdout = 'stdout'
+    stderr = 'stderr'
+    log = 'log'
+    llm = 'llm'
+    metric = 'metric'
+    custom = 'custom'
 
 
 class FeedbackChunk(BaseModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra='forbid',
     )
-    channel: FeedbackChannel
-    index: Optional[conint(ge=0)] = None
-    mime_type: Optional[constr(min_length=1)] = None
-    text: Optional[str] = None
-    data_base64: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    channel: Channel
+    index: Optional[conint(ge=0)] = Field(
+        None,
+        description='Optional adapter-supplied sequence number for ordering within the channel.',
+    )
+    mime_type: Optional[str] = Field(
+        None,
+        description='MIME type of the payload (defaults to text/plain; use application/json for structured logs).',
+    )
+    text: Optional[str] = Field(
+        None,
+        description='UTF-8 text payload for the chunk. Mutually exclusive with data_base64.',
+    )
+    data_base64: Optional[str] = Field(
+        None, description='Binary payload encoded as base64 (for non-textual feedback).'
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        None,
+        description='Free-form annotations. Suggested keys: token_count, role, level.',
+    )
 
 
-class FeedbackPayload(BaseModel):
+class WsFeedback(BaseModel):
     model_config = ConfigDict(
-        extra="forbid",
+        extra='forbid',
     )
     run_id: constr(min_length=1)
     task_id: constr(min_length=1)
-    stage: Optional[constr(min_length=1)] = None
-    progress: Optional[confloat(ge=0, le=1)] = None
-    message: Optional[str] = None
-    chunks: Optional[list[FeedbackChunk]] = Field(
-        default=None, description="Streaming feedback emitted by the adapter."
+    stage: Optional[constr(min_length=1)] = Field(
+        None,
+        description='Optional scheduler-facing stage hint (e.g. running, streaming, completed_partial).',
     )
-    metrics: Optional[Dict[str, float]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    progress: Optional[confloat(ge=0.0, le=1.0)] = Field(
+        None, description='Optional 0-1 normalized progress indicator.'
+    )
+    message: Optional[str] = Field(
+        None, description='Human friendly status line exposed to UI surfaces.'
+    )
+    chunks: Optional[List[FeedbackChunk]] = Field(
+        None,
+        description='Streaming feedback emitted by the adapter (stdout/log/LLM tokens/etc).',
+    )
+    metrics: Optional[Dict[str, float]] = Field(
+        None,
+        description='Optional numeric metrics emitted during execution (loss, throughput, etc).',
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        None,
+        description='Implementation-defined details; forwarded to observability sinks.',
+    )

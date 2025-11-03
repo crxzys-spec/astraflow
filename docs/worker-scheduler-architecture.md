@@ -357,6 +357,16 @@ crawlerx_playwright/
 
 The workflow definition serves as the contract between the drag-and-connect editor and the Scheduler runtime. The UI persists the JSON, and the Scheduler consumes the same payload to orchestrate tasks. Global context is no longer exchanged; instead, node parameters contain fully resolved values or expressions local to each node, and widgets can also bind to `results.*` paths for read-only display of execution outputs. **All workflow IDs and node IDs must be UUIDs** so they remain globally unique across imports and Scheduler executions. Below is a representative instance that wires two Playwright adapters from the package example above.
 
+> **Tip:** The bundled `example.pkg.feedback_demo` node demonstrates the feedback contract: the worker emits incremental updates via `metadata.results`, for example `{"results": {"summary": "HELLO"}}`. The scheduler merges those keys into `results.*`, publishes `node.result.delta`, and the builder's `summaryPreview` widget (bound to `/results/summary`, `mode: "read"`) renders the stream live. Reuse the same convention for any other result fields you want to surface incrementally.
+
+Example welcome journey:
+- **Load Welcome Config** — parses the JSON definition, expands the template into a ready-to-send message, and exposes derived fields (recipient, timing, channel).
+- **Personalise Message** — formats the message, forwards routing metadata (`recipient`, `subject`, `delaySeconds`, `tokenDelayMs`) to downstream nodes, and provides the stream source for the feedback node.
+- **Stream Feedback** — emits the formatted message token-by-token so the builder shows live progress.
+- **Schedule Delivery** — waits for the configured delay, modelling long-running work.
+- **Send Welcome Notification** — simulates dispatch, returns a `notificationId`, and summarises the action.
+- **Audit Delivery** — records the outcome (including the notification ID) for traceability.
+
 ```json
 {
   "id": "ba55c67a-9ad4-4b6f-a719-b84e774c2d11",

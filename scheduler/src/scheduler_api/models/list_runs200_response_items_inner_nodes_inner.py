@@ -130,4 +130,3 @@ class ListRuns200ResponseItemsInnerNodesInner(BaseModel):
             "error": ListRuns200ResponseItemsInnerError.from_dict(obj.get("error")) if obj.get("error") is not None else None
         })
         return _obj
-

@@ -15,6 +15,7 @@ import type {
 } from './types.ts';
 import {
   createNodeDraftFromTemplate,
+  nodeDefaultsFromSchema,
   workflowDefinitionToDraft
 } from './utils/converters.ts';
 
@@ -45,9 +46,6 @@ const cloneState = (value: WorkflowNodeState | null | undefined): WorkflowNodeSt
 
 const statesEqual = (left: WorkflowNodeState | undefined, right: WorkflowNodeState | undefined): boolean =>
   JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
-
-const cloneRuntimeResult = (value: Record<string, unknown> | null | undefined) =>
-  value == null ? null : (JSON.parse(JSON.stringify(value)) as Record<string, unknown>);
 
 export const useWorkflowStore = create<WorkflowStore>()(
   immer((set, get) => ({
@@ -212,7 +210,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
           return;
         }
         if (payload.result !== undefined) {
-          node.runtimeResult = cloneRuntimeResult(payload.result);
+          node.results =
+            payload.result === null
+              ? {}
+              : (JSON.parse(JSON.stringify(payload.result)) as Record<string, unknown>);
         }
         if (payload.artifacts !== undefined) {
           node.runtimeArtifacts = payload.artifacts
@@ -233,9 +234,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
         }
         Object.values(workflow.nodes).forEach((node) => {
           node.state = undefined;
-          node.runtimeResult = null;
           node.runtimeArtifacts = null;
           node.runtimeSummary = null;
+          const defaults = nodeDefaultsFromSchema(node.schema);
+          node.results = JSON.parse(JSON.stringify(defaults.results ?? {}));
         });
       });
     },

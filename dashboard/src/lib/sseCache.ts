@@ -115,7 +115,7 @@ export const updateRunNode = (
 const cloneWorkflowState = (state: WorkflowNodeState | null | undefined) =>
   state == null ? undefined : (JSON.parse(JSON.stringify(state)) as WorkflowNodeState);
 
-const cloneRuntimeResult = (
+const cloneResultRecord = (
   value: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> | null | undefined => {
   if (value === undefined) {
@@ -221,18 +221,18 @@ const updateWorkflowDefinitionNodeRuntime = (
         return node;
       }
       const currentResult =
-        (node as unknown as { runtimeResult?: Record<string, unknown> | null }).runtimeResult;
+        (node as unknown as { results?: Record<string, unknown> | null }).results ?? {};
       const currentArtifacts =
-        (node as unknown as { runtimeArtifacts?: RunArtifact[] | null }).runtimeArtifacts;
+        (node as unknown as { artifacts?: RunArtifact[] | null }).artifacts ?? null;
       const currentSummary =
-        (node as unknown as { runtimeSummary?: string | null }).runtimeSummary;
+        (node as unknown as { metadata?: Record<string, unknown> | null }).metadata?.summary ?? null;
 
-      const nextResult = cloneRuntimeResult(update.result);
+      const nextResult = cloneResultRecord(update.result);
       const nextArtifacts = cloneRuntimeArtifacts(update.artifacts);
       const nextSummary = update.summary !== undefined ? update.summary ?? null : currentSummary;
 
       const willUpdateResult =
-        update.result !== undefined && !valuesEqual(currentResult ?? undefined, nextResult);
+        nextResult !== undefined && !valuesEqual(currentResult, nextResult);
       const willUpdateArtifacts =
         update.artifacts !== undefined && !valuesEqual(currentArtifacts ?? undefined, nextArtifacts);
       const willUpdateSummary =
@@ -244,7 +244,12 @@ const updateWorkflowDefinitionNodeRuntime = (
 
       const nodeUpdate: WorkflowNodeRuntimeUpdate = {};
       if (willUpdateResult) {
-        nodeUpdate.result = nextResult ?? null;
+        nodeUpdate.result =
+          update.result === undefined
+            ? undefined
+            : update.result === null
+            ? null
+            : (JSON.parse(JSON.stringify(update.result)) as Record<string, unknown>);
       }
       if (willUpdateArtifacts) {
         nodeUpdate.artifacts = nextArtifacts ?? null;
@@ -257,9 +262,11 @@ const updateWorkflowDefinitionNodeRuntime = (
 
       return {
         ...node,
-        runtimeResult: willUpdateResult ? nextResult ?? null : currentResult,
-        runtimeArtifacts: willUpdateArtifacts ? nextArtifacts ?? null : currentArtifacts,
-        runtimeSummary: willUpdateSummary ? nextSummary ?? null : currentSummary,
+        results: willUpdateResult ? nextResult ?? {} : currentResult,
+        artifacts: willUpdateArtifacts ? nextArtifacts ?? null : currentArtifacts,
+        metadata: willUpdateSummary
+          ? { ...(node.metadata ?? {}), summary: nextSummary ?? undefined }
+          : node.metadata,
       };
     });
     if (!changed) {
@@ -287,9 +294,12 @@ const updateWorkflowDefinitionNodeRuntime = (
       }
       const candidate: WorkflowNodeRuntimeUpdate = {};
       if (update.result !== undefined) {
-        const nextResult = cloneRuntimeResult(update.result);
-        if (!valuesEqual(node.runtimeResult ?? undefined, nextResult)) {
-          candidate.result = nextResult ?? null;
+        const nextResult = cloneResultRecord(update.result);
+        if (nextResult !== undefined && !valuesEqual(node.results ?? {}, nextResult)) {
+          candidate.result =
+            update.result === null
+              ? null
+              : (JSON.parse(JSON.stringify(update.result)) as Record<string, unknown>);
         }
       }
       if (update.artifacts !== undefined) {
@@ -300,7 +310,9 @@ const updateWorkflowDefinitionNodeRuntime = (
       }
       if (update.summary !== undefined) {
         const nextSummary = update.summary ?? null;
-        if (!valuesEqual(node.runtimeSummary ?? undefined, nextSummary)) {
+        const currentSummary =
+          (node.metadata ?? {})["summary"] ?? null;
+        if (!valuesEqual(currentSummary ?? undefined, nextSummary)) {
           candidate.summary = nextSummary;
         }
       }

@@ -181,7 +181,7 @@ const coerceManifestUi = (ui?: ManifestNodeUI | null): NodeUI | undefined => {
   return sanitizeNodeUi(coerced);
 };
 
-const nodeDefaultsFromSchema = (
+export const nodeDefaultsFromSchema = (
   schema?: WorkflowNodeSchema | Record<string, unknown> | null,
 ) => {
   const container = (schema ?? {}) as {

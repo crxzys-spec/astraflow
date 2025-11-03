@@ -750,6 +750,19 @@ button {
   border-color: rgba(59, 130, 246, 0.65);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
 }
+
+.workflow-node__widgets .wf-widget__textarea--readonly {
+  background: rgba(15, 23, 42, 0.7);
+  border-color: rgba(148, 163, 184, 0.4);
+  color: rgba(226, 232, 240, 0.88);
+  cursor: text;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.1);
+}
+
+.workflow-node__widgets .wf-widget__textarea--readonly:focus {
+  border-color: rgba(148, 163, 184, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
+}
 .builder-screen {
   display: flex;
   flex-direction: column;
@@ -2087,4 +2100,24 @@ button {
   color: rgba(148, 163, 184, 0.7);
 }
 
+
+
+.inspector__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.inspector__section h4 {
+  margin: 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.75);
+  letter-spacing: 0.08em;
+}
+
+.inspector__payload--compact {
+  max-height: 160px;
+  overflow: auto;
+}
 

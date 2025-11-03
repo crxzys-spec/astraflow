@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import { useWorkflowStore } from "../store";
 import type { NodePortDefinition, WorkflowNodeDraft } from "../types";
 
@@ -132,8 +132,8 @@ export const NodeInspector = () => {
   const runtimeMessage = runtimeState?.message ?? null;
   const runtimeUpdatedAt = runtimeState?.lastUpdatedAt ?? null;
   const runtimeError = runtimeState?.error;
-  const runtimeResult = node.runtimeResult ?? null;
-  const runtimeSummary = node.runtimeSummary ?? null;
+  const resultData = node.results ?? {};
+  const hasResultData = Object.keys(resultData).length > 0;
   const runtimeArtifacts = node.runtimeArtifacts ?? null;
 
   return (
@@ -171,19 +171,6 @@ export const NodeInspector = () => {
           </>
         ) : (
           <p className="text-subtle inspector__payload-empty">No execution data yet.</p>
-        )}
-      </div>
-      <div className="card inspector__panel">
-        <header className="card__header">
-          <h3>Runtime Result</h3>
-          {runtimeSummary && <span className="text-subtle">{runtimeSummary}</span>}
-        </header>
-        {runtimeResult === null ? (
-          <p className="text-subtle inspector__payload-empty">Result not available yet.</p>
-        ) : (
-          <pre className="inspector__payload">
-            {JSON.stringify(runtimeResult, null, 2)}
-          </pre>
         )}
       </div>
       <div className="card inspector__panel">
@@ -253,29 +240,30 @@ export const NodeInspector = () => {
       </div>
       <div className="card inspector__panel">
         <header className="card__header">
-          <h3>Parameters</h3>
+          <h3>Parameters & Results</h3>
         </header>
-        {Object.keys(node.parameters ?? {}).length ? (
-          <pre className="inspector__payload">
-            {JSON.stringify(node.parameters, null, 2)}
-          </pre>
-        ) : (
-          <p className="text-subtle inspector__payload-empty">No parameters defined.</p>
-        )}
-      </div>
-      <div className="card inspector__panel">
-        <header className="card__header">
-          <h3>Design Results</h3>
-        </header>
-        {Object.keys(node.results ?? {}).length ? (
-          <pre className="inspector__payload">
-            {JSON.stringify(node.results, null, 2)}
-          </pre>
-        ) : (
-          <p className="text-subtle inspector__payload-empty">
-            No design-time results defined.
-          </p>
-        )}
+        <div className="inspector__stats">
+          <section className="inspector__section">
+            <h4>Parameters</h4>
+            {Object.keys(node.parameters ?? {}).length ? (
+              <pre className="inspector__payload inspector__payload--compact">
+                {JSON.stringify(node.parameters, null, 2)}
+              </pre>
+            ) : (
+              <p className="text-subtle inspector__payload-empty">No parameters defined.</p>
+            )}
+          </section>
+          <section className="inspector__section">
+            <h4>Results</h4>
+            {hasResultData ? (
+              <pre className="inspector__payload inspector__payload--compact">
+                {JSON.stringify(resultData, null, 2)}
+              </pre>
+            ) : (
+              <p className="text-subtle inspector__payload-empty">No results available.</p>
+            )}
+          </section>
+        </div>
       </div>
     </aside>
   );

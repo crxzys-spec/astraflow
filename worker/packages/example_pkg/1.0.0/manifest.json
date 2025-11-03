@@ -86,7 +86,8 @@
             "label": "Message",
             "component": "text",
             "binding": {
-              "path": "/parameters/message"
+              "path": "/parameters/message",
+              "mode": "write"
             }
           }
         ]
@@ -96,11 +97,12 @@
       "type": "example.pkg.load_config",
       "status": "published",
       "category": "Examples",
-      "label": "Load Configuration",
-      "description": "Parses a JSON configuration string and returns the resulting object.",
+      "label": "Load Welcome Config",
+      "description": "Loads the welcome journey config, expands the template, and normalises defaults.",
       "tags": [
         "example",
-        "config"
+        "config",
+        "welcome"
       ],
       "adapter": "demo",
       "handler": "load_config",
@@ -111,8 +113,8 @@
           "properties": {
             "config": {
               "type": "string",
-              "description": "JSON payload that will be parsed.",
-              "default": "{\n  \"feature\": true,\n  \"threshold\": 0.75\n}"
+              "description": "JSON payload describing the welcome message, target recipient, and timing.",
+              "default": "{\n  \"recipient\": {\n    \"name\": \"Leslie Knope\",\n    \"email\": \"leslie@example.com\"\n  },\n  \"channel\": \"email\",\n  \"subject\": \"Welcome to AstraFlow\",\n  \"template\": \"Hello {{name}}, thank you for joining AstraFlow!\",\n  \"delaySeconds\": 1.5,\n  \"tokenDelayMs\": 60\n}"
             }
           },
           "required": [
@@ -131,7 +133,7 @@
             },
             "config": {
               "type": "object",
-              "description": "Parsed configuration object."
+              "description": "Normalised configuration with computed welcome message and timing hints."
             },
             "keyCount": {
               "type": "integer",
@@ -150,10 +152,59 @@
       "ui": {
         "outputPorts": [
           {
-            "key": "output",
+            "key": "config",
             "label": "Config",
             "binding": {
-              "path": "/results/config"
+              "path": "/results/config",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "message",
+            "label": "Welcome Message",
+            "binding": {
+              "path": "/results/config/message",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "recipient",
+            "label": "Recipient",
+            "binding": {
+              "path": "/results/config/recipient",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "channel",
+            "label": "Channel",
+            "binding": {
+              "path": "/results/config/channel",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "subject",
+            "label": "Subject",
+            "binding": {
+              "path": "/results/config/subject",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "delaySeconds",
+            "label": "Delay (s)",
+            "binding": {
+              "path": "/results/config/delaySeconds",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "tokenDelayMs",
+            "label": "Token Delay (ms)",
+            "binding": {
+              "path": "/results/config/tokenDelayMs",
+              "mode": "read"
             }
           }
         ],
@@ -163,7 +214,20 @@
             "label": "Configuration JSON",
             "component": "json",
             "binding": {
-              "path": "/parameters/config"
+              "path": "/parameters/config",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "messagePreview",
+            "label": "Preview Message",
+            "component": "textarea",
+            "binding": {
+              "path": "/results/config/message",
+              "mode": "read"
+            },
+            "options": {
+              "rows": 3
             }
           }
         ]
@@ -173,11 +237,12 @@
       "type": "example.pkg.transform_text",
       "status": "published",
       "category": "Examples",
-      "label": "Transform Text",
-      "description": "Applies a formatting mode to the provided text.",
+      "label": "Personalise Message",
+      "description": "Formats the welcome message and forwards routing metadata.",
       "tags": [
         "example",
-        "text"
+        "text",
+        "welcome"
       ],
       "adapter": "demo",
       "handler": "transform_text",
@@ -188,19 +253,46 @@
           "properties": {
             "text": {
               "type": "string",
-              "description": "Text to transform.",
+              "description": "Message to format.",
               "default": ""
             },
             "mode": {
               "type": "string",
-              "description": "Transformation mode.",
+              "description": "Transformation mode used for the preview.",
               "enum": [
                 "uppercase",
                 "lowercase",
                 "title",
                 "reverse"
               ],
-              "default": "uppercase"
+              "default": "title"
+            },
+            "recipient": {
+              "type": "object",
+              "description": "Recipient contact details passed along the journey.",
+              "default": {}
+            },
+            "channel": {
+              "type": "string",
+              "description": "Notification channel (email, sms, etc).",
+              "default": "email"
+            },
+            "subject": {
+              "type": "string",
+              "description": "Notification subject line.",
+              "default": "Welcome to AstraFlow"
+            },
+            "delaySeconds": {
+              "type": "number",
+              "description": "Delay applied before sending the notification.",
+              "default": 1.5,
+              "minimum": 0
+            },
+            "tokenDelayMs": {
+              "type": "integer",
+              "description": "Token streaming delay for the feedback demo.",
+              "default": 60,
+              "minimum": 0
             }
           },
           "required": [
@@ -224,6 +316,39 @@
             "modeApplied": {
               "type": "string",
               "description": "Transformation mode that was applied."
+            },
+            "message": {
+              "type": "string",
+              "description": "Formatted message forwarded to downstream nodes."
+            },
+            "recipient": {
+              "type": [
+                "object",
+                "string"
+              ],
+              "description": "Recipient details passed through the pipeline."
+            },
+            "channel": {
+              "type": "string",
+              "description": "Delivery channel used for the notification."
+            },
+            "subject": {
+              "type": "string",
+              "description": "Notification subject line."
+            },
+            "delaySeconds": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "Delay to apply prior to sending."
+            },
+            "tokenDelayMs": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "Token streaming delay for the feedback demo."
             }
           },
           "required": [
@@ -235,28 +360,122 @@
         "inputPorts": [
           {
             "key": "input",
-            "label": "Text",
+            "label": "Message",
             "binding": {
-              "path": "/parameters/text"
+              "path": "/parameters/text",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "recipient",
+            "label": "Recipient",
+            "binding": {
+              "path": "/parameters/recipient",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "channel",
+            "label": "Channel",
+            "binding": {
+              "path": "/parameters/channel",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "subject",
+            "label": "Subject",
+            "binding": {
+              "path": "/parameters/subject",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "delaySeconds",
+            "label": "Delay (s)",
+            "binding": {
+              "path": "/parameters/delaySeconds",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "tokenDelayMs",
+            "label": "Token Delay (ms)",
+            "binding": {
+              "path": "/parameters/tokenDelayMs",
+              "mode": "write"
             }
           }
         ],
         "outputPorts": [
           {
-            "key": "output",
-            "label": "Transformed",
+            "key": "message",
+            "label": "Message",
             "binding": {
-              "path": "/results/output"
+              "path": "/results/message",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "output",
+            "label": "Formatted",
+            "binding": {
+              "path": "/results/output",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "recipient",
+            "label": "Recipient",
+            "binding": {
+              "path": "/results/recipient",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "channel",
+            "label": "Channel",
+            "binding": {
+              "path": "/results/channel",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "subject",
+            "label": "Subject",
+            "binding": {
+              "path": "/results/subject",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "delaySeconds",
+            "label": "Delay (s)",
+            "binding": {
+              "path": "/results/delaySeconds",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "tokenDelayMs",
+            "label": "Token Delay (ms)",
+            "binding": {
+              "path": "/results/tokenDelayMs",
+              "mode": "read"
             }
           }
         ],
         "widgets": [
           {
             "key": "text",
-            "label": "Text",
-            "component": "text",
+            "label": "Message",
+            "component": "textarea",
             "binding": {
-              "path": "/parameters/text"
+              "path": "/parameters/text",
+              "mode": "write"
+            },
+            "options": {
+              "rows": 3
             }
           },
           {
@@ -264,10 +483,65 @@
             "label": "Mode",
             "component": "text",
             "binding": {
-              "path": "/parameters/mode"
+              "path": "/parameters/mode",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "recipient",
+            "label": "Recipient",
+            "component": "json",
+            "binding": {
+              "path": "/parameters/recipient",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "channel",
+            "label": "Channel",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/channel",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "subject",
+            "label": "Subject",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/subject",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "delaySeconds",
+            "label": "Delay (s)",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/delaySeconds",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "tokenDelayMs",
+            "label": "Token Delay (ms)",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/tokenDelayMs",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "messagePreview",
+            "label": "Formatted Message",
+            "component": "textarea",
+            "binding": {
+              "path": "/results/message",
+              "mode": "read"
             },
             "options": {
-              "helperText": "Choose between uppercase, lowercase, title, or reverse."
+              "rows": 3
             }
           }
         ]
@@ -277,11 +551,12 @@
       "type": "example.pkg.delay",
       "status": "published",
       "category": "Examples",
-      "label": "Delay",
-      "description": "Waits for the specified duration to simulate a long-running task.",
+      "label": "Schedule Delivery",
+      "description": "Introduces a schedulable pause before the notification is dispatched.",
       "tags": [
         "example",
-        "timing"
+        "timing",
+        "welcome"
       ],
       "adapter": "demo",
       "handler": "delay",
@@ -327,7 +602,8 @@
             "key": "input",
             "label": "Start",
             "binding": {
-              "path": "/parameters/durationSeconds"
+              "path": "/parameters/durationSeconds",
+              "mode": "write"
             }
           }
         ],
@@ -336,17 +612,28 @@
             "key": "output",
             "label": "Done",
             "binding": {
-              "path": "/results/durationSeconds"
+              "path": "/results/durationSeconds",
+              "mode": "read"
             }
           }
         ],
         "widgets": [
           {
             "key": "durationSeconds",
-            "label": "Duration (seconds)",
+            "label": "Delay (seconds)",
             "component": "number",
             "binding": {
-              "path": "/parameters/durationSeconds"
+              "path": "/parameters/durationSeconds",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "actualDuration",
+            "label": "Actual Duration",
+            "component": "number",
+            "binding": {
+              "path": "/results/durationSeconds",
+              "mode": "read"
             }
           }
         ]
@@ -356,11 +643,12 @@
       "type": "example.pkg.send_notification",
       "status": "published",
       "category": "Examples",
-      "label": "Send Notification",
-      "description": "Simulates sending a notification to a recipient.",
+      "label": "Send Welcome Notification",
+      "description": "Simulates sending the welcome notification and produces a summary.",
       "tags": [
         "example",
-        "notification"
+        "notification",
+        "welcome"
       ],
       "adapter": "demo",
       "handler": "send_notification",
@@ -370,19 +658,34 @@
           "type": "object",
           "properties": {
             "recipient": {
-              "type": "string",
-              "description": "Target recipient identifier.",
-              "default": ""
+              "type": [
+                "object",
+                "string"
+              ],
+              "description": "Recipient that should receive the notification.",
+              "default": {}
             },
             "channel": {
               "type": "string",
-              "description": "Delivery channel name.",
+              "description": "Notification channel (email, sms, etc).",
               "default": "email"
             },
             "message": {
               "type": "string",
-              "description": "Notification message content.",
+              "description": "Body of the notification to deliver.",
               "default": "Hello from AstraFlow!"
+            },
+            "subject": {
+              "type": "string",
+              "description": "Subject line for the outgoing message.",
+              "default": "Welcome to AstraFlow"
+            },
+            "ready": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "Internal hand-off signal from the delay node."
             }
           },
           "required": [
@@ -403,6 +706,29 @@
             "notificationId": {
               "type": "string",
               "description": "Generated identifier for the notification."
+            },
+            "summary": {
+              "type": "string",
+              "description": "Human-readable summary of the sent notification."
+            },
+            "recipient": {
+              "type": [
+                "object",
+                "string"
+              ],
+              "description": "Recipient that received the notification."
+            },
+            "channel": {
+              "type": "string",
+              "description": "Channel used to send the notification."
+            },
+            "subject": {
+              "type": "string",
+              "description": "Subject associated with the notification."
+            },
+            "message": {
+              "type": "string",
+              "description": "Message body that was delivered."
             }
           },
           "required": [
@@ -413,19 +739,61 @@
       "ui": {
         "inputPorts": [
           {
-            "key": "input",
-            "label": "Payload",
+            "key": "message",
+            "label": "Message",
             "binding": {
-              "path": "/parameters/message"
+              "path": "/parameters/message",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "recipient",
+            "label": "Recipient",
+            "binding": {
+              "path": "/parameters/recipient",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "channel",
+            "label": "Channel",
+            "binding": {
+              "path": "/parameters/channel",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "subject",
+            "label": "Subject",
+            "binding": {
+              "path": "/parameters/subject",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "handoff",
+            "label": "Ready Signal",
+            "binding": {
+              "path": "/parameters/ready",
+              "mode": "write"
             }
           }
         ],
         "outputPorts": [
           {
-            "key": "output",
+            "key": "notificationId",
             "label": "Notification",
             "binding": {
-              "path": "/results/notificationId"
+              "path": "/results/notificationId",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "summary",
+            "label": "Summary",
+            "binding": {
+              "path": "/results/summary",
+              "mode": "read"
             }
           }
         ],
@@ -433,9 +801,10 @@
           {
             "key": "recipient",
             "label": "Recipient",
-            "component": "text",
+            "component": "json",
             "binding": {
-              "path": "/parameters/recipient"
+              "path": "/parameters/recipient",
+              "mode": "write"
             }
           },
           {
@@ -443,7 +812,17 @@
             "label": "Channel",
             "component": "text",
             "binding": {
-              "path": "/parameters/channel"
+              "path": "/parameters/channel",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "subject",
+            "label": "Subject",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/subject",
+              "mode": "write"
             }
           },
           {
@@ -451,7 +830,32 @@
             "label": "Message",
             "component": "textarea",
             "binding": {
-              "path": "/parameters/message"
+              "path": "/parameters/message",
+              "mode": "write"
+            },
+            "options": {
+              "rows": 3
+            }
+          },
+          {
+            "key": "summaryPreview",
+            "label": "Notification Summary",
+            "component": "textarea",
+            "binding": {
+              "path": "/results/summary",
+              "mode": "read"
+            },
+            "options": {
+              "rows": 3
+            }
+          },
+          {
+            "key": "notificationId",
+            "label": "Notification ID",
+            "component": "text",
+            "binding": {
+              "path": "/results/notificationId",
+              "mode": "read"
             }
           }
         ]
@@ -461,11 +865,12 @@
       "type": "example.pkg.audit_log",
       "status": "published",
       "category": "Examples",
-      "label": "Audit Log",
-      "description": "Writes an audit log entry containing contextual information.",
+      "label": "Audit Delivery",
+      "description": "Captures an audit record for the welcome notification.",
       "tags": [
         "example",
-        "logging"
+        "audit",
+        "welcome"
       ],
       "adapter": "demo",
       "handler": "audit_log",
@@ -483,6 +888,10 @@
               "type": "string",
               "description": "Message to include in the audit log.",
               "default": "Workflow step completed."
+            },
+            "notificationId": {
+              "type": "string",
+              "description": "Notification identifier for traceability."
             }
           }
         },
@@ -512,7 +921,8 @@
             "key": "input",
             "label": "Event",
             "binding": {
-              "path": "/parameters/message"
+              "path": "/parameters/message",
+              "mode": "write"
             }
           }
         ],
@@ -522,15 +932,39 @@
             "label": "Level",
             "component": "text",
             "binding": {
-              "path": "/parameters/level"
+              "path": "/parameters/level",
+              "mode": "write"
             }
           },
           {
             "key": "message",
-            "label": "Message",
+            "label": "Summary",
             "component": "textarea",
             "binding": {
-              "path": "/parameters/message"
+              "path": "/parameters/message",
+              "mode": "write"
+            },
+            "options": {
+              "rows": 3
+            }
+          },
+          {
+            "key": "entryPreview",
+            "label": "Audit Entry",
+            "component": "json",
+            "binding": {
+              "path": "/results/entry",
+              "mode": "read"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "entry",
+            "label": "Entry",
+            "binding": {
+              "path": "/results/entry",
+              "mode": "read"
             }
           }
         ]
@@ -540,12 +974,13 @@
       "type": "example.pkg.feedback_demo",
       "status": "published",
       "category": "Examples",
-      "label": "Feedback Showcase",
-      "description": "Streams progress, metrics, and live tokens using task feedback.",
+      "label": "Stream Feedback",
+      "description": "Streams the personalised message token-by-token with live metrics.",
       "tags": [
         "example",
         "feedback",
-        "streaming"
+        "streaming",
+        "welcome"
       ],
       "adapter": "demo",
       "handler": "feedback_showcase",
@@ -560,7 +995,10 @@
               "default": "Hello AstraFlow!"
             },
             "tokenDelayMs": {
-              "type": "number",
+              "type": [
+                "number",
+                "integer"
+              ],
               "description": "Delay in milliseconds between emitted tokens.",
               "default": 80,
               "minimum": 0
@@ -598,7 +1036,16 @@
             "key": "prompt",
             "label": "Prompt",
             "binding": {
-              "path": "/parameters/prompt"
+              "path": "/parameters/prompt",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "tokenDelayMs",
+            "label": "Token Delay (ms)",
+            "binding": {
+              "path": "/parameters/tokenDelayMs",
+              "mode": "write"
             }
           }
         ],
@@ -607,7 +1054,8 @@
             "key": "summary",
             "label": "Summary",
             "binding": {
-              "path": "/results/summary"
+              "path": "/results/summary",
+              "mode": "read"
             }
           }
         ],
@@ -617,7 +1065,8 @@
             "label": "Prompt",
             "component": "textarea",
             "binding": {
-              "path": "/parameters/prompt"
+              "path": "/parameters/prompt",
+              "mode": "write"
             },
             "options": {
               "rows": 3
@@ -628,11 +1077,20 @@
             "label": "Token Delay (ms)",
             "component": "number",
             "binding": {
-              "path": "/parameters/tokenDelayMs"
+              "path": "/parameters/tokenDelayMs",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "summaryPreview",
+            "label": "Streamed Summary",
+            "component": "textarea",
+            "binding": {
+              "path": "/results/summary",
+              "mode": "read"
             },
             "options": {
-              "min": 0,
-              "step": 10
+              "rows": 4
             }
           }
         ]

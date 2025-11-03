@@ -46,7 +46,6 @@ export interface WorkflowNodeDraft {
   concurrencyKey?: string;
   metadata?: Record<string, unknown>;
   state?: WorkflowNodeState;
-  runtimeResult?: Record<string, unknown> | null;
   runtimeArtifacts?: RunArtifact[] | null;
   runtimeSummary?: string | null;
 }

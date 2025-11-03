@@ -10,7 +10,7 @@ import logging
 import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from scheduler_api.models.list_runs200_response import ListRuns200Response
 from scheduler_api.models.list_runs200_response_items_inner import ListRuns200ResponseItemsInner
@@ -63,7 +63,113 @@ def _normalise_status(value: str) -> str:
     return mapping.get(value.lower(), value.lower())
 
 
+def _encode_pointer_segment(segment: str) -> str:
+    return str(segment).replace("~", "~0").replace("/", "~1")
+
+
+def _merge_result_updates(
+    target: Dict[str, Any],
+    updates: Dict[str, Any],
+    path_prefix: str = "",
+) -> List[Dict[str, Any]]:
+    deltas: List[Dict[str, Any]] = []
+    for key, value in updates.items():
+        pointer = f"{path_prefix}/{_encode_pointer_segment(key)}" if path_prefix else f"/{_encode_pointer_segment(key)}"
+        if value is None:
+            if key in target:
+                target.pop(key, None)
+                deltas.append({"path": pointer, "value": None, "operation": "remove"})
+            continue
+        if isinstance(value, dict):
+            if value:
+                existing = target.get(key)
+                if isinstance(existing, dict):
+                    deltas.extend(_merge_result_updates(existing, value, pointer))
+                    continue
+                new_value = copy.deepcopy(value)
+                if existing != new_value:
+                    target[key] = new_value
+                    deltas.append({"path": pointer, "value": new_value, "operation": "replace"})
+            else:
+                if target.get(key) != {}:
+                    target[key] = {}
+                    deltas.append({"path": pointer, "value": {}, "operation": "replace"})
+            continue
+        new_value = copy.deepcopy(value) if isinstance(value, (dict, list)) else value
+        if target.get(key) != new_value:
+            target[key] = new_value
+            deltas.append({"path": pointer, "value": new_value, "operation": "replace"})
+    return deltas
+
+
 FINAL_STATUSES = {"succeeded", "failed", "cancelled"}
+
+
+_MISSING = object()
+
+
+def _decode_pointer(segment: str) -> str:
+    return segment.replace("~1", "/").replace("~0", "~")
+
+
+def _parse_binding_path(path: Optional[str]) -> Optional[Tuple[str, List[str]]]:
+    if not path:
+        return None
+    segments: List[str]
+    if path.startswith("/"):
+        segments = [_decode_pointer(part) for part in path.split("/") if part]
+    else:
+        raw_segments = path.replace("[", ".").replace("]", "").split(".")
+        segments = [segment for segment in raw_segments if segment]
+    if not segments:
+        return None
+    root = segments[0]
+    if root not in {"parameters", "results"}:
+        return None
+    return root, segments[1:]
+
+
+def _get_nested_value(container: Optional[Dict[str, Any]], path: List[str]) -> Any:
+    current: Any = container
+    for key in path:
+        if not isinstance(current, dict):
+            return _MISSING
+        if key not in current:
+            return _MISSING
+        current = current[key]
+    return copy.deepcopy(current)
+
+
+def _ensure_container(container: Dict[str, Any], key: str) -> Dict[str, Any]:
+    value = container.get(key)
+    if isinstance(value, dict):
+        return value
+    new_value: Dict[str, Any] = {}
+    container[key] = new_value
+    return new_value
+
+
+def _set_nested_value(container: Dict[str, Any], path: List[str], value: Any) -> None:
+    if not path:
+        if isinstance(value, dict):
+            container.clear()
+            container.update(copy.deepcopy(value))
+        else:
+            raise ValueError("Binding path must not be empty when assigning non-mapping values")
+        return
+    current = container
+    for key in path[:-1]:
+        current = _ensure_container(current, key)
+    current[path[-1]] = copy.deepcopy(value)
+
+
+@dataclass
+class EdgeBinding:
+    source_root: str
+    source_path: List[str]
+    target_node: str
+    target_root: str
+    target_path: List[str]
 
 
 @dataclass
@@ -138,6 +244,7 @@ class RunRecord:
     duration_ms: Optional[int] = None
     artifacts: List[Dict[str, Any]] = field(default_factory=list)
     nodes: Dict[str, NodeState] = field(default_factory=dict)
+    edge_bindings: Dict[str, List[EdgeBinding]] = field(default_factory=dict)
 
     def to_summary(self) -> ListRuns200ResponseItemsInner:
         artifacts = [
@@ -839,6 +946,9 @@ class RunRegistry:
                 node_state.error = None
                 record.error = None
 
+            if status == "succeeded":
+                self._apply_edge_bindings(record, node_state)
+
             ready: List[DispatchRequest] = []
             for dependent_id in node_state.dependents:
                 dependent = record.nodes.get(dependent_id)
@@ -885,6 +995,7 @@ class RunRegistry:
             changed_state = False
             now = _utc_now()
             metadata["lastUpdatedAt"] = now.isoformat()
+            result_deltas: List[Dict[str, Any]] = []
             if payload.stage:
                 metadata["stage"] = payload.stage
                 changed_state = True
@@ -894,6 +1005,35 @@ class RunRegistry:
             if payload.message:
                 metadata["message"] = payload.message
                 changed_state = True
+            incoming_metadata = payload.metadata or {}
+            incoming_results = incoming_metadata.get("results")
+            if incoming_results is None and "summary" in incoming_metadata:
+                incoming_results = {"summary": incoming_metadata.get("summary")}
+            for key, value in incoming_metadata.items():
+                if key == "results":
+                    continue
+                if value is None:
+                    if key in metadata:
+                        metadata.pop(key, None)
+                        changed_state = True
+                else:
+                    copied = copy.deepcopy(value) if isinstance(value, (dict, list)) else value
+                    if metadata.get(key) != copied:
+                        metadata[key] = copied
+                        changed_state = True
+            if isinstance(incoming_results, dict):
+                if not isinstance(node_state.result, dict):
+                    node_state.result = {}
+                result_changes = _merge_result_updates(node_state.result, incoming_results)
+                if result_changes:
+                    changed_state = True
+                    seq_counter = int(metadata.get("resultSequence", 0))
+                    for change in result_changes:
+                        seq_counter += 1
+                        change["sequence"] = seq_counter
+                        change["revision"] = node_state.seq or 0
+                    metadata["resultSequence"] = seq_counter
+                    result_deltas.extend(result_changes)
             if payload.metrics:
                 metrics = metadata.setdefault("metrics", {})
                 metrics.update(payload.metrics)
@@ -928,6 +1068,13 @@ class RunRegistry:
         tasks: List[asyncio.Future[Any]] = []
         if publish_node_state:
             tasks.append(self._publish_node_state(record_snapshot, node_snapshot))
+            tasks.append(
+                self._publish_node_snapshot(
+                    record_snapshot,
+                    node_snapshot,
+                    complete=False,
+                )
+            )
         if chunk_events and record_snapshot:
             node_for_delta = node_snapshot or record_snapshot.nodes.get(node_state.node_id)
             for event in chunk_events:
@@ -958,6 +1105,25 @@ class RunRegistry:
                         payload=payload_body or None,
                         chunk_meta=chunk_meta or None,
                         terminal=terminal,
+                    )
+                )
+        if result_deltas and record_snapshot:
+            node_for_delta = node_snapshot or record_snapshot.nodes.get(node_state.node_id) or node_state
+            for delta in result_deltas:
+                operation = delta["operation"]
+                value = delta.get("value")
+                payload_body = {"value": value} if operation != "remove" else None
+                tasks.append(
+                    self._publish_node_result_delta(
+                        record_snapshot,
+                        node_for_delta,
+                        revision=delta["revision"],
+                        sequence=delta["sequence"],
+                        operation=operation,
+                        path=delta["path"],
+                        payload=payload_body,
+                        chunk_meta=None,
+                        terminal=False,
                     )
                 )
         if tasks:
@@ -1077,6 +1243,7 @@ class RunRegistry:
             source_state.dependents.append(target)
 
         record.nodes = nodes
+        record.edge_bindings = self._build_edge_bindings(record)
 
     def _collect_ready_for_record(self, record: RunRecord) -> List[DispatchRequest]:
         ready: List[DispatchRequest] = []
@@ -1114,6 +1281,77 @@ class RunRegistry:
             seq=seq,
             preferred_worker_id=preferred_worker_id,
         )
+
+    def _build_edge_bindings(self, record: RunRecord) -> Dict[str, List[EdgeBinding]]:
+        workflow_nodes = {node.id: node for node in record.workflow.nodes or []}
+        bindings: Dict[str, List[EdgeBinding]] = {}
+
+        def _resolve_port_path(node_id: str, port_key: Optional[str], direction: str) -> Optional[str]:
+            if not port_key:
+                return None
+            node_def = workflow_nodes.get(node_id)
+            if not node_def or not node_def.ui:
+                return None
+            ports = node_def.ui.output_ports if direction == "output" else node_def.ui.input_ports
+            if not ports:
+                return None
+            for port in ports:
+                if port.key == port_key:
+                    binding = getattr(port, "binding", None)
+                    return binding.path if binding else None
+            return None
+
+        for edge in record.workflow.edges or []:
+            source_node = getattr(edge.source, "node", None)
+            target_node = getattr(edge.target, "node", None)
+            if not source_node or not target_node:
+                continue
+            if source_node not in workflow_nodes or target_node not in workflow_nodes:
+                continue
+
+            source_path_raw = _resolve_port_path(source_node, getattr(edge.source, "port", None), "output")
+            target_path_raw = _resolve_port_path(target_node, getattr(edge.target, "port", None), "input")
+            source_binding = _parse_binding_path(source_path_raw)
+            target_binding = _parse_binding_path(target_path_raw)
+            if not source_binding or not target_binding:
+                continue
+
+            source_root, source_path = source_binding
+            target_root, target_path = target_binding
+            if target_root != "parameters":
+                # Only parameter bindings are supported for edge propagation.
+                continue
+
+            entry = EdgeBinding(
+                source_root=source_root,
+                source_path=source_path,
+                target_node=target_node,
+                target_root=target_root,
+                target_path=target_path,
+            )
+            bindings.setdefault(source_node, []).append(entry)
+
+        return bindings
+
+    def _apply_edge_bindings(self, record: RunRecord, node_state: NodeState) -> None:
+        mappings = record.edge_bindings.get(node_state.node_id)
+        if not mappings:
+            return
+        for mapping in mappings:
+            if mapping.source_root == "results":
+                source_container = node_state.result
+            else:
+                source_container = node_state.parameters
+            value = _get_nested_value(source_container, mapping.source_path)
+            if value is _MISSING:
+                continue
+            target_state = record.nodes.get(mapping.target_node)
+            if not target_state:
+                continue
+            if mapping.target_root == "parameters":
+                if not isinstance(target_state.parameters, dict):
+                    target_state.parameters = {}
+                _set_nested_value(target_state.parameters, mapping.target_path, value)
 
 
 run_registry = RunRegistry()

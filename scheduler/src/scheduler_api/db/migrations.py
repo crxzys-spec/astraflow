@@ -15,10 +15,11 @@ def upgrade_database() -> None:
 
     scheduler_dir = Path(__file__).resolve().parents[3]
     alembic_cfg = Config(str(scheduler_dir / "alembic.ini"))
+    # Prevent Alembic from overriding the application's logging configuration.
+    alembic_cfg.attributes["configure_logger"] = False
     alembic_cfg.set_main_option("script_location", str(scheduler_dir / "migrations"))
     alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
     command.upgrade(alembic_cfg, "head")
 
 
 __all__ = ["upgrade_database"]
-

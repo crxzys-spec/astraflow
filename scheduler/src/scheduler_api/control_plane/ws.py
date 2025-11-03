@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -33,8 +34,22 @@ def _dump_envelope(envelope: WsEnvelope) -> str:
 
 
 async def _maybe_ack(envelope: WsEnvelope, websocket: WebSocket, *, force: bool = False) -> None:
-    if not force and not (envelope.ack and envelope.ack.request):
+    requested = bool(envelope.ack and envelope.ack.request)
+    logger.debug(
+        "Evaluating ack for envelope id=%s type=%s requested=%s force=%s",
+        envelope.id,
+        envelope.type,
+        requested,
+        force,
+    )
+    if not force and not requested:
         return
+    logger.debug(
+        "Sending ack for envelope id=%s type=%s force=%s",
+        envelope.id,
+        envelope.type,
+        force,
+    )
     ack_envelope = WsEnvelope(
         type="ack",
         id=str(uuid4()),
@@ -47,6 +62,41 @@ async def _maybe_ack(envelope: WsEnvelope, websocket: WebSocket, *, force: bool 
         payload={"ok": True, "for": envelope.id},
     )
     await websocket.send_text(_dump_envelope(ack_envelope))
+
+
+async def _process_result(envelope: WsEnvelope, result: ResultPayload) -> None:
+    logger.debug(
+        "Processing result envelope id=%s corr=%s run=%s status=%s",
+        envelope.id,
+        envelope.corr,
+        result.run_id,
+        result.status.value,
+    )
+    try:
+        record, ready = await run_registry.record_result(result.run_id, result)
+        if ready:
+            await run_orchestrator.enqueue(ready)
+        artifacts_count = len(record.artifacts) if record else 0
+        logger.info(
+            "Result received corr=%s status=%s run=%s artifacts=%s",
+            envelope.corr,
+            result.status.value,
+            result.run_id,
+            artifacts_count,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "Failed to process result corr=%s run=%s",
+            envelope.corr,
+            result.run_id,
+        )
+    finally:
+        logger.debug(
+            "Completed processing result envelope id=%s corr=%s run=%s",
+            envelope.id,
+            envelope.corr,
+            result.run_id,
+        )
 
 
 @router.websocket("/ws/worker")
@@ -99,18 +149,15 @@ async def worker_control_endpoint(websocket: WebSocket) -> None:
 
             elif message_type == "result":
                 result = ResultPayload.model_validate(envelope.payload)
-                record, ready = await run_registry.record_result(result.run_id, result)
-                if ready:
-                    await run_orchestrator.enqueue(ready)
-                artifacts_count = len(record.artifacts) if record else 0
                 logger.info(
-                    "Result received corr=%s status=%s run=%s artifacts=%s",
+                    "Result frame received id=%s request_ack=%s corr=%s run=%s",
+                    envelope.id,
+                    envelope.ack.request if envelope.ack else None,
                     envelope.corr,
-                    result.status.value,
                     result.run_id,
-                    artifacts_count,
                 )
                 await _maybe_ack(envelope, websocket)
+                asyncio.create_task(_process_result(envelope, result))
 
             elif message_type == "feedback":
                 feedback = FeedbackPayload.model_validate(envelope.payload)

@@ -11,6 +11,7 @@ from typing import Final
 
 import uvicorn
 import socket
+import logging
 
 
 DEFAULT_HOST: Final[str] = "127.0.0.1"
@@ -21,6 +22,7 @@ PORT_IN_USE_MESSAGE: Final[str] = (
     "SCHEDULER_API_PORT."
 )
 WINDOWS_IN_USE_ERRORS: Final[set[int]] = {10013, 10048}
+DEFAULT_LOG_LEVEL: Final[str] = "info"
 
 
 def _truthy_env(var_name: str, default: bool = False) -> bool:
@@ -43,6 +45,12 @@ def parse_args() -> argparse.Namespace:
         "--reload",
         action="store_true",
         help="Enable uvicorn auto-reload (or set SCHEDULER_API_RELOAD=1).",
+    )
+    parser.add_argument(
+        "--log-level",
+        choices=["critical", "error", "warning", "info", "debug", "trace"],
+        default=None,
+        help="Log level for scheduler and uvicorn output (or set SCHEDULER_API_LOG_LEVEL).",
     )
     return parser.parse_args()
 
@@ -96,6 +104,16 @@ def main() -> None:
     port_env = os.getenv("SCHEDULER_API_PORT")
     port = args.port or (int(port_env) if port_env else DEFAULT_PORT)
     reload = args.reload or _truthy_env("SCHEDULER_API_RELOAD")
+    log_level = (args.log_level or os.getenv("SCHEDULER_API_LOG_LEVEL") or DEFAULT_LOG_LEVEL).lower()
+    if log_level == "trace":
+        # Uvicorn treats "trace" as the most verbose level; map to DEBUG for stdlib logging.
+        root_level = logging.DEBUG
+    else:
+        root_level = getattr(logging, log_level.upper(), logging.INFO)
+
+    logging.basicConfig(level=root_level, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    for logger_name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        logging.getLogger(logger_name).setLevel(root_level)
 
     ensure_port_available(host, port)
 
@@ -104,6 +122,8 @@ def main() -> None:
         host=host,
         port=port,
         reload=reload,
+        log_level=log_level if log_level != "trace" else "debug",
+        log_config=None,
     )
 
 

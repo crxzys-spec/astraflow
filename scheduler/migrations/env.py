@@ -17,7 +17,8 @@ from scheduler_api.db import Base, DATABASE_URL  # noqa: E402
 
 config = context.config
 
-if config.config_file_name is not None:
+if config.config_file_name is not None and config.attributes.get("configure_logger", True):
+    # Only load Alembic's logging config when explicitly allowed by the caller.
     fileConfig(config.config_file_name)
 
 config.set_main_option("sqlalchemy.url", DATABASE_URL)

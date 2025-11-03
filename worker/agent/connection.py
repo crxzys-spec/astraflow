@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from itertools import count
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Set
 
 from pydantic import BaseModel, ValidationError
 
@@ -85,6 +85,7 @@ class ControlPlaneConnection:
     _receive_task: Optional[asyncio.Task[None]] = None
     _message_counter: Iterator[int] = field(default_factory=lambda: count())
     _pending_acks: dict[str, "PendingAck"] = field(default_factory=dict)
+    _dispatch_tasks: Set[asyncio.Task[None]] = field(default_factory=set)
 
     async def start(self) -> None:
         """Establish the control-plane connection and kick off heartbeat loop."""
@@ -116,6 +117,7 @@ class ControlPlaneConnection:
             receive_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await receive_task
+        await self._cancel_dispatch_tasks()
         self._cancel_pending_acks()
         self.session.transition(SessionState.CLOSED)
         if self._transport:
@@ -238,10 +240,16 @@ class ControlPlaneConnection:
     async def _send(self, message: dict[str, Any]) -> None:
         if not self._transport:
             raise TransportNotReady("Transport has not been initialised")
-        await self._transport.send(message)
         ack_request = message.get("ack", {}).get("request")
+        message_id = message.get("id")
         if ack_request:
             self._register_ack(message)
+        try:
+            await self._transport.send(message)
+        except Exception:
+            if ack_request and message_id:
+                self._remove_pending_ack(message_id)
+            raise
 
     def _next_message_id(self, prefix: str) -> str:
         counter = next(self._message_counter)
@@ -294,6 +302,11 @@ class ControlPlaneConnection:
         envelope = WsEnvelope.model_validate(message)
 
         if envelope.ack and envelope.ack.for_:
+            LOGGER.debug(
+                "Ack envelope received id=%s for=%s",
+                envelope.id,
+                envelope.ack.for_,
+            )
             self._resolve_ack(envelope.ack.for_)
 
         if envelope.ack and envelope.ack.request:
@@ -303,13 +316,7 @@ class ControlPlaneConnection:
         message_type = envelope.type
         if message_type == "cmd.dispatch":
             LOGGER.info("Received dispatch command corr=%s", envelope.corr)
-            if self.command_handler:
-                await self.command_handler(envelope.model_dump(by_alias=True))
-            elif self.runner:
-                dispatch = CommandDispatchPayload.model_validate(payload)
-                await self._default_command_handler(envelope, dispatch)
-            else:
-                LOGGER.debug("No command handler registered")
+            self._schedule_dispatch(envelope)
         elif message_type == "pkg.install":
             LOGGER.info("Received package install instruction: %s", payload)
             if self.package_handler:
@@ -322,6 +329,32 @@ class ControlPlaneConnection:
             pass  # Already processed via ack handling above
         else:
             LOGGER.debug("Unhandled message type %s", message_type)
+
+    def _schedule_dispatch(self, envelope: WsEnvelope) -> None:
+        task = asyncio.create_task(self._process_dispatch(envelope), name=f"dispatch-{envelope.id}")
+        self._dispatch_tasks.add(task)
+        def _finalise(completed: asyncio.Task[None]) -> None:
+            self._dispatch_tasks.discard(completed)
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                completed.result()
+        task.add_done_callback(_finalise)
+
+    async def _process_dispatch(self, envelope: WsEnvelope) -> None:
+        try:
+            if self.command_handler:
+                await self.command_handler(envelope.model_dump(by_alias=True))
+                return
+            if not self.runner:
+                LOGGER.debug("No command handler registered")
+                return
+            dispatch = CommandDispatchPayload.model_validate(envelope.payload)
+            await self._default_command_handler(envelope, dispatch)
+        except asyncio.CancelledError:
+            LOGGER.debug("Dispatch task %s cancelled", envelope.id)
+            raise
+        except Exception as exc:  # noqa: BLE001
+            LOGGER.exception("Dispatch handling failed for envelope %s: %s", envelope.id, exc)
+            raise
 
     async def _default_command_handler(
         self,
@@ -518,6 +551,7 @@ class ControlPlaneConnection:
         if message_id in self._pending_acks:
             return
         pending = PendingAck(message=copy.deepcopy(message))
+        LOGGER.debug("Tracking ack for message %s", message_id)
         pending.task = asyncio.create_task(self._ack_retry_loop(message_id), name=f"ack-retry-{message_id}")
         self._pending_acks[message_id] = pending
 
@@ -533,6 +567,12 @@ class ControlPlaneConnection:
                 self._pending_acks.pop(message_id, None)
                 return
             delay = min(base_delay * (2**pending.attempts), max_delay)
+            LOGGER.debug(
+                "Ack retry loop sleeping %s s before attempt %s for message %s",
+                delay,
+                pending.attempts + 1,
+                message_id,
+            )
             await asyncio.sleep(delay)
             if message_id not in self._pending_acks:
                 return
@@ -550,6 +590,11 @@ class ControlPlaneConnection:
             raise TransportNotReady("Transport has not been initialised")
         await self._transport.send(message)
 
+    def _remove_pending_ack(self, message_id: str) -> None:
+        pending = self._pending_acks.pop(message_id, None)
+        if pending and pending.task:
+            pending.task.cancel()
+
     def _resolve_ack(self, message_id: str) -> None:
         pending = self._pending_acks.pop(message_id, None)
         if not pending:
@@ -564,6 +609,15 @@ class ControlPlaneConnection:
             if pending.task:
                 pending.task.cancel()
         self._pending_acks.clear()
+
+    async def _cancel_dispatch_tasks(self) -> None:
+        if not self._dispatch_tasks:
+            return
+        tasks = list(self._dispatch_tasks)
+        self._dispatch_tasks.clear()
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     async def send_result(self, payload: dict[str, Any] | BaseModel, *, corr: Optional[str] = None, seq: Optional[int] = None) -> None:
         """Emit a task result frame."""

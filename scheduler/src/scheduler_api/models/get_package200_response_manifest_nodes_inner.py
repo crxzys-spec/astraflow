@@ -20,18 +20,17 @@ import json
 
 
 
-from pydantic import ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from scheduler_api.models.get_package200_response_manifest_nodes_inner_schema import GetPackage200ResponseManifestNodesInnerSchema
 from scheduler_api.models.get_package200_response_manifest_nodes_inner_ui import GetPackage200ResponseManifestNodesInnerUi
-from scheduler_api.models.object import object
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class GetPackage200ResponseManifestNodesInner(object):
+class GetPackage200ResponseManifestNodesInner(BaseModel):
     """
     GetPackage200ResponseManifestNodesInner
     """ # noqa: E501
@@ -46,7 +45,6 @@ class GetPackage200ResponseManifestNodesInner(object):
     config: Optional[Dict[str, Any]] = Field(default=None, description="Optional static configuration forwarded to the handler.")
     var_schema: GetPackage200ResponseManifestNodesInnerSchema = Field(alias="schema")
     ui: Optional[GetPackage200ResponseManifestNodesInnerUi] = None
-    additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["type", "status", "category", "label", "description", "tags", "adapter", "handler", "config", "schema", "ui"]
 
     @field_validator('type')
@@ -107,12 +105,10 @@ class GetPackage200ResponseManifestNodesInner(object):
         * `None` is only added to the output dict for nullable fields that
           were set at model initialization. Other fields with value `None`
           are ignored.
-        * Fields in `self.additional_properties` are added to the output dict.
         """
         _dict = self.model_dump(
             by_alias=True,
             exclude={
-                "additional_properties",
             },
             exclude_none=True,
         )
@@ -122,11 +118,6 @@ class GetPackage200ResponseManifestNodesInner(object):
         # override the default output from pydantic by calling `to_dict()` of ui
         if self.ui:
             _dict['ui'] = self.ui.to_dict()
-        # puts key-value pairs in additional_properties in the top level
-        if self.additional_properties is not None:
-            for _key, _value in self.additional_properties.items():
-                _dict[_key] = _value
-
         return _dict
 
     @classmethod
@@ -151,11 +142,6 @@ class GetPackage200ResponseManifestNodesInner(object):
             "schema": GetPackage200ResponseManifestNodesInnerSchema.from_dict(obj.get("schema")) if obj.get("schema") is not None else None,
             "ui": GetPackage200ResponseManifestNodesInnerUi.from_dict(obj.get("ui")) if obj.get("ui") is not None else None
         })
-        # store additional fields in additional_properties
-        for _key in obj.keys():
-            if _key not in cls.__properties:
-                _obj.additional_properties[_key] = obj.get(_key)
-
         return _obj
 
 

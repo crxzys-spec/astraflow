@@ -228,6 +228,115 @@ WorkflowRef:
   properties:
     workflowId:
       type: string
+AuthLoginRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - username
+  - password
+  properties:
+    username:
+      type: string
+    password:
+      type: string
+      format: password
+AuthLoginResponse:
+  type: object
+  additionalProperties: false
+  required:
+  - accessToken
+  - tokenType
+  - expiresIn
+  - user
+  properties:
+    accessToken:
+      type: string
+    tokenType:
+      type: string
+      enum:
+        - Bearer
+    expiresIn:
+      type: integer
+      description: Seconds until the access token expires.
+    user:
+      $ref: '#/UserSummary'
+UserSummary:
+  type: object
+  additionalProperties: false
+  required:
+  - userId
+  - username
+  - displayName
+  - roles
+  - isActive
+  properties:
+    userId:
+      type: string
+    username:
+      type: string
+    displayName:
+      type: string
+    roles:
+      type: array
+      items:
+        type: string
+    isActive:
+      type: boolean
+      description: Whether the account is enabled.
+UserList:
+  type: object
+  required:
+  - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/UserSummary'
+CreateUserRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - username
+  - displayName
+  - password
+  properties:
+    username:
+      type: string
+    displayName:
+      type: string
+    password:
+      type: string
+      format: password
+    roles:
+      type: array
+      items:
+        type: string
+      description: Optional initial roles to assign to the user.
+ResetUserPasswordRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - password
+  properties:
+    password:
+      type: string
+      format: password
+UserRoleRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - role
+  properties:
+    role:
+      type: string
+UpdateUserStatusRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - isActive
+  properties:
+    isActive:
+      type: boolean
 WorkflowList:
   type: object
   required:
@@ -548,8 +657,57 @@ WorkflowMetadata:
     originId:
       type: string
       description: Identifier linking versions of the same workflow. By default equals the workflow id.
+    ownerId:
+      type: string
+      description: User id that owns the workflow definition.
+    createdBy:
+      type: string
+      description: User id that created the workflow definition.
+    updatedBy:
+      type: string
+      description: User id that most recently updated the workflow definition.
   required:
   - name
+AuditEvent:
+  type: object
+  additionalProperties: false
+  required:
+  - eventId
+  - createdAt
+  - action
+  - targetType
+  properties:
+    eventId:
+      type: string
+    actorId:
+      type: string
+      nullable: true
+    action:
+      type: string
+    targetType:
+      type: string
+    targetId:
+      type: string
+      nullable: true
+    metadata:
+      type: object
+      nullable: true
+      additionalProperties: true
+    createdAt:
+      type: string
+      format: date-time
+AuditEventList:
+  type: object
+  required:
+  - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/AuditEvent'
+    nextCursor:
+      type: string
+      nullable: true
 WorkflowNode:
   type: object
   additionalProperties: false

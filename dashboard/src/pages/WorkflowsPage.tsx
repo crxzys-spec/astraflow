@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useListWorkflows } from "../api/endpoints";
+import { useAuthStore } from "../features/auth/store";
 
 const WorkflowsPage = () => {
   const workflowsQuery = useListWorkflows(undefined, {
@@ -7,6 +8,7 @@ const WorkflowsPage = () => {
       staleTime: 60_000
     }
   });
+  const canCreateWorkflow = useAuthStore((state) => state.hasRole(["admin", "workflow.editor"]));
 
   const workflows = workflowsQuery.data?.data?.items ?? [];
   const isLoading = workflowsQuery.isLoading;
@@ -25,14 +27,16 @@ const WorkflowsPage = () => {
             Browse workflow definitions and open them in the interactive builder.
           </p>
         </div>
-        <Link className="btn btn--primary" to="/workflows/new">
-          Create Workflow
-        </Link>
+        {canCreateWorkflow && (
+          <Link className="btn btn--primary" to="/workflows/new">
+            Create Workflow
+          </Link>
+        )}
       </header>
 
       {isLoading && (
         <div className="card card--surface">
-          <p>Loading workflows…</p>
+          <p>Loading workflows...</p>
         </div>
       )}
 
@@ -58,6 +62,9 @@ const WorkflowsPage = () => {
             const tags = metadata.tags ?? [];
             const namespace = metadata.namespace ?? "default";
             const description = metadata.description ?? "No description provided.";
+            const ownerId = metadata.ownerId ?? metadata.createdBy ?? null;
+            const createdBy = metadata.createdBy ?? null;
+            const updatedBy = metadata.updatedBy ?? null;
             return (
               <div key={workflow.id} className="card card--surface workflow-card">
                 <div className="workflow-card__header">
@@ -76,6 +83,21 @@ const WorkflowsPage = () => {
                   <div>
                     <strong>ID:</strong> <code>{workflow.id}</code>
                   </div>
+                  {ownerId && (
+                    <div>
+                      <strong>Owner:</strong> {ownerId}
+                    </div>
+                  )}
+                  {createdBy && (
+                    <div>
+                      <strong>Created by:</strong> {createdBy}
+                    </div>
+                  )}
+                  {updatedBy && updatedBy !== createdBy && (
+                    <div>
+                      <strong>Updated by:</strong> {updatedBy}
+                    </div>
+                  )}
                   <div>
                     <strong>Nodes:</strong> {workflow.nodes?.length ?? 0}
                   </div>

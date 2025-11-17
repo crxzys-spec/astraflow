@@ -26,10 +26,10 @@ from scheduler_api.models.extra_models import TokenModel  # noqa: F401
 from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
+from scheduler_api.models.auth_login401_response import AuthLogin401Response
 from scheduler_api.models.list_workflows200_response import ListWorkflows200Response
 from scheduler_api.models.list_workflows200_response_items_inner import ListWorkflows200ResponseItemsInner
 from scheduler_api.models.persist_workflow201_response import PersistWorkflow201Response
-from scheduler_api.models.start_run400_response import StartRun400Response
 from scheduler_api.security_api import get_token_bearerAuth
 
 router = APIRouter()
@@ -64,8 +64,8 @@ async def list_workflows(
     "/api/v1/workflows",
     responses={
         201: {"model": PersistWorkflow201Response, "description": "Created"},
-        400: {"model": StartRun400Response, "description": "Invalid input"},
-        409: {"model": StartRun400Response, "description": "Conflict (e.g., idempotency-key reuse with different body)"},
+        400: {"model": AuthLogin401Response, "description": "Invalid input"},
+        409: {"model": AuthLogin401Response, "description": "Conflict (e.g., idempotency-key reuse with different body)"},
     },
     tags=["Workflows"],
     summary="Persist a workflow for editor storage (no versioning)",
@@ -87,7 +87,7 @@ async def persist_workflow(
     "/api/v1/workflows/{workflowId}",
     responses={
         200: {"model": ListWorkflows200ResponseItemsInner, "description": "OK"},
-        404: {"model": StartRun400Response, "description": "Resource not found"},
+        404: {"model": AuthLogin401Response, "description": "Resource not found"},
     },
     tags=["Workflows"],
     summary="Read stored workflow (latest)",

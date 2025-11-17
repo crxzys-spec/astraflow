@@ -20,10 +20,9 @@ import json
 
 
 
-from pydantic import ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
-from scheduler_api.models.object import object
 from scheduler_api.models.start_run_request_workflow_edges_inner import StartRunRequestWorkflowEdgesInner
 from scheduler_api.models.start_run_request_workflow_metadata import StartRunRequestWorkflowMetadata
 from scheduler_api.models.start_run_request_workflow_nodes_inner import StartRunRequestWorkflowNodesInner
@@ -32,7 +31,7 @@ try:
 except ImportError:
     from typing_extensions import Self
 
-class StartRunRequestWorkflow(object):
+class StartRunRequestWorkflow(BaseModel):
     """
     StartRunRequestWorkflow
     """ # noqa: E501

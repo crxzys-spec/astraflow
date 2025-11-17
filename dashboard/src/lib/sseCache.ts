@@ -2,11 +2,11 @@
 import type { AxiosResponse } from "axios";
 
 import type { Run } from "../api/models/run";
+import type { Workflow } from "../api/models/workflow";
 import type { WorkflowNodeState } from "../api/models/workflowNodeState";
 import type { RunArtifact } from "../api/models/runArtifact";
 import type { RunList } from "../api/models/runList";
 import type { RunNodeStatus } from "../api/models/runNodeStatus";
-import type { StartRunRequestWorkflow } from "../api/models/startRunRequestWorkflow";
 import { getGetRunDefinitionQueryKey, getGetRunQueryKey } from "../api/endpoints";
 import { useWorkflowStore } from "../features/workflow";
 import type { WorkflowNodeStateUpdateMap } from "../features/workflow";
@@ -162,7 +162,7 @@ const updateWorkflowDefinitionNodeStates = (
     return;
   }
   const definitionKey = getGetRunDefinitionQueryKey(runId);
-  queryClient.setQueryData<AxiosResponse<StartRunRequestWorkflow>>(definitionKey, (existing) => {
+  queryClient.setQueryData<AxiosResponse<Workflow>>(definitionKey, (existing) => {
     if (!existing?.data?.nodes?.length) {
       return existing;
     }
@@ -210,7 +210,7 @@ const updateWorkflowDefinitionNodeRuntime = (
   const definitionKey = getGetRunDefinitionQueryKey(runId);
   const effectiveUpdates: Record<string, WorkflowNodeRuntimeUpdate> = {};
   const storeInstance = useWorkflowStore.getState();
-  queryClient.setQueryData<AxiosResponse<StartRunRequestWorkflow>>(definitionKey, (existing) => {
+  queryClient.setQueryData<AxiosResponse<Workflow>>(definitionKey, (existing) => {
     if (!existing?.data?.nodes?.length) {
       return existing;
     }

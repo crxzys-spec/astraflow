@@ -20,23 +20,21 @@ import json
 
 
 
-from pydantic import ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from scheduler_api.models.get_package200_response_manifest_nodes_inner_ui_input_ports_inner import GetPackage200ResponseManifestNodesInnerUiInputPortsInner
 from scheduler_api.models.get_package200_response_manifest_nodes_inner_ui_widgets_inner import GetPackage200ResponseManifestNodesInnerUiWidgetsInner
-from scheduler_api.models.object import object
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class GetPackage200ResponseManifestNodesInnerUi(object):
+class GetPackage200ResponseManifestNodesInnerUi(BaseModel):
     """
     GetPackage200ResponseManifestNodesInnerUi
     """ # noqa: E501
     input_ports: Optional[List[GetPackage200ResponseManifestNodesInnerUiInputPortsInner]] = Field(default=None, alias="inputPorts")
     widgets: Optional[List[GetPackage200ResponseManifestNodesInnerUiWidgetsInner]] = None
-    additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["inputPorts", "widgets"]
 
     model_config = {
@@ -69,12 +67,10 @@ class GetPackage200ResponseManifestNodesInnerUi(object):
         * `None` is only added to the output dict for nullable fields that
           were set at model initialization. Other fields with value `None`
           are ignored.
-        * Fields in `self.additional_properties` are added to the output dict.
         """
         _dict = self.model_dump(
             by_alias=True,
             exclude={
-                "additional_properties",
             },
             exclude_none=True,
         )
@@ -92,11 +88,6 @@ class GetPackage200ResponseManifestNodesInnerUi(object):
                 if _item:
                     _items.append(_item.to_dict())
             _dict['widgets'] = _items
-        # puts key-value pairs in additional_properties in the top level
-        if self.additional_properties is not None:
-            for _key, _value in self.additional_properties.items():
-                _dict[_key] = _value
-
         return _dict
 
     @classmethod
@@ -112,11 +103,6 @@ class GetPackage200ResponseManifestNodesInnerUi(object):
             "inputPorts": [GetPackage200ResponseManifestNodesInnerUiInputPortsInner.from_dict(_item) for _item in obj.get("inputPorts")] if obj.get("inputPorts") is not None else None,
             "widgets": [GetPackage200ResponseManifestNodesInnerUiWidgetsInner.from_dict(_item) for _item in obj.get("widgets")] if obj.get("widgets") is not None else None
         })
-        # store additional fields in additional_properties
-        for _key in obj.keys():
-            if _key not in cls.__properties:
-                _obj.additional_properties[_key] = obj.get(_key)
-
         return _obj
 
 

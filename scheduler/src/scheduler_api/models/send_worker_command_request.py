@@ -20,9 +20,8 @@ import re  # noqa: F401
 
 
 
-from pydantic import ConfigDict, Field, StrictStr, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, ValidationError, field_validator
 from typing import Any, List, Optional
-from scheduler_api.models.object import object
 from scheduler_api.models.send_worker_command_request_one_of import SendWorkerCommandRequestOneOf
 from scheduler_api.models.send_worker_command_request_one_of1 import SendWorkerCommandRequestOneOf1
 from scheduler_api.models.send_worker_command_request_one_of2 import SendWorkerCommandRequestOneOf2
@@ -37,7 +36,7 @@ except ImportError:
 
 SENDWORKERCOMMANDREQUEST_ONE_OF_SCHEMAS = ["SendWorkerCommandRequestOneOf", "SendWorkerCommandRequestOneOf1", "SendWorkerCommandRequestOneOf2", "SendWorkerCommandRequestOneOf3"]
 
-class SendWorkerCommandRequest(object):
+class SendWorkerCommandRequest(BaseModel):
     """
     SendWorkerCommandRequest
     """

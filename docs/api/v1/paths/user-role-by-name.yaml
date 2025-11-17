@@ -1,0 +1,18 @@
+delete:
+  tags: [Users]
+  summary: Remove role from user
+  operationId: removeUserRole
+  parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: role
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    '204':
+      description: Role removed

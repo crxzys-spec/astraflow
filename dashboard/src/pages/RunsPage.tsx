@@ -9,9 +9,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { RunStatusEvent } from "../api/models/runStatusEvent";
 import type { RunSnapshotEvent } from "../api/models/runSnapshotEvent";
 import { replaceRunSnapshot, updateRunCaches } from "../lib/sseCache";
+import { useAuthStore } from "../features/auth/store";
 
 export const RunsPage = () => {
-  const { data, isLoading, isError, error, refetch } = useListRuns();
+  const canViewRuns = useAuthStore((state) =>
+    state.hasRole(["admin", "run.viewer", "workflow.editor"])
+  );
+  const { data, isLoading, isError, error, refetch } = useListRuns(undefined, {
+    query: { enabled: canViewRuns }
+  });
   const runs = data?.data.items ?? [];
   const queryClient = useQueryClient();
 
@@ -20,6 +26,9 @@ export const RunsPage = () => {
   }, []);
 
   useEffect(() => {
+    if (!canViewRuns) {
+      return;
+    }
     const unsubscribe = sseClient.subscribe((event) => {
       if (event.type === UiEventType.runstatus && event.data?.kind === "run.status") {
         const payload = event.data as RunStatusEvent;
@@ -53,7 +62,18 @@ export const RunsPage = () => {
     });
 
     return () => unsubscribe();
-  }, [queryClient]);
+  }, [queryClient, canViewRuns]);
+
+  if (!canViewRuns) {
+    return (
+      <div className="card">
+        <h2>Runs</h2>
+        <p className="text-subtle">
+          You do not have permission to view run telemetry. Please request the run.viewer or workflow.editor role.
+        </p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return <p>Loading runs...</p>;

@@ -1,0 +1,20 @@
+post:
+  tags: [Auth]
+  summary: Exchange username/password for a JWT
+  operationId: authLogin
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/AuthLoginRequest'
+  responses:
+    '200':
+      description: Authenticated
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/AuthLoginResponse'
+    '401':
+      $ref: '../components/responses.yaml#/Unauthorized'

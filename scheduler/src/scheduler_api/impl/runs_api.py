@@ -7,6 +7,8 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 
 from scheduler_api.apis.runs_api_base import BaseRunsApi
+from scheduler_api.audit import record_audit_event
+from scheduler_api.auth.roles import RUN_VIEW_ROLES, WORKFLOW_EDIT_ROLES, require_roles
 from scheduler_api.models.list_runs200_response import ListRuns200Response
 from scheduler_api.models.list_runs200_response_items_inner import ListRuns200ResponseItemsInner
 from scheduler_api.models.start_run202_response import StartRun202Response
@@ -35,6 +37,7 @@ class RunsApiImpl(BaseRunsApi):
         status: Optional[str],
         client_id: Optional[str],
     ) -> ListRuns200Response:
+        require_roles(*RUN_VIEW_ROLES)
         capped_limit = limit or 50
         return await run_registry.to_list_response(
             limit=capped_limit,
@@ -48,6 +51,7 @@ class RunsApiImpl(BaseRunsApi):
         start_run_request: StartRunRequest,
         idempotency_key: Optional[str],
     ) -> StartRun202Response:
+        token = require_roles(*WORKFLOW_EDIT_ROLES)
         if start_run_request is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,12 +74,23 @@ class RunsApiImpl(BaseRunsApi):
         LOGGER.info(
             "Run %s queued with %d initial nodes", run_id, len(ready)
         )
+        record_audit_event(
+            actor_id=token.sub if token else None,
+            action="run.start",
+            target_type="run",
+            target_id=run_id,
+            metadata={
+                "workflowId": getattr(workflow, "id", None),
+                "clientId": start_run_request.client_id,
+            },
+        )
         return record.to_start_response()
 
     async def get_run(
         self,
         runId: str,
     ) -> ListRuns200ResponseItemsInner:
+        require_roles(*RUN_VIEW_ROLES)
         record = await run_registry.get(runId)
         if not record:
             raise HTTPException(
@@ -88,6 +103,7 @@ class RunsApiImpl(BaseRunsApi):
         self,
         runId: str,
     ) -> StartRunRequestWorkflow:
+        require_roles(*RUN_VIEW_ROLES)
         workflow = await run_registry.get_workflow_with_state(runId)
         if not workflow:
             raise HTTPException(

@@ -8,11 +8,40 @@ security:
 - bearerAuth: []
 tags:
 - name: Runs
+- name: Auth
 - name: Workflows
 - name: Packages
 - name: Workers
 - name: Events
+- name: Audit
+- name: Users
 paths:
+  /api/v1/auth/login:
+    post:
+      operationId: authLogin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/authLogin_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authLogin_200_response"
+          description: Authenticated
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authLogin_401_response"
+          description: Authentication required or credentials invalid
+      security: []
+      summary: Exchange username/password for a JWT
+      tags:
+      - Auth
   /api/v1/runs:
     get:
       operationId: listRuns
@@ -32,6 +61,7 @@ paths:
         name: cursor
         required: false
         schema:
+          title: userId
           type: string
         style: form
       - explode: true
@@ -52,7 +82,7 @@ paths:
         name: clientId
         required: false
         schema:
-          title: code
+          title: userId
           type: string
         style: form
       responses:
@@ -95,13 +125,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/startRun_400_response"
+                $ref: "#/components/schemas/authLogin_401_response"
           description: Invalid input
         "409":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/startRun_400_response"
+                $ref: "#/components/schemas/authLogin_401_response"
           description: "Conflict (e.g., idempotency-key reuse with different body)"
       summary: Start a run using the in-memory workflow snapshot
       tags:
@@ -115,7 +145,7 @@ paths:
         name: runId
         required: true
         schema:
-          title: code
+          title: userId
           type: string
         style: simple
       responses:
@@ -129,7 +159,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/startRun_400_response"
+                $ref: "#/components/schemas/authLogin_401_response"
           description: Resource not found
       summary: Get run summary
       tags:
@@ -164,7 +194,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/startRun_400_response"
+                $ref: "#/components/schemas/authLogin_401_response"
           description: Resource not found
       summary: Get the immutable workflow snapshot used by this run
       tags:
@@ -230,13 +260,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/startRun_400_response"
+                $ref: "#/components/schemas/authLogin_401_response"
           description: Invalid input
         "409":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/startRun_400_response"
+                $ref: "#/components/schemas/authLogin_401_response"
           description: "Conflict (e.g., idempotency-key reuse with different body)"
       summary: Persist a workflow for editor storage (no versioning)
       tags:
@@ -250,7 +280,7 @@ paths:
         name: workflowId
         required: true
         schema:
-          title: code
+          title: userId
           type: string
         style: simple
       responses:
@@ -264,7 +294,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/startRun_400_response"
+                $ref: "#/components/schemas/authLogin_401_response"
           description: Resource not found
       summary: Read stored workflow (latest)
       tags:
@@ -291,7 +321,7 @@ paths:
         name: packageName
         required: true
         schema:
-          title: code
+          title: userId
           type: string
         style: simple
       - description: Specific package version to retrieve. Defaults to the latest
@@ -301,7 +331,7 @@ paths:
         name: version
         required: false
         schema:
-          title: code
+          title: userId
           type: string
         style: form
       responses:
@@ -315,7 +345,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/startRun_400_response"
+                $ref: "#/components/schemas/authLogin_401_response"
           description: Resource not found
       summary: Get package detail
       tags:
@@ -329,7 +359,7 @@ paths:
         name: queue
         required: false
         schema:
-          title: code
+          title: userId
           type: string
         style: form
       - explode: true
@@ -368,7 +398,7 @@ paths:
         name: workerId
         required: true
         schema:
-          title: code
+          title: userId
           type: string
         style: simple
       responses:
@@ -382,7 +412,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/startRun_400_response"
+                $ref: "#/components/schemas/authLogin_401_response"
           description: Resource not found
       summary: Get worker snapshot
       tags:
@@ -425,13 +455,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/startRun_400_response"
+                $ref: "#/components/schemas/authLogin_401_response"
           description: Invalid input
         "404":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/startRun_400_response"
+                $ref: "#/components/schemas/authLogin_401_response"
           description: Resource not found
       summary: Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)
       tags:
@@ -446,6 +476,7 @@ paths:
         name: Last-Event-ID
         required: false
         schema:
+          title: userId
           type: string
         style: simple
       - description: Frontend-generated session identifier (UUID) used to route SSE
@@ -455,6 +486,7 @@ paths:
         name: clientSessionId
         required: true
         schema:
+          title: userId
           type: string
         style: form
       responses:
@@ -476,25 +508,291 @@ paths:
       summary: Global Server-Sent Events stream (firehose; no query parameters)
       tags:
       - Events
+  /api/v1/users:
+    get:
+      operationId: listUsers
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/listUsers_200_response"
+          description: OK
+      summary: List users and their roles
+      tags:
+      - Users
+    post:
+      operationId: createUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createUser_request"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/createUser_201_response"
+          description: Created
+      summary: Create a new user
+      tags:
+      - Users
+  /api/v1/users/{userId}/password:
+    post:
+      operationId: resetUserPassword
+      parameters:
+      - explode: false
+        in: path
+        name: userId
+        required: true
+        schema:
+          title: userId
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/resetUserPassword_request"
+        required: true
+      responses:
+        "204":
+          description: Password updated
+      summary: Reset user password
+      tags:
+      - Users
+  /api/v1/users/{userId}/roles:
+    post:
+      operationId: addUserRole
+      parameters:
+      - explode: false
+        in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/addUserRole_request"
+        required: true
+      responses:
+        "204":
+          description: Role assigned
+      summary: Assign role to user
+      tags:
+      - Users
+  /api/v1/users/{userId}/roles/{role}:
+    delete:
+      operationId: removeUserRole
+      parameters:
+      - explode: false
+        in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: false
+        in: path
+        name: role
+        required: true
+        schema:
+          title: userId
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Role removed
+      summary: Remove role from user
+      tags:
+      - Users
+  /api/v1/audit-events:
+    get:
+      operationId: listAuditEvents
+      parameters:
+      - explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          maximum: 200
+          minimum: 1
+          type: integer
+        style: form
+      - description: Reserved for future pagination
+        explode: true
+        in: query
+        name: cursor
+        required: false
+        schema:
+          title: username
+          type: string
+        style: form
+      - description: Filter by action name
+        explode: true
+        in: query
+        name: action
+        required: false
+        schema:
+          title: username
+          type: string
+        style: form
+      - description: Filter by actor id
+        explode: true
+        in: query
+        name: actorId
+        required: false
+        schema:
+          title: username
+          type: string
+        style: form
+      - description: Filter by target type
+        explode: true
+        in: query
+        name: targetType
+        required: false
+        schema:
+          title: username
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/listAuditEvents_200_response"
+          description: OK
+      summary: List audit events
+      tags:
+      - Audit
 components:
   parameters: {}
   responses: {}
   schemas:
+    authLogin_request:
+      additionalProperties: {}
+      properties:
+        username:
+          title: username
+          type: string
+        password:
+          format: password
+          title: password
+          type: string
+      required:
+      - password
+      - username
+      title: authLogin_request
+    authLogin_200_response_user:
+      additionalProperties: false
+      example:
+        displayName: displayName
+        roles:
+        - roles
+        - roles
+        userId: userId
+        username: username
+      properties:
+        userId:
+          title: userId
+          type: string
+        username:
+          title: userId
+          type: string
+        displayName:
+          title: userId
+          type: string
+        roles:
+          items:
+            title: userId
+            type: string
+          title: roles
+          type: array
+      required:
+      - displayName
+      - roles
+      - userId
+      - username
+      title: authLogin_200_response_user
+    authLogin_200_response:
+      additionalProperties: {}
+      example:
+        expiresIn: 0
+        accessToken: accessToken
+        tokenType: Bearer
+        user:
+          displayName: displayName
+          roles:
+          - roles
+          - roles
+          userId: userId
+          username: username
+      properties:
+        accessToken:
+          title: userId
+          type: string
+        tokenType:
+          enum:
+          - Bearer
+          title: tokenType
+          type: string
+        expiresIn:
+          description: Seconds until the access token expires.
+          title: expiresIn
+          type: integer
+        user:
+          $ref: "#/components/schemas/authLogin_200_response_user"
+      required:
+      - accessToken
+      - expiresIn
+      - tokenType
+      - user
+      title: authLogin_200_response
+    authLogin_401_response:
+      example:
+        requestId: requestId
+        details: "{}"
+        error: error
+        message: message
+      properties:
+        error:
+          title: userId
+          type: string
+        message:
+          title: userId
+          type: string
+        requestId:
+          title: userId
+          type: string
+        details:
+          additionalProperties: false
+          title: details
+          type: object
+          nullable: true
+      required:
+      - error
+      - message
+      title: authLogin_401_response
     listRuns_200_response_items_inner_error:
       example:
         code: code
-        details:
-          key: ""
+        details: "{}"
         message: message
       properties:
         code:
-          title: code
+          title: userId
           type: string
         message:
-          title: code
+          title: userId
           type: string
         details:
-          additionalProperties: true
+          additionalProperties: false
           title: details
           type: object
           nullable: true
@@ -507,21 +805,20 @@ components:
       example:
         resourceId: resourceId
         workerId: workerId
-        metadata:
-          key: ""
+        metadata: "{}"
         inline: true
         type: type
         expiresAt: 2000-01-23T04:56:07.000+00:00
         sizeBytes: 0
       properties:
         resourceId:
-          title: code
+          title: userId
           type: string
         workerId:
-          title: code
+          title: userId
           type: string
         type:
-          title: code
+          title: userId
           type: string
         sizeBytes:
           minimum: 0
@@ -538,7 +835,7 @@ components:
           type: string
           nullable: true
         metadata:
-          additionalProperties: true
+          additionalProperties: false
           title: details
           type: object
           nullable: true
@@ -551,18 +848,17 @@ components:
       description: Optional terminal error surfaced when the node fails.
       example:
         code: code
-        details:
-          key: ""
+        details: "{}"
         message: message
       properties:
         code:
-          title: code
+          title: userId
           type: string
         message:
-          title: code
+          title: userId
           type: string
         details:
-          additionalProperties: true
+          additionalProperties: false
           title: details
           type: object
           nullable: true
@@ -572,7 +868,7 @@ components:
       title: listRuns_200_response_items_inner_nodes_inner_state_error
       nullable: true
     listRuns_200_response_items_inner_nodes_inner_state:
-      additionalProperties: true
+      additionalProperties: false
       description: Scheduler-owned runtime hints attached to a workflow node during
         builder playback or run overlays.
       example:
@@ -582,27 +878,30 @@ components:
         message: message
         error:
           code: code
-          details:
-            key: ""
+          details: "{}"
           message: message
       properties:
         stage:
           description: "Current scheduler-reported stage (e.g. idle, queued, running,\
             \ completed, failed)."
+          title: stage
           type: string
         progress:
           description: Optional 0-1 normalized progress indicator.
           maximum: 1
           minimum: 0
+          title: progress
           type: number
           nullable: true
         lastUpdatedAt:
           description: ISO-8601 timestamp for the last state transition.
           format: date-time
+          title: lastUpdatedAt
           type: string
           nullable: true
         message:
           description: Human-friendly hint surfaced to the UI.
+          title: message
           type: string
           nullable: true
         error:
@@ -612,23 +911,20 @@ components:
     listRuns_200_response_items_inner_nodes_inner:
       example:
         workerId: workerId
-        metadata:
-          key: ""
+        metadata: "{}"
         startedAt: 2000-01-23T04:56:07.000+00:00
         ackDeadline: 2000-01-23T04:56:07.000+00:00
         error:
           code: code
-          details:
-            key: ""
+          details: "{}"
           message: message
         pendingAck: true
         finishedAt: 2000-01-23T04:56:07.000+00:00
         dispatchId: dispatchId
-        result:
-          key: ""
+        result: "{}"
         resourceRefs:
-        - key: ""
-        - key: ""
+        - "{}"
+        - "{}"
         state:
           stage: stage
           lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
@@ -636,24 +932,22 @@ components:
           message: message
           error:
             code: code
-            details:
-              key: ""
+            details: "{}"
             message: message
         nodeId: nodeId
         taskId: taskId
         seq: 6
         status: queued
-        affinity:
-          key: ""
+        affinity: "{}"
         artifacts:
-        - key: ""
-        - key: ""
+        - "{}"
+        - "{}"
       properties:
         nodeId:
-          title: code
+          title: userId
           type: string
         taskId:
-          title: code
+          title: userId
           type: string
         status:
           enum:
@@ -702,28 +996,28 @@ components:
           nullable: true
         resourceRefs:
           items:
-            additionalProperties: true
+            additionalProperties: false
             type: object
           title: resourceRefs
           type: array
         affinity:
-          additionalProperties: true
+          additionalProperties: false
           title: details
           type: object
           nullable: true
         artifacts:
           items:
-            additionalProperties: true
+            additionalProperties: false
             type: object
           title: artifacts
           type: array
         result:
-          additionalProperties: true
+          additionalProperties: false
           title: details
           type: object
           nullable: true
         metadata:
-          additionalProperties: true
+          additionalProperties: false
           title: details
           type: object
           nullable: true
@@ -741,23 +1035,20 @@ components:
         clientId: clientId
         nodes:
         - workerId: workerId
-          metadata:
-            key: ""
+          metadata: "{}"
           startedAt: 2000-01-23T04:56:07.000+00:00
           ackDeadline: 2000-01-23T04:56:07.000+00:00
           error:
             code: code
-            details:
-              key: ""
+            details: "{}"
             message: message
           pendingAck: true
           finishedAt: 2000-01-23T04:56:07.000+00:00
           dispatchId: dispatchId
-          result:
-            key: ""
+          result: "{}"
           resourceRefs:
-          - key: ""
-          - key: ""
+          - "{}"
+          - "{}"
           state:
             stage: stage
             lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
@@ -765,36 +1056,31 @@ components:
             message: message
             error:
               code: code
-              details:
-                key: ""
+              details: "{}"
               message: message
           nodeId: nodeId
           taskId: taskId
           seq: 6
           status: queued
-          affinity:
-            key: ""
+          affinity: "{}"
           artifacts:
-          - key: ""
-          - key: ""
+          - "{}"
+          - "{}"
         - workerId: workerId
-          metadata:
-            key: ""
+          metadata: "{}"
           startedAt: 2000-01-23T04:56:07.000+00:00
           ackDeadline: 2000-01-23T04:56:07.000+00:00
           error:
             code: code
-            details:
-              key: ""
+            details: "{}"
             message: message
           pendingAck: true
           finishedAt: 2000-01-23T04:56:07.000+00:00
           dispatchId: dispatchId
-          result:
-            key: ""
+          result: "{}"
           resourceRefs:
-          - key: ""
-          - key: ""
+          - "{}"
+          - "{}"
           state:
             stage: stage
             lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
@@ -802,48 +1088,43 @@ components:
             message: message
             error:
               code: code
-              details:
-                key: ""
+              details: "{}"
               message: message
           nodeId: nodeId
           taskId: taskId
           seq: 6
           status: queued
-          affinity:
-            key: ""
+          affinity: "{}"
           artifacts:
-          - key: ""
-          - key: ""
+          - "{}"
+          - "{}"
         startedAt: 2000-01-23T04:56:07.000+00:00
         runId: runId
         definitionHash: definitionHash
         error:
           code: code
-          details:
-            key: ""
+          details: "{}"
           message: message
         status: queued
         finishedAt: 2000-01-23T04:56:07.000+00:00
         artifacts:
         - resourceId: resourceId
           workerId: workerId
-          metadata:
-            key: ""
+          metadata: "{}"
           inline: true
           type: type
           expiresAt: 2000-01-23T04:56:07.000+00:00
           sizeBytes: 0
         - resourceId: resourceId
           workerId: workerId
-          metadata:
-            key: ""
+          metadata: "{}"
           inline: true
           type: type
           expiresAt: 2000-01-23T04:56:07.000+00:00
           sizeBytes: 0
       properties:
         runId:
-          title: code
+          title: userId
           type: string
         status:
           enum:
@@ -855,10 +1136,10 @@ components:
           title: status
           type: string
         definitionHash:
-          title: code
+          title: userId
           type: string
         clientId:
-          title: code
+          title: userId
           type: string
         startedAt:
           format: date-time
@@ -897,23 +1178,20 @@ components:
         - clientId: clientId
           nodes:
           - workerId: workerId
-            metadata:
-              key: ""
+            metadata: "{}"
             startedAt: 2000-01-23T04:56:07.000+00:00
             ackDeadline: 2000-01-23T04:56:07.000+00:00
             error:
               code: code
-              details:
-                key: ""
+              details: "{}"
               message: message
             pendingAck: true
             finishedAt: 2000-01-23T04:56:07.000+00:00
             dispatchId: dispatchId
-            result:
-              key: ""
+            result: "{}"
             resourceRefs:
-            - key: ""
-            - key: ""
+            - "{}"
+            - "{}"
             state:
               stage: stage
               lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
@@ -921,36 +1199,31 @@ components:
               message: message
               error:
                 code: code
-                details:
-                  key: ""
+                details: "{}"
                 message: message
             nodeId: nodeId
             taskId: taskId
             seq: 6
             status: queued
-            affinity:
-              key: ""
+            affinity: "{}"
             artifacts:
-            - key: ""
-            - key: ""
+            - "{}"
+            - "{}"
           - workerId: workerId
-            metadata:
-              key: ""
+            metadata: "{}"
             startedAt: 2000-01-23T04:56:07.000+00:00
             ackDeadline: 2000-01-23T04:56:07.000+00:00
             error:
               code: code
-              details:
-                key: ""
+              details: "{}"
               message: message
             pendingAck: true
             finishedAt: 2000-01-23T04:56:07.000+00:00
             dispatchId: dispatchId
-            result:
-              key: ""
+            result: "{}"
             resourceRefs:
-            - key: ""
-            - key: ""
+            - "{}"
+            - "{}"
             state:
               stage: stage
               lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
@@ -958,41 +1231,36 @@ components:
               message: message
               error:
                 code: code
-                details:
-                  key: ""
+                details: "{}"
                 message: message
             nodeId: nodeId
             taskId: taskId
             seq: 6
             status: queued
-            affinity:
-              key: ""
+            affinity: "{}"
             artifacts:
-            - key: ""
-            - key: ""
+            - "{}"
+            - "{}"
           startedAt: 2000-01-23T04:56:07.000+00:00
           runId: runId
           definitionHash: definitionHash
           error:
             code: code
-            details:
-              key: ""
+            details: "{}"
             message: message
           status: queued
           finishedAt: 2000-01-23T04:56:07.000+00:00
           artifacts:
           - resourceId: resourceId
             workerId: workerId
-            metadata:
-              key: ""
+            metadata: "{}"
             inline: true
             type: type
             expiresAt: 2000-01-23T04:56:07.000+00:00
             sizeBytes: 0
           - resourceId: resourceId
             workerId: workerId
-            metadata:
-              key: ""
+            metadata: "{}"
             inline: true
             type: type
             expiresAt: 2000-01-23T04:56:07.000+00:00
@@ -1000,23 +1268,20 @@ components:
         - clientId: clientId
           nodes:
           - workerId: workerId
-            metadata:
-              key: ""
+            metadata: "{}"
             startedAt: 2000-01-23T04:56:07.000+00:00
             ackDeadline: 2000-01-23T04:56:07.000+00:00
             error:
               code: code
-              details:
-                key: ""
+              details: "{}"
               message: message
             pendingAck: true
             finishedAt: 2000-01-23T04:56:07.000+00:00
             dispatchId: dispatchId
-            result:
-              key: ""
+            result: "{}"
             resourceRefs:
-            - key: ""
-            - key: ""
+            - "{}"
+            - "{}"
             state:
               stage: stage
               lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
@@ -1024,36 +1289,31 @@ components:
               message: message
               error:
                 code: code
-                details:
-                  key: ""
+                details: "{}"
                 message: message
             nodeId: nodeId
             taskId: taskId
             seq: 6
             status: queued
-            affinity:
-              key: ""
+            affinity: "{}"
             artifacts:
-            - key: ""
-            - key: ""
+            - "{}"
+            - "{}"
           - workerId: workerId
-            metadata:
-              key: ""
+            metadata: "{}"
             startedAt: 2000-01-23T04:56:07.000+00:00
             ackDeadline: 2000-01-23T04:56:07.000+00:00
             error:
               code: code
-              details:
-                key: ""
+              details: "{}"
               message: message
             pendingAck: true
             finishedAt: 2000-01-23T04:56:07.000+00:00
             dispatchId: dispatchId
-            result:
-              key: ""
+            result: "{}"
             resourceRefs:
-            - key: ""
-            - key: ""
+            - "{}"
+            - "{}"
             state:
               stage: stage
               lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
@@ -1061,41 +1321,36 @@ components:
               message: message
               error:
                 code: code
-                details:
-                  key: ""
+                details: "{}"
                 message: message
             nodeId: nodeId
             taskId: taskId
             seq: 6
             status: queued
-            affinity:
-              key: ""
+            affinity: "{}"
             artifacts:
-            - key: ""
-            - key: ""
+            - "{}"
+            - "{}"
           startedAt: 2000-01-23T04:56:07.000+00:00
           runId: runId
           definitionHash: definitionHash
           error:
             code: code
-            details:
-              key: ""
+            details: "{}"
             message: message
           status: queued
           finishedAt: 2000-01-23T04:56:07.000+00:00
           artifacts:
           - resourceId: resourceId
             workerId: workerId
-            metadata:
-              key: ""
+            metadata: "{}"
             inline: true
             type: type
             expiresAt: 2000-01-23T04:56:07.000+00:00
             sizeBytes: 0
           - resourceId: resourceId
             workerId: workerId
-            metadata:
-              key: ""
+            metadata: "{}"
             inline: true
             type: type
             expiresAt: 2000-01-23T04:56:07.000+00:00
@@ -1114,74 +1369,93 @@ components:
       - items
       title: listRuns_200_response
     startRun_request_workflow_metadata:
-      additionalProperties: true
+      additionalProperties: false
       example:
         environment: environment
         originId: originId
+        updatedBy: updatedBy
+        createdBy: createdBy
         name: name
         namespace: namespace
         description: description
+        ownerId: ownerId
         tags:
         - tags
         - tags
       properties:
         name:
-          title: code
+          title: userId
           type: string
         description:
-          title: code
+          title: userId
           type: string
         tags:
           items:
-            title: code
             type: string
+          title: tags
           type: array
         environment:
-          title: code
+          title: userId
           type: string
         namespace:
           description: Logical workflow namespace used for indexing/cross-workflow
             bindings. Defaults to "default".
+          title: namespace
           type: string
         originId:
           description: Identifier linking versions of the same workflow. By default
             equals the workflow id.
+          title: originId
+          type: string
+        ownerId:
+          description: User id that owns the workflow definition.
+          title: ownerId
+          type: string
+        createdBy:
+          description: User id that created the workflow definition.
+          title: createdBy
+          type: string
+        updatedBy:
+          description: User id that most recently updated the workflow definition.
+          title: updatedBy
           type: string
       required:
       - name
       title: startRun_request_workflow_metadata
     startRun_request_workflow_nodes_inner_package:
-      additionalProperties: true
+      additionalProperties: false
       example:
         name: name
         version: version
       properties:
         name:
-          title: code
+          title: userId
           type: string
         version:
-          title: code
+          title: userId
           type: string
       required:
       - name
       - version
       title: startRun_request_workflow_nodes_inner_package
     startRun_request_workflow_nodes_inner_position:
-      additionalProperties: true
+      additionalProperties: false
       example:
         x: 0.8008281904610115
         "y": 6.027456183070403
       properties:
         x:
+          title: x
           type: number
         "y":
+          title: "y"
           type: number
       required:
       - x
       - "y"
       title: startRun_request_workflow_nodes_inner_position
     startRun_request_workflow_nodes_inner_state:
-      additionalProperties: true
+      additionalProperties: false
       description: Platform-managed execution hints surfaced in the builder (optional).
       example:
         stage: stage
@@ -1190,71 +1464,74 @@ components:
         message: message
         error:
           code: code
-          details:
-            key: ""
+          details: "{}"
           message: message
       properties:
         stage:
           description: "Current scheduler-reported stage (e.g. idle, queued, running,\
             \ completed, failed)."
+          title: stage
           type: string
         progress:
           description: Optional 0-1 normalized progress indicator.
           maximum: 1
           minimum: 0
+          title: progress
           type: number
           nullable: true
         lastUpdatedAt:
           description: ISO-8601 timestamp for the last state transition.
           format: date-time
+          title: lastUpdatedAt
           type: string
           nullable: true
         message:
           description: Human-friendly hint surfaced to the UI.
+          title: message
           type: string
           nullable: true
         error:
           $ref: "#/components/schemas/listRuns_200_response_items_inner_nodes_inner_state_error"
       title: startRun_request_workflow_nodes_inner_state
     startRun_request_workflow_nodes_inner_schema:
-      additionalProperties: true
+      additionalProperties: false
       description: JSON Schemas for parameters/results.
       example:
-        parameters:
-          key: ""
-        results:
-          key: ""
+        parameters: "{}"
+        results: "{}"
       properties:
         parameters:
-          additionalProperties: true
-          title: meta
+          additionalProperties: false
+          title: options
           type: object
         results:
-          additionalProperties: true
-          title: meta
+          additionalProperties: false
+          title: options
           type: object
       title: startRun_request_workflow_nodes_inner_schema
     startRun_request_workflow_nodes_inner_ui_inputPorts_inner_binding:
-      additionalProperties: true
+      additionalProperties: false
       example:
         mode: read
         path: path
       properties:
         path:
           description: e.g.
+          title: path
           type: string
         mode:
           enum:
           - read
           - write
           - two_way
+          title: mode
           type: string
       required:
       - mode
       - path
       title: startRun_request_workflow_nodes_inner_ui_inputPorts_inner_binding
     startRun_request_workflow_nodes_inner_ui_inputPorts_inner:
-      additionalProperties: true
+      additionalProperties: false
       example:
         binding:
           mode: read
@@ -1263,10 +1540,10 @@ components:
         key: key
       properties:
         key:
-          title: code
+          title: userId
           type: string
         label:
-          title: code
+          title: userId
           type: string
         binding:
           $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_inputPorts_inner_binding"
@@ -1276,11 +1553,10 @@ components:
       - label
       title: startRun_request_workflow_nodes_inner_ui_inputPorts_inner
     startRun_request_workflow_nodes_inner_ui_widgets_inner:
-      additionalProperties: true
+      additionalProperties: false
       example:
         component: component
-        options:
-          key: ""
+        options: "{}"
         binding:
           mode: read
           path: path
@@ -1288,19 +1564,20 @@ components:
         key: key
       properties:
         key:
-          title: code
+          title: userId
           type: string
         label:
-          title: code
+          title: userId
           type: string
         component:
           description: string|number|enum|json...
+          title: component
           type: string
         binding:
           $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_inputPorts_inner_binding"
         options:
-          additionalProperties: true
-          title: meta
+          additionalProperties: false
+          title: options
           type: object
       required:
       - binding
@@ -1309,7 +1586,7 @@ components:
       - label
       title: startRun_request_workflow_nodes_inner_ui_widgets_inner
     startRun_request_workflow_nodes_inner_ui:
-      additionalProperties: true
+      additionalProperties: false
       example:
         outputPorts:
         - binding:
@@ -1335,16 +1612,14 @@ components:
           key: key
         widgets:
         - component: component
-          options:
-            key: ""
+          options: "{}"
           binding:
             mode: read
             path: path
           label: label
           key: key
         - component: component
-          options:
-            key: ""
+          options: "{}"
           binding:
             mode: read
             path: path
@@ -1354,24 +1629,25 @@ components:
         inputPorts:
           items:
             $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_inputPorts_inner"
+          title: inputPorts
           type: array
         outputPorts:
           items:
             $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_inputPorts_inner"
+          title: outputPorts
           type: array
         widgets:
           items:
             $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_ui_widgets_inner"
+          title: widgets
           type: array
       title: startRun_request_workflow_nodes_inner_ui
     startRun_request_workflow_nodes_inner:
-      additionalProperties: true
+      additionalProperties: false
       example:
         schema:
-          parameters:
-            key: ""
-          results:
-            key: ""
+          parameters: "{}"
+          results: "{}"
         package:
           name: name
           version: version
@@ -1406,16 +1682,14 @@ components:
             key: key
           widgets:
           - component: component
-            options:
-              key: ""
+            options: "{}"
             binding:
               mode: read
               path: path
             label: label
             key: key
           - component: component
-            options:
-              key: ""
+            options: "{}"
             binding:
               mode: read
               path: path
@@ -1432,21 +1706,20 @@ components:
           message: message
           error:
             code: code
-            details:
-              key: ""
+            details: "{}"
             message: message
         category: category
-        parameters:
-          key: ""
-        results:
-          key: ""
+        parameters: "{}"
+        results: "{}"
         status: draft
       properties:
         id:
           description: Node UUID
+          title: id
           type: string
         type:
           description: e.g. "playwright.open_page"
+          title: type
           type: string
         package:
           $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_package"
@@ -1456,31 +1729,37 @@ components:
           - draft
           - published
           - deprecated
+          title: status
           type: string
         category:
           description: Group/category shown in the builder palette.
+          title: category
           type: string
         label:
-          title: code
+          title: userId
           type: string
         description:
           description: Longer description of the node behaviour.
+          title: description
           type: string
         tags:
           description: Keywords for search/filter.
           items:
-            title: code
+            title: userId
             type: string
+          title: tags
           type: array
         position:
           $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_position"
         parameters:
-          additionalProperties: true
+          additionalProperties: false
           description: Default parameter payload seeded from the manifest schema.
+          title: parameters
           type: object
         results:
-          additionalProperties: true
+          additionalProperties: false
           description: Default results payload seeded from the manifest schema.
+          title: results
           type: object
         state:
           $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_state"
@@ -1498,23 +1777,25 @@ components:
       - type
       title: startRun_request_workflow_nodes_inner
     startRun_request_workflow_edges_inner_source:
-      additionalProperties: true
+      additionalProperties: false
       example:
         node: node
         port: port
       properties:
         node:
           description: Node UUID
+          title: node
           type: string
         port:
           description: Port key defined by the node UI
+          title: port
           type: string
       required:
       - node
       - port
       title: startRun_request_workflow_edges_inner_source
     startRun_request_workflow_edges_inner:
-      additionalProperties: true
+      additionalProperties: false
       example:
         id: id
         source:
@@ -1525,7 +1806,7 @@ components:
           port: port
       properties:
         id:
-          title: code
+          title: userId
           type: string
         source:
           $ref: "#/components/schemas/startRun_request_workflow_edges_inner_source"
@@ -1542,19 +1823,20 @@ components:
         metadata:
           environment: environment
           originId: originId
+          updatedBy: updatedBy
+          createdBy: createdBy
           name: name
           namespace: namespace
           description: description
+          ownerId: ownerId
           tags:
           - tags
           - tags
         schemaVersion: schemaVersion
         nodes:
         - schema:
-            parameters:
-              key: ""
-            results:
-              key: ""
+            parameters: "{}"
+            results: "{}"
           package:
             name: name
             version: version
@@ -1589,16 +1871,14 @@ components:
               key: key
             widgets:
             - component: component
-              options:
-                key: ""
+              options: "{}"
               binding:
                 mode: read
                 path: path
               label: label
               key: key
             - component: component
-              options:
-                key: ""
+              options: "{}"
               binding:
                 mode: read
                 path: path
@@ -1615,20 +1895,15 @@ components:
             message: message
             error:
               code: code
-              details:
-                key: ""
+              details: "{}"
               message: message
           category: category
-          parameters:
-            key: ""
-          results:
-            key: ""
+          parameters: "{}"
+          results: "{}"
           status: draft
         - schema:
-            parameters:
-              key: ""
-            results:
-              key: ""
+            parameters: "{}"
+            results: "{}"
           package:
             name: name
             version: version
@@ -1663,16 +1938,14 @@ components:
               key: key
             widgets:
             - component: component
-              options:
-                key: ""
+              options: "{}"
               binding:
                 mode: read
                 path: path
               label: label
               key: key
             - component: component
-              options:
-                key: ""
+              options: "{}"
               binding:
                 mode: read
                 path: path
@@ -1689,14 +1962,11 @@ components:
             message: message
             error:
               code: code
-              details:
-                key: ""
+              details: "{}"
               message: message
           category: category
-          parameters:
-            key: ""
-          results:
-            key: ""
+          parameters: "{}"
+          results: "{}"
           status: draft
         edges:
         - id: id
@@ -1720,10 +1990,12 @@ components:
       properties:
         id:
           description: Workflow UUID
+          title: id
           type: string
         schemaVersion:
           description: e.g. "2025-10"
           pattern: "^[0-9]{4}-[0-9]{2}$"
+          title: schemaVersion
           type: string
         metadata:
           $ref: "#/components/schemas/startRun_request_workflow_metadata"
@@ -1731,17 +2003,20 @@ components:
           items:
             $ref: "#/components/schemas/startRun_request_workflow_nodes_inner"
           minItems: 1
+          title: nodes
           type: array
         edges:
           items:
             $ref: "#/components/schemas/startRun_request_workflow_edges_inner"
           minItems: 0
+          title: edges
           type: array
         tags:
           description: Workflow-level tags.
           items:
-            title: code
+            title: userId
             type: string
+          title: tags
           type: array
       required:
       - edges
@@ -1771,7 +2046,7 @@ components:
         status: queued
       properties:
         runId:
-          title: code
+          title: userId
           type: string
         status:
           enum:
@@ -1783,10 +2058,10 @@ components:
           title: status
           type: string
         definitionHash:
-          title: code
+          title: userId
           type: string
         clientId:
-          title: code
+          title: userId
           type: string
         createdAt:
           format: date-time
@@ -1799,51 +2074,26 @@ components:
       - runId
       - status
       title: startRun_202_response
-    startRun_400_response:
-      example:
-        requestId: requestId
-        details:
-          key: ""
-        error: error
-        message: message
-      properties:
-        error:
-          title: code
-          type: string
-        message:
-          title: code
-          type: string
-        requestId:
-          title: code
-          type: string
-        details:
-          additionalProperties: true
-          title: details
-          type: object
-          nullable: true
-      required:
-      - error
-      - message
-      title: startRun_400_response
     listWorkflows_200_response_items_inner:
-      additionalProperties: true
+      additionalProperties: false
       example:
         metadata:
           environment: environment
           originId: originId
+          updatedBy: updatedBy
+          createdBy: createdBy
           name: name
           namespace: namespace
           description: description
+          ownerId: ownerId
           tags:
           - tags
           - tags
         schemaVersion: schemaVersion
         nodes:
         - schema:
-            parameters:
-              key: ""
-            results:
-              key: ""
+            parameters: "{}"
+            results: "{}"
           package:
             name: name
             version: version
@@ -1878,16 +2128,14 @@ components:
               key: key
             widgets:
             - component: component
-              options:
-                key: ""
+              options: "{}"
               binding:
                 mode: read
                 path: path
               label: label
               key: key
             - component: component
-              options:
-                key: ""
+              options: "{}"
               binding:
                 mode: read
                 path: path
@@ -1904,20 +2152,15 @@ components:
             message: message
             error:
               code: code
-              details:
-                key: ""
+              details: "{}"
               message: message
           category: category
-          parameters:
-            key: ""
-          results:
-            key: ""
+          parameters: "{}"
+          results: "{}"
           status: draft
         - schema:
-            parameters:
-              key: ""
-            results:
-              key: ""
+            parameters: "{}"
+            results: "{}"
           package:
             name: name
             version: version
@@ -1952,16 +2195,14 @@ components:
               key: key
             widgets:
             - component: component
-              options:
-                key: ""
+              options: "{}"
               binding:
                 mode: read
                 path: path
               label: label
               key: key
             - component: component
-              options:
-                key: ""
+              options: "{}"
               binding:
                 mode: read
                 path: path
@@ -1978,14 +2219,11 @@ components:
             message: message
             error:
               code: code
-              details:
-                key: ""
+              details: "{}"
               message: message
           category: category
-          parameters:
-            key: ""
-          results:
-            key: ""
+          parameters: "{}"
+          results: "{}"
           status: draft
         edges:
         - id: id
@@ -2009,10 +2247,12 @@ components:
       properties:
         id:
           description: Workflow UUID
+          title: id
           type: string
         schemaVersion:
           description: e.g. "2025-10"
           pattern: "^[0-9]{4}-[0-9]{2}$"
+          title: schemaVersion
           type: string
         metadata:
           $ref: "#/components/schemas/startRun_request_workflow_metadata"
@@ -2020,16 +2260,19 @@ components:
           items:
             $ref: "#/components/schemas/startRun_request_workflow_nodes_inner"
           minItems: 1
+          title: nodes
           type: array
         edges:
           items:
             $ref: "#/components/schemas/startRun_request_workflow_edges_inner"
           minItems: 0
+          title: edges
           type: array
         tags:
           description: Workflow-level tags.
           items:
             type: string
+          title: tags
           type: array
       required:
       - edges
@@ -2045,19 +2288,20 @@ components:
         - metadata:
             environment: environment
             originId: originId
+            updatedBy: updatedBy
+            createdBy: createdBy
             name: name
             namespace: namespace
             description: description
+            ownerId: ownerId
             tags:
             - tags
             - tags
           schemaVersion: schemaVersion
           nodes:
           - schema:
-              parameters:
-                key: ""
-              results:
-                key: ""
+              parameters: "{}"
+              results: "{}"
             package:
               name: name
               version: version
@@ -2092,16 +2336,14 @@ components:
                 key: key
               widgets:
               - component: component
-                options:
-                  key: ""
+                options: "{}"
                 binding:
                   mode: read
                   path: path
                 label: label
                 key: key
               - component: component
-                options:
-                  key: ""
+                options: "{}"
                 binding:
                   mode: read
                   path: path
@@ -2118,20 +2360,15 @@ components:
               message: message
               error:
                 code: code
-                details:
-                  key: ""
+                details: "{}"
                 message: message
             category: category
-            parameters:
-              key: ""
-            results:
-              key: ""
+            parameters: "{}"
+            results: "{}"
             status: draft
           - schema:
-              parameters:
-                key: ""
-              results:
-                key: ""
+              parameters: "{}"
+              results: "{}"
             package:
               name: name
               version: version
@@ -2166,16 +2403,14 @@ components:
                 key: key
               widgets:
               - component: component
-                options:
-                  key: ""
+                options: "{}"
                 binding:
                   mode: read
                   path: path
                 label: label
                 key: key
               - component: component
-                options:
-                  key: ""
+                options: "{}"
                 binding:
                   mode: read
                   path: path
@@ -2192,14 +2427,11 @@ components:
               message: message
               error:
                 code: code
-                details:
-                  key: ""
+                details: "{}"
                 message: message
             category: category
-            parameters:
-              key: ""
-            results:
-              key: ""
+            parameters: "{}"
+            results: "{}"
             status: draft
           edges:
           - id: id
@@ -2223,19 +2455,20 @@ components:
         - metadata:
             environment: environment
             originId: originId
+            updatedBy: updatedBy
+            createdBy: createdBy
             name: name
             namespace: namespace
             description: description
+            ownerId: ownerId
             tags:
             - tags
             - tags
           schemaVersion: schemaVersion
           nodes:
           - schema:
-              parameters:
-                key: ""
-              results:
-                key: ""
+              parameters: "{}"
+              results: "{}"
             package:
               name: name
               version: version
@@ -2270,16 +2503,14 @@ components:
                 key: key
               widgets:
               - component: component
-                options:
-                  key: ""
+                options: "{}"
                 binding:
                   mode: read
                   path: path
                 label: label
                 key: key
               - component: component
-                options:
-                  key: ""
+                options: "{}"
                 binding:
                   mode: read
                   path: path
@@ -2296,20 +2527,15 @@ components:
               message: message
               error:
                 code: code
-                details:
-                  key: ""
+                details: "{}"
                 message: message
             category: category
-            parameters:
-              key: ""
-            results:
-              key: ""
+            parameters: "{}"
+            results: "{}"
             status: draft
           - schema:
-              parameters:
-                key: ""
-              results:
-                key: ""
+              parameters: "{}"
+              results: "{}"
             package:
               name: name
               version: version
@@ -2344,16 +2570,14 @@ components:
                 key: key
               widgets:
               - component: component
-                options:
-                  key: ""
+                options: "{}"
                 binding:
                   mode: read
                   path: path
                 label: label
                 key: key
               - component: component
-                options:
-                  key: ""
+                options: "{}"
                 binding:
                   mode: read
                   path: path
@@ -2370,14 +2594,11 @@ components:
               message: message
               error:
                 code: code
-                details:
-                  key: ""
+                details: "{}"
                 message: message
             category: category
-            parameters:
-              key: ""
-            results:
-              key: ""
+            parameters: "{}"
+            results: "{}"
             status: draft
           edges:
           - id: id
@@ -2416,13 +2637,13 @@ components:
         workflowId: workflowId
       properties:
         workflowId:
-          title: code
+          title: userId
           type: string
       required:
       - workflowId
       title: persistWorkflow_201_response
     listPackages_200_response_items_inner:
-      additionalProperties: true
+      additionalProperties: false
       example:
         latestVersion: latestVersion
         versions:
@@ -2433,20 +2654,21 @@ components:
         defaultVersion: defaultVersion
       properties:
         name:
-          title: code
+          title: userId
           type: string
         description:
-          title: code
+          title: userId
           type: string
         latestVersion:
-          title: code
+          title: userId
           type: string
         defaultVersion:
-          title: code
+          title: userId
           type: string
         versions:
           items:
             type: string
+          title: versions
           type: array
       required:
       - name
@@ -2479,11 +2701,10 @@ components:
       - items
       title: listPackages_200_response
     getPackage_200_response_manifest_adapters_inner:
-      additionalProperties: true
+      additionalProperties: false
       example:
         idempotency: idempotency
-        metadata:
-          key: ""
+        metadata: "{}"
         capabilities:
         - capabilities
         - capabilities
@@ -2492,26 +2713,28 @@ components:
         description: description
       properties:
         name:
-          title: code
+          title: userId
           type: string
         entrypoint:
           pattern: "^[A-Za-z_][A-Za-z0-9_.]*(?::[A-Za-z_][A-Za-z0-9_.]*)?$"
+          title: entrypoint
           type: string
         capabilities:
           items:
-            title: code
+            title: userId
             type: string
           minItems: 1
+          title: capabilities
           type: array
         description:
-          title: code
+          title: userId
           type: string
         idempotency:
-          title: code
+          title: userId
           type: string
         metadata:
-          additionalProperties: true
-          title: meta
+          additionalProperties: false
+          title: options
           type: object
       required:
       - capabilities
@@ -2519,7 +2742,7 @@ components:
       - name
       title: getPackage_200_response_manifest_adapters_inner
     getPackage_200_response_manifest_python:
-      additionalProperties: true
+      additionalProperties: false
       example:
         requires: requires
         dependencies:
@@ -2527,27 +2750,27 @@ components:
         - dependencies
       properties:
         requires:
-          title: code
+          title: userId
           type: string
         dependencies:
           items:
             type: string
+          title: dependencies
           type: array
       required:
       - requires
       title: getPackage_200_response_manifest_python
     getPackage_200_response_manifest_nodes_inner_schema_parameters:
       oneOf:
-      - additionalProperties: true
-        title: meta
+      - additionalProperties: false
+        title: options
         type: object
       - type: boolean
       title: getPackage_200_response_manifest_nodes_inner_schema_parameters
     getPackage_200_response_manifest_nodes_inner_schema:
-      additionalProperties: true
+      additionalProperties: false
       example:
-        parameters:
-          key: ""
+        parameters: "{}"
         results: null
       properties:
         parameters:
@@ -2556,25 +2779,26 @@ components:
           $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_schema_parameters"
       title: getPackage_200_response_manifest_nodes_inner_schema
     getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner_binding:
-      additionalProperties: true
+      additionalProperties: false
       example:
         mode: read
         path: path
       properties:
         path:
-          title: code
+          title: userId
           type: string
         mode:
           enum:
           - read
           - write
           - two_way
+          title: mode
           type: string
       required:
       - path
       title: getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner_binding
     getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner:
-      additionalProperties: true
+      additionalProperties: false
       example:
         description: description
         binding:
@@ -2584,13 +2808,13 @@ components:
         key: key
       properties:
         key:
-          title: code
+          title: userId
           type: string
         label:
-          title: code
+          title: userId
           type: string
         description:
-          title: code
+          title: userId
           type: string
         binding:
           $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner_binding"
@@ -2600,11 +2824,10 @@ components:
       - label
       title: getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner
     getPackage_200_response_manifest_nodes_inner_ui_widgets_inner:
-      additionalProperties: true
+      additionalProperties: false
       example:
         component: component
-        options:
-          key: ""
+        options: "{}"
         binding:
           mode: read
           path: path
@@ -2612,19 +2835,19 @@ components:
         key: key
       properties:
         key:
-          title: code
+          title: userId
           type: string
         label:
-          title: code
+          title: userId
           type: string
         component:
-          title: code
+          title: userId
           type: string
         binding:
           $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner_binding"
         options:
-          additionalProperties: true
-          title: meta
+          additionalProperties: false
+          title: options
           type: object
       required:
       - binding
@@ -2633,7 +2856,7 @@ components:
       - label
       title: getPackage_200_response_manifest_nodes_inner_ui_widgets_inner
     getPackage_200_response_manifest_nodes_inner_ui:
-      additionalProperties: true
+      additionalProperties: false
       example:
         inputPorts:
         - description: description
@@ -2650,16 +2873,14 @@ components:
           key: key
         widgets:
         - component: component
-          options:
-            key: ""
+          options: "{}"
           binding:
             mode: read
             path: path
           label: label
           key: key
         - component: component
-          options:
-            key: ""
+          options: "{}"
           binding:
             mode: read
             path: path
@@ -2669,18 +2890,19 @@ components:
         inputPorts:
           items:
             $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_ui_inputPorts_inner"
+          title: inputPorts
           type: array
         widgets:
           items:
             $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_ui_widgets_inner"
+          title: widgets
           type: array
       title: getPackage_200_response_manifest_nodes_inner_ui
     getPackage_200_response_manifest_nodes_inner:
-      additionalProperties: true
+      additionalProperties: false
       example:
         schema:
-          parameters:
-            key: ""
+          parameters: "{}"
           results: null
         handler: handler
         adapter: adapter
@@ -2700,16 +2922,14 @@ components:
             key: key
           widgets:
           - component: component
-            options:
-              key: ""
+            options: "{}"
             binding:
               mode: read
               path: path
             label: label
             key: key
           - component: component
-            options:
-              key: ""
+            options: "{}"
             binding:
               mode: read
               path: path
@@ -2719,8 +2939,7 @@ components:
         label: label
         type: type
         category: category
-        config:
-          key: ""
+        config: "{}"
         status: draft
         tags:
         - tags
@@ -2728,36 +2947,42 @@ components:
       properties:
         type:
           pattern: "^[A-Za-z0-9_.-]+$"
+          title: type
           type: string
         status:
           enum:
           - draft
           - published
           - deprecated
+          title: status
           type: string
         category:
-          title: code
+          title: userId
           type: string
         label:
-          title: code
+          title: userId
           type: string
         description:
-          title: code
+          title: userId
           type: string
         tags:
           items:
             type: string
+          title: tags
           type: array
         adapter:
           pattern: "^[A-Za-z0-9_.-]+$"
+          title: adapter
           type: string
         handler:
           pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+          title: handler
           type: string
         config:
-          additionalProperties: true
+          additionalProperties: false
           default: {}
           description: Optional static configuration forwarded to the handler.
+          title: config
           type: object
         schema:
           $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner_schema"
@@ -2773,27 +2998,28 @@ components:
       - type
       title: getPackage_200_response_manifest_nodes_inner
     getPackage_200_response_manifest_resources_inner:
-      additionalProperties: true
+      additionalProperties: false
       example:
         path: path
         sha256: sha256
         type: type
       properties:
         path:
-          title: code
+          title: userId
           type: string
         type:
-          title: code
+          title: userId
           type: string
         sha256:
           pattern: "^[A-Fa-f0-9]{64}$"
+          title: sha256
           type: string
       required:
       - path
       - type
       title: getPackage_200_response_manifest_resources_inner
     getPackage_200_response_manifest_hooks:
-      additionalProperties: true
+      additionalProperties: false
       example:
         uninstall:
         - uninstall
@@ -2805,14 +3031,16 @@ components:
         install:
           items:
             type: string
+          title: install
           type: array
         uninstall:
           items:
             type: string
+          title: uninstall
           type: array
       title: getPackage_200_response_manifest_hooks
     getPackage_200_response_manifest_signature:
-      additionalProperties: true
+      additionalProperties: false
       example:
         sha256: sha256
         signedBy: signedBy
@@ -2820,12 +3048,13 @@ components:
       properties:
         sha256:
           pattern: "^[A-Fa-f0-9]{64}$"
+          title: sha256
           type: string
         signedAt:
-          title: code
+          title: userId
           type: string
         signedBy:
-          title: code
+          title: userId
           type: string
       title: getPackage_200_response_manifest_signature
     getPackage_200_response_manifest:
@@ -2839,8 +3068,7 @@ components:
         schemaVersion: schemaVersion
         adapters:
         - idempotency: idempotency
-          metadata:
-            key: ""
+          metadata: "{}"
           capabilities:
           - capabilities
           - capabilities
@@ -2848,8 +3076,7 @@ components:
           name: name
           description: description
         - idempotency: idempotency
-          metadata:
-            key: ""
+          metadata: "{}"
           capabilities:
           - capabilities
           - capabilities
@@ -2858,8 +3085,7 @@ components:
           description: description
         nodes:
         - schema:
-            parameters:
-              key: ""
+            parameters: "{}"
             results: null
           handler: handler
           adapter: adapter
@@ -2879,16 +3105,14 @@ components:
               key: key
             widgets:
             - component: component
-              options:
-                key: ""
+              options: "{}"
               binding:
                 mode: read
                 path: path
               label: label
               key: key
             - component: component
-              options:
-                key: ""
+              options: "{}"
               binding:
                 mode: read
                 path: path
@@ -2898,15 +3122,13 @@ components:
           label: label
           type: type
           category: category
-          config:
-            key: ""
+          config: "{}"
           status: draft
           tags:
           - tags
           - tags
         - schema:
-            parameters:
-              key: ""
+            parameters: "{}"
             results: null
           handler: handler
           adapter: adapter
@@ -2926,16 +3148,14 @@ components:
               key: key
             widgets:
             - component: component
-              options:
-                key: ""
+              options: "{}"
               binding:
                 mode: read
                 path: path
               label: label
               key: key
             - component: component
-              options:
-                key: ""
+              options: "{}"
               binding:
                 mode: read
                 path: path
@@ -2945,8 +3165,7 @@ components:
           label: label
           type: type
           category: category
-          config:
-            key: ""
+          config: "{}"
           status: draft
           tags:
           - tags
@@ -2976,22 +3195,27 @@ components:
         schemaVersion:
           description: Manifest schema version (semver).
           pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+          title: schemaVersion
           type: string
         name:
           description: Package identifier (lowercase with dots/underscores).
           pattern: "^[a-z0-9]+([._-][a-z0-9]+)*$"
+          title: name
           type: string
         version:
           description: Package version in semver format.
           pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z\\.-]+)?$"
+          title: version
           type: string
         description:
           description: Short summary of the package.
+          title: description
           type: string
         adapters:
           items:
             $ref: "#/components/schemas/getPackage_200_response_manifest_adapters_inner"
           minItems: 1
+          title: adapters
           type: array
         python:
           $ref: "#/components/schemas/getPackage_200_response_manifest_python"
@@ -2999,10 +3223,12 @@ components:
           items:
             $ref: "#/components/schemas/getPackage_200_response_manifest_nodes_inner"
           minItems: 1
+          title: nodes
           type: array
         resources:
           items:
             $ref: "#/components/schemas/getPackage_200_response_manifest_resources_inner"
+          title: resources
           type: array
         hooks:
           $ref: "#/components/schemas/getPackage_200_response_manifest_hooks"
@@ -3029,8 +3255,7 @@ components:
           schemaVersion: schemaVersion
           adapters:
           - idempotency: idempotency
-            metadata:
-              key: ""
+            metadata: "{}"
             capabilities:
             - capabilities
             - capabilities
@@ -3038,8 +3263,7 @@ components:
             name: name
             description: description
           - idempotency: idempotency
-            metadata:
-              key: ""
+            metadata: "{}"
             capabilities:
             - capabilities
             - capabilities
@@ -3048,8 +3272,7 @@ components:
             description: description
           nodes:
           - schema:
-              parameters:
-                key: ""
+              parameters: "{}"
               results: null
             handler: handler
             adapter: adapter
@@ -3069,16 +3292,14 @@ components:
                 key: key
               widgets:
               - component: component
-                options:
-                  key: ""
+                options: "{}"
                 binding:
                   mode: read
                   path: path
                 label: label
                 key: key
               - component: component
-                options:
-                  key: ""
+                options: "{}"
                 binding:
                   mode: read
                   path: path
@@ -3088,15 +3309,13 @@ components:
             label: label
             type: type
             category: category
-            config:
-              key: ""
+            config: "{}"
             status: draft
             tags:
             - tags
             - tags
           - schema:
-              parameters:
-                key: ""
+              parameters: "{}"
               results: null
             handler: handler
             adapter: adapter
@@ -3116,16 +3335,14 @@ components:
                 key: key
               widgets:
               - component: component
-                options:
-                  key: ""
+                options: "{}"
                 binding:
                   mode: read
                   path: path
                 label: label
                 key: key
               - component: component
-                options:
-                  key: ""
+                options: "{}"
                 binding:
                   mode: read
                   path: path
@@ -3135,8 +3352,7 @@ components:
             label: label
             type: type
             category: category
-            config:
-              key: ""
+            config: "{}"
             status: draft
             tags:
             - tags
@@ -3169,14 +3385,15 @@ components:
         - availableVersions
       properties:
         name:
-          title: code
+          title: userId
           type: string
         version:
-          title: code
+          title: userId
           type: string
         availableVersions:
           items:
             type: string
+          title: availableVersions
           type: array
         manifest:
           $ref: "#/components/schemas/getPackage_200_response_manifest"
@@ -3192,10 +3409,10 @@ components:
         status: installed
       properties:
         name:
-          title: code
+          title: userId
           type: string
         version:
-          title: code
+          title: userId
           type: string
         status:
           enum:
@@ -3215,8 +3432,7 @@ components:
         queues:
         - queues
         - queues
-        meta:
-          key: ""
+        meta: "{}"
         id: id
         packages:
         - name: name
@@ -3227,10 +3443,10 @@ components:
           status: installed
       properties:
         id:
-          title: code
+          title: userId
           type: string
         hostname:
-          title: code
+          title: userId
           type: string
         lastHeartbeatAt:
           format: date-time
@@ -3247,8 +3463,8 @@ components:
           title: packages
           type: array
         meta:
-          additionalProperties: true
-          title: meta
+          additionalProperties: false
+          title: options
           type: object
       required:
       - id
@@ -3264,8 +3480,7 @@ components:
           queues:
           - queues
           - queues
-          meta:
-            key: ""
+          meta: "{}"
           id: id
           packages:
           - name: name
@@ -3279,8 +3494,7 @@ components:
           queues:
           - queues
           - queues
-          meta:
-            key: ""
+          meta: "{}"
           id: id
           packages:
           - name: name
@@ -3312,7 +3526,7 @@ components:
         type:
           title: type
         queue:
-          title: code
+          title: userId
           type: string
       required:
       - queue
@@ -3323,10 +3537,10 @@ components:
         type:
           title: type
         name:
-          title: code
+          title: userId
           type: string
         version:
-          title: code
+          title: userId
           type: string
       required:
       - name
@@ -3337,7 +3551,7 @@ components:
         type:
           title: type
         name:
-          title: code
+          title: userId
           type: string
       required:
       - name
@@ -3358,10 +3572,10 @@ components:
         acceptedAt: 2000-01-23T04:56:07.000+00:00
       properties:
         commandId:
-          title: code
+          title: userId
           type: string
         workerId:
-          title: code
+          title: userId
           type: string
         acceptedAt:
           format: date-time
@@ -3372,6 +3586,178 @@ components:
       - commandId
       - workerId
       title: sendWorkerCommand_202_response
+    listUsers_200_response:
+      example:
+        items:
+        - displayName: displayName
+          roles:
+          - roles
+          - roles
+          userId: userId
+          username: username
+        - displayName: displayName
+          roles:
+          - roles
+          - roles
+          userId: userId
+          username: username
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/authLogin_200_response_user"
+          title: items
+          type: array
+      required:
+      - items
+      title: listUsers_200_response
+    createUser_request:
+      additionalProperties: {}
+      properties:
+        username:
+          title: userId
+          type: string
+        displayName:
+          title: userId
+          type: string
+        password:
+          format: password
+          title: password
+          type: string
+        roles:
+          description: Optional initial roles to assign to the user.
+          items:
+            title: userId
+            type: string
+          title: roles
+          type: array
+      required:
+      - displayName
+      - password
+      - username
+      title: createUser_request
+    createUser_201_response:
+      additionalProperties: {}
+      example:
+        displayName: displayName
+        roles:
+        - roles
+        - roles
+        userId: userId
+        username: username
+      properties:
+        userId:
+          title: userId
+          type: string
+        username:
+          title: userId
+          type: string
+        displayName:
+          title: userId
+          type: string
+        roles:
+          items:
+            type: string
+          title: roles
+          type: array
+      required:
+      - displayName
+      - roles
+      - userId
+      - username
+      title: createUser_201_response
+    resetUserPassword_request:
+      additionalProperties: {}
+      properties:
+        password:
+          format: password
+          title: password
+          type: string
+      required:
+      - password
+      title: resetUserPassword_request
+    addUserRole_request:
+      additionalProperties: {}
+      properties:
+        role:
+          title: userId
+          type: string
+      required:
+      - role
+      title: addUserRole_request
+    listAuditEvents_200_response_items_inner:
+      additionalProperties: false
+      example:
+        eventId: eventId
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        metadata: "{}"
+        actorId: actorId
+        targetId: targetId
+        action: action
+        targetType: targetType
+      properties:
+        eventId:
+          title: eventId
+          type: string
+        actorId:
+          title: actorId
+          type: string
+          nullable: true
+        action:
+          title: action
+          type: string
+        targetType:
+          title: targetType
+          type: string
+        targetId:
+          title: targetId
+          type: string
+          nullable: true
+        metadata:
+          additionalProperties: false
+          title: metadata
+          type: object
+          nullable: true
+        createdAt:
+          format: date-time
+          title: createdAt
+          type: string
+      required:
+      - action
+      - createdAt
+      - eventId
+      - targetType
+      title: listAuditEvents_200_response_items_inner
+    listAuditEvents_200_response:
+      example:
+        nextCursor: nextCursor
+        items:
+        - eventId: eventId
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          metadata: "{}"
+          actorId: actorId
+          targetId: targetId
+          action: action
+          targetType: targetType
+        - eventId: eventId
+          createdAt: 2000-01-23T04:56:07.000+00:00
+          metadata: "{}"
+          actorId: actorId
+          targetId: targetId
+          action: action
+          targetType: targetType
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/listAuditEvents_200_response_items_inner"
+          title: items
+          type: array
+        nextCursor:
+          title: nextCursor
+          type: string
+          nullable: true
+      required:
+      - items
+      title: listAuditEvents_200_response
   securitySchemes:
     bearerAuth:
       bearerFormat: JWT

@@ -26,10 +26,10 @@ from scheduler_api.models.extra_models import TokenModel  # noqa: F401
 from pydantic import Field, StrictStr, field_validator
 from typing import Optional
 from typing_extensions import Annotated
+from scheduler_api.models.auth_login401_response import AuthLogin401Response
 from scheduler_api.models.list_runs200_response import ListRuns200Response
 from scheduler_api.models.list_runs200_response_items_inner import ListRuns200ResponseItemsInner
 from scheduler_api.models.start_run202_response import StartRun202Response
-from scheduler_api.models.start_run400_response import StartRun400Response
 from scheduler_api.models.start_run_request import StartRunRequest
 from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkflow
 from scheduler_api.security_api import get_token_bearerAuth
@@ -68,8 +68,8 @@ async def list_runs(
     "/api/v1/runs",
     responses={
         202: {"model": StartRun202Response, "description": "Accepted"},
-        400: {"model": StartRun400Response, "description": "Invalid input"},
-        409: {"model": StartRun400Response, "description": "Conflict (e.g., idempotency-key reuse with different body)"},
+        400: {"model": AuthLogin401Response, "description": "Invalid input"},
+        409: {"model": AuthLogin401Response, "description": "Conflict (e.g., idempotency-key reuse with different body)"},
     },
     tags=["Runs"],
     summary="Start a run using the in-memory workflow snapshot",
@@ -91,7 +91,7 @@ async def start_run(
     "/api/v1/runs/{runId}",
     responses={
         200: {"model": ListRuns200ResponseItemsInner, "description": "OK"},
-        404: {"model": StartRun400Response, "description": "Resource not found"},
+        404: {"model": AuthLogin401Response, "description": "Resource not found"},
     },
     tags=["Runs"],
     summary="Get run summary",
@@ -112,7 +112,7 @@ async def get_run(
     "/api/v1/runs/{runId}/definition",
     responses={
         200: {"model": StartRunRequestWorkflow, "description": "OK"},
-        404: {"model": StartRun400Response, "description": "Resource not found"},
+        404: {"model": AuthLogin401Response, "description": "Resource not found"},
     },
     tags=["Runs"],
     summary="Get the immutable workflow snapshot used by this run",

@@ -1,0 +1,19 @@
+patch:
+  tags: [Users]
+  summary: Toggle user active state
+  operationId: updateUserStatus
+  parameters:
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/UpdateUserStatusRequest'
+  responses:
+    '204':
+      description: Status updated

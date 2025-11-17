@@ -31,6 +31,7 @@ import {
   updateRunDefinitionNodeRuntime,
   updateRunDefinitionNodeState,
 } from "../lib/sseCache";
+import { useAuthStore } from "../features/auth/store";
 
 const STALE_TIME_MS = 5 * 60_000;
 
@@ -77,6 +78,8 @@ const WorkflowBuilderPage = () => {
   const addNodeFromTemplate = useWorkflowStore((state) => state.addNodeFromTemplate);
   const updateNodeStates = useWorkflowStore((state) => state.updateNodeStates);
   const hasHydrated = useRef(false);
+
+  const canEditWorkflow = useAuthStore((state) => state.hasRole(["admin", "workflow.editor"]));
 
   const [selectedPackageName, setSelectedPackageName] = useState<string>();
   const [selectedVersion, setSelectedVersion] = useState<string>();
@@ -269,6 +272,13 @@ const WorkflowBuilderPage = () => {
     if (!workflow) {
       return;
     }
+    if (!canEditWorkflow) {
+      setRunMessage({
+        type: "error",
+        text: "You do not have permission to run workflows. Request workflow.editor access.",
+      });
+      return;
+    }
     const definition = workflowDraftToDefinition(workflow);
     setRunMessage(null);
 
@@ -298,7 +308,7 @@ const WorkflowBuilderPage = () => {
         },
       }
     );
-  }, [startRun, workflow]);
+  }, [startRun, workflow, canEditWorkflow]);
 
   useEffect(() => {
     activeRunRef.current = activeRunId;
@@ -442,11 +452,16 @@ const WorkflowBuilderPage = () => {
                 {runMessage.text}
               </span>
             )}
+            {!canEditWorkflow && (
+              <span className="builder-alert builder-alert--error">
+                You have read-only access. Request workflow.editor rights to edit or run workflows.
+              </span>
+            )}
             <button
               className="btn btn--primary"
               type="button"
               onClick={handleRunWorkflow}
-              disabled={startRun.isPending}
+              disabled={!canEditWorkflow || startRun.isPending}
             >
               {startRun.isPending ? "Launching..." : "Run Workflow"}
             </button>
@@ -455,25 +470,31 @@ const WorkflowBuilderPage = () => {
 
         <div className="builder-grid">
           <div className="builder-panel card card--surface">
-            <WorkflowPalette
-              packages={packageSummaries}
-              selectedPackageName={selectedPackageName}
-              selectedVersion={selectedVersion}
-              onSelectPackage={handleSelectPackage}
-              onSelectVersion={handleSelectVersion}
-              nodes={paletteItems}
-              isLoadingPackages={packagesQuery.isLoading}
-              isLoadingNodes={packageDetailQuery.isLoading}
-              packagesError={packagesError}
-              nodesError={packageDetailError}
-              onRetryPackages={() => packagesQuery.refetch()}
-              onRetryNodes={selectedPackageName ? () => packageDetailQuery.refetch() : undefined}
-            />
+            {canEditWorkflow ? (
+              <WorkflowPalette
+                packages={packageSummaries}
+                selectedPackageName={selectedPackageName}
+                selectedVersion={selectedVersion}
+                onSelectPackage={handleSelectPackage}
+                onSelectVersion={handleSelectVersion}
+                nodes={paletteItems}
+                isLoadingPackages={packagesQuery.isLoading}
+                isLoadingNodes={packageDetailQuery.isLoading}
+                packagesError={packagesError}
+                nodesError={packageDetailError}
+                onRetryPackages={() => packagesQuery.refetch()}
+                onRetryNodes={selectedPackageName ? () => packageDetailQuery.refetch() : undefined}
+              />
+            ) : (
+              <div className="text-subtle">
+                Viewer role detected. Palette editing is disabled until you obtain workflow.editor access.
+              </div>
+            )}
           </div>
 
           <div className="builder-canvas card card--canvas">
             <ReactFlowProvider>
-              <WorkflowCanvas onNodeDrop={handleNodeDrop} />
+              <WorkflowCanvas onNodeDrop={canEditWorkflow ? handleNodeDrop : undefined} />
             </ReactFlowProvider>
           </div>
 

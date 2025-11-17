@@ -5,10 +5,10 @@ from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 from pydantic import Field, StrictStr, field_validator
 from typing import Optional
 from typing_extensions import Annotated
+from scheduler_api.models.auth_login401_response import AuthLogin401Response
 from scheduler_api.models.list_runs200_response import ListRuns200Response
 from scheduler_api.models.list_runs200_response_items_inner import ListRuns200ResponseItemsInner
 from scheduler_api.models.start_run202_response import StartRun202Response
-from scheduler_api.models.start_run400_response import StartRun400Response
 from scheduler_api.models.start_run_request import StartRunRequest
 from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkflow
 from scheduler_api.security_api import get_token_bearerAuth

@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from scheduler_api.apis.events_api_base import BaseEventsApi
+from scheduler_api.auth.roles import RUN_VIEW_ROLES, require_roles
 
 from scheduler_api.sse import (
     SseConnection,
@@ -24,6 +25,7 @@ class EventsApiImpl(BaseEventsApi):
         client_session_id: str,
         last_event_id: Optional[str],
     ) -> StreamingResponse:
+        require_roles(*RUN_VIEW_ROLES)
         if not client_session_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

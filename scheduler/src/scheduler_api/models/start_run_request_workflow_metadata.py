@@ -20,15 +20,14 @@ import json
 
 
 
-from pydantic import ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from scheduler_api.models.object import object
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class StartRunRequestWorkflowMetadata(object):
+class StartRunRequestWorkflowMetadata(BaseModel):
     """
     StartRunRequestWorkflowMetadata
     """ # noqa: E501
@@ -38,8 +37,10 @@ class StartRunRequestWorkflowMetadata(object):
     environment: Optional[StrictStr] = None
     namespace: Optional[StrictStr] = Field(default=None, description="Logical workflow namespace used for indexing/cross-workflow bindings. Defaults to \"default\".")
     origin_id: Optional[StrictStr] = Field(default=None, description="Identifier linking versions of the same workflow. By default equals the workflow id.", alias="originId")
-    additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "description", "tags", "environment", "namespace", "originId"]
+    owner_id: Optional[StrictStr] = Field(default=None, description="User id that owns the workflow definition.", alias="ownerId")
+    created_by: Optional[StrictStr] = Field(default=None, description="User id that created the workflow definition.", alias="createdBy")
+    updated_by: Optional[StrictStr] = Field(default=None, description="User id that most recently updated the workflow definition.", alias="updatedBy")
+    __properties: ClassVar[List[str]] = ["name", "description", "tags", "environment", "namespace", "originId", "ownerId", "createdBy", "updatedBy"]
 
     model_config = {
         "populate_by_name": True,
@@ -71,20 +72,13 @@ class StartRunRequestWorkflowMetadata(object):
         * `None` is only added to the output dict for nullable fields that
           were set at model initialization. Other fields with value `None`
           are ignored.
-        * Fields in `self.additional_properties` are added to the output dict.
         """
         _dict = self.model_dump(
             by_alias=True,
             exclude={
-                "additional_properties",
             },
             exclude_none=True,
         )
-        # puts key-value pairs in additional_properties in the top level
-        if self.additional_properties is not None:
-            for _key, _value in self.additional_properties.items():
-                _dict[_key] = _value
-
         return _dict
 
     @classmethod
@@ -102,13 +96,11 @@ class StartRunRequestWorkflowMetadata(object):
             "tags": obj.get("tags"),
             "environment": obj.get("environment"),
             "namespace": obj.get("namespace"),
-            "originId": obj.get("originId")
+            "originId": obj.get("originId"),
+            "ownerId": obj.get("ownerId"),
+            "createdBy": obj.get("createdBy"),
+            "updatedBy": obj.get("updatedBy")
         })
-        # store additional fields in additional_properties
-        for _key in obj.keys():
-            if _key not in cls.__properties:
-                _obj.additional_properties[_key] = obj.get(_key)
-
         return _obj
 
 

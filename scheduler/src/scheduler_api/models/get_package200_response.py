@@ -20,16 +20,15 @@ import json
 
 
 
-from pydantic import ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from scheduler_api.models.get_package200_response_manifest import GetPackage200ResponseManifest
-from scheduler_api.models.object import object
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class GetPackage200Response(object):
+class GetPackage200Response(BaseModel):
     """
     GetPackage200Response
     """ # noqa: E501

@@ -2,6 +2,7 @@ import { EventSourcePolyfill } from "event-source-polyfill";
 import { UiEventType } from "../api/models/uiEventType";
 import type { UiEventEnvelope } from "../api/models/uiEventEnvelope";
 import { getClientSessionId } from "./clientSession";
+import { getAuthToken } from "./setupAxios";
 
 type UiEventListener = (event: UiEventEnvelope) => void;
 
@@ -71,7 +72,7 @@ export class SseClient {
     const url = buildEventsUrl(sessionId);
 
     try {
-      const authToken = import.meta.env.VITE_SCHEDULER_TOKEN ?? "dev-token";
+      const authToken = getAuthToken() ?? import.meta.env.VITE_SCHEDULER_TOKEN ?? "dev-token";
       const eventSource = new EventSourcePolyfill(url, {
         headers: {
           Authorization: `Bearer ${authToken}`,

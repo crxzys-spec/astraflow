@@ -20,7 +20,7 @@ import json
 
 
 
-from pydantic import ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from scheduler_api.models.get_package200_response_manifest_adapters_inner import GetPackage200ResponseManifestAdaptersInner
@@ -29,13 +29,12 @@ from scheduler_api.models.get_package200_response_manifest_nodes_inner import Ge
 from scheduler_api.models.get_package200_response_manifest_python import GetPackage200ResponseManifestPython
 from scheduler_api.models.get_package200_response_manifest_resources_inner import GetPackage200ResponseManifestResourcesInner
 from scheduler_api.models.get_package200_response_manifest_signature import GetPackage200ResponseManifestSignature
-from scheduler_api.models.object import object
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class GetPackage200ResponseManifest(object):
+class GetPackage200ResponseManifest(BaseModel):
     """
     GetPackage200ResponseManifest
     """ # noqa: E501

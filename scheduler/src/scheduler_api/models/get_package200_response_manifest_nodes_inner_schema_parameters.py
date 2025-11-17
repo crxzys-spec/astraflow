@@ -30,18 +30,18 @@ try:
 except ImportError:
     from typing_extensions import Self
 
-GETPACKAGE200RESPONSEMANIFESTNODESINNERSCHEMAPARAMETERS_ONE_OF_SCHEMAS = ["Dict[str, object]", "bool"]
+GETPACKAGE200RESPONSEMANIFESTNODESINNERSCHEMAPARAMETERS_ONE_OF_SCHEMAS = ["bool", "object"]
 
 class GetPackage200ResponseManifestNodesInnerSchemaParameters(BaseModel):
     """
     GetPackage200ResponseManifestNodesInnerSchemaParameters
     """
-    # data type: Dict[str, object]
+    # data type: object
     oneof_schema_1_validator: Optional[Dict[str, Any]] = None
     # data type: bool
     oneof_schema_2_validator: Optional[StrictBool] = None
-    actual_instance: Optional[Union[Dict[str, object], bool]] = None
-    one_of_schemas: ClassVar[List[str]] = ["Dict[str, object]", "bool"]
+    actual_instance: Optional[Union[bool, object]] = None
+    one_of_schemas: ClassVar[List[str]] = ["bool", "object"]
 
     model_config = {
         "validate_assignment": True,
@@ -64,7 +64,7 @@ class GetPackage200ResponseManifestNodesInnerSchemaParameters(BaseModel):
         instance = GetPackage200ResponseManifestNodesInnerSchemaParameters.model_construct()
         error_messages = []
         match = 0
-        # validate data type: Dict[str, object]
+        # validate data type: object
         try:
             instance.oneof_schema_1_validator = v
             match += 1
@@ -78,10 +78,10 @@ class GetPackage200ResponseManifestNodesInnerSchemaParameters(BaseModel):
             error_messages.append(str(e))
         if match > 1:
             # more than 1 match
-            raise ValueError("Multiple matches found when setting `actual_instance` in GetPackage200ResponseManifestNodesInnerSchemaParameters with oneOf schemas: Dict[str, object], bool. Details: " + ", ".join(error_messages))
+            raise ValueError("Multiple matches found when setting `actual_instance` in GetPackage200ResponseManifestNodesInnerSchemaParameters with oneOf schemas: bool, object. Details: " + ", ".join(error_messages))
         elif match == 0:
             # no match
-            raise ValueError("No match found when setting `actual_instance` in GetPackage200ResponseManifestNodesInnerSchemaParameters with oneOf schemas: Dict[str, object], bool. Details: " + ", ".join(error_messages))
+            raise ValueError("No match found when setting `actual_instance` in GetPackage200ResponseManifestNodesInnerSchemaParameters with oneOf schemas: bool, object. Details: " + ", ".join(error_messages))
         else:
             return v
 
@@ -96,7 +96,7 @@ class GetPackage200ResponseManifestNodesInnerSchemaParameters(BaseModel):
         error_messages = []
         match = 0
 
-        # deserialize data into Dict[str, object]
+        # deserialize data into object
         try:
             # validation
             instance.oneof_schema_1_validator = json.loads(json_str)
@@ -117,10 +117,10 @@ class GetPackage200ResponseManifestNodesInnerSchemaParameters(BaseModel):
 
         if match > 1:
             # more than 1 match
-            raise ValueError("Multiple matches found when deserializing the JSON string into GetPackage200ResponseManifestNodesInnerSchemaParameters with oneOf schemas: Dict[str, object], bool. Details: " + ", ".join(error_messages))
+            raise ValueError("Multiple matches found when deserializing the JSON string into GetPackage200ResponseManifestNodesInnerSchemaParameters with oneOf schemas: bool, object. Details: " + ", ".join(error_messages))
         elif match == 0:
             # no match
-            raise ValueError("No match found when deserializing the JSON string into GetPackage200ResponseManifestNodesInnerSchemaParameters with oneOf schemas: Dict[str, object], bool. Details: " + ", ".join(error_messages))
+            raise ValueError("No match found when deserializing the JSON string into GetPackage200ResponseManifestNodesInnerSchemaParameters with oneOf schemas: bool, object. Details: " + ", ".join(error_messages))
         else:
             return instance
 

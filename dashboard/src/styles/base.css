@@ -1,0 +1,48 @@
+:root {
+  color-scheme: dark;
+  font-family:
+    "Inter",
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(
+    circle at top right,
+    #0f172a 0%,
+    #020617 55%,
+    #000510 100%
+  );
+  color: #e2e8f0;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: #93c5fd;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #cbd5ff;
+}
+
+button {
+  font-family: inherit;
+}

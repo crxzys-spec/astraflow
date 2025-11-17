@@ -205,6 +205,7 @@ def ensure_custom_main(main_path: Path) -> None:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from scheduler_api.apis.auth_api import router as AuthApiRouter
 from scheduler_api.apis.events_api import router as EventsApiRouter
 from scheduler_api.apis.packages_api import router as PackagesApiRouter
 from scheduler_api.apis.runs_api import router as RunsApiRouter
@@ -233,6 +234,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(AuthApiRouter)
 app.include_router(EventsApiRouter)
 app.include_router(PackagesApiRouter)
 app.include_router(RunsApiRouter)

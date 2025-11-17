@@ -5,9 +5,9 @@ from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
+from scheduler_api.models.auth_login401_response import AuthLogin401Response
 from scheduler_api.models.get_package200_response import GetPackage200Response
 from scheduler_api.models.list_packages200_response import ListPackages200Response
-from scheduler_api.models.start_run400_response import StartRun400Response
 from scheduler_api.security_api import get_token_bearerAuth
 
 class BasePackagesApi:

@@ -14,4 +14,10 @@ export interface WorkflowMetadata {
   namespace?: string;
   /** Identifier linking versions of the same workflow. By default equals the workflow id. */
   originId?: string;
+  /** User id that owns the workflow definition. */
+  ownerId?: string;
+  /** User id that created the workflow definition. */
+  createdBy?: string;
+  /** User id that most recently updated the workflow definition. */
+  updatedBy?: string;
 }

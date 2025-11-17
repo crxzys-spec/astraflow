@@ -20,23 +20,21 @@ import json
 
 
 
-from pydantic import ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
-from scheduler_api.models.object import object
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class GetPackage200ResponseManifestSignature(object):
+class GetPackage200ResponseManifestSignature(BaseModel):
     """
     GetPackage200ResponseManifestSignature
     """ # noqa: E501
     sha256: Optional[Annotated[str, Field(strict=True)]] = None
     signed_at: Optional[StrictStr] = Field(default=None, alias="signedAt")
     signed_by: Optional[StrictStr] = Field(default=None, alias="signedBy")
-    additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["sha256", "signedAt", "signedBy"]
 
     @field_validator('sha256')
@@ -79,20 +77,13 @@ class GetPackage200ResponseManifestSignature(object):
         * `None` is only added to the output dict for nullable fields that
           were set at model initialization. Other fields with value `None`
           are ignored.
-        * Fields in `self.additional_properties` are added to the output dict.
         """
         _dict = self.model_dump(
             by_alias=True,
             exclude={
-                "additional_properties",
             },
             exclude_none=True,
         )
-        # puts key-value pairs in additional_properties in the top level
-        if self.additional_properties is not None:
-            for _key, _value in self.additional_properties.items():
-                _dict[_key] = _value
-
         return _dict
 
     @classmethod
@@ -109,11 +100,6 @@ class GetPackage200ResponseManifestSignature(object):
             "signedAt": obj.get("signedAt"),
             "signedBy": obj.get("signedBy")
         })
-        # store additional fields in additional_properties
-        for _key in obj.keys():
-            if _key not in cls.__properties:
-                _obj.additional_properties[_key] = obj.get(_key)
-
         return _obj
 
 

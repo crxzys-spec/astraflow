@@ -20,21 +20,19 @@ import json
 
 
 
-from pydantic import ConfigDict, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
-from scheduler_api.models.object import object
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class GetPackage200ResponseManifestNodesInnerUiInputPortsInnerBinding(object):
+class GetPackage200ResponseManifestNodesInnerUiInputPortsInnerBinding(BaseModel):
     """
     GetPackage200ResponseManifestNodesInnerUiInputPortsInnerBinding
     """ # noqa: E501
     path: StrictStr
     mode: Optional[StrictStr] = None
-    additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["path", "mode"]
 
     @field_validator('mode')
@@ -77,20 +75,13 @@ class GetPackage200ResponseManifestNodesInnerUiInputPortsInnerBinding(object):
         * `None` is only added to the output dict for nullable fields that
           were set at model initialization. Other fields with value `None`
           are ignored.
-        * Fields in `self.additional_properties` are added to the output dict.
         """
         _dict = self.model_dump(
             by_alias=True,
             exclude={
-                "additional_properties",
             },
             exclude_none=True,
         )
-        # puts key-value pairs in additional_properties in the top level
-        if self.additional_properties is not None:
-            for _key, _value in self.additional_properties.items():
-                _dict[_key] = _value
-
         return _dict
 
     @classmethod
@@ -106,11 +97,6 @@ class GetPackage200ResponseManifestNodesInnerUiInputPortsInnerBinding(object):
             "path": obj.get("path"),
             "mode": obj.get("mode")
         })
-        # store additional fields in additional_properties
-        for _key in obj.keys():
-            if _key not in cls.__properties:
-                _obj.additional_properties[_key] = obj.get(_key)
-
         return _obj
 
 

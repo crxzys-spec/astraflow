@@ -6,6 +6,9 @@ from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy import select
 
+from scheduler_api.audit import record_audit_event
+from scheduler_api.auth.context import get_current_token
+from scheduler_api.auth.roles import WORKFLOW_EDIT_ROLES, WORKFLOW_VIEW_ROLES, require_roles
 from scheduler_api.db.models import WorkflowRecord
 from scheduler_api.db.session import SessionLocal
 from scheduler_api.apis.workflows_api_base import BaseWorkflowsApi
@@ -24,6 +27,7 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
         cursor: Optional[str],
     ) -> ListWorkflows200Response:
         del cursor  # pagination cursor reserved for future implementation
+        require_roles(*WORKFLOW_VIEW_ROLES)
         page_size = limit or 50
 
         with SessionLocal() as session:
@@ -72,13 +76,17 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
                 ).model_dump(by_alias=True),
             )
         workflow_name = metadata.name
+        token = require_roles(*WORKFLOW_EDIT_ROLES)
+        owner_id = metadata.owner_id or (token.sub if token else None)
 
         payload = json.loads(workflow_json)
         structure = self._strip_metadata(payload)
 
+        created = False
         with SessionLocal() as session:
             record = session.get(WorkflowRecord, workflow_id)
             if record is None:
+                created = True
                 record = WorkflowRecord(
                     id=workflow_id,
                     name=workflow_name,
@@ -89,6 +97,9 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
                     description=metadata.description,
                     environment=metadata.environment,
                     tags=json.dumps(metadata.tags) if metadata.tags else None,
+                    owner_id=owner_id,
+                    created_by=token.sub if token else None,
+                    updated_by=token.sub if token else None,
                 )
                 session.add(record)
             else:
@@ -100,7 +111,19 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
                 record.description = metadata.description
                 record.environment = metadata.environment
                 record.tags = json.dumps(metadata.tags) if metadata.tags else None
+                if owner_id:
+                    record.owner_id = owner_id
+                if token:
+                    record.updated_by = token.sub
             session.commit()
+
+        record_audit_event(
+            actor_id=token.sub if token else None,
+            action="workflow.create" if created else "workflow.update",
+            target_type="workflow",
+            target_id=workflow_id,
+            metadata={"name": workflow_name, "namespace": metadata.namespace or "default"},
+        )
 
         return PersistWorkflow201Response(workflow_id=workflow_id)
 
@@ -108,6 +131,7 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
         self,
         workflowId: str,
     ) -> ListWorkflows200ResponseItemsInner:
+        require_roles(*WORKFLOW_VIEW_ROLES)
         with SessionLocal() as session:
             record = session.get(WorkflowRecord, workflowId)
 
@@ -145,6 +169,12 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
             "namespace": record.namespace or "default",
             "originId": record.origin_id or record.id,
         }
+        if record.owner_id:
+            metadata["ownerId"] = record.owner_id
+        if record.created_by:
+            metadata["createdBy"] = record.created_by
+        if record.updated_by:
+            metadata["updatedBy"] = record.updated_by
         if record.tags:
             try:
                 metadata["tags"] = json.loads(record.tags)

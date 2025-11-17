@@ -811,4 +811,23 @@ Use that document as the authoritative blueprint when implementing resource-awar
 
 
 
+## 11. Workflow Persistence Refresh (Phase 1)
+
+- **Structured metadata columns**: `schema_version`, `namespace`, `origin_id`, `description`, `environment`, and `tags` now live directly on `WorkflowRecord`. The JSON `definition` payload only contains runtime graph/state so reads remain lightweight and writes can query metadata without reparsing.
+- **DTO compatibility layer**: API responses hydrate the stored structure back into the legacy shape (`id`, `schemaVersion`, `metadata`) so both the dashboard and SDK continue to receive the same contract while the database benefits from proper columns and indexes.
+- **Ownership & authorship**: Workflow metadata now carries `ownerId`, `createdBy`, and `updatedBy`. The DB columns (`owner_id`, `created_by`, `updated_by`) are populated from the authenticated token and surfaced to the UI for auditing.
+- **Audit metadata**: `created_by` and `updated_by` capture the authenticated user responsible for each insert/update. The values currently power basic auditing and will feed the versioning/history UI later.
+- **Migration behavior**: Alembic revision `20251105_0003` parses existing workflow JSON, hydrates the new columns, strips metadata from `definition`, and stores tags as JSON text. Downgrades reverse the process so backups remain portable.
+
+## 12. Authentication & Authorization Bootstrap
+
+- **Domain model**: Added `users`, `roles`, and `user_roles` tables plus the corresponding SQLAlchemy models. Passwords are stored as bcrypt hashes and linked to simple RBAC roles (`admin`, `workflow.editor`, `workflow.viewer`, `run.viewer`).
+- **Seed admin**: Migration `20251105_0004` inserts an `admin` account whose password comes from `SCHEDULER_ADMIN_PASSWORD` (default `changeme`). Rotate that env var in every deployment before exposing the API.
+- **JWT issuance**: `/api/v1/auth/login` exchanges username/password for a Bearer token signed with `SCHEDULER_JWT_SECRET` (algorithm `SCHEDULER_JWT_ALGORITHM`, default HS256). Expiry is controlled by `SCHEDULER_JWT_ACCESS_MINUTES` and returned as `expiresIn` for the UI.
+- **Request flow**: Every REST/SSE route except `/auth/login` now requires the Bearer token. `security_api.get_token_bearerAuth` decodes the JWT, raises 401 on failure, and publishes the token to `scheduler_api.auth.context` so business logic (e.g., workflow persistence) can access the current user id.
+- **Dashboard UX**: Added a login page, Zustand-powered auth store, and guarded routes. Tokens persist in `localStorage`, axios/EventSource automatically attach the header, and a dev escape hatch (`VITE_SCHEDULER_TOKEN`) remains available until we wire OIDC/SAML.
+- **Audit trail**: The `audit_events` table records key state transitions (currently workflow create/update, run.start, auth attempts) with actor, target, and structured metadata to support later compliance reporting. `/api/v1/audit-events` exposes filterable/paginated access for admins in both API and dashboard.
+- **RBAC enforcement**: Workflows, runs, packages, and SSE firehose endpoints enforce `workflow.viewer/editor`, `run.viewer`, or `admin` as appropriate. The dashboard surfaces role-aware controls so read-only users can inspect resources without mutating them.
+- **Ops tooling**: Use `python scheduler/scripts/manage_users.py` to create users, rotate passwords, and assign roles without touching the database directly.
+- **Next steps**: Provide CLI/management APIs for creating users + assigning roles, wire optional `DEV_AUTH_BYPASS`, and plan for IdP integration so this bootstrap layer can federate with enterprise auth once ready.
 

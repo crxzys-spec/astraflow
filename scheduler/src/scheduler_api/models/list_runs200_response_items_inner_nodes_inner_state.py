@@ -21,17 +21,16 @@ import json
 
 
 from datetime import datetime
-from pydantic import ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional, Union
 from typing_extensions import Annotated
 from scheduler_api.models.list_runs200_response_items_inner_nodes_inner_state_error import ListRuns200ResponseItemsInnerNodesInnerStateError
-from scheduler_api.models.object import object
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class ListRuns200ResponseItemsInnerNodesInnerState(object):
+class ListRuns200ResponseItemsInnerNodesInnerState(BaseModel):
     """
     Scheduler-owned runtime hints attached to a workflow node during builder playback or run overlays.
     """ # noqa: E501
@@ -40,7 +39,6 @@ class ListRuns200ResponseItemsInnerNodesInnerState(object):
     last_updated_at: Optional[datetime] = Field(default=None, description="ISO-8601 timestamp for the last state transition.", alias="lastUpdatedAt")
     message: Optional[StrictStr] = Field(default=None, description="Human-friendly hint surfaced to the UI.")
     error: Optional[ListRuns200ResponseItemsInnerNodesInnerStateError] = None
-    additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["stage", "progress", "lastUpdatedAt", "message", "error"]
 
     model_config = {
@@ -73,23 +71,16 @@ class ListRuns200ResponseItemsInnerNodesInnerState(object):
         * `None` is only added to the output dict for nullable fields that
           were set at model initialization. Other fields with value `None`
           are ignored.
-        * Fields in `self.additional_properties` are added to the output dict.
         """
         _dict = self.model_dump(
             by_alias=True,
             exclude={
-                "additional_properties",
             },
             exclude_none=True,
         )
         # override the default output from pydantic by calling `to_dict()` of error
         if self.error:
             _dict['error'] = self.error.to_dict()
-        # puts key-value pairs in additional_properties in the top level
-        if self.additional_properties is not None:
-            for _key, _value in self.additional_properties.items():
-                _dict[_key] = _value
-
         return _dict
 
     @classmethod
@@ -108,11 +99,6 @@ class ListRuns200ResponseItemsInnerNodesInnerState(object):
             "message": obj.get("message"),
             "error": ListRuns200ResponseItemsInnerNodesInnerStateError.from_dict(obj.get("error")) if obj.get("error") is not None else None
         })
-        # store additional fields in additional_properties
-        for _key in obj.keys():
-            if _key not in cls.__properties:
-                _obj.additional_properties[_key] = obj.get(_key)
-
         return _obj
 
 

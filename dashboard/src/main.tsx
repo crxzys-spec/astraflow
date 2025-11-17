@@ -5,9 +5,6 @@ import './lib/setupAxios'
 import './index.css'
 import App from './App.tsx'
 import { queryClient } from './lib/queryClient.ts'
-import { sseClient } from './lib/sseClient'
-
-sseClient.enableKeepAlive()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

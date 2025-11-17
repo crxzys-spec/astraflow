@@ -20,23 +20,21 @@ import json
 
 
 
-from pydantic import ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List
-from scheduler_api.models.object import object
 from scheduler_api.models.start_run_request_workflow_nodes_inner_ui_input_ports_inner_binding import StartRunRequestWorkflowNodesInnerUiInputPortsInnerBinding
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class StartRunRequestWorkflowNodesInnerUiInputPortsInner(object):
+class StartRunRequestWorkflowNodesInnerUiInputPortsInner(BaseModel):
     """
     StartRunRequestWorkflowNodesInnerUiInputPortsInner
     """ # noqa: E501
     key: StrictStr
     label: StrictStr
     binding: StartRunRequestWorkflowNodesInnerUiInputPortsInnerBinding
-    additional_properties: Dict[str, Any] = {}
     __properties: ClassVar[List[str]] = ["key", "label", "binding"]
 
     model_config = {
@@ -69,23 +67,16 @@ class StartRunRequestWorkflowNodesInnerUiInputPortsInner(object):
         * `None` is only added to the output dict for nullable fields that
           were set at model initialization. Other fields with value `None`
           are ignored.
-        * Fields in `self.additional_properties` are added to the output dict.
         """
         _dict = self.model_dump(
             by_alias=True,
             exclude={
-                "additional_properties",
             },
             exclude_none=True,
         )
         # override the default output from pydantic by calling `to_dict()` of binding
         if self.binding:
             _dict['binding'] = self.binding.to_dict()
-        # puts key-value pairs in additional_properties in the top level
-        if self.additional_properties is not None:
-            for _key, _value in self.additional_properties.items():
-                _dict[_key] = _value
-
         return _dict
 
     @classmethod
@@ -102,11 +93,6 @@ class StartRunRequestWorkflowNodesInnerUiInputPortsInner(object):
             "label": obj.get("label"),
             "binding": StartRunRequestWorkflowNodesInnerUiInputPortsInnerBinding.from_dict(obj.get("binding")) if obj.get("binding") is not None else None
         })
-        # store additional fields in additional_properties
-        for _key in obj.keys():
-            if _key not in cls.__properties:
-                _obj.additional_properties[_key] = obj.get(_key)
-
         return _obj
 
 

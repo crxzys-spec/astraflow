@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 
 from scheduler_api.apis.packages_api_base import BasePackagesApi
+from scheduler_api.auth.roles import WORKFLOW_VIEW_ROLES, require_roles
 from scheduler_api.catalog import (
     PackageCatalogError,
     PackageNotFoundError,
@@ -17,6 +18,7 @@ from scheduler_api.models.list_packages200_response_items_inner import ListPacka
 
 class PackagesApiImpl(BasePackagesApi):
     async def list_packages(self) -> ListPackages200Response:
+        require_roles(*WORKFLOW_VIEW_ROLES)
         summaries = catalog.list_packages()
         items = [
             ListPackages200ResponseItemsInner(
@@ -35,6 +37,7 @@ class PackagesApiImpl(BasePackagesApi):
         packageName: str,
         version: str | None,
     ) -> GetPackage200Response:
+        require_roles(*WORKFLOW_VIEW_ROLES)
         try:
             detail = catalog.get_package_detail(packageName, version)
         except PackageNotFoundError as exc:

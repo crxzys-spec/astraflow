@@ -8,11 +8,16 @@ security:
 - bearerAuth: []
 tags:
 - name: Runs
+- name: Auth
 - name: Workflows
 - name: Packages
 - name: Workers
 - name: Events
+- name: Audit
+- name: Users
 paths:
+  /api/v1/auth/login:
+    $ref: ./paths/auth-login.yaml
   /api/v1/runs:
     $ref: ./paths/runs.yaml
   /api/v1/runs/{runId}:
@@ -35,6 +40,18 @@ paths:
     $ref: ./paths/worker-commands.yaml
   /api/v1/events:
     $ref: ./paths/events.yaml
+  /api/v1/users:
+    $ref: ./paths/users.yaml
+  /api/v1/users/{userId}/password:
+    $ref: ./paths/user-password.yaml
+  /api/v1/users/{userId}/roles:
+    $ref: ./paths/user-roles.yaml
+  /api/v1/users/{userId}/roles/{role}:
+    $ref: ./paths/user-role-by-name.yaml
+  /api/v1/users/{userId}/status:
+    $ref: ./paths/user-status.yaml
+  /api/v1/audit-events:
+    $ref: ./paths/audit-events.yaml
 components:
   securitySchemes:
     bearerAuth:

@@ -26,11 +26,11 @@ from scheduler_api.models.extra_models import TokenModel  # noqa: F401
 from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
+from scheduler_api.models.auth_login401_response import AuthLogin401Response
 from scheduler_api.models.list_workers200_response import ListWorkers200Response
 from scheduler_api.models.list_workers200_response_items_inner import ListWorkers200ResponseItemsInner
 from scheduler_api.models.send_worker_command202_response import SendWorkerCommand202Response
 from scheduler_api.models.send_worker_command_request import SendWorkerCommandRequest
-from scheduler_api.models.start_run400_response import StartRun400Response
 from scheduler_api.security_api import get_token_bearerAuth
 
 router = APIRouter()
@@ -66,7 +66,7 @@ async def list_workers(
     "/api/v1/workers/{workerId}",
     responses={
         200: {"model": ListWorkers200ResponseItemsInner, "description": "OK"},
-        404: {"model": StartRun400Response, "description": "Resource not found"},
+        404: {"model": AuthLogin401Response, "description": "Resource not found"},
     },
     tags=["Workers"],
     summary="Get worker snapshot",
@@ -87,8 +87,8 @@ async def get_worker(
     "/api/v1/workers/{workerId}/commands",
     responses={
         202: {"model": SendWorkerCommand202Response, "description": "Accepted"},
-        400: {"model": StartRun400Response, "description": "Invalid input"},
-        404: {"model": StartRun400Response, "description": "Resource not found"},
+        400: {"model": AuthLogin401Response, "description": "Invalid input"},
+        404: {"model": AuthLogin401Response, "description": "Resource not found"},
     },
     tags=["Workers"],
     summary="Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)",

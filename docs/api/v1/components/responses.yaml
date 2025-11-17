@@ -16,3 +16,9 @@ Conflict:
     application/json:
       schema:
         $ref: './schemas/index.yaml#/Error'
+Unauthorized:
+  description: Authentication required or credentials invalid
+  content:
+    application/json:
+      schema:
+        $ref: './schemas/index.yaml#/Error'

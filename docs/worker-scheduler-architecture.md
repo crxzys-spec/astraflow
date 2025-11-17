@@ -353,9 +353,21 @@ crawlerx_playwright/
 - `package.uninstall` triggers manifest uninstall hooks and deletes the package directory.
 - Worker reports installed package versions in heartbeats; Scheduler uses this to decide upgrade/rollback.
 
+## 3.5 Loop & Branch Execution Model
+
+To support loops and conditional fan-out while keeping workflows as DAGs, the scheduler introduces two small extensions.
+
+- **Loop nodes** reference other workflows by globally unique `workflowId`. When such a node is scheduled the run registry clones the referenced workflow, giving each cloned node a namespace such as `library.translator.step1`. Loop inputs/outputs still use `inputPorts/widgets/outputPorts`, but `binding.path` may include these namespaces so outer nodes can inject into / read from the loop body directly.
+- **Namespace-aware bindings**: the registry maintains a `scope -> NodeState` index. Binding paths remain JSON Pointer style (`parameters.foo`, `results.bar`); if no prefix is supplied they continue to resolve against the current node. Optionally prepending `namespace.workflowId.nodeId.` lets builders wire cross-workflow bindings without introducing explicit parent/child syntax.
+- **Branching via output conditions**: output port bindings accept an optional `condition` expression (evaluated safely against the node’s own parameters/results). Ports whose conditions resolve to `true` propagate data and unlock downstream nodes; the rest mark their successors as `skipped`, and the SSE layer mirrors the state so the UI can grey out unused routes.
+- **Versioning through ids**: publishing or copying a workflow simply creates a new `workflowId`. Loop nodes reference the exact id they depend on, so adopting a revised definition is an explicit action (swap the id) instead of an implicit upgrade.
+
 ## 4. Workflow Definition Instance
 
 The workflow definition serves as the contract between the drag-and-connect editor and the Scheduler runtime. The UI persists the JSON, and the Scheduler consumes the same payload to orchestrate tasks. Global context is no longer exchanged; instead, node parameters contain fully resolved values or expressions local to each node, and widgets can also bind to `results.*` paths for read-only display of execution outputs. **All workflow IDs and node IDs must be UUIDs** so they remain globally unique across imports and Scheduler executions. Below is a representative instance that wires two Playwright adapters from the package example above.
+
+- `metadata.namespace` provides a logical grouping (default `default`) that bindings can reference when targeting nodes in other workflows.
+- `metadata.originId` links versions of the same workflow. When a workflow is cloned/published, a new `id` is issued but `originId` remains stable so loop nodes can reference a specific revision on purpose.
 
 > **Tip:** The bundled `example.pkg.feedback_demo` node demonstrates the feedback contract: the worker emits incremental updates via `metadata.results`, for example `{"results": {"summary": "HELLO"}}`. The scheduler merges those keys into `results.*`, publishes `node.result.delta`, and the builder's `summaryPreview` widget (bound to `/results/summary`, `mode: "read"`) renders the stream live. Reuse the same convention for any other result fields you want to surface incrementally.
 

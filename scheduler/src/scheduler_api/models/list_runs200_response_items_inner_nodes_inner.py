@@ -24,6 +24,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from scheduler_api.models.list_runs200_response_items_inner_error import ListRuns200ResponseItemsInnerError
+from scheduler_api.models.list_runs200_response_items_inner_nodes_inner_state import ListRuns200ResponseItemsInnerNodesInnerState
 try:
     from typing import Self
 except ImportError:
@@ -48,7 +49,7 @@ class ListRuns200ResponseItemsInnerNodesInner(BaseModel):
     artifacts: Optional[List[Dict[str, Any]]] = None
     result: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
-    state: Optional[Dict[str, Any]] = None
+    state: Optional[ListRuns200ResponseItemsInnerNodesInnerState] = None
     error: Optional[ListRuns200ResponseItemsInnerError] = None
     __properties: ClassVar[List[str]] = ["nodeId", "taskId", "status", "workerId", "startedAt", "finishedAt", "seq", "pendingAck", "dispatchId", "ackDeadline", "resourceRefs", "affinity", "artifacts", "result", "metadata", "state", "error"]
 
@@ -96,6 +97,9 @@ class ListRuns200ResponseItemsInnerNodesInner(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of state
+        if self.state:
+            _dict['state'] = self.state.to_dict()
         # override the default output from pydantic by calling `to_dict()` of error
         if self.error:
             _dict['error'] = self.error.to_dict()
@@ -126,7 +130,9 @@ class ListRuns200ResponseItemsInnerNodesInner(BaseModel):
             "artifacts": obj.get("artifacts"),
             "result": obj.get("result"),
             "metadata": obj.get("metadata"),
-            "state": obj.get("state"),
+            "state": ListRuns200ResponseItemsInnerNodesInnerState.from_dict(obj.get("state")) if obj.get("state") is not None else None,
             "error": ListRuns200ResponseItemsInnerError.from_dict(obj.get("error")) if obj.get("error") is not None else None
         })
         return _obj
+
+

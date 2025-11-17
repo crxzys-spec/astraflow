@@ -31,9 +31,9 @@ try:
 except ImportError:
     from typing_extensions import Self
 
-class StartRunRequestWorkflowNodesInnerState(object):
+class ListRuns200ResponseItemsInnerNodesInnerState(object):
     """
-    Platform-managed execution hints surfaced in the builder (optional).
+    Scheduler-owned runtime hints attached to a workflow node during builder playback or run overlays.
     """ # noqa: E501
     stage: Optional[StrictStr] = Field(default=None, description="Current scheduler-reported stage (e.g. idle, queued, running, completed, failed).")
     progress: Optional[Union[Annotated[float, Field(le=1, strict=True, ge=0)], Annotated[int, Field(le=1, strict=True, ge=0)]]] = Field(default=None, description="Optional 0-1 normalized progress indicator.")
@@ -61,7 +61,7 @@ class StartRunRequestWorkflowNodesInnerState(object):
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of StartRunRequestWorkflowNodesInnerState from a JSON string"""
+        """Create an instance of ListRuns200ResponseItemsInnerNodesInnerState from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -94,7 +94,7 @@ class StartRunRequestWorkflowNodesInnerState(object):
 
     @classmethod
     def from_dict(cls, obj: Dict) -> Self:
-        """Create an instance of StartRunRequestWorkflowNodesInnerState from a dict"""
+        """Create an instance of ListRuns200ResponseItemsInnerNodesInnerState from a dict"""
         if obj is None:
             return None
 

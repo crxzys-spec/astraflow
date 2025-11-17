@@ -20,26 +20,21 @@ import json
 
 
 
-from pydantic import ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from scheduler_api.models.object import object
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class StartRunRequestWorkflowMetadata(object):
+class ListRuns200ResponseItemsInnerNodesInnerStateError(BaseModel):
     """
-    StartRunRequestWorkflowMetadata
+    Optional terminal error surfaced when the node fails.
     """ # noqa: E501
-    name: StrictStr
-    description: Optional[StrictStr] = None
-    tags: Optional[List[StrictStr]] = None
-    environment: Optional[StrictStr] = None
-    namespace: Optional[StrictStr] = Field(default=None, description="Logical workflow namespace used for indexing/cross-workflow bindings. Defaults to \"default\".")
-    origin_id: Optional[StrictStr] = Field(default=None, description="Identifier linking versions of the same workflow. By default equals the workflow id.", alias="originId")
-    additional_properties: Dict[str, Any] = {}
-    __properties: ClassVar[List[str]] = ["name", "description", "tags", "environment", "namespace", "originId"]
+    code: StrictStr
+    message: StrictStr
+    details: Optional[Dict[str, Any]] = None
+    __properties: ClassVar[List[str]] = ["code", "message", "details"]
 
     model_config = {
         "populate_by_name": True,
@@ -59,7 +54,7 @@ class StartRunRequestWorkflowMetadata(object):
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of StartRunRequestWorkflowMetadata from a JSON string"""
+        """Create an instance of ListRuns200ResponseItemsInnerNodesInnerStateError from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -71,25 +66,18 @@ class StartRunRequestWorkflowMetadata(object):
         * `None` is only added to the output dict for nullable fields that
           were set at model initialization. Other fields with value `None`
           are ignored.
-        * Fields in `self.additional_properties` are added to the output dict.
         """
         _dict = self.model_dump(
             by_alias=True,
             exclude={
-                "additional_properties",
             },
             exclude_none=True,
         )
-        # puts key-value pairs in additional_properties in the top level
-        if self.additional_properties is not None:
-            for _key, _value in self.additional_properties.items():
-                _dict[_key] = _value
-
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Dict) -> Self:
-        """Create an instance of StartRunRequestWorkflowMetadata from a dict"""
+        """Create an instance of ListRuns200ResponseItemsInnerNodesInnerStateError from a dict"""
         if obj is None:
             return None
 
@@ -97,18 +85,10 @@ class StartRunRequestWorkflowMetadata(object):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "name": obj.get("name"),
-            "description": obj.get("description"),
-            "tags": obj.get("tags"),
-            "environment": obj.get("environment"),
-            "namespace": obj.get("namespace"),
-            "originId": obj.get("originId")
+            "code": obj.get("code"),
+            "message": obj.get("message"),
+            "details": obj.get("details")
         })
-        # store additional fields in additional_properties
-        for _key in obj.keys():
-            if _key not in cls.__properties:
-                _obj.additional_properties[_key] = obj.get(_key)
-
         return _obj
 
 

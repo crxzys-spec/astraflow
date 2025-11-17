@@ -10,8 +10,8 @@ import type { RunNodeStatusAffinity } from './runNodeStatusAffinity';
 import type { RunNodeStatusArtifactsItem } from './runNodeStatusArtifactsItem';
 import type { RunNodeStatusResult } from './runNodeStatusResult';
 import type { RunNodeStatusMetadata } from './runNodeStatusMetadata';
-import type { ResultError } from './resultError';
 import type { WorkflowNodeState } from './workflowNodeState';
+import type { ResultError } from './resultError';
 
 export interface RunNodeStatus {
   nodeId: string;
@@ -49,7 +49,7 @@ export interface RunNodeStatus {
   /** @nullable */
   metadata?: RunNodeStatusMetadata;
   /** @nullable */
-  state?: WorkflowNodeState | null;
+  state?: WorkflowNodeState;
   /** @nullable */
   error?: ResultError;
 }

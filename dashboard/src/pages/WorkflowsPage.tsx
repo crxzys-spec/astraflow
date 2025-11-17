@@ -1,31 +1,99 @@
 import { Link } from "react-router-dom";
-
-const demoWorkflowId = "wf-demo";
+import { useListWorkflows } from "../api/endpoints";
 
 const WorkflowsPage = () => {
+  const workflowsQuery = useListWorkflows(undefined, {
+    query: {
+      staleTime: 60_000
+    }
+  });
+
+  const workflows = workflowsQuery.data?.data?.items ?? [];
+  const isLoading = workflowsQuery.isLoading;
+  const isError = workflowsQuery.isError;
+  const errorMessage =
+    (workflowsQuery.error as Error | undefined)?.message ??
+    (workflowsQuery.error as { response?: { data?: { message?: string } } } | undefined)?.response
+      ?.data?.message;
+
   return (
     <div className="card stack">
       <header className="card__header">
         <div>
           <h2>Workflows</h2>
           <p className="text-subtle">
-            Curate workflow definitions and open them in the interactive builder.
+            Browse workflow definitions and open them in the interactive builder.
           </p>
         </div>
-      </header>
-      <div className="card card--surface">
-        <h3>Example Workflow</h3>
-        <p className="text-subtle">
-          Kick the tyres with the sample definition that ships with the local worker.
-        </p>
-        <Link className="btn" to={`/workflows/${demoWorkflowId}`}>
-          Open Builder
+        <Link className="btn btn--primary" to="/workflows/new">
+          Create Workflow
         </Link>
-      </div>
-      <p className="text-subtle">
-        Full workflow catalog management is coming soon — for now, use the REST API or CLI to
-        create new definitions and open them directly via URL.
-      </p>
+      </header>
+
+      {isLoading && (
+        <div className="card card--surface">
+          <p>Loading workflows…</p>
+        </div>
+      )}
+
+      {isError && (
+        <div className="card card--error">
+          <p className="error">Unable to load workflows: {errorMessage ?? "Unknown error"}</p>
+          <button className="btn" type="button" onClick={() => workflowsQuery.refetch()}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!isLoading && !isError && workflows.length === 0 && (
+        <div className="card card--surface">
+          <p>No workflows found. Use “Create Workflow” to start a new definition.</p>
+        </div>
+      )}
+
+      {!isLoading && !isError && workflows.length > 0 && (
+        <div className="card stack">
+          {workflows.map((workflow) => {
+            const metadata = workflow.metadata ?? { name: workflow.id, namespace: "default" };
+            const tags = metadata.tags ?? [];
+            const namespace = metadata.namespace ?? "default";
+            const description = metadata.description ?? "No description provided.";
+            return (
+              <div key={workflow.id} className="card card--surface workflow-card">
+                <div className="workflow-card__header">
+                  <div>
+                    <h3>{metadata.name ?? workflow.id}</h3>
+                    <p className="text-subtle">{description}</p>
+                  </div>
+                  <div className="workflow-card__actions">
+                    <span className="badge">{namespace}</span>
+                    <Link className="btn" to={`/workflows/${workflow.id}`}>
+                      Open Builder
+                    </Link>
+                  </div>
+                </div>
+                <div className="workflow-card__meta">
+                  <div>
+                    <strong>ID:</strong> <code>{workflow.id}</code>
+                  </div>
+                  <div>
+                    <strong>Nodes:</strong> {workflow.nodes?.length ?? 0}
+                  </div>
+                  {tags.length > 0 && (
+                    <div className="workflow-card__tags">
+                      {tags.map((tag) => (
+                        <span key={tag} className="chip">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

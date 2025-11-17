@@ -37,9 +37,9 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
         items: list[ListWorkflows200ResponseItemsInner] = []
         for row in rows:
             try:
-                definition = ListWorkflows200ResponseItemsInner.from_json(row.definition)
-            except (json.JSONDecodeError, ValueError) as exc:  # pragma: no cover - defensive
-                # Skip corrupted entries but continue processing others
+                payload = self._hydrate_payload(row)
+                definition = ListWorkflows200ResponseItemsInner.from_json(json.dumps(payload))
+            except (json.JSONDecodeError, ValueError):  # pragma: no cover - defensive
                 continue
             items.append(definition)
 
@@ -73,18 +73,33 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
             )
         workflow_name = metadata.name
 
+        payload = json.loads(workflow_json)
+        structure = self._strip_metadata(payload)
+
         with SessionLocal() as session:
             record = session.get(WorkflowRecord, workflow_id)
             if record is None:
                 record = WorkflowRecord(
                     id=workflow_id,
                     name=workflow_name,
-                    definition=workflow_json,
+                    definition=json.dumps(structure, ensure_ascii=False),
+                    schema_version=payload.get("schemaVersion") or "2025-10",
+                    namespace=metadata.namespace or "default",
+                    origin_id=metadata.origin_id or workflow_id,
+                    description=metadata.description,
+                    environment=metadata.environment,
+                    tags=json.dumps(metadata.tags) if metadata.tags else None,
                 )
                 session.add(record)
             else:
                 record.name = workflow_name
-                record.definition = workflow_json
+                record.definition = json.dumps(structure, ensure_ascii=False)
+                record.schema_version = payload.get("schemaVersion") or record.schema_version
+                record.namespace = metadata.namespace or record.namespace or "default"
+                record.origin_id = metadata.origin_id or record.origin_id or workflow_id
+                record.description = metadata.description
+                record.environment = metadata.environment
+                record.tags = json.dumps(metadata.tags) if metadata.tags else None
             session.commit()
 
         return PersistWorkflow201Response(workflow_id=workflow_id)
@@ -106,7 +121,8 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
             )
 
         try:
-            return ListWorkflows200ResponseItemsInner.from_json(record.definition)
+            payload = self._hydrate_payload(record)
+            return ListWorkflows200ResponseItemsInner.from_json(json.dumps(payload))
         except (json.JSONDecodeError, ValueError) as exc:  # pragma: no cover - defensive
             raise HTTPException(
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -115,3 +131,33 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
                     message=f"Workflow '{workflowId}' is stored in an invalid format.",
                 ).model_dump(by_alias=True),
             ) from exc
+
+    @staticmethod
+    def _hydrate_payload(record: WorkflowRecord) -> dict[str, object]:
+        try:
+            structure = json.loads(record.definition)
+        except json.JSONDecodeError:
+            structure = {}
+        metadata = {
+            "name": record.name,
+            "description": record.description,
+            "environment": record.environment,
+            "namespace": record.namespace or "default",
+            "originId": record.origin_id or record.id,
+        }
+        if record.tags:
+            try:
+                metadata["tags"] = json.loads(record.tags)
+            except json.JSONDecodeError:
+                pass
+        payload = {
+            **structure,
+            "id": record.id,
+            "schemaVersion": record.schema_version or "2025-10",
+            "metadata": metadata,
+        }
+        return payload
+
+    @staticmethod
+    def _strip_metadata(payload: dict[str, object]) -> dict[str, object]:
+        return {key: value for key, value in payload.items() if key not in {"id", "schemaVersion", "metadata"}}

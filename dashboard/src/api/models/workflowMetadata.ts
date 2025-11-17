@@ -10,4 +10,8 @@ export interface WorkflowMetadata {
   description?: string;
   tags?: string[];
   environment?: string;
+  /** Logical workflow namespace used for indexing/cross-workflow bindings. Defaults to "default". */
+  namespace?: string;
+  /** Identifier linking versions of the same workflow. By default equals the workflow id. */
+  originId?: string;
 }

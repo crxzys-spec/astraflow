@@ -37,9 +37,13 @@ const STALE_TIME_MS = 5 * 60_000;
 const createEmptyWorkflow = (id: string, name: string): WorkflowDefinition => ({
   id,
   schemaVersion: "2025-10",
-  metadata: { name },
+  metadata: {
+    name,
+    namespace: "default",
+    originId: id,
+  },
   nodes: [],
-  edges: []
+  edges: [],
 });
 
 const extractRunId = (event: UiEventEnvelope): string | undefined => {
@@ -109,6 +113,11 @@ const WorkflowBuilderPage = () => {
   const handleSelectVersion = useCallback((version: string) => {
     setSelectedVersion(version || undefined);
   }, []);
+
+  useEffect(() => {
+    resetWorkflow();
+    hasHydrated.current = false;
+  }, [workflowId, resetWorkflow]);
 
   useEffect(() => {
     if (!workflow) {

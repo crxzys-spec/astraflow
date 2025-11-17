@@ -128,6 +128,16 @@ const sanitizeMetadata = (
   if (metadata?.environment !== undefined && metadata.environment !== null) {
     sanitized.environment = metadata.environment;
   }
+  const namespaceValue =
+    metadata?.namespace && metadata.namespace.trim().length > 0
+      ? metadata.namespace.trim()
+      : "default";
+  sanitized.namespace = namespaceValue;
+  const originValue =
+    metadata?.originId && metadata.originId.trim().length > 0
+      ? metadata.originId.trim()
+      : fallbackName;
+  sanitized.originId = originValue;
   return sanitized;
 };
 

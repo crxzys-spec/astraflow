@@ -18,7 +18,9 @@ RAW_DEMO_WORKFLOW_JSON = r"""{
   "schemaVersion": "2025-10",
   "metadata": {
     "name": "Customer Welcome Journey",
-    "description": "Streams a personalised welcome message, schedules delivery, and records the notification lifecycle."
+    "description": "Streams a personalised welcome message, schedules delivery, and records the notification lifecycle.",
+    "namespace": "default",
+    "originId": "wf-demo"
   },
   "nodes": [
     {
@@ -902,24 +904,52 @@ def seed_demo_workflow() -> None:
 
     with SessionLocal() as session:
         existing = session.get(WorkflowRecord, DEMO_WORKFLOW_ID)
-        definition = json.dumps(DEMO_WORKFLOW_DEFINITION, ensure_ascii=False, indent=2, sort_keys=True)
-        name = DEMO_WORKFLOW_DEFINITION["metadata"]["name"]
+        metadata = DEMO_WORKFLOW_DEFINITION["metadata"]
+        structure = {
+            key: value
+            for key, value in DEMO_WORKFLOW_DEFINITION.items()
+            if key not in {"id", "schemaVersion", "metadata"}
+        }
+        definition = json.dumps(structure, ensure_ascii=False, indent=2, sort_keys=True)
+        name = metadata["name"]
+        schema_version = DEMO_WORKFLOW_DEFINITION["schemaVersion"]
+        namespace = metadata.get("namespace") or "default"
+        origin_id = metadata.get("originId") or DEMO_WORKFLOW_ID
+        description = metadata.get("description")
 
         if existing is None:
             record = WorkflowRecord(
                 id=DEMO_WORKFLOW_ID,
                 name=name,
                 definition=definition,
+                schema_version=schema_version,
+                namespace=namespace,
+                origin_id=origin_id,
+                description=description,
+                environment=metadata.get("environment"),
+                tags=json.dumps(metadata.get("tags")) if metadata.get("tags") else None,
             )
             session.add(record)
             session.commit()
             return
 
-        has_changes = existing.definition != definition or existing.name != name
+        has_changes = (
+            existing.definition != definition
+            or existing.name != name
+            or existing.schema_version != schema_version
+            or existing.namespace != namespace
+            or existing.origin_id != origin_id
+        )
         if has_changes:
             existing.name = name
             existing.definition = definition
-            session.commit()
+            existing.schema_version = schema_version
+            existing.namespace = namespace
+            existing.origin_id = origin_id
+            existing.description = description
+            existing.environment = metadata.get("environment")
+            existing.tags = json.dumps(metadata.get("tags")) if metadata.get("tags") else None
+        session.commit()
 
 
 __all__ = ["seed_demo_workflow", "DEMO_WORKFLOW_ID", "DEMO_WORKFLOW_DEFINITION"]

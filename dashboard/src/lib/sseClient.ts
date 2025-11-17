@@ -1,3 +1,4 @@
+import { EventSourcePolyfill } from "event-source-polyfill";
 import { UiEventType } from "../api/models/uiEventType";
 import type { UiEventEnvelope } from "../api/models/uiEventEnvelope";
 import { getClientSessionId } from "./clientSession";
@@ -70,18 +71,24 @@ export class SseClient {
     const url = buildEventsUrl(sessionId);
 
     try {
-      const source = new EventSource(url);
-      this.eventSource = source;
+      const authToken = import.meta.env.VITE_SCHEDULER_TOKEN ?? "dev-token";
+      const eventSource = new EventSourcePolyfill(url, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+        withCredentials: true,
+      });
+      this.eventSource = eventSource;
 
       const handleEvent = (evt: MessageEvent<string>) => {
         this.handleIncomingEvent(evt.data);
       };
 
       Object.values(UiEventType).forEach((eventName) => {
-        source.addEventListener(eventName, handleEvent as EventListener);
+        eventSource.addEventListener(eventName, handleEvent as EventListener);
       });
 
-      source.onopen = () => {
+      eventSource.onopen = () => {
         this.retryDelay = DEFAULT_RETRY_MS;
         if (this.reconnectTimer !== null) {
           window.clearTimeout(this.reconnectTimer);
@@ -89,7 +96,7 @@ export class SseClient {
         }
       };
 
-      source.onerror = () => {
+      eventSource.onerror = () => {
         this.scheduleReconnect();
       };
     } catch (error) {

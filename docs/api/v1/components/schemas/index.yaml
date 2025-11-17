@@ -542,6 +542,12 @@ WorkflowMetadata:
         type: string
     environment:
       type: string
+    namespace:
+      type: string
+      description: Logical workflow namespace used for indexing/cross-workflow bindings. Defaults to "default".
+    originId:
+      type: string
+      description: Identifier linking versions of the same workflow. By default equals the workflow id.
   required:
   - name
 WorkflowNode:

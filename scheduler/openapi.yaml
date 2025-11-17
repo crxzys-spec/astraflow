@@ -539,7 +539,7 @@ components:
           nullable: true
         metadata:
           additionalProperties: true
-          title: metadata
+          title: details
           type: object
           nullable: true
       required:
@@ -547,6 +547,68 @@ components:
       - type
       - workerId
       title: listRuns_200_response_items_inner_artifacts_inner
+    listRuns_200_response_items_inner_nodes_inner_state_error:
+      description: Optional terminal error surfaced when the node fails.
+      example:
+        code: code
+        details:
+          key: ""
+        message: message
+      properties:
+        code:
+          title: code
+          type: string
+        message:
+          title: code
+          type: string
+        details:
+          additionalProperties: true
+          title: details
+          type: object
+          nullable: true
+      required:
+      - code
+      - message
+      title: listRuns_200_response_items_inner_nodes_inner_state_error
+      nullable: true
+    listRuns_200_response_items_inner_nodes_inner_state:
+      additionalProperties: true
+      description: Scheduler-owned runtime hints attached to a workflow node during
+        builder playback or run overlays.
+      example:
+        stage: stage
+        lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+        progress: 0.14658129805029452
+        message: message
+        error:
+          code: code
+          details:
+            key: ""
+          message: message
+      properties:
+        stage:
+          description: "Current scheduler-reported stage (e.g. idle, queued, running,\
+            \ completed, failed)."
+          type: string
+        progress:
+          description: Optional 0-1 normalized progress indicator.
+          maximum: 1
+          minimum: 0
+          type: number
+          nullable: true
+        lastUpdatedAt:
+          description: ISO-8601 timestamp for the last state transition.
+          format: date-time
+          type: string
+          nullable: true
+        message:
+          description: Human-friendly hint surfaced to the UI.
+          type: string
+          nullable: true
+        error:
+          $ref: "#/components/schemas/listRuns_200_response_items_inner_nodes_inner_state_error"
+      title: listRuns_200_response_items_inner_nodes_inner_state
+      nullable: true
     listRuns_200_response_items_inner_nodes_inner:
       example:
         workerId: workerId
@@ -567,6 +629,16 @@ components:
         resourceRefs:
         - key: ""
         - key: ""
+        state:
+          stage: stage
+          lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+          progress: 0.14658129805029452
+          message: message
+          error:
+            code: code
+            details:
+              key: ""
+            message: message
         nodeId: nodeId
         taskId: taskId
         seq: 6
@@ -636,7 +708,7 @@ components:
           type: array
         affinity:
           additionalProperties: true
-          title: metadata
+          title: details
           type: object
           nullable: true
         artifacts:
@@ -647,14 +719,16 @@ components:
           type: array
         result:
           additionalProperties: true
-          title: metadata
+          title: details
           type: object
           nullable: true
         metadata:
           additionalProperties: true
-          title: metadata
+          title: details
           type: object
           nullable: true
+        state:
+          $ref: "#/components/schemas/listRuns_200_response_items_inner_nodes_inner_state"
         error:
           $ref: "#/components/schemas/listRuns_200_response_items_inner_error"
       required:
@@ -684,6 +758,16 @@ components:
           resourceRefs:
           - key: ""
           - key: ""
+          state:
+            stage: stage
+            lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+            progress: 0.14658129805029452
+            message: message
+            error:
+              code: code
+              details:
+                key: ""
+              message: message
           nodeId: nodeId
           taskId: taskId
           seq: 6
@@ -711,6 +795,16 @@ components:
           resourceRefs:
           - key: ""
           - key: ""
+          state:
+            stage: stage
+            lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+            progress: 0.14658129805029452
+            message: message
+            error:
+              code: code
+              details:
+                key: ""
+              message: message
           nodeId: nodeId
           taskId: taskId
           seq: 6
@@ -820,6 +914,16 @@ components:
             resourceRefs:
             - key: ""
             - key: ""
+            state:
+              stage: stage
+              lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+              progress: 0.14658129805029452
+              message: message
+              error:
+                code: code
+                details:
+                  key: ""
+                message: message
             nodeId: nodeId
             taskId: taskId
             seq: 6
@@ -847,6 +951,16 @@ components:
             resourceRefs:
             - key: ""
             - key: ""
+            state:
+              stage: stage
+              lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+              progress: 0.14658129805029452
+              message: message
+              error:
+                code: code
+                details:
+                  key: ""
+                message: message
             nodeId: nodeId
             taskId: taskId
             seq: 6
@@ -903,6 +1017,16 @@ components:
             resourceRefs:
             - key: ""
             - key: ""
+            state:
+              stage: stage
+              lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+              progress: 0.14658129805029452
+              message: message
+              error:
+                code: code
+                details:
+                  key: ""
+                message: message
             nodeId: nodeId
             taskId: taskId
             seq: 6
@@ -930,6 +1054,16 @@ components:
             resourceRefs:
             - key: ""
             - key: ""
+            state:
+              stage: stage
+              lastUpdatedAt: 2000-01-23T04:56:07.000+00:00
+              progress: 0.14658129805029452
+              message: message
+              error:
+                code: code
+                details:
+                  key: ""
+                message: message
             nodeId: nodeId
             taskId: taskId
             seq: 6
@@ -983,7 +1117,9 @@ components:
       additionalProperties: true
       example:
         environment: environment
+        originId: originId
         name: name
+        namespace: namespace
         description: description
         tags:
         - tags
@@ -1002,6 +1138,14 @@ components:
           type: array
         environment:
           title: code
+          type: string
+        namespace:
+          description: Logical workflow namespace used for indexing/cross-workflow
+            bindings. Defaults to "default".
+          type: string
+        originId:
+          description: Identifier linking versions of the same workflow. By default
+            equals the workflow id.
           type: string
       required:
       - name
@@ -1036,30 +1180,6 @@ components:
       - x
       - "y"
       title: startRun_request_workflow_nodes_inner_position
-    startRun_request_workflow_nodes_inner_state_error:
-      description: Optional terminal error surfaced when the node fails.
-      example:
-        code: code
-        details:
-          key: ""
-        message: message
-      properties:
-        code:
-          title: code
-          type: string
-        message:
-          title: code
-          type: string
-        details:
-          additionalProperties: true
-          title: metadata
-          type: object
-          nullable: true
-      required:
-      - code
-      - message
-      title: startRun_request_workflow_nodes_inner_state_error
-      nullable: true
     startRun_request_workflow_nodes_inner_state:
       additionalProperties: true
       description: Platform-managed execution hints surfaced in the builder (optional).
@@ -1094,7 +1214,7 @@ components:
           type: string
           nullable: true
         error:
-          $ref: "#/components/schemas/startRun_request_workflow_nodes_inner_state_error"
+          $ref: "#/components/schemas/listRuns_200_response_items_inner_nodes_inner_state_error"
       title: startRun_request_workflow_nodes_inner_state
     startRun_request_workflow_nodes_inner_schema:
       additionalProperties: true
@@ -1421,7 +1541,9 @@ components:
       example:
         metadata:
           environment: environment
+          originId: originId
           name: name
+          namespace: namespace
           description: description
           tags:
           - tags
@@ -1696,7 +1818,7 @@ components:
           type: string
         details:
           additionalProperties: true
-          title: metadata
+          title: details
           type: object
           nullable: true
       required:
@@ -1708,7 +1830,9 @@ components:
       example:
         metadata:
           environment: environment
+          originId: originId
           name: name
+          namespace: namespace
           description: description
           tags:
           - tags
@@ -1920,7 +2044,9 @@ components:
         items:
         - metadata:
             environment: environment
+            originId: originId
             name: name
+            namespace: namespace
             description: description
             tags:
             - tags
@@ -2096,7 +2222,9 @@ components:
           - tags
         - metadata:
             environment: environment
+            originId: originId
             name: name
+            namespace: namespace
             description: description
             tags:
             - tags

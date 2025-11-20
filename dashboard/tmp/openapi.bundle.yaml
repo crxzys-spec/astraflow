@@ -11,6 +11,7 @@ tags:
   - name: Auth
   - name: Workflows
   - name: Packages
+  - name: WorkflowPackages
   - name: Workers
   - name: Events
   - name: Audit
@@ -185,6 +186,170 @@ paths:
                 $ref: '#/components/schemas/Workflow'
         '404':
           $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Workflows
+      summary: Soft delete workflow
+      description: Marks the workflow record as deleted so it is hidden from listings and future reads.
+      operationId: deleteWorkflow
+      parameters:
+        - $ref: '#/components/parameters/WorkflowId'
+      responses:
+        '204':
+          description: Workflow deleted
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/workflow-packages:
+    get:
+      tags:
+        - WorkflowPackages
+      summary: List published workflow packages
+      operationId: listWorkflowPackages
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageCursor'
+        - name: owner
+          in: query
+          description: Filter by owner id; use `me` for the caller's id.
+          schema:
+            type: string
+        - name: visibility
+          in: query
+          description: 'Filter by visibility (private, internal, public).'
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: 'Full-text search across slug, display name, and summary.'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPackageList'
+  '/api/v1/workflow-packages/{packageId}':
+    get:
+      tags:
+        - WorkflowPackages
+      summary: Get a workflow package detail
+      operationId: getWorkflowPackage
+      parameters:
+        - name: packageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPackageDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - WorkflowPackages
+      summary: Delete a workflow package
+      operationId: deleteWorkflowPackage
+      parameters:
+        - name: packageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+  '/api/v1/workflow-packages/{packageId}/versions':
+    get:
+      tags:
+        - WorkflowPackages
+      summary: List versions for a workflow package
+      operationId: listWorkflowPackageVersions
+      parameters:
+        - name: packageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPackageVersionList'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  '/api/v1/workflow-packages/{packageId}/clone':
+    post:
+      tags:
+        - WorkflowPackages
+      summary: Clone a workflow package version into the caller's workspace
+      operationId: cloneWorkflowPackage
+      parameters:
+        - name: packageId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowPackageCloneRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRef'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  '/api/v1/workflows/{workflowId}/publish':
+    post:
+      tags:
+        - WorkflowPackages
+      summary: Publish a workflow draft to the Store
+      operationId: publishWorkflow
+      parameters:
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowPublishRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPublishResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/v1/packages:
     get:
       tags:
@@ -562,6 +727,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Authenticated but lacks required permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   schemas:
     RunStartRequest:
       type: object
@@ -785,6 +956,10 @@ components:
           description: Workflow-level tags.
           items:
             type: string
+        previewImage:
+          type: string
+          description: Base64-encoded preview of the workflow canvas.
+          nullable: true
     WorkflowRef:
       type: object
       required:
@@ -1224,6 +1399,10 @@ components:
         ownerId:
           type: string
           description: User id that owns the workflow definition.
+        ownerName:
+          type: string
+          description: Display name of the owner if available.
+          nullable: true
         createdBy:
           type: string
           description: User id that created the workflow definition.
@@ -2237,3 +2416,156 @@ components:
           type: object
           additionalProperties: true
           nullable: true
+    WorkflowPackageVersion:
+      type: object
+      required:
+        - id
+        - version
+        - publishedAt
+      properties:
+        id:
+          type: string
+        version:
+          type: string
+        changelog:
+          type: string
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+        publisherId:
+          type: string
+          nullable: true
+        previewImage:
+          type: string
+          nullable: true
+          description: Base64-encoded preview of the workflow canvas for this version.
+    WorkflowPackageVersionList:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowPackageVersion'
+    WorkflowPackageSummary:
+      type: object
+      required:
+        - id
+        - slug
+        - displayName
+        - visibility
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        displayName:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        visibility:
+          type: string
+          description: Visibility policy (private/internal/public).
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        latestVersion:
+          $ref: '#/components/schemas/WorkflowPackageVersion'
+        previewImage:
+          type: string
+          nullable: true
+          description: Base64-encoded preview from the latest version when available.
+    WorkflowPackageDetail:
+      allOf:
+        - $ref: '#/components/schemas/WorkflowPackageSummary'
+        - type: object
+          required:
+            - versions
+          properties:
+            versions:
+              type: array
+              items:
+                $ref: '#/components/schemas/WorkflowPackageVersion'
+    WorkflowPackageList:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowPackageSummary'
+        nextCursor:
+          type: string
+          nullable: true
+    WorkflowPackageCloneRequest:
+      type: object
+      properties:
+        versionId:
+          type: string
+          description: Explicit version id to clone; defaults to the latest.
+        version:
+          type: string
+          description: Version string to clone when versionId is omitted.
+        workflowName:
+          type: string
+          description: Optional override for the cloned workflow name.
+    WorkflowPublishRequest:
+      type: object
+      required:
+        - version
+      properties:
+        packageId:
+          type: string
+          description: Existing package id to append a version to.
+        slug:
+          type: string
+          description: Slug used when creating a new package.
+        displayName:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        visibility:
+          type: string
+          description: Desired visibility (private/internal/public).
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        version:
+          type: string
+          description: Semantic version for the published snapshot.
+        changelog:
+          type: string
+          nullable: true
+        previewImage:
+          type: string
+          nullable: true
+          description: Base64-encoded preview captured from the workflow canvas.
+    WorkflowPublishResponse:
+      type: object
+      required:
+        - packageId
+        - versionId
+        - version
+      properties:
+        packageId:
+          type: string
+        versionId:
+          type: string
+        version:
+          type: string

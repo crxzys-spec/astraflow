@@ -22,3 +22,9 @@ Unauthorized:
     application/json:
       schema:
         $ref: './schemas/index.yaml#/Error'
+Forbidden:
+  description: Authenticated but lacks required permissions
+  content:
+    application/json:
+      schema:
+        $ref: './schemas/index.yaml#/Error'

@@ -46,7 +46,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
     response_model_by_alias=True,
 )
 async def list_audit_events(
-    limit: Optional[Annotated[int, Field(le=200, strict=True, ge=1)]] = Query(50, description="", alias="limit", ge=1, le=200),
+    limit: Optional[Annotated[int, Field(le=200, ge=1)]] = Query(50, description="", alias="limit", ge=1, le=200),
     cursor: Annotated[Optional[StrictStr], Field(description="Reserved for future pagination")] = Query(None, description="Reserved for future pagination", alias="cursor"),
     action: Annotated[Optional[StrictStr], Field(description="Filter by action name")] = Query(None, description="Filter by action name", alias="action"),
     actor_id: Annotated[Optional[StrictStr], Field(description="Filter by actor id")] = Query(None, description="Filter by actor id", alias="actorId"),

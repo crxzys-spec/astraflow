@@ -65,6 +65,13 @@ export const useWorkflowStore = create<WorkflowStore>()(
         state.selectedNodeId = undefined;
       });
     },
+    setPreviewImage: (preview) => {
+      set((state) => {
+        if (state.workflow) {
+          state.workflow.previewImage = preview ?? undefined;
+        }
+      });
+    },
 
     addNodeFromTemplate: (template: WorkflowPaletteNode, position: XYPosition) => {
       const nodeDraft = createNodeDraftFromTemplate(template, position);

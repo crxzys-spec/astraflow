@@ -1,14 +1,12 @@
 # coding: utf-8
 
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel, Field
 
 
 class TokenModel(BaseModel):
-    """Defines a token model."""
+    """Defines a token model for downstream role enforcement."""
 
     sub: str
-    username: str
-    display_name: Optional[str] = None
     roles: List[str] = Field(default_factory=list)

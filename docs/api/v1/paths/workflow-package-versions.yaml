@@ -1,0 +1,19 @@
+get:
+  tags: [WorkflowPackages]
+  summary: List versions for a workflow package
+  operationId: listWorkflowPackageVersions
+  parameters:
+    - name: packageId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/WorkflowPackageVersionList'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

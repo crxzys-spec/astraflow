@@ -8,6 +8,7 @@ type UiEventListener = (event: UiEventEnvelope) => void;
 
 const DEFAULT_RETRY_MS = 2_000;
 const MAX_RETRY_MS = 60_000;
+const HEARTBEAT_TIMEOUT_MS = 120_000;
 
 const buildEventsUrl = (clientSessionId: string): string => {
   const base =
@@ -78,6 +79,7 @@ export class SseClient {
           Authorization: `Bearer ${authToken}`,
         },
         withCredentials: true,
+        heartbeatTimeout: HEARTBEAT_TIMEOUT_MS,
       });
       this.eventSource = eventSource;
 

@@ -20,6 +20,7 @@ export interface WorkflowDraft {
   schemaVersion: string;
   metadata?: WorkflowMetadata;
   tags?: string[];
+  previewImage?: string | null;
   nodes: Record<string, WorkflowNodeDraft>;
   edges: WorkflowEdgeDraft[];
   dirty: boolean;
@@ -93,6 +94,7 @@ export type WorkflowNodeStateUpdateMap = Record<string, WorkflowNodeState | null
 export interface WorkflowStoreActions {
   loadWorkflow: (definition: WorkflowDefinition) => void;
   resetWorkflow: () => void;
+  setPreviewImage: (preview?: string | null) => void;
   addNodeFromTemplate: (
     template: WorkflowPaletteNode,
     position: XYPosition

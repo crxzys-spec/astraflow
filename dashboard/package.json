@@ -17,6 +17,7 @@
     "axios": "^1.7.4",
     "clsx": "^2.1.1",
     "event-source-polyfill": "^1.0.31",
+    "html-to-image": "^1.11.13",
     "immer": "^10.1.1",
     "nanoid": "^5.0.7",
     "react": "^19.1.1",

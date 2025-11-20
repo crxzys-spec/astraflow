@@ -96,6 +96,7 @@ const PaletteSelect = ({
   const controlId = id ?? `${generatedId}-control`;
   const listboxId = `${controlId}-listbox`;
   const containerRef = useRef<HTMLDivElement>(null);
+  const controlRef = useRef<HTMLButtonElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(() => {
     const selectedIndex = options.findIndex((option) => option.value === value && !option.disabled);
@@ -110,46 +111,15 @@ const PaletteSelect = ({
     [options, value]
   );
 
-  useEffect(() => {
-    if (disabled && isOpen) {
+  const closeMenu = useCallback(
+    (options?: { returnFocus?: boolean }) => {
       setIsOpen(false);
-    }
-  }, [disabled, isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-    const handleMouseDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
+      if (options?.returnFocus !== false) {
+        controlRef.current?.focus();
       }
-    };
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("keydown", handleKeydown);
-    return () => {
-      document.removeEventListener("mousedown", handleMouseDown);
-      document.removeEventListener("keydown", handleKeydown);
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    const selectedIndex = options.findIndex((option) => option.value === value && !option.disabled);
-    if (selectedIndex >= 0) {
-      setHighlightedIndex(selectedIndex);
-      return;
-    }
-    setHighlightedIndex(options.findIndex((option) => !option.disabled));
-  }, [options, value]);
-
-  const closeMenu = useCallback(() => {
-    setIsOpen(false);
-  }, []);
+    },
+    []
+  );
 
   const openMenu = useCallback(() => {
     if (disabled) {
@@ -164,13 +134,50 @@ const PaletteSelect = ({
     setHighlightedIndex(options.findIndex((option) => !option.disabled));
   }, [disabled, options, value]);
 
+  useEffect(() => {
+    if (disabled && isOpen) {
+      setIsOpen(false);
+    }
+  }, [disabled, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    const handleMouseDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        closeMenu({ returnFocus: false });
+      }
+    };
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeMenu();
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeydown);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeydown);
+    };
+  }, [closeMenu, isOpen]);
+
+  useEffect(() => {
+    const selectedIndex = options.findIndex((option) => option.value === value && !option.disabled);
+    if (selectedIndex >= 0) {
+      setHighlightedIndex(selectedIndex);
+      return;
+    }
+    setHighlightedIndex(options.findIndex((option) => !option.disabled));
+  }, [options, value]);
+
   const handleControlKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLButtonElement>) => {
       if (disabled) {
         return;
       }
       if (event.key === "Tab") {
-        closeMenu();
+        closeMenu({ returnFocus: false });
         return;
       }
       if (event.key === "Escape") {
@@ -281,6 +288,7 @@ const PaletteSelect = ({
       <button
         id={controlId}
         type="button"
+        ref={controlRef}
         className={controlClassName}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -313,7 +321,6 @@ const PaletteSelect = ({
         role="listbox"
         className="palette-select__menu"
         aria-labelledby={ariaLabelledBy ?? controlId}
-        aria-hidden={!isOpen}
         data-open={isOpen}
         tabIndex={-1}
       >

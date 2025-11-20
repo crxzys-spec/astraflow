@@ -221,6 +221,10 @@ Workflow:
       description: Workflow-level tags.
       items:
         type: string
+    previewImage:
+      type: string
+      description: Base64-encoded preview of the workflow canvas.
+      nullable: true
 WorkflowRef:
   type: object
   required:
@@ -660,6 +664,10 @@ WorkflowMetadata:
     ownerId:
       type: string
       description: User id that owns the workflow definition.
+    ownerName:
+      type: string
+      description: Display name of the owner if available.
+      nullable: true
     createdBy:
       type: string
       description: User id that created the workflow definition.
@@ -1673,3 +1681,167 @@ Error:
       type: object
       additionalProperties: true
       nullable: true
+
+WorkflowPackageVersion:
+  type: object
+  required:
+  - id
+  - version
+  - publishedAt
+  properties:
+    id:
+      type: string
+    version:
+      type: string
+    changelog:
+      type: string
+      nullable: true
+    publishedAt:
+      type: string
+      format: date-time
+    publisherId:
+      type: string
+      nullable: true
+    previewImage:
+      type: string
+      nullable: true
+      description: Base64-encoded preview of the workflow canvas for this version.
+
+WorkflowPackageVersionList:
+  type: object
+  required:
+  - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/WorkflowPackageVersion'
+
+WorkflowPackageSummary:
+  type: object
+  required:
+  - id
+  - slug
+  - displayName
+  - visibility
+  properties:
+    id:
+      type: string
+    slug:
+      type: string
+    displayName:
+      type: string
+    summary:
+      type: string
+      nullable: true
+    visibility:
+      type: string
+      description: Visibility policy (private/internal/public).
+    tags:
+      type: array
+      items:
+        type: string
+      nullable: true
+    ownerId:
+      type: string
+      nullable: true
+    ownerName:
+      type: string
+      nullable: true
+    updatedAt:
+      type: string
+      format: date-time
+      nullable: true
+    latestVersion:
+      $ref: '#/WorkflowPackageVersion'
+    previewImage:
+      type: string
+      nullable: true
+      description: Base64-encoded preview from the latest version when available.
+
+WorkflowPackageDetail:
+  allOf:
+  - $ref: '#/WorkflowPackageSummary'
+  - type: object
+    required:
+    - versions
+    properties:
+      versions:
+        type: array
+        items:
+          $ref: '#/WorkflowPackageVersion'
+
+WorkflowPackageList:
+  type: object
+  required:
+  - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/WorkflowPackageSummary'
+    nextCursor:
+      type: string
+      nullable: true
+
+WorkflowPackageCloneRequest:
+  type: object
+  properties:
+    versionId:
+      type: string
+      description: Explicit version id to clone; defaults to the latest.
+    version:
+      type: string
+      description: Version string to clone when versionId is omitted.
+    workflowName:
+      type: string
+      description: Optional override for the cloned workflow name.
+
+WorkflowPublishRequest:
+  type: object
+  required:
+  - version
+  properties:
+    packageId:
+      type: string
+      description: Existing package id to append a version to.
+    slug:
+      type: string
+      description: Slug used when creating a new package.
+    displayName:
+      type: string
+    summary:
+      type: string
+      nullable: true
+    visibility:
+      type: string
+      description: Desired visibility (private/internal/public).
+    tags:
+      type: array
+      items:
+        type: string
+      nullable: true
+    version:
+      type: string
+      description: Semantic version for the published snapshot.
+    changelog:
+      type: string
+      nullable: true
+    previewImage:
+      type: string
+      nullable: true
+      description: Base64-encoded preview captured from the workflow canvas.
+
+WorkflowPublishResponse:
+  type: object
+  required:
+  - packageId
+  - versionId
+  - version
+  properties:
+    packageId:
+      type: string
+    versionId:
+      type: string
+    version:
+      type: string

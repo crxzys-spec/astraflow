@@ -13,3 +13,17 @@ get:
             $ref: '../components/schemas/index.yaml#/Workflow'
     '404':
       $ref: '../components/responses.yaml#/NotFound'
+delete:
+  tags: [Workflows]
+  summary: Soft delete workflow
+  description: Marks the workflow record as deleted so it is hidden from listings and future reads.
+  operationId: deleteWorkflow
+  parameters:
+    - $ref: '../components/parameters.yaml#/WorkflowId'
+  responses:
+    '204':
+      description: Workflow deleted
+    '403':
+      $ref: '../components/responses.yaml#/Forbidden'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

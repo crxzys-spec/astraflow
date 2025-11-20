@@ -15,14 +15,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from scheduler_api.apis.audit_api import router as AuditApiRouter
 from scheduler_api.apis.auth_api import router as AuthApiRouter
 from scheduler_api.apis.events_api import router as EventsApiRouter
 from scheduler_api.apis.packages_api import router as PackagesApiRouter
 from scheduler_api.apis.runs_api import router as RunsApiRouter
-from scheduler_api.apis.users_api import router as UsersApiRouter
 from scheduler_api.apis.workers_api import router as WorkersApiRouter
 from scheduler_api.apis.workflows_api import router as WorkflowsApiRouter
+from scheduler_api.apis.workflow_packages_api import router as WorkflowPackagesApiRouter
 from scheduler_api.catalog import catalog
 from scheduler_api.control_plane import router as ControlPlaneRouter
 from scheduler_api.db.migrations import upgrade_database
@@ -47,11 +46,10 @@ app.add_middleware(
 )
 
 app.include_router(AuthApiRouter)
-app.include_router(AuditApiRouter)
 app.include_router(EventsApiRouter)
 app.include_router(PackagesApiRouter)
+app.include_router(WorkflowPackagesApiRouter)
 app.include_router(RunsApiRouter)
-app.include_router(UsersApiRouter)
 app.include_router(WorkersApiRouter)
 app.include_router(WorkflowsApiRouter)
 app.include_router(ControlPlaneRouter)

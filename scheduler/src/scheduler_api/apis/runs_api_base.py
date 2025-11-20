@@ -21,7 +21,7 @@ class BaseRunsApi:
         BaseRunsApi.subclasses = BaseRunsApi.subclasses + (cls,)
     async def list_runs(
         self,
-        limit: Optional[Annotated[int, Field(le=200, strict=True, ge=1)]],
+        limit: Optional[Annotated[int, Field(le=200, ge=1)]],
         cursor: Optional[StrictStr],
         status: Optional[StrictStr],
         client_id: Optional[StrictStr],

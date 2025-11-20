@@ -38,11 +38,13 @@ import type {
   CommandRef,
   ConflictResponse,
   CreateUserRequest,
+  ForbiddenResponse,
   GetPackageParams,
   ListAuditEventsParams,
   ListRunsParams,
   ListWorkers200,
   ListWorkersParams,
+  ListWorkflowPackagesParams,
   ListWorkflowsParams,
   NotFoundResponse,
   PackageDetail,
@@ -62,6 +64,12 @@ import type {
   WorkerCommand,
   Workflow,
   WorkflowList,
+  WorkflowPackageCloneRequest,
+  WorkflowPackageDetail,
+  WorkflowPackageList,
+  WorkflowPackageVersionList,
+  WorkflowPublishRequest,
+  WorkflowPublishResponse,
   WorkflowRef
 } from './models';
 
@@ -705,6 +713,526 @@ export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, 
 
 
 
+/**
+ * Marks the workflow record as deleted so it is hidden from listings and future reads.
+ * @summary Soft delete workflow
+ */
+export const deleteWorkflow = (
+    workflowId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<void>> => {
+    
+    
+    return axios.default.delete(
+      `/api/v1/workflows/${workflowId}`,options
+    );
+  }
+
+
+
+export const getDeleteWorkflowMutationOptions = <TError = AxiosError<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflow>>, TError,{workflowId: string}, TContext>, axios?: AxiosRequestConfig}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflow>>, TError,{workflowId: string}, TContext> => {
+
+const mutationKey = ['deleteWorkflow'];
+const {mutation: mutationOptions, axios: axiosOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, axios: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWorkflow>>, {workflowId: string}> = (props) => {
+          const {workflowId} = props ?? {};
+
+          return  deleteWorkflow(workflowId,axiosOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteWorkflowMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWorkflow>>>
+    
+    export type DeleteWorkflowMutationError = AxiosError<ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Soft delete workflow
+ */
+export const useDeleteWorkflow = <TError = AxiosError<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflow>>, TError,{workflowId: string}, TContext>, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteWorkflow>>,
+        TError,
+        {workflowId: string},
+        TContext
+      > => {
+
+      const mutationOptions = getDeleteWorkflowMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+/**
+ * @summary Delete a workflow package
+ */
+export const deleteWorkflowPackage = (
+    packageId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<void>> => {
+    
+    
+    return axios.default.delete(
+      `/api/v1/workflow-packages/${packageId}`,options
+    );
+  }
+
+
+
+export const getDeleteWorkflowPackageMutationOptions = <TError = AxiosError<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflowPackage>>, TError,{packageId: string}, TContext>, axios?: AxiosRequestConfig}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflowPackage>>, TError,{packageId: string}, TContext> => {
+
+const mutationKey = ['deleteWorkflowPackage'];
+const {mutation: mutationOptions, axios: axiosOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, axios: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWorkflowPackage>>, {packageId: string}> = (props) => {
+          const {packageId} = props ?? {};
+
+          return  deleteWorkflowPackage(packageId,axiosOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteWorkflowPackageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWorkflowPackage>>>
+    export type DeleteWorkflowPackageMutationError = AxiosError<ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Delete a workflow package
+ */
+export const useDeleteWorkflowPackage = <TError = AxiosError<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflowPackage>>, TError,{packageId: string}, TContext>, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteWorkflowPackage>>,
+        TError,
+        {packageId: string},
+        TContext
+      > => {
+
+      const mutationOptions = getDeleteWorkflowPackageMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+/**
+ * @summary List published workflow packages
+ */
+export const listWorkflowPackages = (
+    params?: ListWorkflowPackagesParams, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<WorkflowPackageList>> => {
+    
+    
+    return axios.default.get(
+      `/api/v1/workflow-packages`,{
+    ...options,
+        params: {...params, ...options?.params},}
+    );
+  }
+
+
+
+
+export const getListWorkflowPackagesQueryKey = (params?: ListWorkflowPackagesParams,) => {
+    return [
+    `/api/v1/workflow-packages`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getListWorkflowPackagesQueryOptions = <TData = Awaited<ReturnType<typeof listWorkflowPackages>>, TError = AxiosError<unknown>>(params?: ListWorkflowPackagesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackages>>, TError, TData>>, axios?: AxiosRequestConfig}
+) => {
+
+const {query: queryOptions, axios: axiosOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWorkflowPackagesQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkflowPackages>>> = ({ signal }) => listWorkflowPackages(params, { signal, ...axiosOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackages>>, TError, TData> & { queryKey: DataTag<QueryKey, TData> }
+}
+
+export type ListWorkflowPackagesQueryResult = NonNullable<Awaited<ReturnType<typeof listWorkflowPackages>>>
+export type ListWorkflowPackagesQueryError = AxiosError<unknown>
+
+
+export function useListWorkflowPackages<TData = Awaited<ReturnType<typeof listWorkflowPackages>>, TError = AxiosError<unknown>>(
+ params: undefined |  ListWorkflowPackagesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackages>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWorkflowPackages>>,
+          TError,
+          Awaited<ReturnType<typeof listWorkflowPackages>>
+        > , 'initialData'
+      >, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
+export function useListWorkflowPackages<TData = Awaited<ReturnType<typeof listWorkflowPackages>>, TError = AxiosError<unknown>>(
+ params?: ListWorkflowPackagesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackages>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWorkflowPackages>>,
+          TError,
+          Awaited<ReturnType<typeof listWorkflowPackages>>
+        > , 'initialData'
+      >, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
+export function useListWorkflowPackages<TData = Awaited<ReturnType<typeof listWorkflowPackages>>, TError = AxiosError<unknown>>(
+ params?: ListWorkflowPackagesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackages>>, TError, TData>>, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
+/**
+ * @summary List published workflow packages
+ */
+
+export function useListWorkflowPackages<TData = Awaited<ReturnType<typeof listWorkflowPackages>>, TError = AxiosError<unknown>>(
+ params?: ListWorkflowPackagesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackages>>, TError, TData>>, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> } {
+
+  const queryOptions = getListWorkflowPackagesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * @summary Get a workflow package detail
+ */
+export const getWorkflowPackage = (
+    packageId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<WorkflowPackageDetail>> => {
+    
+    
+    return axios.default.get(
+      `/api/v1/workflow-packages/${packageId}`,options
+    );
+  }
+
+
+
+
+export const getGetWorkflowPackageQueryKey = (packageId?: string,) => {
+    return [
+    `/api/v1/workflow-packages/${packageId}`
+    ] as const;
+    }
+
+    
+export const getGetWorkflowPackageQueryOptions = <TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = AxiosError<NotFoundResponse>>(packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPackage>>, TError, TData>>, axios?: AxiosRequestConfig}
+) => {
+
+const {query: queryOptions, axios: axiosOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkflowPackageQueryKey(packageId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkflowPackage>>> = ({ signal }) => getWorkflowPackage(packageId, { signal, ...axiosOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(packageId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPackage>>, TError, TData> & { queryKey: DataTag<QueryKey, TData> }
+}
+
+export type GetWorkflowPackageQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkflowPackage>>>
+export type GetWorkflowPackageQueryError = AxiosError<NotFoundResponse>
+
+
+export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = AxiosError<NotFoundResponse>>(
+ packageId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPackage>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWorkflowPackage>>,
+          TError,
+          Awaited<ReturnType<typeof getWorkflowPackage>>
+        > , 'initialData'
+      >, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
+export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = AxiosError<NotFoundResponse>>(
+ packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPackage>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWorkflowPackage>>,
+          TError,
+          Awaited<ReturnType<typeof getWorkflowPackage>>
+        > , 'initialData'
+      >, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
+export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = AxiosError<NotFoundResponse>>(
+ packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPackage>>, TError, TData>>, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
+/**
+ * @summary Get a workflow package detail
+ */
+
+export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = AxiosError<NotFoundResponse>>(
+ packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPackage>>, TError, TData>>, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> } {
+
+  const queryOptions = getGetWorkflowPackageQueryOptions(packageId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * @summary List versions for a workflow package
+ */
+export const listWorkflowPackageVersions = (
+    packageId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<WorkflowPackageVersionList>> => {
+    
+    
+    return axios.default.get(
+      `/api/v1/workflow-packages/${packageId}/versions`,options
+    );
+  }
+
+
+
+
+export const getListWorkflowPackageVersionsQueryKey = (packageId?: string,) => {
+    return [
+    `/api/v1/workflow-packages/${packageId}/versions`
+    ] as const;
+    }
+
+    
+export const getListWorkflowPackageVersionsQueryOptions = <TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = AxiosError<NotFoundResponse>>(packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError, TData>>, axios?: AxiosRequestConfig}
+) => {
+
+const {query: queryOptions, axios: axiosOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWorkflowPackageVersionsQueryKey(packageId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkflowPackageVersions>>> = ({ signal }) => listWorkflowPackageVersions(packageId, { signal, ...axiosOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(packageId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData> }
+}
+
+export type ListWorkflowPackageVersionsQueryResult = NonNullable<Awaited<ReturnType<typeof listWorkflowPackageVersions>>>
+export type ListWorkflowPackageVersionsQueryError = AxiosError<NotFoundResponse>
+
+
+export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = AxiosError<NotFoundResponse>>(
+ packageId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWorkflowPackageVersions>>,
+          TError,
+          Awaited<ReturnType<typeof listWorkflowPackageVersions>>
+        > , 'initialData'
+      >, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
+export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = AxiosError<NotFoundResponse>>(
+ packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWorkflowPackageVersions>>,
+          TError,
+          Awaited<ReturnType<typeof listWorkflowPackageVersions>>
+        > , 'initialData'
+      >, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
+export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = AxiosError<NotFoundResponse>>(
+ packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError, TData>>, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
+/**
+ * @summary List versions for a workflow package
+ */
+
+export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = AxiosError<NotFoundResponse>>(
+ packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError, TData>>, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> } {
+
+  const queryOptions = getListWorkflowPackageVersionsQueryOptions(packageId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * @summary Clone a workflow package version into the caller's workspace
+ */
+export const cloneWorkflowPackage = (
+    packageId: string,
+    workflowPackageCloneRequest?: WorkflowPackageCloneRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<WorkflowRef>> => {
+    
+    
+    return axios.default.post(
+      `/api/v1/workflow-packages/${packageId}/clone`,
+      workflowPackageCloneRequest,options
+    );
+  }
+
+
+
+export const getCloneWorkflowPackageMutationOptions = <TError = AxiosError<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cloneWorkflowPackage>>, TError,{packageId: string;data: WorkflowPackageCloneRequest}, TContext>, axios?: AxiosRequestConfig}
+): UseMutationOptions<Awaited<ReturnType<typeof cloneWorkflowPackage>>, TError,{packageId: string;data: WorkflowPackageCloneRequest}, TContext> => {
+
+const mutationKey = ['cloneWorkflowPackage'];
+const {mutation: mutationOptions, axios: axiosOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, axios: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cloneWorkflowPackage>>, {packageId: string;data: WorkflowPackageCloneRequest}> = (props) => {
+          const {packageId,data} = props ?? {};
+
+          return  cloneWorkflowPackage(packageId,data,axiosOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloneWorkflowPackageMutationResult = NonNullable<Awaited<ReturnType<typeof cloneWorkflowPackage>>>
+    export type CloneWorkflowPackageMutationBody = WorkflowPackageCloneRequest
+    export type CloneWorkflowPackageMutationError = AxiosError<NotFoundResponse>
+
+    /**
+ * @summary Clone a workflow package version into the caller's workspace
+ */
+export const useCloneWorkflowPackage = <TError = AxiosError<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cloneWorkflowPackage>>, TError,{packageId: string;data: WorkflowPackageCloneRequest}, TContext>, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cloneWorkflowPackage>>,
+        TError,
+        {packageId: string;data: WorkflowPackageCloneRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getCloneWorkflowPackageMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+/**
+ * @summary Publish a workflow draft to the Store
+ */
+export const publishWorkflow = (
+    workflowId: string,
+    workflowPublishRequest: WorkflowPublishRequest, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<WorkflowPublishResponse>> => {
+    
+    
+    return axios.default.post(
+      `/api/v1/workflows/${workflowId}/publish`,
+      workflowPublishRequest,options
+    );
+  }
+
+
+
+export const getPublishWorkflowMutationOptions = <TError = AxiosError<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishWorkflow>>, TError,{workflowId: string;data: WorkflowPublishRequest}, TContext>, axios?: AxiosRequestConfig}
+): UseMutationOptions<Awaited<ReturnType<typeof publishWorkflow>>, TError,{workflowId: string;data: WorkflowPublishRequest}, TContext> => {
+
+const mutationKey = ['publishWorkflow'];
+const {mutation: mutationOptions, axios: axiosOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, axios: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof publishWorkflow>>, {workflowId: string;data: WorkflowPublishRequest}> = (props) => {
+          const {workflowId,data} = props ?? {};
+
+          return  publishWorkflow(workflowId,data,axiosOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PublishWorkflowMutationResult = NonNullable<Awaited<ReturnType<typeof publishWorkflow>>>
+    export type PublishWorkflowMutationBody = WorkflowPublishRequest
+    export type PublishWorkflowMutationError = AxiosError<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Publish a workflow draft to the Store
+ */
+export const usePublishWorkflow = <TError = AxiosError<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishWorkflow>>, TError,{workflowId: string;data: WorkflowPublishRequest}, TContext>, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof publishWorkflow>>,
+        TError,
+        {workflowId: string;data: WorkflowPublishRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getPublishWorkflowMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
 /**
  * @summary List available packages
  */

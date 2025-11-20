@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { AxiosRequestHeaders } from "axios";
+import { AUTH_STORAGE_KEY } from "../features/auth/constants";
 
 const baseURL = import.meta.env.VITE_SCHEDULER_BASE_URL ?? "http://127.0.0.1:8080";
 axios.defaults.baseURL = baseURL;
@@ -31,5 +32,23 @@ axios.interceptors.request.use((config) => {
   }
   return config;
 });
+
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    if (status === 401) {
+      const requestUrl = error?.config?.url ?? "";
+      if (!requestUrl.includes("/api/v1/auth/login")) {
+        window.localStorage.removeItem(AUTH_STORAGE_KEY);
+        setAuthToken(undefined);
+        if (window.location.pathname !== "/login") {
+          window.location.replace("/login");
+        }
+      }
+    }
+    return Promise.reject(error);
+  },
+);
 
 export default axios;

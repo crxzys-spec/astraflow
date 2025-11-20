@@ -1,0 +1,29 @@
+get:
+  tags: [WorkflowPackages]
+  summary: List published workflow packages
+  operationId: listWorkflowPackages
+  parameters:
+    - $ref: '../components/parameters.yaml#/PageLimit'
+    - $ref: '../components/parameters.yaml#/PageCursor'
+    - name: owner
+      in: query
+      description: Filter by owner id; use `me` for the caller's id.
+      schema:
+        type: string
+    - name: visibility
+      in: query
+      description: Filter by visibility (private, internal, public).
+      schema:
+        type: string
+    - name: search
+      in: query
+      description: Full-text search across slug, display name, and summary.
+      schema:
+        type: string
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/WorkflowPackageList'

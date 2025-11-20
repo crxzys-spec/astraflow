@@ -35,7 +35,7 @@ class AuthLogin200ResponseUser(BaseModel):
     username: StrictStr
     display_name: StrictStr = Field(alias="displayName")
     roles: List[StrictStr]
-    is_active: StrictBool = Field(alias="isActive")
+    is_active: StrictBool = Field(description="Whether the account is enabled.", alias="isActive")
     __properties: ClassVar[List[str]] = ["userId", "username", "displayName", "roles", "isActive"]
 
     model_config = {
@@ -94,4 +94,5 @@ class AuthLogin200ResponseUser(BaseModel):
             "isActive": obj.get("isActive")
         })
         return _obj
+
 

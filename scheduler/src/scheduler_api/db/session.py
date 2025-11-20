@@ -74,7 +74,13 @@ engine: Engine = create_engine(
     connect_args=_SQLITE_CONNECT_ARGS,
 )
 
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)
+SessionLocal = sessionmaker(
+    bind=engine,
+    autocommit=False,
+    autoflush=False,
+    future=True,
+    expire_on_commit=False,
+)
 
 ASYNC_DATABASE_URL = _resolve_async_database_url(DATABASE_URL)
 

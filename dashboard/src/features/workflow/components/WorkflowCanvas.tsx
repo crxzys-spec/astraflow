@@ -22,13 +22,6 @@ interface WorkflowCanvasProps {
   ) => void;
 }
 
-const NODE_TYPES: NodeTypes = {
-  workflow: WorkflowNode,
-  default: WorkflowNode
-};
-
-const EDGE_TYPES: EdgeTypes = {};
-
 const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   const workflow = useWorkflowStore((state) => state.workflow);
   const selectedNodeId = useWorkflowStore((state) => state.selectedNodeId);
@@ -37,7 +30,15 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   const setSelectedNode = useWorkflowStore((state) => state.setSelectedNode);
   const addEdge = useWorkflowStore((state) => state.addEdge);
   const removeEdge = useWorkflowStore((state) => state.removeEdge);
-  const { project, getEdges } = useReactFlow();
+  const { screenToFlowPosition, getEdges } = useReactFlow();
+  const nodeTypes = useMemo<NodeTypes>(
+    () => ({
+      workflow: WorkflowNode,
+      default: WorkflowNode
+    }),
+    []
+  );
+  const edgeTypes = useMemo<EdgeTypes>(() => ({}), []);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string>();
 
   const nodes: Node[] = useMemo(
@@ -169,10 +170,9 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
         }
         const packageNameValue = payload[WORKFLOW_NODE_DRAG_PACKAGE_KEY];
         const packageVersionValue = payload[WORKFLOW_NODE_DRAG_VERSION_KEY];
-        const bounds = event.currentTarget.getBoundingClientRect();
-        const position = project({
-          x: event.clientX - bounds.left,
-          y: event.clientY - bounds.top
+        const position = screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY
         });
         onNodeDrop(
           {
@@ -186,7 +186,7 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
         console.error("Failed to parse dropped node payload", error);
       }
     },
-    [onNodeDrop, project]
+    [onNodeDrop, screenToFlowPosition]
   );
 
   useEffect(() => {
@@ -250,8 +250,8 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        nodeTypes={NODE_TYPES}
-        edgeTypes={EDGE_TYPES}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}

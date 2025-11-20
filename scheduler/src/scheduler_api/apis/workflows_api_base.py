@@ -3,7 +3,7 @@
 from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 
 from pydantic import Field, StrictStr
-from typing import Optional
+from typing import Any, Optional
 from typing_extensions import Annotated
 from scheduler_api.models.auth_login401_response import AuthLogin401Response
 from scheduler_api.models.list_workflows200_response import ListWorkflows200Response
@@ -19,7 +19,7 @@ class BaseWorkflowsApi:
         BaseWorkflowsApi.subclasses = BaseWorkflowsApi.subclasses + (cls,)
     async def list_workflows(
         self,
-        limit: Optional[Annotated[int, Field(le=200, strict=True, ge=1)]],
+        limit: Optional[Annotated[int, Field(le=200, ge=1)]],
         cursor: Optional[StrictStr],
     ) -> ListWorkflows200Response:
         ...
@@ -37,4 +37,12 @@ class BaseWorkflowsApi:
         self,
         workflowId: StrictStr,
     ) -> ListWorkflows200ResponseItemsInner:
+        ...
+
+
+    async def delete_workflow(
+        self,
+        workflowId: StrictStr,
+    ) -> None:
+        """Marks the workflow record as deleted so it is hidden from listings and future reads."""
         ...

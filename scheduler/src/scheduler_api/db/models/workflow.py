@@ -31,6 +31,7 @@ class WorkflowRecord(Base):
     owner_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
     updated_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    preview_image: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -41,6 +42,11 @@ class WorkflowRecord(Base):
         nullable=False,
         default=_utcnow,
         onupdate=_utcnow,
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
     )
 
     def __repr__(self) -> str:  # pragma: no cover - debugging helper

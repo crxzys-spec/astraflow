@@ -51,7 +51,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 )
 async def list_workers(
     queue: Optional[StrictStr] = Query(None, description="", alias="queue"),
-    limit: Optional[Annotated[int, Field(le=200, strict=True, ge=1)]] = Query(50, description="", alias="limit", ge=1, le=200),
+    limit: Optional[Annotated[int, Field(le=200, ge=1)]] = Query(50, description="", alias="limit", ge=1, le=200),
     cursor: Optional[StrictStr] = Query(None, description="", alias="cursor"),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth

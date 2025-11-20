@@ -16,6 +16,11 @@ export interface WorkflowMetadata {
   originId?: string;
   /** User id that owns the workflow definition. */
   ownerId?: string;
+  /**
+   * Display name of the owner if available.
+   * @nullable
+   */
+  ownerName?: string | null;
   /** User id that created the workflow definition. */
   createdBy?: string;
   /** User id that most recently updated the workflow definition. */

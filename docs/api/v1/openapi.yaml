@@ -11,6 +11,7 @@ tags:
 - name: Auth
 - name: Workflows
 - name: Packages
+- name: WorkflowPackages
 - name: Workers
 - name: Events
 - name: Audit
@@ -28,6 +29,16 @@ paths:
     $ref: ./paths/workflows.yaml
   /api/v1/workflows/{workflowId}:
     $ref: ./paths/workflow-by-id.yaml
+  /api/v1/workflow-packages:
+    $ref: ./paths/workflow-packages.yaml
+  /api/v1/workflow-packages/{packageId}:
+    $ref: ./paths/workflow-package-by-id.yaml
+  /api/v1/workflow-packages/{packageId}/versions:
+    $ref: ./paths/workflow-package-versions.yaml
+  /api/v1/workflow-packages/{packageId}/clone:
+    $ref: ./paths/workflow-package-clone.yaml
+  /api/v1/workflows/{workflowId}/publish:
+    $ref: ./paths/workflow-publish.yaml
   /api/v1/packages:
     $ref: ./paths/packages.yaml
   /api/v1/packages/{packageName}:

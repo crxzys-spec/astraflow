@@ -22,6 +22,8 @@ src/scheduler_api/apis/users_api.py
 src/scheduler_api/apis/users_api_base.py
 src/scheduler_api/apis/workers_api.py
 src/scheduler_api/apis/workers_api_base.py
+src/scheduler_api/apis/workflow_packages_api.py
+src/scheduler_api/apis/workflow_packages_api_base.py
 src/scheduler_api/apis/workflows_api.py
 src/scheduler_api/apis/workflows_api_base.py
 src/scheduler_api/main.py
@@ -31,6 +33,7 @@ src/scheduler_api/models/auth_login200_response.py
 src/scheduler_api/models/auth_login200_response_user.py
 src/scheduler_api/models/auth_login401_response.py
 src/scheduler_api/models/auth_login_request.py
+src/scheduler_api/models/clone_workflow_package_request.py
 src/scheduler_api/models/create_user201_response.py
 src/scheduler_api/models/create_user_request.py
 src/scheduler_api/models/extra_models.py
@@ -48,6 +51,7 @@ src/scheduler_api/models/get_package200_response_manifest_nodes_inner_ui_widgets
 src/scheduler_api/models/get_package200_response_manifest_python.py
 src/scheduler_api/models/get_package200_response_manifest_resources_inner.py
 src/scheduler_api/models/get_package200_response_manifest_signature.py
+src/scheduler_api/models/get_workflow_package200_response.py
 src/scheduler_api/models/list_audit_events200_response.py
 src/scheduler_api/models/list_audit_events200_response_items_inner.py
 src/scheduler_api/models/list_packages200_response.py
@@ -63,9 +67,15 @@ src/scheduler_api/models/list_users200_response.py
 src/scheduler_api/models/list_workers200_response.py
 src/scheduler_api/models/list_workers200_response_items_inner.py
 src/scheduler_api/models/list_workers200_response_items_inner_packages_inner.py
+src/scheduler_api/models/list_workflow_package_versions200_response.py
+src/scheduler_api/models/list_workflow_packages200_response.py
+src/scheduler_api/models/list_workflow_packages200_response_items_inner.py
+src/scheduler_api/models/list_workflow_packages200_response_items_inner_latest_version.py
 src/scheduler_api/models/list_workflows200_response.py
 src/scheduler_api/models/list_workflows200_response_items_inner.py
 src/scheduler_api/models/persist_workflow201_response.py
+src/scheduler_api/models/publish_workflow200_response.py
+src/scheduler_api/models/publish_workflow_request.py
 src/scheduler_api/models/reset_user_password_request.py
 src/scheduler_api/models/send_worker_command202_response.py
 src/scheduler_api/models/send_worker_command_request.py
@@ -88,6 +98,6 @@ src/scheduler_api/models/start_run_request_workflow_nodes_inner_ui.py
 src/scheduler_api/models/start_run_request_workflow_nodes_inner_ui_input_ports_inner.py
 src/scheduler_api/models/start_run_request_workflow_nodes_inner_ui_input_ports_inner_binding.py
 src/scheduler_api/models/start_run_request_workflow_nodes_inner_ui_widgets_inner.py
+src/scheduler_api/models/update_user_status_request.py
 src/scheduler_api/security_api.py
 tests/conftest.py
-tests/test_users_api.py

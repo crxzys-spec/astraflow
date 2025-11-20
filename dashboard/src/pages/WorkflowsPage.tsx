@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useListWorkflows } from "../api/endpoints";
+import { useDeleteWorkflow, useListWorkflows } from "../api/endpoints";
 import { useAuthStore } from "../features/auth/store";
 
 const WorkflowsPage = () => {
@@ -9,6 +10,9 @@ const WorkflowsPage = () => {
     }
   });
   const canCreateWorkflow = useAuthStore((state) => state.hasRole(["admin", "workflow.editor"]));
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingWorkflowId, setDeletingWorkflowId] = useState<string | null>(null);
+  const deleteWorkflowMutation = useDeleteWorkflow();
 
   const workflows = workflowsQuery.data?.data?.items ?? [];
   const isLoading = workflowsQuery.isLoading;
@@ -18,8 +22,27 @@ const WorkflowsPage = () => {
     (workflowsQuery.error as { response?: { data?: { message?: string } } } | undefined)?.response
       ?.data?.message;
 
+  const handleDelete = async (workflowId: string, workflowName: string) => {
+    if (!window.confirm(`Delete workflow "${workflowName}"? This action can be undone by re-saving.`)) {
+      return;
+    }
+    setDeleteError(null);
+    setDeletingWorkflowId(workflowId);
+    try {
+      await deleteWorkflowMutation.mutateAsync({ workflowId });
+      await workflowsQuery.refetch();
+    } catch (error) {
+      const defaultMessage = "Failed to delete workflow.";
+      const responseMessage =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setDeleteError(responseMessage ?? (error as Error | undefined)?.message ?? defaultMessage);
+    } finally {
+      setDeletingWorkflowId(null);
+    }
+  };
+
   return (
-    <div className="card stack">
+    <div className="card stack store-panel">
       <header className="card__header">
         <div>
           <h2>Workflows</h2>
@@ -33,7 +56,12 @@ const WorkflowsPage = () => {
           </Link>
         )}
       </header>
-
+      <div className="store-content">
+      {deleteError && (
+        <div className="card card--error">
+          <p className="error">Unable to delete workflow: {deleteError}</p>
+        </div>
+      )}
       {isLoading && (
         <div className="card card--surface">
           <p>Loading workflows...</p>
@@ -56,66 +84,88 @@ const WorkflowsPage = () => {
       )}
 
       {!isLoading && !isError && workflows.length > 0 && (
-        <div className="card stack">
-          {workflows.map((workflow) => {
+        <div className="workflow-grid-shell">
+          <div className="workflow-grid">
+            {workflows.map((workflow) => {
             const metadata = workflow.metadata ?? { name: workflow.id, namespace: "default" };
             const tags = metadata.tags ?? [];
             const namespace = metadata.namespace ?? "default";
             const description = metadata.description ?? "No description provided.";
-            const ownerId = metadata.ownerId ?? metadata.createdBy ?? null;
-            const createdBy = metadata.createdBy ?? null;
-            const updatedBy = metadata.updatedBy ?? null;
+            const ownerDisplay = metadata.ownerName ?? metadata.ownerId ?? "Unassigned";
+            const environment = metadata.environment ?? "default";
+            const previewImage = workflow.previewImage ?? null;
             return (
-              <div key={workflow.id} className="card card--surface workflow-card">
-                <div className="workflow-card__header">
-                  <div>
-                    <h3>{metadata.name ?? workflow.id}</h3>
-                    <p className="text-subtle">{description}</p>
+              <article key={workflow.id} className="card card--surface workflow-card workflow-card--accent">
+                <div className="workflow-card__media">
+                  <div
+                    className={`workflow-card__preview ${
+                      previewImage ? "" : "workflow-card__preview--empty"
+                    }`}
+                  >
+                    {previewImage ? (
+                      <img
+                        src={previewImage}
+                        alt={`${metadata.name ?? workflow.id} preview`}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="workflow-card__preview-placeholder">Snapshot pending</div>
+                    )}
                   </div>
-                  <div className="workflow-card__actions">
-                    <span className="badge">{namespace}</span>
-                    <Link className="btn" to={`/workflows/${workflow.id}`}>
-                      Open Builder
-                    </Link>
-                  </div>
+                  <header className="workflow-card__header">
+                    <div className="workflow-card__identity">
+                      <small className="workflow-card__eyebrow">Workflow</small>
+                      <h3>{metadata.name ?? workflow.id}</h3>
+                      <p className="workflow-card__owner">@{ownerDisplay}</p>
+                    </div>
+                  </header>
                 </div>
-                <div className="workflow-card__meta">
-                  <div>
-                    <strong>ID:</strong> <code>{workflow.id}</code>
+                <div className="workflow-card__body">
+                  <p className="workflow-card__description">{description}</p>
+                  <div className="workflow-card__chips workflow-card__chips--body">
+                    <span className="chip chip--ghost">{namespace}</span>
+                    <span className="chip chip--ghost">{environment}</span>
                   </div>
-                  {ownerId && (
-                    <div>
-                      <strong>Owner:</strong> {ownerId}
+                  <div className="workflow-card__actions-row">
+                    <div className="workflow-card__action-buttons">
+                      <button
+                        className="btn btn--ghost"
+                        type="button"
+                        disabled={deletingWorkflowId === workflow.id || deleteWorkflowMutation.isPending}
+                        onClick={() => handleDelete(workflow.id, metadata.name ?? workflow.id)}
+                      >
+                        <span className="btn__icon" aria-hidden="true">🗑</span>
+                        {deletingWorkflowId === workflow.id ? "Deleting..." : "Delete"}
+                      </button>
+                      <Link className="btn btn--primary" to={`/workflows/${workflow.id}`}>
+                        <span className="btn__icon" aria-hidden="true">⟲</span>
+                        Open Builder
+                      </Link>
                     </div>
-                  )}
-                  {createdBy && (
-                    <div>
-                      <strong>Created by:</strong> {createdBy}
-                    </div>
-                  )}
-                  {updatedBy && updatedBy !== createdBy && (
-                    <div>
-                      <strong>Updated by:</strong> {updatedBy}
-                    </div>
-                  )}
-                  <div>
-                    <strong>Nodes:</strong> {workflow.nodes?.length ?? 0}
                   </div>
-                  {tags.length > 0 && (
-                    <div className="workflow-card__tags">
-                      {tags.map((tag) => (
-                        <span key={tag} className="chip">
-                          {tag}
-                        </span>
-                      ))}
+                  <footer className="workflow-card__footer">
+                    {tags.length > 0 ? (
+                      <div className="workflow-card__tags">
+                        {tags.map((tag) => (
+                          <span key={tag} className="chip">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : <span />}
+                    <div className="workflow-card__signature">
+                      <span>Workflow ID</span>
+                      <code>{workflow.id}</code>
                     </div>
-                  )}
+                  </footer>
                 </div>
-              </div>
+              </article>
             );
-          })}
+            })}
+          </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

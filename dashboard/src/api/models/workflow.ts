@@ -23,4 +23,9 @@ export interface Workflow {
   edges: WorkflowEdge[];
   /** Workflow-level tags. */
   tags?: string[];
+  /**
+   * Base64-encoded preview of the workflow canvas.
+   * @nullable
+   */
+  previewImage?: string | null;
 }

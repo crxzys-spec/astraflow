@@ -1,0 +1,25 @@
+post:
+  tags: [WorkflowPackages]
+  summary: Clone a workflow package version into the caller's workspace
+  operationId: cloneWorkflowPackage
+  parameters:
+    - name: packageId
+      in: path
+      required: true
+      schema:
+        type: string
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/WorkflowPackageCloneRequest'
+  responses:
+    '201':
+      description: Created
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/WorkflowRef'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

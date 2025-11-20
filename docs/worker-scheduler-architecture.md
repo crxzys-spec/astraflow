@@ -831,3 +831,35 @@ Use that document as the authoritative blueprint when implementing resource-awar
 - **Ops tooling**: Use `python scheduler/scripts/manage_users.py` to create users, rotate passwords, and assign roles without touching the database directly.
 - **Next steps**: Provide CLI/management APIs for creating users + assigning roles, wire optional `DEV_AUTH_BYPASS`, and plan for IdP integration so this bootstrap layer can federate with enterprise auth once ready.
 
+## 13. Workflow Draft & Store Upgrade
+
+### 13.1 Goals
+- Keep `/workflows` as the home for personal, executable drafts; remove any publish badge or blocking reminder because every run executes from the caller's draft copy regardless of publish status.
+- Introduce a first-class catalog (the "Store") that surfaces published workflows as reusable packages with semantic versions, search, and ownership metadata.
+- Allow authors to publish/clone workflows without changing the runtime surface for drafts; publishing only affects discoverability.
+
+### 13.2 Data Model
+- Reuse the existing `workflows` table for drafts. Records retain `owner_id`, `origin_id`, and `definition`, and no publish metadata is written back to these rows.
+- Add `workflow_packages` (id, slug, display name, summary, tags, visibility, owner_id, created_by, updated_by) and `workflow_package_versions` (package_id, semver, changelog, definition_snapshot, published_at, publisher_id) tables. A publish action snapshots the draft JSON into `workflow_package_versions` and updates package metadata.
+- Publishing does not mutate the draft record; the draft id remains stable so executions and edits stay local. Cloning a package version creates a new draft row with `origin_id` pointing to the version snapshot.
+
+### 13.3 API Surface
+- `/api/v1/workflows` continues to serve draft CRUD. The handler now always filters by `owner_id = current_user` so callers only see their personal copies, and no publish fields appear in the response.
+- New catalog endpoints:
+  - `GET /api/v1/workflow-packages`: paginated search over published workflows (filters for owner, visibility, tags, updatedAfter, text query).
+  - `GET /api/v1/workflow-packages/{packageId}` and `/versions`: retrieve package metadata plus version history.
+  - `POST /api/v1/workflow-packages/{packageId}/clone`: copies a selected version into the caller's drafts via the `/api/v1/workflows` persistence path.
+  - `POST /api/v1/workflows/{workflowId}/publish`: snapshots the workflow into `workflow_package_versions`, creating or updating the package as needed. Optional `PATCH /api/v1/workflow-packages/{packageId}/visibility` handles unpublish/private toggles.
+- RBAC: drafts require `workflow.editor` as today; publishing/cloning requires `workflow.publisher` (subset of admin-able roles). Each publish/clone writes to `audit_events`.
+
+### 13.4 Dashboard UX
+- Sidebar order: `Workflows` before `Runs`, plus a new top-level `Store` (or `Packages`) route.
+- Workflows page: list + builder focus strictly on drafts; UI drops publish chips and warnings. Actions stay edit, run, duplicate, delete.
+- Store page: queries `/workflow-packages`, shows owner, description, last update, and prominent "Clone to My Workflows" action. Detail drawer exposes version changelog and clone button per version.
+- Builder publish action: available via a "Publish to Store" button that opens a modal (name, summary, version bump, visibility). Successful publish navigates to the package detail or displays a toast with deep link. Draft header includes a passive banner showing whether the latest published version lags behind, without blocking runs.
+
+### 13.5 Migration & Rollout
+- Migration script seeds `workflow_packages` and `workflow_package_versions` from any workflow currently marked as shared/public. All drafts remain untouched.
+- Backend deploy order: (1) schema migration + models, (2) API handlers guarded by feature flags, (3) dashboard Store route + publish/clone UX, (4) remove legacy publish reminders.
+- Update `docs/api/v1/openapi.yaml` plus individual path/component files to document the new catalog endpoints once implemented.
+- Provide operational runbook: `manage_users.py` already supports `activate/deactivate`; extend it (or a new CLI) with `publish-workflow` helper for seed data and automated tests.

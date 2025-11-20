@@ -16,7 +16,7 @@ class BaseAuditApi:
         BaseAuditApi.subclasses = BaseAuditApi.subclasses + (cls,)
     async def list_audit_events(
         self,
-        limit: Optional[Annotated[int, Field(le=200, strict=True, ge=1)]],
+        limit: Optional[Annotated[int, Field(le=200, ge=1)]],
         cursor: Annotated[Optional[StrictStr], Field(description="Reserved for future pagination")],
         action: Annotated[Optional[StrictStr], Field(description="Filter by action name")],
         actor_id: Annotated[Optional[StrictStr], Field(description="Filter by actor id")],

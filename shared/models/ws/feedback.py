@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field, confloat, conint, constr
 
 
-class Channel(Enum):
+class FeedbackChannel(Enum):
     stdout = 'stdout'
     stderr = 'stderr'
     log = 'log'
@@ -22,7 +22,7 @@ class FeedbackChunk(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    channel: Channel
+    channel: FeedbackChannel
     index: Optional[conint(ge=0)] = Field(
         None,
         description='Optional adapter-supplied sequence number for ordering within the channel.',
@@ -44,7 +44,7 @@ class FeedbackChunk(BaseModel):
     )
 
 
-class WsFeedback(BaseModel):
+class FeedbackPayload(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
@@ -72,8 +72,3 @@ class WsFeedback(BaseModel):
         None,
         description='Implementation-defined details; forwarded to observability sinks.',
     )
-
-
-# Backwards compatible aliases used throughout the worker/scheduler codebase.
-FeedbackChannel = Channel
-FeedbackPayload = WsFeedback

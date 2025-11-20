@@ -11,6 +11,7 @@ tags:
 - name: Auth
 - name: Workflows
 - name: Packages
+- name: WorkflowPackages
 - name: Workers
 - name: Events
 - name: Audit
@@ -272,6 +273,36 @@ paths:
       tags:
       - Workflows
   /api/v1/workflows/{workflowId}:
+    delete:
+      description: Marks the workflow record as deleted so it is hidden from listings
+        and future reads.
+      operationId: deleteWorkflow
+      parameters:
+      - explode: false
+        in: path
+        name: workflowId
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Workflow deleted
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authLogin_401_response"
+          description: Authenticated but lacks required permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authLogin_401_response"
+          description: Resource not found
+      summary: Soft delete workflow
+      tags:
+      - Workflows
     get:
       operationId: getWorkflow
       parameters:
@@ -299,6 +330,226 @@ paths:
       summary: Read stored workflow (latest)
       tags:
       - Workflows
+  /api/v1/workflow-packages:
+    get:
+      operationId: listWorkflowPackages
+      parameters:
+      - explode: true
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          maximum: 200
+          minimum: 1
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Filter by owner id; use `me` for the caller's id.
+        explode: true
+        in: query
+        name: owner
+        required: false
+        schema:
+          title: userId
+          type: string
+        style: form
+      - description: "Filter by visibility (private, internal, public)."
+        explode: true
+        in: query
+        name: visibility
+        required: false
+        schema:
+          title: userId
+          type: string
+        style: form
+      - description: "Full-text search across slug, display name, and summary."
+        explode: true
+        in: query
+        name: search
+        required: false
+        schema:
+          title: userId
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/listWorkflowPackages_200_response"
+          description: OK
+      summary: List published workflow packages
+      tags:
+      - WorkflowPackages
+  /api/v1/workflow-packages/{packageId}:
+    get:
+      operationId: getWorkflowPackage
+      parameters:
+      - explode: false
+        in: path
+        name: packageId
+        required: true
+        schema:
+          title: userId
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getWorkflowPackage_200_response"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authLogin_401_response"
+          description: Resource not found
+      summary: Get a workflow package detail
+      tags:
+      - WorkflowPackages
+    delete:
+      operationId: deleteWorkflowPackage
+      parameters:
+      - explode: false
+        in: path
+        name: packageId
+        required: true
+        schema:
+          title: userId
+          type: string
+        style: simple
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authLogin_401_response"
+          description: Resource not found
+      summary: Delete a workflow package
+      tags:
+      - WorkflowPackages
+  /api/v1/workflow-packages/{packageId}/versions:
+    get:
+      operationId: listWorkflowPackageVersions
+      parameters:
+      - explode: false
+        in: path
+        name: packageId
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/listWorkflowPackageVersions_200_response"
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authLogin_401_response"
+          description: Resource not found
+      summary: List versions for a workflow package
+      tags:
+      - WorkflowPackages
+  /api/v1/workflow-packages/{packageId}/clone:
+    post:
+      operationId: cloneWorkflowPackage
+      parameters:
+      - explode: false
+        in: path
+        name: packageId
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/cloneWorkflowPackage_request"
+        required: false
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/persistWorkflow_201_response"
+          description: Created
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authLogin_401_response"
+          description: Resource not found
+      summary: Clone a workflow package version into the caller's workspace
+      tags:
+      - WorkflowPackages
+  /api/v1/workflows/{workflowId}/publish:
+    post:
+      operationId: publishWorkflow
+      parameters:
+      - explode: false
+        in: path
+        name: workflowId
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/publishWorkflow_request"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/publishWorkflow_200_response"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authLogin_401_response"
+          description: Invalid input
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authLogin_401_response"
+          description: Authenticated but lacks required permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authLogin_401_response"
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authLogin_401_response"
+          description: "Conflict (e.g., idempotency-key reuse with different body)"
+      summary: Publish a workflow draft to the Store
+      tags:
+      - WorkflowPackages
   /api/v1/packages:
     get:
       operationId: listPackages
@@ -611,6 +862,29 @@ paths:
       summary: Remove role from user
       tags:
       - Users
+  /api/v1/users/{userId}/status:
+    patch:
+      operationId: updateUserStatus
+      parameters:
+      - explode: false
+        in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/updateUserStatus_request"
+        required: true
+      responses:
+        "204":
+          description: Status updated
+      summary: Toggle user active state
+      tags:
+      - Users
   /api/v1/audit-events:
     get:
       operationId: listAuditEvents
@@ -696,6 +970,7 @@ components:
         roles:
         - roles
         - roles
+        isActive: true
         userId: userId
         username: username
       properties:
@@ -714,8 +989,13 @@ components:
             type: string
           title: roles
           type: array
+        isActive:
+          description: Whether the account is enabled.
+          title: isActive
+          type: boolean
       required:
       - displayName
+      - isActive
       - roles
       - userId
       - username
@@ -731,6 +1011,7 @@ components:
           roles:
           - roles
           - roles
+          isActive: true
           userId: userId
           username: username
       properties:
@@ -1362,7 +1643,7 @@ components:
           title: items
           type: array
         nextCursor:
-          title: nextCursor
+          title: changelog
           type: string
           nullable: true
       required:
@@ -1374,6 +1655,7 @@ components:
         environment: environment
         originId: originId
         updatedBy: updatedBy
+        ownerName: ownerName
         createdBy: createdBy
         name: name
         namespace: namespace
@@ -1411,6 +1693,11 @@ components:
           description: User id that owns the workflow definition.
           title: ownerId
           type: string
+        ownerName:
+          description: Display name of the owner if available.
+          title: ownerName
+          type: string
+          nullable: true
         createdBy:
           description: User id that created the workflow definition.
           title: createdBy
@@ -1824,6 +2111,7 @@ components:
           environment: environment
           originId: originId
           updatedBy: updatedBy
+          ownerName: ownerName
           createdBy: createdBy
           name: name
           namespace: namespace
@@ -1984,6 +2272,7 @@ components:
             node: node
             port: port
         id: id
+        previewImage: previewImage
         tags:
         - tags
         - tags
@@ -2018,6 +2307,11 @@ components:
             type: string
           title: tags
           type: array
+        previewImage:
+          description: Base64-encoded preview of the workflow canvas.
+          title: previewImage
+          type: string
+          nullable: true
       required:
       - edges
       - id
@@ -2081,6 +2375,7 @@ components:
           environment: environment
           originId: originId
           updatedBy: updatedBy
+          ownerName: ownerName
           createdBy: createdBy
           name: name
           namespace: namespace
@@ -2241,6 +2536,7 @@ components:
             node: node
             port: port
         id: id
+        previewImage: previewImage
         tags:
         - tags
         - tags
@@ -2274,6 +2570,11 @@ components:
             type: string
           title: tags
           type: array
+        previewImage:
+          description: Base64-encoded preview of the workflow canvas.
+          title: previewImage
+          type: string
+          nullable: true
       required:
       - edges
       - id
@@ -2289,6 +2590,7 @@ components:
             environment: environment
             originId: originId
             updatedBy: updatedBy
+            ownerName: ownerName
             createdBy: createdBy
             name: name
             namespace: namespace
@@ -2449,6 +2751,7 @@ components:
               node: node
               port: port
           id: id
+          previewImage: previewImage
           tags:
           - tags
           - tags
@@ -2456,6 +2759,7 @@ components:
             environment: environment
             originId: originId
             updatedBy: updatedBy
+            ownerName: ownerName
             createdBy: createdBy
             name: name
             namespace: namespace
@@ -2616,6 +2920,7 @@ components:
               node: node
               port: port
           id: id
+          previewImage: previewImage
           tags:
           - tags
           - tags
@@ -2626,7 +2931,7 @@ components:
           title: items
           type: array
         nextCursor:
-          title: nextCursor
+          title: changelog
           type: string
           nullable: true
       required:
@@ -2642,6 +2947,343 @@ components:
       required:
       - workflowId
       title: persistWorkflow_201_response
+    listWorkflowPackages_200_response_items_inner_latestVersion:
+      example:
+        publisherId: publisherId
+        publishedAt: 2000-01-23T04:56:07.000+00:00
+        changelog: changelog
+        id: id
+        version: version
+        previewImage: previewImage
+      properties:
+        id:
+          title: userId
+          type: string
+        version:
+          title: userId
+          type: string
+        changelog:
+          title: changelog
+          type: string
+          nullable: true
+        publishedAt:
+          format: date-time
+          title: publishedAt
+          type: string
+        publisherId:
+          title: changelog
+          type: string
+          nullable: true
+        previewImage:
+          description: Base64-encoded preview of the workflow canvas for this version.
+          title: previewImage
+          type: string
+          nullable: true
+      required:
+      - id
+      - publishedAt
+      - version
+      title: listWorkflowPackages_200_response_items_inner_latestVersion
+    listWorkflowPackages_200_response_items_inner:
+      example:
+        summary: summary
+        visibility: visibility
+        latestVersion:
+          publisherId: publisherId
+          publishedAt: 2000-01-23T04:56:07.000+00:00
+          changelog: changelog
+          id: id
+          version: version
+          previewImage: previewImage
+        displayName: displayName
+        id: id
+        ownerId: ownerId
+        slug: slug
+        previewImage: previewImage
+        tags:
+        - tags
+        - tags
+        updatedAt: 2000-01-23T04:56:07.000+00:00
+      properties:
+        id:
+          title: userId
+          type: string
+        slug:
+          title: userId
+          type: string
+        displayName:
+          title: userId
+          type: string
+        summary:
+          title: changelog
+          type: string
+          nullable: true
+        visibility:
+          description: Visibility policy (private/internal/public).
+          title: visibility
+          type: string
+        tags:
+          items:
+            title: userId
+            type: string
+          title: tags
+          type: array
+          nullable: true
+        ownerId:
+          title: changelog
+          type: string
+          nullable: true
+        updatedAt:
+          format: date-time
+          title: expiresAt
+          type: string
+          nullable: true
+        latestVersion:
+          $ref: "#/components/schemas/listWorkflowPackages_200_response_items_inner_latestVersion"
+        previewImage:
+          description: Base64-encoded preview from the latest version when available.
+          title: previewImage
+          type: string
+          nullable: true
+      required:
+      - displayName
+      - id
+      - slug
+      - visibility
+      title: listWorkflowPackages_200_response_items_inner
+    listWorkflowPackages_200_response:
+      example:
+        nextCursor: nextCursor
+        items:
+        - summary: summary
+          visibility: visibility
+          latestVersion:
+            publisherId: publisherId
+            publishedAt: 2000-01-23T04:56:07.000+00:00
+            changelog: changelog
+            id: id
+            version: version
+            previewImage: previewImage
+          displayName: displayName
+          id: id
+          ownerId: ownerId
+          slug: slug
+          previewImage: previewImage
+          tags:
+          - tags
+          - tags
+          updatedAt: 2000-01-23T04:56:07.000+00:00
+        - summary: summary
+          visibility: visibility
+          latestVersion:
+            publisherId: publisherId
+            publishedAt: 2000-01-23T04:56:07.000+00:00
+            changelog: changelog
+            id: id
+            version: version
+            previewImage: previewImage
+          displayName: displayName
+          id: id
+          ownerId: ownerId
+          slug: slug
+          previewImage: previewImage
+          tags:
+          - tags
+          - tags
+          updatedAt: 2000-01-23T04:56:07.000+00:00
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/listWorkflowPackages_200_response_items_inner"
+          title: items
+          type: array
+        nextCursor:
+          title: changelog
+          type: string
+          nullable: true
+      required:
+      - items
+      title: listWorkflowPackages_200_response
+    getWorkflowPackage_200_response:
+      allOf:
+      - properties:
+          id:
+            type: string
+          slug:
+            type: string
+          displayName:
+            type: string
+          summary:
+            type: string
+            nullable: true
+          visibility:
+            description: Visibility policy (private/internal/public).
+            type: string
+          tags:
+            items:
+              type: string
+            type: array
+            nullable: true
+          ownerId:
+            type: string
+            nullable: true
+          updatedAt:
+            format: date-time
+            type: string
+            nullable: true
+          latestVersion:
+            $ref: "#/components/schemas/listWorkflowPackages_200_response_items_inner_latestVersion"
+          previewImage:
+            description: Base64-encoded preview from the latest version when available.
+            type: string
+            nullable: true
+        required:
+        - displayName
+        - id
+        - slug
+        - visibility
+      - properties:
+          versions:
+            items:
+              $ref: "#/components/schemas/listWorkflowPackages_200_response_items_inner_latestVersion"
+            type: array
+        required:
+        - versions
+      example:
+        summary: summary
+        visibility: visibility
+        latestVersion:
+          publisherId: publisherId
+          publishedAt: 2000-01-23T04:56:07.000+00:00
+          changelog: changelog
+          id: id
+          version: version
+          previewImage: previewImage
+        versions:
+        - publisherId: publisherId
+          publishedAt: 2000-01-23T04:56:07.000+00:00
+          changelog: changelog
+          id: id
+          version: version
+          previewImage: previewImage
+        - publisherId: publisherId
+          publishedAt: 2000-01-23T04:56:07.000+00:00
+          changelog: changelog
+          id: id
+          version: version
+          previewImage: previewImage
+        displayName: displayName
+        id: id
+        ownerId: ownerId
+        slug: slug
+        previewImage: previewImage
+        tags:
+        - tags
+        - tags
+        updatedAt: 2000-01-23T04:56:07.000+00:00
+      title: getWorkflowPackage_200_response
+    listWorkflowPackageVersions_200_response:
+      example:
+        items:
+        - publisherId: publisherId
+          publishedAt: 2000-01-23T04:56:07.000+00:00
+          changelog: changelog
+          id: id
+          version: version
+          previewImage: previewImage
+        - publisherId: publisherId
+          publishedAt: 2000-01-23T04:56:07.000+00:00
+          changelog: changelog
+          id: id
+          version: version
+          previewImage: previewImage
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/listWorkflowPackages_200_response_items_inner_latestVersion"
+          title: items
+          type: array
+      required:
+      - items
+      title: listWorkflowPackageVersions_200_response
+    cloneWorkflowPackage_request:
+      properties:
+        versionId:
+          description: Explicit version id to clone; defaults to the latest.
+          title: versionId
+          type: string
+        version:
+          description: Version string to clone when versionId is omitted.
+          title: version
+          type: string
+        workflowName:
+          description: Optional override for the cloned workflow name.
+          title: workflowName
+          type: string
+      title: cloneWorkflowPackage_request
+    publishWorkflow_request:
+      properties:
+        packageId:
+          description: Existing package id to append a version to.
+          title: packageId
+          type: string
+        slug:
+          description: Slug used when creating a new package.
+          title: slug
+          type: string
+        displayName:
+          title: userId
+          type: string
+        summary:
+          title: changelog
+          type: string
+          nullable: true
+        visibility:
+          description: Desired visibility (private/internal/public).
+          title: visibility
+          type: string
+        tags:
+          items:
+            type: string
+          title: tags
+          type: array
+          nullable: true
+        version:
+          description: Semantic version for the published snapshot.
+          title: version
+          type: string
+        changelog:
+          title: changelog
+          type: string
+          nullable: true
+        previewImage:
+          description: Base64-encoded preview captured from the workflow canvas.
+          title: previewImage
+          type: string
+          nullable: true
+      required:
+      - version
+      title: publishWorkflow_request
+    publishWorkflow_200_response:
+      example:
+        versionId: versionId
+        packageId: packageId
+        version: version
+      properties:
+        packageId:
+          title: userId
+          type: string
+        versionId:
+          title: userId
+          type: string
+        version:
+          title: userId
+          type: string
+      required:
+      - packageId
+      - version
+      - versionId
+      title: publishWorkflow_200_response
     listPackages_200_response_items_inner:
       additionalProperties: false
       example:
@@ -3450,7 +4092,7 @@ components:
           type: string
         lastHeartbeatAt:
           format: date-time
-          title: lastHeartbeatAt
+          title: publishedAt
           type: string
         queues:
           items:
@@ -3510,7 +4152,7 @@ components:
           title: items
           type: array
         nextCursor:
-          title: nextCursor
+          title: changelog
           type: string
           nullable: true
       title: listWorkers_200_response
@@ -3579,7 +4221,7 @@ components:
           type: string
         acceptedAt:
           format: date-time
-          title: lastHeartbeatAt
+          title: publishedAt
           type: string
       required:
       - acceptedAt
@@ -3593,12 +4235,14 @@ components:
           roles:
           - roles
           - roles
+          isActive: true
           userId: userId
           username: username
         - displayName: displayName
           roles:
           - roles
           - roles
+          isActive: true
           userId: userId
           username: username
       properties:
@@ -3642,6 +4286,7 @@ components:
         roles:
         - roles
         - roles
+        isActive: true
         userId: userId
         username: username
       properties:
@@ -3659,8 +4304,13 @@ components:
             type: string
           title: roles
           type: array
+        isActive:
+          description: Whether the account is enabled.
+          title: isActive
+          type: boolean
       required:
       - displayName
+      - isActive
       - roles
       - userId
       - username
@@ -3684,6 +4334,15 @@ components:
       required:
       - role
       title: addUserRole_request
+    updateUserStatus_request:
+      additionalProperties: {}
+      properties:
+        isActive:
+          title: isActive
+          type: boolean
+      required:
+      - isActive
+      title: updateUserStatus_request
     listAuditEvents_200_response_items_inner:
       additionalProperties: false
       example:

@@ -5,6 +5,7 @@ import RunsPage from "./pages/RunsPage";
 import RunDetailPage from "./pages/RunDetailPage";
 import WorkflowBuilderPage from "./pages/WorkflowBuilderPage";
 import WorkflowsPage from "./pages/WorkflowsPage";
+import StorePage from "./pages/StorePage";
 import AuditLogPage from "./pages/AuditLogPage";
 import UsersPage from "./pages/UsersPage";
 import WorkersPage from "./pages/WorkersPage";
@@ -26,6 +27,11 @@ const baseNavItems: NavItem[] = [
     match: (pathname) => pathname === "/workflows"
   },
   {
+    to: "/store",
+    label: "Store",
+    match: (pathname) => pathname === "/store"
+  },
+  {
     to: "/runs",
     label: "Runs",
     match: (pathname) => pathname === "/runs" || pathname.startsWith("/runs/")
@@ -38,6 +44,9 @@ const AuthHeader = () => {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const isAdmin = useAuthStore((state) => state.hasRole(["admin"]));
+  const canViewPackages = useAuthStore((state) =>
+    state.hasRole(["admin", "workflow.viewer", "workflow.editor"])
+  );
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -78,6 +87,11 @@ const AuthHeader = () => {
     navigate("/admin/users");
   };
 
+  const handleMyPackagesNavigate = () => {
+    setOpen(false);
+    navigate("/store?tab=mine");
+  };
+
   const handleLogoutClick = () => {
     setOpen(false);
     handleLogout();
@@ -99,6 +113,11 @@ const AuthHeader = () => {
       </button>
       {open && (
         <div className="auth-menu" role="menu">
+          {canViewPackages && (
+            <button className="auth-menu__item" type="button" onClick={handleMyPackagesNavigate}>
+              My Packages
+            </button>
+          )}
           {isAdmin && (
             <button className="auth-menu__item" type="button" onClick={handleAdminNavigate}>
               Admin Console
@@ -261,6 +280,16 @@ function App() {
           element={
             <RequireAuth>
               <WorkflowBuilderRoute />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/store"
+          element={
+            <RequireAuth>
+              <DashboardRoute>
+                <StorePage />
+              </DashboardRoute>
             </RequireAuth>
           }
         />

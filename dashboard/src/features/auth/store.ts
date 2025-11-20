@@ -1,8 +1,7 @@
 import { create } from "zustand";
 import type { UserSummary } from "../../api/models/userSummary";
 import { setAuthToken, getAuthToken as getAxiosToken } from "../../lib/setupAxios";
-
-const STORAGE_KEY = "scheduler.auth";
+import { AUTH_STORAGE_KEY } from "./constants";
 
 type StoredAuth = {
   token: string;
@@ -21,7 +20,7 @@ interface AuthState {
 
 const loadStoredAuth = (): StoredAuth | null => {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
     if (!raw) {
       return null;
     }
@@ -50,12 +49,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   login: (token, user) => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ token, user }));
+    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token, user }));
     setAuthToken(token);
     set({ token, user, initialized: true });
   },
   logout: () => {
-    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
     setAuthToken(undefined);
     set({ token: undefined, user: undefined, initialized: true });
   },

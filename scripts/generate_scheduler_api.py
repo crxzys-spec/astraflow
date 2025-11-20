@@ -120,6 +120,9 @@ def main() -> None:
     api_src = OUTPUT_DIR / "src" / "scheduler_api"
     postprocess_generated_models(api_src / "models")
     ensure_custom_main(api_src / "main.py")
+    ensure_token_model(api_src / "models" / "extra_models.py")
+    ensure_security_api(api_src / "security_api.py")
+    relax_field_strictness(api_src / "apis")
 
 
 def postprocess_generated_models(models_root: Path) -> None:
@@ -211,6 +214,7 @@ from scheduler_api.apis.packages_api import router as PackagesApiRouter
 from scheduler_api.apis.runs_api import router as RunsApiRouter
 from scheduler_api.apis.workers_api import router as WorkersApiRouter
 from scheduler_api.apis.workflows_api import router as WorkflowsApiRouter
+from scheduler_api.apis.workflow_packages_api import router as WorkflowPackagesApiRouter
 from scheduler_api.catalog import catalog
 from scheduler_api.control_plane import router as ControlPlaneRouter
 from scheduler_api.db.migrations import upgrade_database
@@ -237,6 +241,7 @@ app.add_middleware(
 app.include_router(AuthApiRouter)
 app.include_router(EventsApiRouter)
 app.include_router(PackagesApiRouter)
+app.include_router(WorkflowPackagesApiRouter)
 app.include_router(RunsApiRouter)
 app.include_router(WorkersApiRouter)
 app.include_router(WorkflowsApiRouter)
@@ -250,6 +255,105 @@ def _startup() -> None:
     seed_demo_workflow()
 '''
     main_path.write_text(custom_main, encoding="utf-8")
+
+
+def ensure_token_model(extra_models_path: Path) -> None:
+    """Rewrite the generated TokenModel to include the roles field used by RBAC helpers."""
+
+    custom_model = '''# coding: utf-8
+
+from typing import List
+
+from pydantic import BaseModel, Field
+
+
+class TokenModel(BaseModel):
+    """Defines a token model for downstream role enforcement."""
+
+    sub: str
+    roles: List[str] = Field(default_factory=list)
+'''
+    extra_models_path.write_text(custom_model, encoding="utf-8")
+
+
+def ensure_security_api(security_path: Path) -> None:
+    """
+    Replace the generated bearerAuth dependency with our implementation that decodes JWTs,
+    supports dev bypass tokens, and stores the resolved identity in the auth context.
+    """
+
+    custom_security = '''# coding: utf-8
+
+from __future__ import annotations
+
+import os
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from scheduler_api.auth.context import set_current_token
+from scheduler_api.auth.service import decode_access_token
+from scheduler_api.models.extra_models import TokenModel
+
+
+bearer_auth = HTTPBearer(auto_error=True)
+
+DEV_TOKEN = os.getenv("SCHEDULER_DEV_BYPASS_TOKEN", "").strip()
+DEV_SUBJECT = os.getenv("SCHEDULER_DEV_BYPASS_SUBJECT", "dev-user")
+DEV_ROLES = tuple(
+    role.strip()
+    for role in os.getenv("SCHEDULER_DEV_BYPASS_ROLES", "admin").split(",")
+    if role.strip()
+)
+
+
+async def get_token_bearerAuth(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_auth),
+) -> TokenModel:
+    """
+    Decode and validate bearer tokens for protected endpoints.
+
+    This helper also powers the ContextVar used by ``require_roles`` so downstream
+    implementations can enforce RBAC without threading credentials through every call.
+    """
+
+    if credentials is None or not credentials.credentials:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "unauthorized", "message": "Missing bearer token"},
+        )
+
+    token_value = credentials.credentials
+    token_model = await _resolve_token(token_value)
+    set_current_token(token_model)
+    return token_model
+
+
+async def _resolve_token(token_value: str) -> TokenModel:
+    if DEV_TOKEN and token_value == DEV_TOKEN:
+        roles = list(DEV_ROLES or ["admin"])
+        return TokenModel(sub=DEV_SUBJECT, roles=roles)
+
+    user = await decode_access_token(token_value)
+    return TokenModel(sub=user.user_id, roles=user.roles)
+'''
+    security_path.write_text(custom_security, encoding="utf-8")
+
+
+def relax_field_strictness(apis_root: Path) -> None:
+    """
+    OpenAPI generator emits Field(..., strict=True, ...) for numeric query params which FastAPI
+    then refuses to coerce from strings (all query params arrive as strings). Remove those flags
+    so the default conversion logic applies.
+    """
+
+    for path in apis_root.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        if "strict=True" not in text:
+            continue
+        new_text = re.sub(r",\s*strict=True", "", text)
+        if new_text != text:
+            path.write_text(new_text, encoding="utf-8")
 
 
 if __name__ == "__main__":

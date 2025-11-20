@@ -41,7 +41,8 @@ class ListWorkflows200ResponseItemsInner(BaseModel):
     nodes: Annotated[List[StartRunRequestWorkflowNodesInner], Field(min_length=1)]
     edges: Annotated[List[StartRunRequestWorkflowEdgesInner], Field(min_length=0)]
     tags: Optional[List[StrictStr]] = Field(default=None, description="Workflow-level tags.")
-    __properties: ClassVar[List[str]] = ["id", "schemaVersion", "metadata", "nodes", "edges", "tags"]
+    preview_image: Optional[StrictStr] = Field(default=None, description="Base64-encoded preview of the workflow canvas.", alias="previewImage")
+    __properties: ClassVar[List[str]] = ["id", "schemaVersion", "metadata", "nodes", "edges", "tags", "previewImage"]
 
     @field_validator('schema_version')
     def schema_version_validate_regular_expression(cls, value):
@@ -121,7 +122,8 @@ class ListWorkflows200ResponseItemsInner(BaseModel):
             "metadata": StartRunRequestWorkflowMetadata.from_dict(obj.get("metadata")) if obj.get("metadata") is not None else None,
             "nodes": [StartRunRequestWorkflowNodesInner.from_dict(_item) for _item in obj.get("nodes")] if obj.get("nodes") is not None else None,
             "edges": [StartRunRequestWorkflowEdgesInner.from_dict(_item) for _item in obj.get("edges")] if obj.get("edges") is not None else None,
-            "tags": obj.get("tags")
+            "tags": obj.get("tags"),
+            "previewImage": obj.get("previewImage")
         })
         return _obj
 

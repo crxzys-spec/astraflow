@@ -38,9 +38,10 @@ class StartRunRequestWorkflowMetadata(BaseModel):
     namespace: Optional[StrictStr] = Field(default=None, description="Logical workflow namespace used for indexing/cross-workflow bindings. Defaults to \"default\".")
     origin_id: Optional[StrictStr] = Field(default=None, description="Identifier linking versions of the same workflow. By default equals the workflow id.", alias="originId")
     owner_id: Optional[StrictStr] = Field(default=None, description="User id that owns the workflow definition.", alias="ownerId")
+    owner_name: Optional[StrictStr] = Field(default=None, description="Display name of the owner if available.", alias="ownerName")
     created_by: Optional[StrictStr] = Field(default=None, description="User id that created the workflow definition.", alias="createdBy")
     updated_by: Optional[StrictStr] = Field(default=None, description="User id that most recently updated the workflow definition.", alias="updatedBy")
-    __properties: ClassVar[List[str]] = ["name", "description", "tags", "environment", "namespace", "originId", "ownerId", "createdBy", "updatedBy"]
+    __properties: ClassVar[List[str]] = ["name", "description", "tags", "environment", "namespace", "originId", "ownerId", "ownerName", "createdBy", "updatedBy"]
 
     model_config = {
         "populate_by_name": True,
@@ -98,6 +99,7 @@ class StartRunRequestWorkflowMetadata(BaseModel):
             "namespace": obj.get("namespace"),
             "originId": obj.get("originId"),
             "ownerId": obj.get("ownerId"),
+            "ownerName": obj.get("ownerName"),
             "createdBy": obj.get("createdBy"),
             "updatedBy": obj.get("updatedBy")
         })

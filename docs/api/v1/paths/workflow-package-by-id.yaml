@@ -1,0 +1,34 @@
+get:
+  tags: [WorkflowPackages]
+  summary: Get a workflow package detail
+  operationId: getWorkflowPackage
+  parameters:
+    - name: packageId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/WorkflowPackageDetail'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'
+delete:
+  tags: [WorkflowPackages]
+  summary: Delete a workflow package
+  operationId: deleteWorkflowPackage
+  parameters:
+    - name: packageId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    '204':
+      description: Deleted
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

@@ -21,7 +21,7 @@ class BaseWorkersApi:
     async def list_workers(
         self,
         queue: Optional[StrictStr],
-        limit: Optional[Annotated[int, Field(le=200, strict=True, ge=1)]],
+        limit: Optional[Annotated[int, Field(le=200, ge=1)]],
         cursor: Optional[StrictStr],
     ) -> ListWorkers200Response:
         ...

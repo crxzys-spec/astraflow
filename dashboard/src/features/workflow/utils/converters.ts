@@ -268,6 +268,7 @@ export const workflowDefinitionToDraft = (
     schemaVersion: definition.schemaVersion,
     metadata: sanitizeMetadata(definition.metadata, definition.id),
     tags: sanitizeTags(definition.tags),
+    previewImage: definition.previewImage ?? undefined,
     nodes,
     edges,
     dirty: false,
@@ -323,6 +324,7 @@ export const workflowDraftToDefinition = (
     nodes,
     edges,
     tags: sanitizeTags(draft.tags),
+    previewImage: draft.previewImage ?? undefined,
   };
 };
 

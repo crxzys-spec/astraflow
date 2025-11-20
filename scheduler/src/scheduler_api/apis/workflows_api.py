@@ -24,7 +24,7 @@ from fastapi import (  # noqa: F401
 
 from scheduler_api.models.extra_models import TokenModel  # noqa: F401
 from pydantic import Field, StrictStr
-from typing import Optional
+from typing import Any, Optional
 from typing_extensions import Annotated
 from scheduler_api.models.auth_login401_response import AuthLogin401Response
 from scheduler_api.models.list_workflows200_response import ListWorkflows200Response
@@ -49,7 +49,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
     response_model_by_alias=True,
 )
 async def list_workflows(
-    limit: Optional[Annotated[int, Field(le=200, strict=True, ge=1)]] = Query(50, description="", alias="limit", ge=1, le=200),
+    limit: Optional[Annotated[int, Field(le=200, ge=1)]] = Query(50, description="", alias="limit", ge=1, le=200),
     cursor: Optional[StrictStr] = Query(None, description="", alias="cursor"),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -102,3 +102,26 @@ async def get_workflow(
     if not BaseWorkflowsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseWorkflowsApi.subclasses[0]().get_workflow(workflowId)
+
+
+@router.delete(
+    "/api/v1/workflows/{workflowId}",
+    responses={
+        204: {"description": "Workflow deleted"},
+        403: {"model": AuthLogin401Response, "description": "Authenticated but lacks required permissions"},
+        404: {"model": AuthLogin401Response, "description": "Resource not found"},
+    },
+    tags=["Workflows"],
+    summary="Soft delete workflow",
+    response_model_by_alias=True,
+)
+async def delete_workflow(
+    workflowId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> None:
+    """Marks the workflow record as deleted so it is hidden from listings and future reads."""
+    if not BaseWorkflowsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseWorkflowsApi.subclasses[0]().delete_workflow(workflowId)

@@ -1,9 +1,18 @@
 .app-shell {
+  --app-shell-header-height: 6.5rem;
+  --app-shell-body-offset: calc(var(--app-shell-header-height) + 2rem);
   min-height: 100vh;
   height: 100%;
   display: flex;
   flex-direction: column;
   position: relative;
+}
+
+.app-shell--with-toolbar {
+  --app-shell-toolbar-height: 3.75rem;
+  --app-shell-body-offset: calc(
+    var(--app-shell-header-height) + var(--app-shell-toolbar-height) + 3rem
+  );
 }
 
 .app-shell__header {
@@ -88,6 +97,25 @@
   align-items: center;
   gap: 0.75rem;
   min-height: 2rem;
+}
+
+.app-shell__toolbar {
+  position: absolute;
+  top: calc(var(--app-shell-header-height) + 1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1200px, calc(100% - 3rem));
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  background: rgba(8, 13, 28, 0.8);
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.5);
+  backdrop-filter: blur(12px);
 }
 
 .auth-status {
@@ -249,6 +277,7 @@
 .app-shell__body {
   flex: 1;
   padding: 0;
+  padding-top: var(--app-shell-body-offset, 4rem);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -257,7 +286,6 @@
 }
 
 .app-shell__body--builder {
-  padding: 0;
   background:
     radial-gradient(
       circle at 20% -10%,
@@ -1021,22 +1049,9 @@ select:focus {
 }
 
 .builder-stage__actions {
-  position: absolute;
-  top: calc(var(--builder-header-offset, 6.5rem) + 1rem);
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(1180px, calc(100% - 3rem));
-  z-index: 7;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1.25rem;
-  padding: 0.9rem 1.5rem;
-  border-radius: 1rem;
-  background: rgba(8, 13, 28, 0.78);
-  border: 1px solid rgba(96, 165, 250, 0.2);
-  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.45);
-  backdrop-filter: blur(14px);
+  gap: 0.85rem;
 }
 
 .builder-actions {
@@ -1049,6 +1064,18 @@ select:focus {
 .builder-actions--buttons {
   gap: 0.65rem;
   justify-content: flex-end;
+}
+
+.builder-toolbar {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.builder-toolbar .builder-actions:first-child {
+  flex: 1;
 }
 
 .builder-alert {

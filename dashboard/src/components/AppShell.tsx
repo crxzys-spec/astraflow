@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useToolbarStore } from "../features/workflow/hooks/useToolbar";
 
 export interface NavItem {
   to: string;
@@ -16,9 +17,14 @@ interface AppShellProps extends PropsWithChildren {
 
 const AppShell = ({ children, navItems, variant = "default", rightSlot }: AppShellProps) => {
   const location = useLocation();
+  const toolbarContent = useToolbarStore((state) => state.content);
+  const shellClasses = ["app-shell", `app-shell--${variant}`];
+  if (toolbarContent) {
+    shellClasses.push("app-shell--with-toolbar");
+  }
 
   return (
-    <div className={`app-shell app-shell--${variant}`}>
+    <div className={shellClasses.join(" ")}>
       <header className="app-shell__header">
         <div className="app-shell__brand">
           <span className="app-shell__logo">AstraFlow</span>
@@ -47,6 +53,7 @@ const AppShell = ({ children, navItems, variant = "default", rightSlot }: AppShe
         </nav>
         <div className="app-shell__meta">{rightSlot}</div>
       </header>
+      {toolbarContent && <div className="app-shell__toolbar">{toolbarContent}</div>}
       <main className={`app-shell__body app-shell__body--${variant}`}>{children}</main>
     </div>
   );

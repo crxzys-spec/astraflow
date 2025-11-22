@@ -38,6 +38,7 @@ import {
   updateRunDefinitionNodeState,
 } from "../lib/sseCache";
 import { useAuthStore } from "../features/auth/store";
+import { useToolbarStore } from "../features/workflow/hooks/useToolbar";
 
 const IconSave = () => (
   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -198,6 +199,7 @@ const WorkflowBuilderPage = () => {
   );
 
   const startRun = useStartRun(undefined, queryClient);
+  const setToolbar = useToolbarStore((state) => state.setContent);
   const publishWorkflowMutation = usePublishWorkflow(undefined, queryClient);
   const persistWorkflowMutation = usePersistWorkflow(undefined, queryClient);
 
@@ -825,84 +827,102 @@ const WorkflowBuilderPage = () => {
       : Boolean(derivedSlugForValidation));
   const publishInProgress = publishWorkflowMutation.isPending;
 
+  const builderToolbar = useMemo(() => (
+    <div className="builder-toolbar">
+      <div className="builder-actions">
+        {saveMessage && (
+          <span
+            className={`builder-alert builder-alert--${saveMessage.type}`}
+            role={saveMessage.type === "error" ? "alert" : "status"}
+          >
+            {saveMessage.text}
+          </span>
+        )}
+        {publishMessage && (
+          <span
+            className={`builder-alert builder-alert--${publishMessage.type}`}
+            role={publishMessage.type === "error" ? "alert" : "status"}
+          >
+            {publishMessage.text}
+          </span>
+        )}
+        {runMessage && (
+          <span
+            className={`builder-alert builder-alert--${runMessage.type}`}
+            role={runMessage.type === "error" ? "alert" : "status"}
+          >
+            {runMessage.text}
+          </span>
+        )}
+        {!canEditWorkflow && (
+          <span className="builder-alert builder-alert--error">
+            You have read-only access. Request workflow.editor rights to edit or run workflows.
+          </span>
+        )}
+      </div>
+      <div className="builder-actions builder-actions--buttons">
+        {canEditWorkflow && (
+          <button
+            className="btn"
+            type="button"
+            onClick={handleSaveWorkflow}
+            disabled={persistWorkflowMutation.isPending}
+          >
+            <span className="btn__icon" aria-hidden="true">
+              <IconSave />
+            </span>
+            {persistWorkflowMutation.isPending ? "Saving..." : "Save"}
+          </button>
+        )}
+        {canEditWorkflow && (
+          <button
+            className="btn"
+            type="button"
+            onClick={openPublishModal}
+            disabled={!canPublishWorkflow}
+            title={!canPublishWorkflow ? "Save before publishing." : undefined}
+          >
+            <span className="btn__icon" aria-hidden="true">
+              <IconPublish />
+            </span>
+            Publish
+          </button>
+        )}
+        <button
+          className="btn btn--primary"
+          type="button"
+          onClick={handleRunWorkflow}
+          disabled={!canEditWorkflow || startRun.isPending}
+        >
+          <span className="btn__icon" aria-hidden="true">
+            <IconRun />
+          </span>
+          {startRun.isPending ? "Launching..." : "Run"}
+        </button>
+      </div>
+    </div>
+  ), [
+    canEditWorkflow,
+    handleRunWorkflow,
+    handleSaveWorkflow,
+    openPublishModal,
+    persistWorkflowMutation.isPending,
+    runMessage,
+    saveMessage,
+    publishMessage,
+    canPublishWorkflow,
+    startRun.isPending
+  ]);
+
+  useEffect(() => {
+    setToolbar(builderToolbar);
+    return () => setToolbar(null);
+  }, [builderToolbar, setToolbar]);
+
   return (
     <WidgetRegistryProvider>
       <section className="builder-screen">
         <div className="builder-stage">
-          <div className="builder-stage__actions">
-            <div className="builder-actions">
-              {saveMessage && (
-                <span
-                  className={`builder-alert builder-alert--${saveMessage.type}`}
-                  role={saveMessage.type === "error" ? "alert" : "status"}
-                >
-                  {saveMessage.text}
-                </span>
-              )}
-              {publishMessage && (
-                <span
-                  className={`builder-alert builder-alert--${publishMessage.type}`}
-                  role={publishMessage.type === "error" ? "alert" : "status"}
-                >
-                  {publishMessage.text}
-                </span>
-              )}
-              {runMessage && (
-                <span
-                  className={`builder-alert builder-alert--${runMessage.type}`}
-                  role={runMessage.type === "error" ? "alert" : "status"}
-                >
-                  {runMessage.text}
-                </span>
-              )}
-              {!canEditWorkflow && (
-                <span className="builder-alert builder-alert--error">
-                  You have read-only access. Request workflow.editor rights to edit or run workflows.
-                </span>
-              )}
-            </div>
-            <div className="builder-actions builder-actions--buttons">
-              {canEditWorkflow && (
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={handleSaveWorkflow}
-                  disabled={persistWorkflowMutation.isPending}
-                >
-                  <span className="btn__icon" aria-hidden="true">
-                    <IconSave />
-                  </span>
-                  {persistWorkflowMutation.isPending ? "Saving..." : "Save"}
-                </button>
-              )}
-              {canEditWorkflow && (
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={openPublishModal}
-                  disabled={!canPublishWorkflow}
-                  title={!canPublishWorkflow ? "Save before publishing." : undefined}
-                >
-                  <span className="btn__icon" aria-hidden="true">
-                    <IconPublish />
-                  </span>
-                  Publish
-                </button>
-              )}
-              <button
-                className="btn btn--primary"
-                type="button"
-                onClick={handleRunWorkflow}
-                disabled={!canEditWorkflow || startRun.isPending}
-              >
-                <span className="btn__icon" aria-hidden="true">
-                  <IconRun />
-                </span>
-                {startRun.isPending ? "Launching..." : "Run"}
-              </button>
-            </div>
-          </div>
-
           <div className="builder-stage__body">
             <ReactFlowProvider>
               <div className="builder-stage__canvas card card--canvas">
@@ -964,7 +984,6 @@ const WorkflowBuilderPage = () => {
               <NodeInspector />
             </div>
           </div>
-
           <div className="builder-stage__watermark">
             <span className="builder-watermark__title">{workflow.metadata?.name ?? "Untitled Workflow"}</span>
             <span className="builder-watermark__subtitle">ID: {workflow.id}</span>

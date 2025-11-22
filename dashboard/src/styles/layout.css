@@ -1,5 +1,6 @@
 .app-shell {
   min-height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -1019,37 +1020,15 @@ select:focus {
   min-height: 0;
 }
 
-.builder-toolbar {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 1.25rem 1.5rem;
+.builder-stage__actions {
   position: absolute;
   top: 1.5rem;
   right: 1.5rem;
   z-index: 7;
-  width: min(520px, 48vw);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 28px 60px rgba(2, 6, 23, 0.55);
-}
-
-.builder-meta {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  width: 100%;
-}
-
-.builder-meta__title {
-  font-size: 1.35rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.builder-meta__subtitle {
-  font-size: 0.85rem;
-  color: rgba(148, 163, 184, 0.7);
-  letter-spacing: 0.08em;
+  gap: 0.9rem;
+  align-items: flex-end;
 }
 
 .builder-actions {
@@ -1058,6 +1037,11 @@ select:focus {
   align-items: flex-start;
   gap: 0.85rem;
   width: 100%;
+}
+
+.builder-actions--buttons {
+  gap: 0.65rem;
+  justify-content: flex-end;
 }
 
 .builder-alert {
@@ -1178,6 +1162,29 @@ select:focus {
 .builder-stage__body .reactflow-provider .react-flow {
   flex: 1;
   min-height: 0;
+}
+
+.builder-stage__watermark {
+  position: absolute;
+  left: 2rem;
+  bottom: 2rem;
+  pointer-events: none;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(248, 250, 252, 0.12);
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.builder-watermark__title {
+  font-size: 2.5rem;
+}
+
+.builder-watermark__subtitle {
+  font-size: 0.85rem;
+  color: rgba(148, 163, 184, 0.45);
 }
 
 .builder-flyout {
@@ -1785,10 +1792,17 @@ select:focus {
     padding: 0 1.5rem 1.5rem;
   }
 
-  .builder-toolbar {
+  .builder-stage__actions {
     position: static;
     width: 100%;
-    margin-bottom: 1rem;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .builder-stage__watermark {
+    position: static;
+    padding: 1rem 0 0;
   }
 
   .builder-flyout-toggle {

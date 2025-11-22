@@ -24,6 +24,7 @@ class SseConnection:
     """Represents an active SSE connection."""
 
     _SENTINEL = object()
+    _HEARTBEAT_COMMENT = b": heartbeat\n\n"
 
     def __init__(
         self,
@@ -31,6 +32,7 @@ class SseConnection:
         tenant: str,
         client_session_id: str,
         filters: Optional[SubscriptionFilter] = None,
+        heartbeat_interval: float = 45.0,
     ) -> None:
         self.tenant = tenant
         self.client_session_id = client_session_id
@@ -38,6 +40,7 @@ class SseConnection:
         self._queue: asyncio.Queue[object] = asyncio.Queue()
         self._closed = False
         self._id = uuid4().hex
+        self._heartbeat_interval = heartbeat_interval
 
     def __hash__(self) -> int:  # pragma: no cover - used for registry bookkeeping
         return hash(self._id)
@@ -73,7 +76,15 @@ class SseConnection:
                 yield serialize_envelope(event)
 
             while True:
-                item = await self._queue.get()
+                try:
+                    item = await asyncio.wait_for(
+                        self._queue.get(), timeout=self._heartbeat_interval
+                    )
+                except asyncio.TimeoutError:
+                    if self._closed:
+                        break
+                    yield self._HEARTBEAT_COMMENT
+                    continue
                 if item is self._SENTINEL:
                     break
                 envelope = item  # type: ignore[assignment]

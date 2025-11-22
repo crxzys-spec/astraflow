@@ -829,11 +829,7 @@ const WorkflowBuilderPage = () => {
     <WidgetRegistryProvider>
       <section className="builder-screen">
         <div className="builder-stage">
-          <header className="builder-toolbar card">
-            <div className="builder-meta">
-              <span className="builder-meta__title">{workflow.metadata?.name ?? "Untitled Workflow"}</span>
-              <span className="builder-meta__subtitle">ID: {workflow.id}</span>
-            </div>
+          <div className="builder-stage__actions">
             <div className="builder-actions">
               {saveMessage && (
                 <span
@@ -864,6 +860,8 @@ const WorkflowBuilderPage = () => {
                   You have read-only access. Request workflow.editor rights to edit or run workflows.
                 </span>
               )}
+            </div>
+            <div className="builder-actions builder-actions--buttons">
               {canEditWorkflow && (
                 <button
                   className="btn"
@@ -888,7 +886,7 @@ const WorkflowBuilderPage = () => {
                   <span className="btn__icon" aria-hidden="true">
                     <IconPublish />
                   </span>
-                  Publish to Store
+                  Publish
                 </button>
               )}
               <button
@@ -900,10 +898,10 @@ const WorkflowBuilderPage = () => {
                 <span className="btn__icon" aria-hidden="true">
                   <IconRun />
                 </span>
-                {startRun.isPending ? "Launching..." : "Run Workflow"}
+                {startRun.isPending ? "Launching..." : "Run"}
               </button>
             </div>
-          </header>
+          </div>
 
           <div className="builder-stage__body">
             <ReactFlowProvider>
@@ -965,6 +963,11 @@ const WorkflowBuilderPage = () => {
             >
               <NodeInspector />
             </div>
+          </div>
+
+          <div className="builder-stage__watermark">
+            <span className="builder-watermark__title">{workflow.metadata?.name ?? "Untitled Workflow"}</span>
+            <span className="builder-watermark__subtitle">ID: {workflow.id}</span>
           </div>
         </div>
       </section>

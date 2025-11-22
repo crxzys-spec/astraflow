@@ -28,9 +28,19 @@ export const RunsPage = () => {
       return null;
     }
     return (
-      <button className="btn" type="button" onClick={() => refetch()}>
-        Refresh
-      </button>
+      <div className="toolbar-buttons">
+        <button className="btn btn--ghost" type="button" onClick={() => refetch()}>
+          <span className="btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <path d="M4 4v4h4" />
+              <path d="M16 16v-4h-4" />
+              <path d="M4 12a6 6 0 0 0 9.9 3.5L16 12" />
+              <path d="M16 8a6 6 0 0 0-9.9-3.5L4 8" />
+            </svg>
+          </span>
+          Refresh
+        </button>
+      </div>
     );
   }, [canViewRuns, refetch]);
 

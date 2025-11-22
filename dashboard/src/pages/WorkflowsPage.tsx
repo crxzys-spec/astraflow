@@ -30,9 +30,17 @@ const WorkflowsPage = () => {
       return null;
     }
     return (
-      <Link className="btn btn--primary" to="/workflows/new">
-        Create Workflow
-      </Link>
+      <div className="toolbar-buttons">
+        <Link className="btn btn--primary" to="/workflows/new">
+          <span className="btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <path d="M10 4v12" />
+              <path d="M4 10h12" />
+            </svg>
+          </span>
+          Create
+        </Link>
+      </div>
     );
   }, [canCreateWorkflow]);
 

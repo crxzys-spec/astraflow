@@ -31,7 +31,7 @@ const WorkflowsPage = () => {
     }
     return (
       <div className="toolbar-buttons">
-        <Link className="btn btn--primary" to="/workflows/new">
+        <Link className="btn btn--ghost" to="/workflows/new">
           <span className="btn__icon" aria-hidden="true">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
               <path d="M10 4v12" />

@@ -371,13 +371,14 @@
 
 .btn--ghost {
   background: transparent;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  color: #cbd5f5;
+  border: 1px solid rgba(248, 250, 252, 0.6);
+  color: #f8fafc;
   box-shadow: none;
 }
 
 .btn--ghost:hover:not(:disabled) {
-  background: rgba(148, 163, 184, 0.12);
+  background: rgba(248, 250, 252, 0.12);
+  border-color: rgba(248, 250, 252, 0.85);
 }
 
 .btn--link {

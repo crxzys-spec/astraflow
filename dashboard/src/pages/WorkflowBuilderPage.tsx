@@ -863,7 +863,7 @@ const WorkflowBuilderPage = () => {
         <div className="builder-actions builder-actions--buttons">
           {canEditWorkflow && (
             <button
-              className="btn"
+              className="btn btn--ghost"
               type="button"
               onClick={handleSaveWorkflow}
               disabled={persistWorkflowMutation.isPending}
@@ -876,7 +876,7 @@ const WorkflowBuilderPage = () => {
           )}
           {canEditWorkflow && (
             <button
-              className="btn"
+              className="btn btn--ghost"
               type="button"
               onClick={openPublishModal}
               disabled={!canPublishWorkflow}
@@ -889,7 +889,7 @@ const WorkflowBuilderPage = () => {
             </button>
           )}
           <button
-            className="btn btn--primary"
+            className="btn btn--ghost"
             type="button"
             onClick={handleRunWorkflow}
             disabled={!canEditWorkflow || startRun.isPending}

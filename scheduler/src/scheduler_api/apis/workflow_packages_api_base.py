@@ -3,7 +3,7 @@
 from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 
 from pydantic import Field, StrictStr
-from typing import Optional
+from typing import Any, Optional
 from typing_extensions import Annotated
 from scheduler_api.models.auth_login401_response import AuthLogin401Response
 from scheduler_api.models.clone_workflow_package_request import CloneWorkflowPackageRequest
@@ -39,6 +39,13 @@ class BaseWorkflowPackagesApi:
         ...
 
 
+    async def delete_workflow_package(
+        self,
+        packageId: StrictStr,
+    ) -> None:
+        ...
+
+
     async def list_workflow_package_versions(
         self,
         packageId: StrictStr,
@@ -59,10 +66,4 @@ class BaseWorkflowPackagesApi:
         workflowId: StrictStr,
         publish_workflow_request: PublishWorkflowRequest,
     ) -> PublishWorkflow200Response:
-        ...
-
-    async def delete_workflow_package(
-        self,
-        packageId: StrictStr,
-    ) -> None:
         ...

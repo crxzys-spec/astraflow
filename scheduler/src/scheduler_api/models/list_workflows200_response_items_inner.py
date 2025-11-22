@@ -26,6 +26,7 @@ from typing_extensions import Annotated
 from scheduler_api.models.start_run_request_workflow_edges_inner import StartRunRequestWorkflowEdgesInner
 from scheduler_api.models.start_run_request_workflow_metadata import StartRunRequestWorkflowMetadata
 from scheduler_api.models.start_run_request_workflow_nodes_inner import StartRunRequestWorkflowNodesInner
+from scheduler_api.models.workflow_subgraph import WorkflowSubgraph
 try:
     from typing import Self
 except ImportError:
@@ -42,7 +43,8 @@ class ListWorkflows200ResponseItemsInner(BaseModel):
     edges: Annotated[List[StartRunRequestWorkflowEdgesInner], Field(min_length=0)]
     tags: Optional[List[StrictStr]] = Field(default=None, description="Workflow-level tags.")
     preview_image: Optional[StrictStr] = Field(default=None, description="Base64-encoded preview of the workflow canvas.", alias="previewImage")
-    __properties: ClassVar[List[str]] = ["id", "schemaVersion", "metadata", "nodes", "edges", "tags", "previewImage"]
+    subgraphs: Optional[List[WorkflowSubgraph]] = Field(default=None, description="Reusable workflow fragments (localized snapshots) that container nodes can reference.")
+    __properties: ClassVar[List[str]] = ["id", "schemaVersion", "metadata", "nodes", "edges", "tags", "previewImage", "subgraphs"]
 
     @field_validator('schema_version')
     def schema_version_validate_regular_expression(cls, value):
@@ -105,6 +107,13 @@ class ListWorkflows200ResponseItemsInner(BaseModel):
                 if _item:
                     _items.append(_item.to_dict())
             _dict['edges'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in subgraphs (list)
+        _items = []
+        if self.subgraphs:
+            for _item in self.subgraphs:
+                if _item:
+                    _items.append(_item.to_dict())
+            _dict['subgraphs'] = _items
         return _dict
 
     @classmethod
@@ -123,8 +132,8 @@ class ListWorkflows200ResponseItemsInner(BaseModel):
             "nodes": [StartRunRequestWorkflowNodesInner.from_dict(_item) for _item in obj.get("nodes")] if obj.get("nodes") is not None else None,
             "edges": [StartRunRequestWorkflowEdgesInner.from_dict(_item) for _item in obj.get("edges")] if obj.get("edges") is not None else None,
             "tags": obj.get("tags"),
-            "previewImage": obj.get("previewImage")
+            "previewImage": obj.get("previewImage"),
+            "subgraphs": [WorkflowSubgraph.from_dict(_item) for _item in obj.get("subgraphs")] if obj.get("subgraphs") is not None else None
         })
         return _obj
-
 

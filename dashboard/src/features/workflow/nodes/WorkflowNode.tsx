@@ -6,6 +6,7 @@ import { Handle, Position } from "reactflow";
 import type { NodePortDefinition, NodeWidgetDefinition, WorkflowNodeDraft } from "../types.ts";
 import { useWorkflowStore } from "../store.ts";
 import {
+  formatBindingDisplay,
   getBindingValue,
   isBindingEditable,
   resolveBindingPath,
@@ -277,11 +278,18 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
     ...(stageClass ? { [`workflow-node--stage-${stageClass}`]: true } : {}),
   });
 
+  const isContainerNode = workflowNode?.nodeKind === "workflow.container";
+
   return (
     <div className={nodeClassName}>
       <header className="workflow-node__header">
         <span className="workflow-node__label">{displayLabel}</span>
         <div className="workflow-node__header-badges">
+          {isContainerNode && (
+            <span className="workflow-node__status workflow-node__status--container" title="Container node">
+              Container
+            </span>
+          )}
           {stage && (
             <span
               className={clsx(
@@ -309,17 +317,15 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
           {inputPorts.map((port) => {
             const binding = resolveBindingPath(port.binding?.path ?? "");
             const schemaInfo = getSchemaInfo(workflowNode, binding);
-            const title = binding
-              ? `${port.label} (${[binding.root, ...binding.path].join(".")})`
-              : port.label;
-            const bindingPath = binding ? [binding.root, ...binding.path].join(".") : undefined;
+            const bindingDisplay = formatBindingDisplay(port.binding, binding);
+            const title = bindingDisplay ? `${port.label} (${bindingDisplay})` : port.label;
             return (
               <div
                 key={port.key}
                 className="workflow-node__port workflow-node__port--input"
                 title={title}
                 data-binding-root={binding?.root}
-                data-binding-path={bindingPath}
+                data-binding-path={bindingDisplay}
                 data-schema-type={describeSchemaType(schemaInfo.schema)}
                 data-required={schemaInfo.required ? "true" : undefined}
               >
@@ -367,17 +373,15 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
           {outputPorts.map((port) => {
             const binding = resolveBindingPath(port.binding?.path ?? "");
             const schemaInfo = getSchemaInfo(workflowNode, binding);
-            const title = binding
-              ? `${port.label} (${[binding.root, ...binding.path].join(".")})`
-              : port.label;
-            const bindingPath = binding ? [binding.root, ...binding.path].join(".") : undefined;
+            const bindingDisplay = formatBindingDisplay(port.binding, binding);
+            const title = bindingDisplay ? `${port.label} (${bindingDisplay})` : port.label;
             return (
               <div
                 key={port.key}
                 className="workflow-node__port workflow-node__port--output"
                 title={title}
                 data-binding-root={binding?.root}
-                data-binding-path={bindingPath}
+                data-binding-path={bindingDisplay}
                 data-schema-type={describeSchemaType(schemaInfo.schema)}
                 data-required={schemaInfo.required ? "true" : undefined}
               >

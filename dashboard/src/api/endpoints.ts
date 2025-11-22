@@ -776,66 +776,6 @@ export const useDeleteWorkflow = <TError = AxiosError<ForbiddenResponse | NotFou
     }
     
 /**
- * @summary Delete a workflow package
- */
-export const deleteWorkflowPackage = (
-    packageId: string, options?: AxiosRequestConfig
- ): Promise<AxiosResponse<void>> => {
-    
-    
-    return axios.default.delete(
-      `/api/v1/workflow-packages/${packageId}`,options
-    );
-  }
-
-
-
-export const getDeleteWorkflowPackageMutationOptions = <TError = AxiosError<ForbiddenResponse | NotFoundResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflowPackage>>, TError,{packageId: string}, TContext>, axios?: AxiosRequestConfig}
-): UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflowPackage>>, TError,{packageId: string}, TContext> => {
-
-const mutationKey = ['deleteWorkflowPackage'];
-const {mutation: mutationOptions, axios: axiosOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, axios: undefined};
-
-      
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWorkflowPackage>>, {packageId: string}> = (props) => {
-          const {packageId} = props ?? {};
-
-          return  deleteWorkflowPackage(packageId,axiosOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type DeleteWorkflowPackageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWorkflowPackage>>>
-    export type DeleteWorkflowPackageMutationError = AxiosError<ForbiddenResponse | NotFoundResponse>
-
-    /**
- * @summary Delete a workflow package
- */
-export const useDeleteWorkflowPackage = <TError = AxiosError<ForbiddenResponse | NotFoundResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflowPackage>>, TError,{packageId: string}, TContext>, axios?: AxiosRequestConfig}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof deleteWorkflowPackage>>,
-        TError,
-        {packageId: string},
-        TContext
-      > => {
-
-      const mutationOptions = getDeleteWorkflowPackageMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    
-/**
  * @summary List published workflow packages
  */
 export const listWorkflowPackages = (
@@ -1017,6 +957,67 @@ export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkf
 
 
 
+/**
+ * @summary Delete a workflow package
+ */
+export const deleteWorkflowPackage = (
+    packageId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<void>> => {
+    
+    
+    return axios.default.delete(
+      `/api/v1/workflow-packages/${packageId}`,options
+    );
+  }
+
+
+
+export const getDeleteWorkflowPackageMutationOptions = <TError = AxiosError<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflowPackage>>, TError,{packageId: string}, TContext>, axios?: AxiosRequestConfig}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflowPackage>>, TError,{packageId: string}, TContext> => {
+
+const mutationKey = ['deleteWorkflowPackage'];
+const {mutation: mutationOptions, axios: axiosOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, axios: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWorkflowPackage>>, {packageId: string}> = (props) => {
+          const {packageId} = props ?? {};
+
+          return  deleteWorkflowPackage(packageId,axiosOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteWorkflowPackageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWorkflowPackage>>>
+    
+    export type DeleteWorkflowPackageMutationError = AxiosError<NotFoundResponse>
+
+    /**
+ * @summary Delete a workflow package
+ */
+export const useDeleteWorkflowPackage = <TError = AxiosError<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflowPackage>>, TError,{packageId: string}, TContext>, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteWorkflowPackage>>,
+        TError,
+        {packageId: string},
+        TContext
+      > => {
+
+      const mutationOptions = getDeleteWorkflowPackageMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
 /**
  * @summary List versions for a workflow package
  */

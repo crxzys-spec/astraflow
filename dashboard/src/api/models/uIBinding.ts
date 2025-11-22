@@ -5,9 +5,13 @@
  * OpenAPI spec version: 1.3.0
  */
 import type { UIBindingMode } from './uIBindingMode';
+import type { BindingScope } from './bindingScope';
 
 export interface UIBinding {
   /** e.g. */
   path: string;
   mode: UIBindingMode;
+  /** Optional textual prefix (e.g. '@welcomeJourney.stage2.#notifyCustomer') that scopes the binding before the JSON pointer root. */
+  prefix?: string;
+  scope?: BindingScope;
 }

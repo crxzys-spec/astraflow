@@ -7,6 +7,7 @@ import contextlib
 import copy
 import logging
 import random
+import re
 import socket
 from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass, field
@@ -19,7 +20,7 @@ from pydantic import BaseModel, ValidationError
 
 from shared.models.ws.envelope import Ack, Role, Sender, WsEnvelope
 from shared.models.ws.cmd.dispatch import CommandDispatchPayload
-from shared.models.ws.result import Artifact, ResultPayload
+from shared.models.ws.result import Artifact, ResultPayload, Status as ResultStatus
 from shared.models.ws.feedback import FeedbackPayload
 from shared.models.ws.error import ErrorPayload
 from shared.models.ws.pkg.event import PackageEvent
@@ -430,7 +431,7 @@ class ControlPlaneConnection:
                     result_payload = ResultPayload(
                         run_id=context.run_id,
                         task_id=context.task_id,
-                        status=result.status,
+                        status=self._normalise_result_status(result.status),
                         result=result.outputs,
                         duration_ms=duration_ms,
                         metadata=metadata_payload or None,
@@ -488,7 +489,8 @@ class ControlPlaneConnection:
         package_name = dispatch.package_name
         package_version = dispatch.package_version
         parameters = dispatch.parameters or {}
-        data_dir = (self.settings.data_dir / run_id / task_id)
+        safe_task_id = self._sanitize_path_segment(task_id)
+        data_dir = (self.settings.data_dir / run_id / safe_task_id)
         data_dir.mkdir(parents=True, exist_ok=True)
         # trace is currently not defined in schema; placeholder for future extension
         trace = None
@@ -516,6 +518,40 @@ class ControlPlaneConnection:
             resource_registry=self.resource_registry,
             feedback=FeedbackPublisher(self, run_id=run_id, task_id=task_id),
         )
+
+    @staticmethod
+    def _sanitize_path_segment(segment: str) -> str:
+        cleaned = re.sub(r'[<>:"/\\\\|?*]', "_", segment)
+        cleaned = cleaned.strip(". ")
+        return cleaned or "task"
+
+    def _normalise_result_status(self, status: str) -> ResultStatus:
+        if not status:
+            LOGGER.warning("Adapter returned empty status; defaulting to FAILED")
+            return ResultStatus.FAILED
+        upper = status.upper()
+        mapping = {
+            "SUCCESS": ResultStatus.SUCCEEDED.value,
+            "SUCCEED": ResultStatus.SUCCEEDED.value,
+            "SUCCEEDED": ResultStatus.SUCCEEDED.value,
+            "ALLOWED": ResultStatus.SUCCEEDED.value,
+            "BLOCKED": ResultStatus.SUCCEEDED.value,
+            "OK": ResultStatus.SUCCEEDED.value,
+            "DONE": ResultStatus.SUCCEEDED.value,
+            "ERROR": ResultStatus.FAILED.value,
+            "FAIL": ResultStatus.FAILED.value,
+            "FAILED": ResultStatus.FAILED.value,
+            "CANCEL": ResultStatus.CANCELLED.value,
+            "CANCELLED": ResultStatus.CANCELLED.value,
+            "SKIP": ResultStatus.SKIPPED.value,
+            "SKIPPED": ResultStatus.SKIPPED.value,
+        }
+        canonical = mapping.get(upper, upper)
+        try:
+            return ResultStatus(canonical)
+        except ValueError:
+            LOGGER.warning("Adapter returned unsupported status '%s'; defaulting to FAILED", status)
+            return ResultStatus.FAILED
 
     def _lease_resources(self, dispatch: CommandDispatchPayload) -> dict[str, ResourceHandle]:
         leased: dict[str, ResourceHandle] = {}

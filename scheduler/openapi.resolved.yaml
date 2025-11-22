@@ -361,6 +361,7 @@ components:
       properties:
         id:
           type: string
+          format: uuid
           description: Workflow UUID
         schemaVersion:
           type: string
@@ -387,11 +388,6 @@ components:
           type: string
           description: Base64-encoded preview of the workflow canvas.
           nullable: true
-        references:
-          type: array
-          description: Imported workflows that can be targeted via '@alias' prefixes.
-          items:
-            $ref: '#/components/schemas/WorkflowReference'
         subgraphs:
           type: array
           description: Reusable workflow fragments (localized snapshots) that container
@@ -405,34 +401,7 @@ components:
       properties:
         workflowId:
           type: string
-    WorkflowReference:
-      type: object
-      additionalProperties: false
-      required:
-      - alias
-      - workflowId
-      properties:
-        alias:
-          type: string
-          description: Local alias used in binding prefixes (e.g. '@alias').
-        workflowId:
-          type: string
-          description: Globally unique workflow identifier being referenced.
-        workflowName:
-          type: string
-          description: Display label of the referenced workflow.
-        namespace:
-          type: string
-          description: Namespace of the referenced workflow; defaults to "default".
-        ownerId:
-          type: string
-          description: Owner enforcing tenant boundaries for this reference.
-        ownerName:
-          type: string
-          description: Display name of the owner if available.
-        description:
-          type: string
-          description: Optional helper copy for the alias inside the builder UI.
+          format: uuid
     WorkflowSubgraph:
       type: object
       additionalProperties: false
@@ -459,6 +428,7 @@ components:
           type: string
         referenceWorkflowId:
           type: string
+          format: uuid
           description: Original workflow id when this subgraph was created from a
             reference.
         referenceWorkflowName:
@@ -902,6 +872,7 @@ components:
             bindings. Defaults to "default".
         originId:
           type: string
+          format: uuid
           description: Identifier linking versions of the same workflow. By default
             equals the workflow id.
         ownerId:
@@ -973,6 +944,7 @@ components:
       properties:
         id:
           type: string
+          format: uuid
           description: Node UUID
         type:
           type: string
@@ -1224,6 +1196,7 @@ components:
           type: string
         nodeId:
           type: string
+          format: uuid
         state:
           $ref: '#/components/schemas/WorkflowNodeState'
     NodeStatusEvent:
@@ -1377,6 +1350,7 @@ components:
           type: string
         nodeId:
           type: string
+          format: uuid
           nullable: true
         artifactId:
           type: string
@@ -1575,18 +1549,9 @@ components:
           type: string
           enum:
           - local
-          - workflow
           - subgraph
-          description: local = default workflow, workflow = imported workflow alias,
-            subgraph = inline subgraph alias chain.
-        workflowAlias:
-          type: string
-          description: Alias declared under workflow.references[] that this binding
-            targets when kind == workflow.
-        workflowId:
-          type: string
-          description: Resolved workflow identifier for the alias (server populated,
-            ensures tenant ownership).
+          description: local = default workflow, subgraph = inline subgraph alias
+            chain.
         subgraphAliases:
           type: array
           description: Ordered list of inline subgraph aliases traversed to reach
@@ -1595,6 +1560,7 @@ components:
             type: string
         nodeId:
           type: string
+          format: uuid
           description: Explicit node identifier within the resolved scope (used for
             '#nodeId' prefixes or workflow-level references).
         prefix:
@@ -1645,6 +1611,7 @@ components:
       properties:
         node:
           type: string
+          format: uuid
           description: Node UUID
         port:
           type: string

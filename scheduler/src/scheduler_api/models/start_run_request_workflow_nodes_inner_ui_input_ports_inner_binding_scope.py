@@ -22,30 +22,29 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
-from scheduler_api.models.start_run_request_workflow_nodes_inner_ui_input_ports_inner_binding_scope import StartRunRequestWorkflowNodesInnerUiInputPortsInnerBindingScope
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-class GetPackage200ResponseManifestNodesInnerUiInputPortsInnerBinding(BaseModel):
+class StartRunRequestWorkflowNodesInnerUiInputPortsInnerBindingScope(BaseModel):
     """
-    GetPackage200ResponseManifestNodesInnerUiInputPortsInnerBinding
+    Canonical representation of a binding prefix used to resolve nodes across workflows or subgraphs.
     """ # noqa: E501
-    path: StrictStr
-    mode: Optional[StrictStr] = None
-    prefix: Optional[StrictStr] = Field(default=None, description="Optional textual prefix (e.g. '@workflowA.subgraphB.#nodeY') applied before resolving the JSON pointer.")
-    scope: Optional[StartRunRequestWorkflowNodesInnerUiInputPortsInnerBindingScope] = None
-    __properties: ClassVar[List[str]] = ["path", "mode", "prefix", "scope"]
+    kind: Optional[StrictStr] = Field(default=None, description="local = default workflow, subgraph = inline subgraph alias chain.")
+    subgraph_aliases: Optional[List[StrictStr]] = Field(default=None, description="Ordered list of inline subgraph aliases traversed to reach the node.", alias="subgraphAliases")
+    node_id: Optional[StrictStr] = Field(default=None, description="Explicit node identifier within the resolved scope (used for '#nodeId' prefixes or workflow-level hops).", alias="nodeId")
+    prefix: Optional[StrictStr] = Field(default=None, description="Raw prefix string captured before parsing (mirrors UIBinding.prefix for auditing/backwards compatibility).")
+    __properties: ClassVar[List[str]] = ["kind", "subgraphAliases", "nodeId", "prefix"]
 
-    @field_validator('mode')
-    def mode_validate_enum(cls, value):
+    @field_validator('kind')
+    def kind_validate_enum(cls, value):
         """Validates the enum"""
         if value is None:
             return value
 
-        if value not in ('read', 'write', 'two_way',):
-            raise ValueError("must be one of enum values ('read', 'write', 'two_way')")
+        if value not in ('local', 'subgraph',):
+            raise ValueError("must be one of enum values ('local', 'subgraph')")
         return value
 
     model_config = {
@@ -66,7 +65,7 @@ class GetPackage200ResponseManifestNodesInnerUiInputPortsInnerBinding(BaseModel)
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of GetPackage200ResponseManifestNodesInnerUiInputPortsInnerBinding from a JSON string"""
+        """Create an instance of StartRunRequestWorkflowNodesInnerUiInputPortsInnerBindingScope from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -79,20 +78,12 @@ class GetPackage200ResponseManifestNodesInnerUiInputPortsInnerBinding(BaseModel)
           were set at model initialization. Other fields with value `None`
           are ignored.
         """
-        _dict = self.model_dump(
-            by_alias=True,
-            exclude={
-            },
-            exclude_none=True,
-        )
-        # override the default output from pydantic by calling `to_dict()` of scope
-        if self.scope:
-            _dict['scope'] = self.scope.to_dict()
+        _dict = self.model_dump(by_alias=True, exclude_none=True)
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Dict) -> Self:
-        """Create an instance of GetPackage200ResponseManifestNodesInnerUiInputPortsInnerBinding from a dict"""
+        """Create an instance of StartRunRequestWorkflowNodesInnerUiInputPortsInnerBindingScope from a dict"""
         if obj is None:
             return None
 
@@ -100,11 +91,10 @@ class GetPackage200ResponseManifestNodesInnerUiInputPortsInnerBinding(BaseModel)
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "path": obj.get("path"),
-            "mode": obj.get("mode"),
-            "prefix": obj.get("prefix"),
-            "scope": StartRunRequestWorkflowNodesInnerUiInputPortsInnerBindingScope.from_dict(obj.get("scope")) if obj.get("scope") is not None else None
+            "kind": obj.get("kind"),
+            "subgraphAliases": obj.get("subgraphAliases"),
+            "nodeId": obj.get("nodeId"),
+            "prefix": obj.get("prefix")
         })
         return _obj
-
 

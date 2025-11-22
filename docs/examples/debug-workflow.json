@@ -1,0 +1,1492 @@
+{
+  "id": "857f2a71-2c02-443f-bfca-4dd0e7f0a8de",
+  "schemaVersion": "2025-10",
+  "metadata": {
+    "name": "Global Reliability Drill",
+    "description": "Simulates a multi-region incident response with nested triage, throttled dispatch, streaming feedback, audit capture, and metrics.",
+    "namespace": "default",
+    "originId": "857f2a71-2c02-443f-bfca-4dd0e7f0a8de",
+    "ownerId": "devrel"
+  },
+  "tags": [
+    "incident",
+    "demo",
+    "containers"
+  ],
+  "subgraphs": [
+    {
+      "id": "sg_triage_response",
+      "definition": {
+        "id": "f5c8454c-061d-4c0f-9e0f-7a9b68a1d7a5",
+        "schemaVersion": "2025-10",
+        "metadata": {
+          "name": "Regional Triage Subgraph",
+          "namespace": "default",
+          "originId": "f5c8454c-061d-4c0f-9e0f-7a9b68a1d7a5"
+        },
+        "nodes": [
+          {
+            "id": "sg_node_prepare_script",
+            "type": "example.pkg.transform_text",
+            "package": {
+              "name": "example.pkg",
+              "version": "1.0.0"
+            },
+            "status": "published",
+            "category": "Examples",
+            "label": "Prepare Regional Script",
+            "position": {
+              "x": 120,
+              "y": 120
+            },
+            "parameters": {
+              "text": "Regional briefing: {{payload.summary}}",
+              "mode": "title",
+              "recipient": "{{payload.regionalContact}}"
+            },
+            "results": {},
+            "ui": {
+              "inputPorts": [
+                {
+                  "key": "input",
+                  "label": "Message",
+                  "binding": {
+                    "path": "/parameters/text",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "recipient",
+                  "label": "Recipient",
+                  "binding": {
+                    "path": "/parameters/recipient",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "channel",
+                  "label": "Channel",
+                  "binding": {
+                    "path": "/parameters/channel",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "subject",
+                  "label": "Subject",
+                  "binding": {
+                    "path": "/parameters/subject",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "delaySeconds",
+                  "label": "Delay (s)",
+                  "binding": {
+                    "path": "/parameters/delaySeconds",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "tokenDelayMs",
+                  "label": "Token Delay (ms)",
+                  "binding": {
+                    "path": "/parameters/tokenDelayMs",
+                    "mode": "write"
+                  }
+                }
+              ],
+              "outputPorts": [
+                {
+                  "key": "message",
+                  "label": "Message",
+                  "binding": {
+                    "path": "/results/message",
+                    "mode": "read"
+                  }
+                },
+                {
+                  "key": "output",
+                  "label": "Formatted",
+                  "binding": {
+                    "path": "/results/output",
+                    "mode": "read"
+                  }
+                },
+                {
+                  "key": "recipient",
+                  "label": "Recipient",
+                  "binding": {
+                    "path": "/results/recipient",
+                    "mode": "read"
+                  }
+                },
+                {
+                  "key": "channel",
+                  "label": "Channel",
+                  "binding": {
+                    "path": "/results/channel",
+                    "mode": "read"
+                  }
+                },
+                {
+                  "key": "subject",
+                  "label": "Subject",
+                  "binding": {
+                    "path": "/results/subject",
+                    "mode": "read"
+                  }
+                },
+                {
+                  "key": "delaySeconds",
+                  "label": "Delay (s)",
+                  "binding": {
+                    "path": "/results/delaySeconds",
+                    "mode": "read"
+                  }
+                },
+                {
+                  "key": "tokenDelayMs",
+                  "label": "Token Delay (ms)",
+                  "binding": {
+                    "path": "/results/tokenDelayMs",
+                    "mode": "read"
+                  }
+                }
+              ],
+              "widgets": [
+                {
+                  "key": "text",
+                  "label": "Message",
+                  "component": "textarea",
+                  "binding": {
+                    "path": "/parameters/text",
+                    "mode": "write"
+                  },
+                  "options": {
+                    "rows": 3
+                  }
+                },
+                {
+                  "key": "mode",
+                  "label": "Mode",
+                  "component": "text",
+                  "binding": {
+                    "path": "/parameters/mode",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "recipient",
+                  "label": "Recipient",
+                  "component": "json",
+                  "binding": {
+                    "path": "/parameters/recipient",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "channel",
+                  "label": "Channel",
+                  "component": "text",
+                  "binding": {
+                    "path": "/parameters/channel",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "subject",
+                  "label": "Subject",
+                  "component": "text",
+                  "binding": {
+                    "path": "/parameters/subject",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "delaySeconds",
+                  "label": "Delay (s)",
+                  "component": "number",
+                  "binding": {
+                    "path": "/parameters/delaySeconds",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "tokenDelayMs",
+                  "label": "Token Delay (ms)",
+                  "component": "number",
+                  "binding": {
+                    "path": "/parameters/tokenDelayMs",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "messagePreview",
+                  "label": "Formatted Message",
+                  "component": "textarea",
+                  "binding": {
+                    "path": "/results/message",
+                    "mode": "read"
+                  },
+                  "options": {
+                    "rows": 3
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "sg_node_policy_gate",
+            "type": "example.pkg.debug_gate",
+            "package": {
+              "name": "example.pkg",
+              "version": "1.0.0"
+            },
+            "status": "published",
+            "category": "Diagnostics",
+            "label": "Policy Gate",
+            "position": {
+              "x": 360,
+              "y": 120
+            },
+            "parameters": {
+              "condition": "payload.priority in ['critical','high']",
+              "payload": {
+                "summary": "{{nodes.node_craft_message.results.message}}",
+                "priority": "{{nodes.node_ingest_brief.results.config.priority}}",
+                "region": "{{nodes.node_ingest_brief.results.config.region}}",
+                "regionalContact": "{{nodes.node_ingest_brief.results.config.recipient}}"
+              }
+            },
+            "results": {},
+            "ui": {
+              "inputPorts": [
+                {
+                  "key": "payload",
+                  "label": "Payload",
+                  "binding": {
+                    "path": "/parameters/payload",
+                    "mode": "write"
+                  }
+                }
+              ],
+              "widgets": [
+                {
+                  "key": "condition",
+                  "label": "Condition",
+                  "component": "string",
+                  "binding": {
+                    "path": "/parameters/condition",
+                    "mode": "two_way"
+                  },
+                  "options": {
+                    "placeholder": "payload.status == 'succeeded'",
+                    "required": true
+                  }
+                },
+                {
+                  "key": "payloadPreview",
+                  "label": "Payload",
+                  "component": "json",
+                  "binding": {
+                    "path": "/parameters/payload",
+                    "mode": "two_way"
+                  },
+                  "options": {
+                    "collapsed": true
+                  }
+                },
+                {
+                  "key": "gateStatus",
+                  "label": "Gate Status",
+                  "component": "string",
+                  "binding": {
+                    "path": "/results/status",
+                    "mode": "read"
+                  },
+                  "options": {
+                    "readOnly": true
+                  }
+                },
+                {
+                  "key": "gateMessage",
+                  "label": "Message",
+                  "component": "textarea",
+                  "binding": {
+                    "path": "/results/message",
+                    "mode": "read"
+                  },
+                  "options": {
+                    "rows": 2,
+                    "readOnly": true
+                  }
+                }
+              ],
+              "outputPorts": [
+                {
+                  "key": "decision",
+                  "label": "Decision",
+                  "binding": {
+                    "path": "/results",
+                    "mode": "read"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "sg_node_regional_notification",
+            "type": "example.pkg.send_notification",
+            "package": {
+              "name": "example.pkg",
+              "version": "1.0.0"
+            },
+            "status": "published",
+            "category": "Examples",
+            "label": "Regional Dispatch",
+            "position": {
+              "x": 600,
+              "y": 120
+            },
+            "parameters": {
+              "recipient": "{{payload.regionalContact}}",
+              "channel": "sms",
+              "subject": "Regional {{payload.region}} update",
+              "message": "{{nodes.sg_node_prepare_script.results.output}}"
+            },
+            "results": {},
+            "ui": {
+              "inputPorts": [
+                {
+                  "key": "message",
+                  "label": "Message",
+                  "binding": {
+                    "path": "/parameters/message",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "recipient",
+                  "label": "Recipient",
+                  "binding": {
+                    "path": "/parameters/recipient",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "channel",
+                  "label": "Channel",
+                  "binding": {
+                    "path": "/parameters/channel",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "subject",
+                  "label": "Subject",
+                  "binding": {
+                    "path": "/parameters/subject",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "handoff",
+                  "label": "Ready Signal",
+                  "binding": {
+                    "path": "/parameters/ready",
+                    "mode": "write"
+                  }
+                }
+              ],
+              "outputPorts": [
+                {
+                  "key": "notificationId",
+                  "label": "Notification",
+                  "binding": {
+                    "path": "/results/notificationId",
+                    "mode": "read"
+                  }
+                },
+                {
+                  "key": "summary",
+                  "label": "Summary",
+                  "binding": {
+                    "path": "/results/summary",
+                    "mode": "read"
+                  }
+                }
+              ],
+              "widgets": [
+                {
+                  "key": "recipient",
+                  "label": "Recipient",
+                  "component": "json",
+                  "binding": {
+                    "path": "/parameters/recipient",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "channel",
+                  "label": "Channel",
+                  "component": "text",
+                  "binding": {
+                    "path": "/parameters/channel",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "subject",
+                  "label": "Subject",
+                  "component": "text",
+                  "binding": {
+                    "path": "/parameters/subject",
+                    "mode": "write"
+                  }
+                },
+                {
+                  "key": "message",
+                  "label": "Message",
+                  "component": "textarea",
+                  "binding": {
+                    "path": "/parameters/message",
+                    "mode": "write"
+                  },
+                  "options": {
+                    "rows": 3
+                  }
+                },
+                {
+                  "key": "summaryPreview",
+                  "label": "Notification Summary",
+                  "component": "textarea",
+                  "binding": {
+                    "path": "/results/summary",
+                    "mode": "read"
+                  },
+                  "options": {
+                    "rows": 3
+                  }
+                },
+                {
+                  "key": "notificationId",
+                  "label": "Notification ID",
+                  "component": "text",
+                  "binding": {
+                    "path": "/results/notificationId",
+                    "mode": "read"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "sg_edge_script_regional",
+            "source": {
+              "node": "sg_node_prepare_script",
+              "port": "output"
+            },
+            "target": {
+              "node": "sg_node_regional_notification",
+              "port": "message"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "label": "Regional Triage Subgraph",
+        "description": "Localises messaging and enforces policy checks before dispatch.",
+        "referenceWorkflowId": "74b2b8d6-9c2e-4d48-8f02-c2e7d22ea15a",
+        "referenceWorkflowName": "Global Reliability Drill",
+        "ownerId": "devrel",
+        "notes": "Demonstrates nested execution."
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_ingest_brief",
+      "type": "example.pkg.load_config",
+      "package": {
+        "name": "example.pkg",
+        "version": "1.0.0"
+      },
+      "status": "published",
+      "category": "Examples",
+      "label": "Ingest Incident Brief",
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "parameters": {
+        "config": "{\n  \"summary\": \"latency spike impacting checkout\",\n  \"region\": \"emea\",\n  \"priority\": \"high\",\n  \"readyInSeconds\": 3,\n  \"channel\": \"email\",\n  \"recipient\": {\n    \"name\": \"On-call Captain\",\n    \"email\": \"captain@example.com\"\n  }\n}"
+      },
+      "results": {},
+      "ui": {
+        "outputPorts": [
+          {
+            "key": "config",
+            "label": "Config",
+            "binding": {
+              "path": "/results/config",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "message",
+            "label": "Welcome Message",
+            "binding": {
+              "path": "/results/config/message",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "recipient",
+            "label": "Recipient",
+            "binding": {
+              "path": "/results/config/recipient",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "channel",
+            "label": "Channel",
+            "binding": {
+              "path": "/results/config/channel",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "subject",
+            "label": "Subject",
+            "binding": {
+              "path": "/results/config/subject",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "delaySeconds",
+            "label": "Delay (s)",
+            "binding": {
+              "path": "/results/config/delaySeconds",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "tokenDelayMs",
+            "label": "Token Delay (ms)",
+            "binding": {
+              "path": "/results/config/tokenDelayMs",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "startedAt",
+            "label": "Started At",
+            "binding": {
+              "path": "/results/startedAt",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "startedAtMs",
+            "label": "Started At (ms)",
+            "binding": {
+              "path": "/results/startedAtMs",
+              "mode": "read"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "config",
+            "label": "Configuration JSON",
+            "component": "json",
+            "binding": {
+              "path": "/parameters/config",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "messagePreview",
+            "label": "Preview Message",
+            "component": "textarea",
+            "binding": {
+              "path": "/results/config/message",
+              "mode": "read"
+            },
+            "options": {
+              "rows": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "node_craft_message",
+      "type": "example.pkg.transform_text",
+      "package": {
+        "name": "example.pkg",
+        "version": "1.0.0"
+      },
+      "status": "published",
+      "category": "Examples",
+      "label": "Craft Global Message",
+      "position": {
+        "x": 400,
+        "y": 40
+      },
+      "parameters": {
+        "text": "Immediate action: {{nodes.node_ingest_brief.results.config.summary}}",
+        "recipient": "{{nodes.node_ingest_brief.results.config.recipient}}",
+        "mode": "uppercase"
+      },
+      "results": {},
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "input",
+            "label": "Message",
+            "binding": {
+              "path": "/parameters/text",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "recipient",
+            "label": "Recipient",
+            "binding": {
+              "path": "/parameters/recipient",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "channel",
+            "label": "Channel",
+            "binding": {
+              "path": "/parameters/channel",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "subject",
+            "label": "Subject",
+            "binding": {
+              "path": "/parameters/subject",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "delaySeconds",
+            "label": "Delay (s)",
+            "binding": {
+              "path": "/parameters/delaySeconds",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "tokenDelayMs",
+            "label": "Token Delay (ms)",
+            "binding": {
+              "path": "/parameters/tokenDelayMs",
+              "mode": "write"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "message",
+            "label": "Message",
+            "binding": {
+              "path": "/results/message",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "output",
+            "label": "Formatted",
+            "binding": {
+              "path": "/results/output",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "recipient",
+            "label": "Recipient",
+            "binding": {
+              "path": "/results/recipient",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "channel",
+            "label": "Channel",
+            "binding": {
+              "path": "/results/channel",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "subject",
+            "label": "Subject",
+            "binding": {
+              "path": "/results/subject",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "delaySeconds",
+            "label": "Delay (s)",
+            "binding": {
+              "path": "/results/delaySeconds",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "tokenDelayMs",
+            "label": "Token Delay (ms)",
+            "binding": {
+              "path": "/results/tokenDelayMs",
+              "mode": "read"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "text",
+            "label": "Message",
+            "component": "textarea",
+            "binding": {
+              "path": "/parameters/text",
+              "mode": "write"
+            },
+            "options": {
+              "rows": 3
+            }
+          },
+          {
+            "key": "mode",
+            "label": "Mode",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/mode",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "recipient",
+            "label": "Recipient",
+            "component": "json",
+            "binding": {
+              "path": "/parameters/recipient",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "channel",
+            "label": "Channel",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/channel",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "subject",
+            "label": "Subject",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/subject",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "delaySeconds",
+            "label": "Delay (s)",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/delaySeconds",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "tokenDelayMs",
+            "label": "Token Delay (ms)",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/tokenDelayMs",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "messagePreview",
+            "label": "Formatted Message",
+            "component": "textarea",
+            "binding": {
+              "path": "/results/message",
+              "mode": "read"
+            },
+            "options": {
+              "rows": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "node_delay_checkpoint",
+      "type": "example.pkg.delay",
+      "package": {
+        "name": "example.pkg",
+        "version": "1.0.0"
+      },
+      "status": "published",
+      "category": "Examples",
+      "label": "Coordinate Dispatch Window",
+      "position": {
+        "x": 400,
+        "y": 360
+      },
+      "parameters": {
+        "durationSeconds": "{{nodes.node_ingest_brief.results.config.readyInSeconds}}"
+      },
+      "results": {},
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "input",
+            "label": "Start",
+            "binding": {
+              "path": "/parameters/durationSeconds",
+              "mode": "write"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "output",
+            "label": "Done",
+            "binding": {
+              "path": "/results/durationSeconds",
+              "mode": "read"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "durationSeconds",
+            "label": "Delay (seconds)",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/durationSeconds",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "actualDuration",
+            "label": "Actual Duration",
+            "component": "number",
+            "binding": {
+              "path": "/results/durationSeconds",
+              "mode": "read"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "node_triage_container",
+      "type": "workflow.container",
+      "package": {
+        "name": "platform_control",
+        "version": "2025.10.0"
+      },
+      "status": "published",
+      "category": "Control",
+      "label": "Regional Triage Container",
+      "position": {
+        "x": 800,
+        "y": 20
+      },
+      "parameters": {
+        "payload": {
+          "summary": "{{nodes.node_craft_message.results.message}}",
+          "priority": "{{nodes.node_ingest_brief.results.config.priority}}",
+          "region": "{{nodes.node_ingest_brief.results.config.region}}",
+          "regionalContact": "{{nodes.node_ingest_brief.results.config.recipient}}"
+        }
+      },
+      "results": {},
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "payload",
+            "label": "Payload",
+            "binding": {
+              "path": "/parameters/payload",
+              "mode": "write"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "triageDecision",
+            "label": "Triage Decision",
+            "binding": {
+              "path": "/results/triageDecision",
+              "mode": "read",
+              "prefix": "@sg_triage_response.#sg_node_policy_gate"
+            }
+          },
+          {
+            "key": "regionalSummary",
+            "label": "Regional Broadcast",
+            "binding": {
+              "path": "/results/regionalNotification",
+              "mode": "read",
+              "prefix": "@sg_triage_response.#sg_node_regional_notification"
+            }
+          }
+        ]
+      },
+      "containerConfig": {
+        "subgraphId": "sg_triage_response",
+        "loop": {
+          "enabled": false,
+          "maxIterations": null,
+          "condition": null
+        },
+        "retry": null,
+        "timeoutSeconds": 120,
+        "notes": "Runs policy checks and regional notification in a nested DAG."
+      }
+    },
+    {
+      "id": "node_send_primary",
+      "type": "example.pkg.send_notification",
+      "package": {
+        "name": "example.pkg",
+        "version": "1.0.0"
+      },
+      "status": "published",
+      "category": "Examples",
+      "label": "Broadcast Global Update",
+      "position": {
+        "x": 1200,
+        "y": 20
+      },
+      "parameters": {
+        "recipient": "{{nodes.node_ingest_brief.results.config.recipient}}",
+        "channel": "{{nodes.node_ingest_brief.results.config.channel}}",
+        "subject": "Global status: {{nodes.node_ingest_brief.results.config.summary}}",
+        "message": "{{nodes.node_craft_message.results.message}}"
+      },
+      "results": {},
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "message",
+            "label": "Message",
+            "binding": {
+              "path": "/parameters/message",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "recipient",
+            "label": "Recipient",
+            "binding": {
+              "path": "/parameters/recipient",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "channel",
+            "label": "Channel",
+            "binding": {
+              "path": "/parameters/channel",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "subject",
+            "label": "Subject",
+            "binding": {
+              "path": "/parameters/subject",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "handoff",
+            "label": "Ready Signal",
+            "binding": {
+              "path": "/parameters/ready",
+              "mode": "write"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "notificationId",
+            "label": "Notification",
+            "binding": {
+              "path": "/results/notificationId",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "summary",
+            "label": "Summary",
+            "binding": {
+              "path": "/results/summary",
+              "mode": "read"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "recipient",
+            "label": "Recipient",
+            "component": "json",
+            "binding": {
+              "path": "/parameters/recipient",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "channel",
+            "label": "Channel",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/channel",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "subject",
+            "label": "Subject",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/subject",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "message",
+            "label": "Message",
+            "component": "textarea",
+            "binding": {
+              "path": "/parameters/message",
+              "mode": "write"
+            },
+            "options": {
+              "rows": 3
+            }
+          },
+          {
+            "key": "summaryPreview",
+            "label": "Notification Summary",
+            "component": "textarea",
+            "binding": {
+              "path": "/results/summary",
+              "mode": "read"
+            },
+            "options": {
+              "rows": 3
+            }
+          },
+          {
+            "key": "notificationId",
+            "label": "Notification ID",
+            "component": "text",
+            "binding": {
+              "path": "/results/notificationId",
+              "mode": "read"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "node_feedback_stream",
+      "type": "example.pkg.feedback_demo",
+      "package": {
+        "name": "example.pkg",
+        "version": "1.0.0"
+      },
+      "status": "published",
+      "category": "Examples",
+      "label": "Stream Executive Brief",
+      "position": {
+        "x": 800,
+        "y": 360
+      },
+      "parameters": {
+        "prompt": "Executive update for {{nodes.node_ingest_brief.results.config.region}}: {{nodes.node_send_primary.results.summary}}",
+        "tokenDelayMs": 45
+      },
+      "results": {},
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "prompt",
+            "label": "Prompt",
+            "binding": {
+              "path": "/parameters/prompt",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "tokenDelayMs",
+            "label": "Token Delay (ms)",
+            "binding": {
+              "path": "/parameters/tokenDelayMs",
+              "mode": "write"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "summary",
+            "label": "Summary",
+            "binding": {
+              "path": "/results/summary",
+              "mode": "read"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "prompt",
+            "label": "Prompt",
+            "component": "textarea",
+            "binding": {
+              "path": "/parameters/prompt",
+              "mode": "write"
+            },
+            "options": {
+              "rows": 3
+            }
+          },
+          {
+            "key": "tokenDelayMs",
+            "label": "Token Delay (ms)",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/tokenDelayMs",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "summaryPreview",
+            "label": "Streamed Summary",
+            "component": "textarea",
+            "binding": {
+              "path": "/results/summary",
+              "mode": "read"
+            },
+            "options": {
+              "rows": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "node_audit_broadcast",
+      "type": "example.pkg.audit_log",
+      "package": {
+        "name": "example.pkg",
+        "version": "1.0.0"
+      },
+      "status": "published",
+      "category": "Examples",
+      "label": "Audit Broadcast",
+      "position": {
+        "x": 1200,
+        "y": 360
+      },
+      "parameters": {
+        "level": "INFO",
+        "message": "Global broadcast acknowledged for {{nodes.node_ingest_brief.results.config.region}}",
+        "entry": {
+          "notificationId": "{{nodes.node_send_primary.results.notificationId}}",
+          "summary": "{{nodes.node_send_primary.results.summary}}",
+          "triage": "{{nodes.node_triage_container.results.triageDecision.message}}"
+        },
+        "runStartedAt": null,
+        "runStartedAtMs": null
+      },
+      "results": {},
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "input",
+            "label": "Event",
+            "binding": {
+              "path": "/parameters/message",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "runStartedAt",
+            "label": "Run Started At",
+            "binding": {
+              "path": "/parameters/runStartedAt",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "runStartedAtMs",
+            "label": "Run Started At (ms)",
+            "binding": {
+              "path": "/parameters/runStartedAtMs",
+              "mode": "write"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "level",
+            "label": "Level",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/level",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "message",
+            "label": "Summary",
+            "component": "textarea",
+            "binding": {
+              "path": "/parameters/message",
+              "mode": "write"
+            },
+            "options": {
+              "rows": 3
+            }
+          },
+          {
+            "key": "entryPreview",
+            "label": "Audit Entry",
+            "component": "json",
+            "binding": {
+              "path": "/results/entry",
+              "mode": "read"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "entry",
+            "label": "Entry",
+            "binding": {
+              "path": "/results/entry",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "latency",
+            "label": "Latency (ms)",
+            "binding": {
+              "path": "/results/latencyMs",
+              "mode": "read"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "node_metrics_latency",
+      "type": "example.pkg.collect_metrics",
+      "package": {
+        "name": "example.pkg",
+        "version": "1.0.0"
+      },
+      "status": "published",
+      "category": "Diagnostics",
+      "label": "Record Latency Metric",
+      "position": {
+        "x": 1600,
+        "y": 360
+      },
+      "parameters": {
+        "metricName": "incident.latency.ms",
+        "value": 0,
+        "tags": {
+          "runId": "{{run.id}}",
+          "region": "{{nodes.node_ingest_brief.results.config.region}}"
+        }
+      },
+      "results": {},
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "metricValue",
+            "label": "Metric Value",
+            "binding": {
+              "path": "/parameters/value",
+              "mode": "write"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "metricName",
+            "label": "Metric Name",
+            "component": "string",
+            "binding": {
+              "path": "/parameters/metricName",
+              "mode": "two_way"
+            },
+            "options": {
+              "placeholder": "debug.latency_ms",
+              "required": true
+            }
+          },
+          {
+            "key": "metricValue",
+            "label": "Value",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/value",
+              "mode": "two_way"
+            },
+            "options": {
+              "required": true,
+              "step": 0.01
+            }
+          },
+          {
+            "key": "metricTags",
+            "label": "Tags",
+            "component": "json",
+            "binding": {
+              "path": "/parameters/tags",
+              "mode": "two_way"
+            },
+            "options": {
+              "collapsed": true
+            }
+          },
+          {
+            "key": "metricId",
+            "label": "Metric Id",
+            "component": "string",
+            "binding": {
+              "path": "/results/metricId",
+              "mode": "read"
+            },
+            "options": {
+              "readOnly": true
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "metric",
+            "label": "Metric Result",
+            "binding": {
+              "path": "/results",
+              "mode": "read"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_ingest_to_craft",
+      "source": {
+        "node": "node_ingest_brief",
+        "port": "message"
+      },
+      "target": {
+        "node": "node_craft_message",
+        "port": "input"
+      }
+    },
+    {
+      "id": "edge_delay_to_send",
+      "source": {
+        "node": "node_delay_checkpoint",
+        "port": "output"
+      },
+      "target": {
+        "node": "node_send_primary",
+        "port": "handoff"
+      }
+    },
+    {
+      "id": "edge_craft_to_send",
+      "source": {
+        "node": "node_craft_message",
+        "port": "message"
+      },
+      "target": {
+        "node": "node_send_primary",
+        "port": "message"
+      }
+    },
+    {
+      "id": "edge_triage_to_feedback",
+      "source": {
+        "node": "node_triage_container",
+        "port": "regionalSummary"
+      },
+      "target": {
+        "node": "node_feedback_stream",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "edge_send_to_audit",
+      "source": {
+        "node": "node_send_primary",
+        "port": "summary"
+      },
+      "target": {
+        "node": "node_audit_broadcast",
+        "port": "input"
+      }
+    },
+    {
+      "id": "edge_ingest_to_audit_started_at",
+      "source": {
+        "node": "node_ingest_brief",
+        "port": "startedAt"
+      },
+      "target": {
+        "node": "node_audit_broadcast",
+        "port": "runStartedAt"
+      }
+    },
+    {
+      "id": "edge_ingest_to_audit_started_at_ms",
+      "source": {
+        "node": "node_ingest_brief",
+        "port": "startedAtMs"
+      },
+      "target": {
+        "node": "node_audit_broadcast",
+        "port": "runStartedAtMs"
+      }
+    },
+    {
+      "id": "edge_audit_to_metrics",
+      "source": {
+        "node": "node_audit_broadcast",
+        "port": "latency"
+      },
+      "target": {
+        "node": "node_metrics_latency",
+        "port": "metricValue"
+      }
+    }
+  ]
+}

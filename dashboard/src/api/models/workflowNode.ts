@@ -12,6 +12,7 @@ import type { WorkflowNodeResults } from './workflowNodeResults';
 import type { WorkflowNodeState } from './workflowNodeState';
 import type { WorkflowNodeSchema } from './workflowNodeSchema';
 import type { NodeUI } from './nodeUI';
+import type { WorkflowContainerConfig } from './workflowContainerConfig';
 
 export interface WorkflowNode {
   /** Node UUID */
@@ -38,4 +39,6 @@ export interface WorkflowNode {
   /** JSON Schemas for parameters/results. */
   schema?: WorkflowNodeSchema;
   ui?: NodeUI;
+  /** Present when the node embeds a reusable subgraph (type = workflow.container). */
+  containerConfig?: WorkflowContainerConfig;
 }

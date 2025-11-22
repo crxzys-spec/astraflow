@@ -24,7 +24,7 @@ from fastapi import (  # noqa: F401
 
 from scheduler_api.models.extra_models import TokenModel  # noqa: F401
 from pydantic import Field, StrictStr
-from typing import Optional
+from typing import Any, Optional
 from typing_extensions import Annotated
 from scheduler_api.models.auth_login401_response import AuthLogin401Response
 from scheduler_api.models.clone_workflow_package_request import CloneWorkflowPackageRequest
@@ -97,19 +97,16 @@ async def get_workflow_package(
     tags=["WorkflowPackages"],
     summary="Delete a workflow package",
     response_model_by_alias=True,
-    status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_workflow_package(
     packageId: StrictStr = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> Response:
-    del token_bearerAuth
+) -> None:
     if not BaseWorkflowPackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    await BaseWorkflowPackagesApi.subclasses[0]().delete_workflow_package(packageId)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return await BaseWorkflowPackagesApi.subclasses[0]().delete_workflow_package(packageId)
 
 
 @router.get(

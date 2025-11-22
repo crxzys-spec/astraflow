@@ -90,3 +90,18 @@ const editableModes: UIBindingMode[] = ["write", "two_way"];
 
 export const isBindingEditable = (mode?: UIBindingMode): boolean => !!mode && editableModes.includes(mode);
 
+export const formatBindingDisplay = (
+  binding: { prefix?: string | null } | undefined,
+  resolution: BindingResolution | undefined
+): string | undefined => {
+  const path = resolution ? [resolution.root, ...resolution.path].join(".") : undefined;
+  const prefix = binding?.prefix?.trim();
+  if (prefix && path) {
+    return prefix.endsWith(".") ? `${prefix}${path}` : `${prefix}.${path}`;
+  }
+  if (path) {
+    return path;
+  }
+  return prefix || undefined;
+};
+

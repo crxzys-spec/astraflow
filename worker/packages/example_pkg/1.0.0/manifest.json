@@ -20,7 +20,9 @@
         "example.pkg.delay",
         "example.pkg.send_notification",
         "example.pkg.audit_log",
-        "example.pkg.feedback_demo"
+        "example.pkg.feedback_demo",
+        "example.pkg.collect_metrics",
+        "example.pkg.debug_gate"
       ]
     }
   ],
@@ -139,6 +141,14 @@
               "type": "integer",
               "description": "Number of top-level keys in the configuration."
             },
+            "startedAt": {
+              "type": "string",
+              "description": "ISO-8601 timestamp recorded when the configuration was parsed."
+            },
+            "startedAtMs": {
+              "type": "number",
+              "description": "Timestamp in milliseconds when the configuration was parsed."
+            },
             "error": {
               "type": "string",
               "description": "Error message when parsing fails."
@@ -204,6 +214,22 @@
             "label": "Token Delay (ms)",
             "binding": {
               "path": "/results/config/tokenDelayMs",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "startedAt",
+            "label": "Started At",
+            "binding": {
+              "path": "/results/startedAt",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "startedAtMs",
+            "label": "Started At (ms)",
+            "binding": {
+              "path": "/results/startedAtMs",
               "mode": "read"
             }
           }
@@ -892,6 +918,14 @@
             "notificationId": {
               "type": "string",
               "description": "Notification identifier for traceability."
+            },
+            "runStartedAt": {
+              "type": "string",
+              "description": "ISO-8601 timestamp captured at the beginning of the run."
+            },
+            "runStartedAtMs": {
+              "type": "number",
+              "description": "Milliseconds since epoch for the run start timestamp."
             }
           }
         },
@@ -904,6 +938,10 @@
                 "succeeded",
                 "failed"
               ]
+            },
+            "latencyMs": {
+              "type": "number",
+              "description": "Estimated processing latency in milliseconds."
             },
             "entry": {
               "type": "object",
@@ -922,6 +960,22 @@
             "label": "Event",
             "binding": {
               "path": "/parameters/message",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "runStartedAt",
+            "label": "Run Started At",
+            "binding": {
+              "path": "/parameters/runStartedAt",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "runStartedAtMs",
+            "label": "Run Started At (ms)",
+            "binding": {
+              "path": "/parameters/runStartedAtMs",
               "mode": "write"
             }
           }
@@ -964,6 +1018,14 @@
             "label": "Entry",
             "binding": {
               "path": "/results/entry",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "latency",
+            "label": "Latency (ms)",
+            "binding": {
+              "path": "/results/latencyMs",
               "mode": "read"
             }
           }
@@ -1091,6 +1153,282 @@
             },
             "options": {
               "rows": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "example.pkg.collect_metrics",
+      "status": "published",
+      "category": "Diagnostics",
+      "label": "Collect Metrics",
+      "description": "Reports a numeric value plus optional tags to the debug metrics sink.",
+      "tags": [
+        "example",
+        "metrics",
+        "debug"
+      ],
+      "adapter": "demo",
+      "handler": "collect_metrics",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "metricName": {
+              "type": "string",
+              "description": "Unique metric identifier.",
+              "default": "debug.latency_ms"
+            },
+            "value": {
+              "type": [
+                "number",
+                "integer"
+              ],
+              "description": "Metric value that will be reported."
+            },
+            "tags": {
+              "type": "object",
+              "description": "Optional key/value tags attached to the metric.",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "default": {
+                "stage": "debug"
+              }
+            }
+          },
+          "required": [
+            "metricName",
+            "value"
+          ]
+        },
+        "results": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "reported",
+                "failed"
+              ],
+              "default": "reported"
+            },
+            "metricId": {
+              "type": "string",
+              "description": "Identifier returned by the metrics sink."
+            }
+          },
+          "required": [
+            "status"
+          ]
+        }
+      },
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "metricValue",
+            "label": "Metric Value",
+            "binding": {
+              "path": "/parameters/value",
+              "mode": "write"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "metricName",
+            "label": "Metric Name",
+            "component": "string",
+            "binding": {
+              "path": "/parameters/metricName",
+              "mode": "two_way"
+            },
+            "options": {
+              "placeholder": "debug.latency_ms",
+              "required": true
+            }
+          },
+          {
+            "key": "metricValue",
+            "label": "Value",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/value",
+              "mode": "two_way"
+            },
+            "options": {
+              "required": true,
+              "step": 0.01
+            }
+          },
+          {
+            "key": "metricTags",
+            "label": "Tags",
+            "component": "json",
+            "binding": {
+              "path": "/parameters/tags",
+              "mode": "two_way"
+            },
+            "options": {
+              "collapsed": true
+            }
+          },
+          {
+            "key": "metricId",
+            "label": "Metric Id",
+            "component": "string",
+            "binding": {
+              "path": "/results/metricId",
+              "mode": "read"
+            },
+            "options": {
+              "readOnly": true
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "metric",
+            "label": "Metric Result",
+            "binding": {
+              "path": "/results",
+              "mode": "read"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "example.pkg.debug_gate",
+      "status": "published",
+      "category": "Diagnostics",
+      "label": "Debug Gate",
+      "description": "Evaluates a boolean expression to allow or block downstream work.",
+      "tags": [
+        "example",
+        "gate",
+        "debug"
+      ],
+      "adapter": "demo",
+      "handler": "debug_gate",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "condition": {
+              "type": "string",
+              "description": "Expression evaluated with the provided payload.",
+              "default": "payload.status == 'succeeded'"
+            },
+            "payload": {
+              "type": "object",
+              "description": "Arbitrary JSON payload available to the expression.",
+              "additionalProperties": true,
+              "default": {}
+            }
+          },
+          "required": [
+            "condition"
+          ]
+        },
+        "results": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "allowed",
+                "blocked"
+              ]
+            },
+            "allow": {
+              "type": "boolean",
+              "description": "Whether execution should continue downstream."
+            },
+            "message": {
+              "type": "string",
+              "description": "Optional message describing the evaluation."
+            }
+          },
+          "required": [
+            "status",
+            "allow"
+          ]
+        }
+      },
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "payload",
+            "label": "Payload",
+            "binding": {
+              "path": "/parameters/payload",
+              "mode": "write"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "condition",
+            "label": "Condition",
+            "component": "string",
+            "binding": {
+              "path": "/parameters/condition",
+              "mode": "two_way"
+            },
+            "options": {
+              "placeholder": "payload.status == 'succeeded'",
+              "required": true
+            }
+          },
+          {
+            "key": "payloadPreview",
+            "label": "Payload",
+            "component": "json",
+            "binding": {
+              "path": "/parameters/payload",
+              "mode": "two_way"
+            },
+            "options": {
+              "collapsed": true
+            }
+          },
+          {
+            "key": "gateStatus",
+            "label": "Gate Status",
+            "component": "string",
+            "binding": {
+              "path": "/results/status",
+              "mode": "read"
+            },
+            "options": {
+              "readOnly": true
+            }
+          },
+          {
+            "key": "gateMessage",
+            "label": "Message",
+            "component": "textarea",
+            "binding": {
+              "path": "/results/message",
+              "mode": "read"
+            },
+            "options": {
+              "rows": 2,
+              "readOnly": true
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "decision",
+            "label": "Decision",
+            "binding": {
+              "path": "/results",
+              "mode": "read"
             }
           }
         ]

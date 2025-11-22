@@ -27,6 +27,7 @@ from scheduler_api.models.start_run_request_workflow_nodes_inner_position import
 from scheduler_api.models.start_run_request_workflow_nodes_inner_schema import StartRunRequestWorkflowNodesInnerSchema
 from scheduler_api.models.start_run_request_workflow_nodes_inner_state import StartRunRequestWorkflowNodesInnerState
 from scheduler_api.models.start_run_request_workflow_nodes_inner_ui import StartRunRequestWorkflowNodesInnerUi
+from scheduler_api.models.workflow_container_config import WorkflowContainerConfig
 try:
     from typing import Self
 except ImportError:
@@ -50,7 +51,8 @@ class StartRunRequestWorkflowNodesInner(BaseModel):
     state: Optional[StartRunRequestWorkflowNodesInnerState] = None
     var_schema: Optional[StartRunRequestWorkflowNodesInnerSchema] = Field(default=None, alias="schema")
     ui: Optional[StartRunRequestWorkflowNodesInnerUi] = None
-    __properties: ClassVar[List[str]] = ["id", "type", "package", "status", "category", "label", "description", "tags", "position", "parameters", "results", "state", "schema", "ui"]
+    container_config: Optional[WorkflowContainerConfig] = Field(default=None, alias="containerConfig", description="Present when the node embeds a reusable subgraph (type = workflow.container).")
+    __properties: ClassVar[List[str]] = ["id", "type", "package", "status", "category", "label", "description", "tags", "position", "parameters", "results", "state", "schema", "ui", "containerConfig"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
@@ -111,6 +113,8 @@ class StartRunRequestWorkflowNodesInner(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of ui
         if self.ui:
             _dict['ui'] = self.ui.to_dict()
+        if self.container_config:
+            _dict['containerConfig'] = self.container_config.to_dict()
         return _dict
 
     @classmethod
@@ -136,8 +140,8 @@ class StartRunRequestWorkflowNodesInner(BaseModel):
             "results": obj.get("results"),
             "state": StartRunRequestWorkflowNodesInnerState.from_dict(obj.get("state")) if obj.get("state") is not None else None,
             "schema": StartRunRequestWorkflowNodesInnerSchema.from_dict(obj.get("schema")) if obj.get("schema") is not None else None,
-            "ui": StartRunRequestWorkflowNodesInnerUi.from_dict(obj.get("ui")) if obj.get("ui") is not None else None
+            "ui": StartRunRequestWorkflowNodesInnerUi.from_dict(obj.get("ui")) if obj.get("ui") is not None else None,
+            "containerConfig": WorkflowContainerConfig.from_dict(obj.get("containerConfig")) if obj.get("containerConfig") is not None else None
         })
         return _obj
-
 

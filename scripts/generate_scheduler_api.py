@@ -64,7 +64,10 @@ def main() -> None:
         }
         for key, path in merge_sources.items():
             data = yaml.safe_load(path.read_text(encoding="utf-8"))
-            components[key] = data.get(key, {})
+            if isinstance(data, dict) and key in data:
+                components[key] = data[key]
+            else:
+                components[key] = data if isinstance(data, dict) else {}
 
         def transform_refs(node):
             if isinstance(node, dict):
@@ -81,6 +84,8 @@ def main() -> None:
                 }
                 for old, new in replacements.items():
                     node = node.replace(old, new)
+                if node.startswith("#/") and not node.startswith("#/components/"):
+                    node = node.replace("#/", "#/components/schemas/", 1)
                 if node.startswith("#/schemas/"):
                     node = node.replace("#/schemas/", "#/components/schemas/")
                 if node.startswith("#/parameters/"):
@@ -91,7 +96,10 @@ def main() -> None:
             return node
 
         spec = transform_refs(spec)
-        spec_path.write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
+        spec_yaml = yaml.safe_dump(spec, sort_keys=False)
+        spec_path.write_text(spec_yaml, encoding="utf-8")
+        resolved_copy = OUTPUT_DIR / "openapi.resolved.yaml"
+        resolved_copy.write_text(spec_yaml, encoding="utf-8")
 
         base_cmd = [
             "generate",

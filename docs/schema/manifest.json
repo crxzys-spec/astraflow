@@ -302,6 +302,43 @@
             "two_way"
           ],
           "default": "write"
+        },
+        "prefix": {
+          "type": "string",
+          "description": "Optional textual prefix (e.g. '@subgraphA.#nodeY') that scopes the binding before resolving the JSON pointer."
+        },
+        "scope": {
+          "$ref": "#/$defs/BindingScope"
+        }
+      }
+    },
+    "BindingScope": {
+      "type": "object",
+      "description": "Canonical representation of the binding prefix for cross-workflow or subgraph references.",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "local",
+            "subgraph"
+          ],
+          "description": "local = current workflow, subgraph = inline subgraph alias."
+        },
+        "subgraphAliases": {
+          "type": "array",
+          "description": "Ordered list of inline subgraph aliases traversed by the prefix.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "nodeId": {
+          "type": "string",
+          "description": "Explicit target node identifier (used for '#node' prefixes)."
+        },
+        "prefix": {
+          "type": "string",
+          "description": "Raw prefix string captured before parsing (mirrors Binding.prefix)."
         }
       }
     },

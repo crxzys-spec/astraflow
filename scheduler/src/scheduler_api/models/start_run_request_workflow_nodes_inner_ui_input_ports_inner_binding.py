@@ -21,7 +21,8 @@ import json
 
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
+from scheduler_api.models.start_run_request_workflow_nodes_inner_ui_input_ports_inner_binding_scope import StartRunRequestWorkflowNodesInnerUiInputPortsInnerBindingScope
 try:
     from typing import Self
 except ImportError:
@@ -33,7 +34,9 @@ class StartRunRequestWorkflowNodesInnerUiInputPortsInnerBinding(BaseModel):
     """ # noqa: E501
     path: StrictStr = Field(description="e.g.")
     mode: StrictStr
-    __properties: ClassVar[List[str]] = ["path", "mode"]
+    prefix: Optional[StrictStr] = Field(default=None, description="Optional textual prefix (e.g. '@welcomeJourney.stage2.#notifyCustomer') that scopes the binding before the JSON pointer root.")
+    scope: Optional[StartRunRequestWorkflowNodesInnerUiInputPortsInnerBindingScope] = None
+    __properties: ClassVar[List[str]] = ["path", "mode", "prefix", "scope"]
 
     @field_validator('mode')
     def mode_validate_enum(cls, value):
@@ -79,6 +82,9 @@ class StartRunRequestWorkflowNodesInnerUiInputPortsInnerBinding(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of scope
+        if self.scope:
+            _dict['scope'] = self.scope.to_dict()
         return _dict
 
     @classmethod
@@ -92,7 +98,9 @@ class StartRunRequestWorkflowNodesInnerUiInputPortsInnerBinding(BaseModel):
 
         _obj = cls.model_validate({
             "path": obj.get("path"),
-            "mode": obj.get("mode")
+            "mode": obj.get("mode"),
+            "prefix": obj.get("prefix"),
+            "scope": StartRunRequestWorkflowNodesInnerUiInputPortsInnerBindingScope.from_dict(obj.get("scope")) if obj.get("scope") is not None else None
         })
         return _obj
 

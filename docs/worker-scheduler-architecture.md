@@ -130,8 +130,7 @@ crawlerx_playwright/
   "description": "...",
   "adapters": [
     {
-      "name": "playwright",
-      "runtime": "playwright",
+      "name": "browser",
       "entrypoint": "playwright.adapter:PlaywrightAdapter",
       "capabilities": [
         "playwright.open_page",
@@ -160,13 +159,10 @@ crawlerx_playwright/
       "label": "Open Page",
       "description": "Navigate to a specific URL with configurable wait conditions.",
       "tags": ["playwright", "navigation"],
-      "runtimes": {
-        "playwright": {
-          "config": {
-            "navigationStrategy": "default"
-          },
-          "handler": "open_page"
-        }
+      "adapter": "browser",
+      "handler": "open_page",
+      "config": {
+        "navigationStrategy": "default"
       },
       "schema": {
         "parameters": {
@@ -358,13 +354,151 @@ crawlerx_playwright/
 To support loops and conditional fan-out while keeping workflows as DAGs, the scheduler introduces two small extensions.
 
 - **Loop nodes** reference other workflows by globally unique `workflowId`. When such a node is scheduled the run registry clones the referenced workflow, giving each cloned node a namespace such as `library.translator.step1`. Loop inputs/outputs still use `inputPorts/widgets/outputPorts`, but `binding.path` may include these namespaces so outer nodes can inject into / read from the loop body directly.
-- **Namespace-aware bindings**: the registry maintains a `scope -> NodeState` index. Binding paths remain JSON Pointer style (`parameters.foo`, `results.bar`); if no prefix is supplied they continue to resolve against the current node. Optionally prepending `namespace.workflowId.nodeId.` lets builders wire cross-workflow bindings without introducing explicit parent/child syntax.
-- **Branching via output conditions**: output port bindings accept an optional `condition` expression (evaluated safely against the node’s own parameters/results). Ports whose conditions resolve to `true` propagate data and unlock downstream nodes; the rest mark their successors as `skipped`, and the SSE layer mirrors the state so the UI can grey out unused routes.
+- **Namespace-aware bindings**: the registry maintains a `scope -> NodeState` index. Binding paths remain JSON Pointer style (`parameters.foo`, `results.bar`); if no prefix is supplied they continue to resolve against the current node. Optionally prepending `namespace.subgraphAlias.nodeId.` lets builders wire cross-workflow bindings by targeting the localized subgraphs they have embedded without introducing explicit parent/child syntax.
 - **Versioning through ids**: publishing or copying a workflow simply creates a new `workflowId`. Loop nodes reference the exact id they depend on, so adopting a revised definition is an explicit action (swap the id) instead of an implicit upgrade.
+
+### 3.6 Binding Scope Upgrade Plan
+
+We are expanding bindings so a node can point at any other node’s `parameters.*` / `results.*`, including nodes housed inside inline subgraphs or external workflows owned by the same user. The upgrade introduces explicit prefixes plus supporting metadata so resolution remains deterministic.
+
+- **Prefix grammar**:
+  - `@subgraphAlias(.childAlias)*(.nodeId)?` — hop into a localized subgraph declared in the current definition (imported workflows must be owned by the same tenant before localization). Example: `@welcomeJourney.stage2.#notifyCustomer.results.status`.
+  - `#nodeId` — target another node within the current workflow scope before falling back to the JSON pointer root. Example: `#reader.parameters.tokenDelayMs`.
+  - If no prefix is present, bindings stay local (legacy behaviour) and continue to resolve against the current node.
+  - After the prefix, JSON pointer semantics still apply (`/parameters/message`, `/results/summary`), so existing tooling continues to parse the paths.
+
+- **Data structures & indexes**:
+- Workflow definitions gain `subgraphs[]` entries (each a localized snapshot of either a local draft or an imported workflow). Each alias becomes a resolvable scope id such as `scope:default/welcomeJourney/stage2`.
+- At plan/build time we populate a hierarchical cache: `scopeId -> nodeId -> {parameters, results}` plus reverse maps (`subgraphAlias -> scopeId`, `nodeId -> inbound/outbound bindings`). Subgraphs inherit their parent scope so deeper nesting is just another level in the tree.
+- Scheduler enforcement checks that `@` aliases map to localized subgraphs whose provenance (`referenceWorkflowId` / ownership) matches the tenant. During execution the run registry walks the scope tree before applying the JSON pointer to the resolved node payload.
+
+- **Upgrade tasks**:
+  1. **Schema & API** — extend `binding` objects (OpenAPI + manifest) with optional structured scope fields, regenerate SDKs, and document the string prefix shorthand for humans/editors.
+  2. **Backend logic** — enhance workflow validation (ownership, alias lookup), update binding resolution utilities to parse prefixes, and persist the new scope metadata alongside run plans.
+  3. **Runtime indexing** — teach the scheduler/run registry to hydrate the hierarchical index so SSE streams and dependency tracking continue to work with nested scopes.
+  4. **Frontend/editor** — expose alias-aware pickers/autocomplete, serialize the structured fields, and surface the resolved scope in the inspector so authors can see when a widget targets another workflow.
+  5. **Docs & rollout** — keep this section plus release notes updated, communicate the syntax change, and include migration guidance for teams who want to refactor existing bindings.
+
+Legacy bindings do not need immediate changes; they omit the prefix and serialize with `scope.kind = local`. New bindings may mix both forms, letting teams adopt cross-workflow bindings gradually while the scheduler enforces tenant boundaries throughout the stack.
 
 ## 4. Workflow Definition Instance
 
-The workflow definition serves as the contract between the drag-and-connect editor and the Scheduler runtime. The UI persists the JSON, and the Scheduler consumes the same payload to orchestrate tasks. Global context is no longer exchanged; instead, node parameters contain fully resolved values or expressions local to each node, and widgets can also bind to `results.*` paths for read-only display of execution outputs. **All workflow IDs and node IDs must be UUIDs** so they remain globally unique across imports and Scheduler executions. Below is a representative instance that wires two Playwright adapters from the package example above.
+The workflow definition serves as the contract between the drag-and-connect editor and the Scheduler runtime. The UI persists the JSON, and the Scheduler consumes the same payload to orchestrate tasks. Global context is no longer exchanged; instead, node parameters contain fully resolved values or expressions local to each node, and widgets can also bind to `results.*` paths for read-only display of execution outputs. **All workflow IDs and node IDs must be UUIDs** so they remain globally unique across imports and Scheduler executions.
+
+### 4.1 Subgraphs & Container Nodes
+
+Workflows can now embed **subgraphs** to encapsulate reusable logic. Subgraphs are defined once per workflow and then referenced by container nodes:
+
+```json
+{
+  "subgraphs": [
+    {
+      "id": "sg_local_a",
+      "definition": { "...complete workflow JSON..." },
+      "metadata": {
+        "label": "Local enrichment",
+        "description": "Shared data prep stage"
+      }
+    },
+    {
+      "id": "sg_external_template",
+      "definition": { "...external workflow snapshot..." },
+      "metadata": {
+        "label": "Customer Onboarding",
+        "referenceWorkflowId": "wf_onboarding_2025_03"
+      }
+    }
+  ]
+}
+```
+Adapters register handlers once via `adapters[]`, and every catalogued node picks the adapter plus handler combo it needs (`adapter: "browser"`, `handler: "open_page"`). This mirrors the `worker/packages/<package>/<version>/manifest.json` layout so execution routing no longer depends on runtime buckets.
+
+- All subgraphs are “localized” when the workflow is saved/published: even external references are stored as a copy of the referenced workflow so Scheduler does not need to fetch anything at runtime.
+- Each container node references one of these subgraphs through `containerConfig.subgraphId`. The node itself keeps the standard schema (`parameters`, `results`, `ui.inputPorts`, `ui.outputPorts`, `ui.widgets`). The additional `containerConfig` block holds the subgraph link and any execution policies:
+
+```json
+{
+  "id": "node_container_a",
+  "type": "workflow.container",
+  "label": "Enrich Customer Profile",
+  "ui": {
+    "inputPorts": [
+      { "key": "profile", "label": "Profile", "binding": { "path": "/parameters/profile" } }
+    ],
+    "outputPorts": [
+      { "key": "result", "label": "Result", "binding": { "path": "/results/result" } }
+    ],
+    "widgets": [
+      { "key": "loopToggle", "label": "Loop", "component": "checkbox", "binding": { "path": "/parameters/loopEnabled" } }
+    ]
+  },
+  "parameters": { "loopEnabled": false },
+  "results": {},
+  "containerConfig": {
+    "subgraphId": "sg_local_a",
+    "loop": {
+      "enabled": true,
+      "maxIterations": 5,
+      "condition": "results.status != 'done'"
+    },
+    "timeoutSeconds": 600
+  }
+}
+```
+
+- Bindings from container ports/widgets to the subgraph internals use the same prefix syntax described in §3.6. For example, `/parameters/profile` may be wired to the subgraph’s entry node by binding with `@sg_local_a.#entryNode.parameters.profile`.
+- Loop/retry/timeout semantics are stored inside `containerConfig` so Scheduler can treat the subgraph invocation like any other node task while still honoring the extra policies.
+
+This approach keeps container nodes structurally identical to other nodes while allowing them to encapsulate entire sub-workflows that can be reused, looped, or imported from other definitions.
+
+#### Additional design notes
+
+- **Subgraphs are always localized**: regardless of origin, `workflow.subgraphs[]` stores a complete `Workflow` definition. Reference metadata (original workflow id/owner/name) can live inside the subgraph’s `metadata` block for UI display, but Scheduler never re-fetches the source at runtime.
+- **Top-level metadata stays local**: `workflow.metadata.*` always reflects the currently edited workflow (namespace, originId, owner, etc.). Imported snapshots only record their provenance inside their own subgraph `metadata`, so referencing another workflow never overwrites the parent’s metadata.
+- **Containers reuse the existing node schema**: they still expose `label`, `position`, `parameters`, `results`, and `ui.*`. The only new field is `containerConfig`, which records `subgraphId` plus optional orchestration settings (loop/retry/timeout). No custom handler development is required—containers are platform-provided control nodes.
+- **Bindings bridge container <-> subgraph**: widgets and ports continue to bind to `/parameters/...` or `/results/...`. When a binding needs to reach into the subgraph, it uses the same prefix syntax (`@subgraphAlias.#node.parameters.foo`). The Scheduler’s scope index resolves these prefixes, so data injection/extraction works just like any other node.
+- **Execution flow**: before dispatching the subgraph, the container copies relevant `parameters` into the subgraph definition; once the subgraph run completes, specified `results` are copied back to the container node. Loop/retry policies defined in `containerConfig` control how many times the subgraph is invoked or when to stop.
+
+#### Containers vs. Subgraphs at a glance
+
+- **Placement**: `workflow.subgraphs[]` exists at the workflow root (peer to `nodes[]`/`edges[]`) and stores localized workflow snapshots, while containers remain regular `workflow.nodes[]` entries with an additional `containerConfig` bucket.
+- **Execution contract**: containers inherit every standard node field and merely add optional orchestration hooks (`loop`, `retry`, `timeoutSeconds`). Subgraphs never execute by themselves—they are invoked only through containers referencing their `subgraphId`.
+- **Authoring flow**: builders create/import subgraphs once, then reuse them across multiple containers. Adjusting a container’s `subgraphId` or policies changes behavior without rewriting the subgraph JSON.
+
+Below is a representative instance of the top-level workflow wiring two Playwright adapters plus a containerized subgraph:
+
+### 4.2 Upgrade Plan Snapshot
+
+To roll out subgraphs/containers end-to-end we’re tackling the work in four coordinated streams:
+
+1. **Schema & docs** – finalize the OpenAPI/manifest models for `workflow.subgraphs[]`, `workflow.container` nodes, and binding prefixes; regenerate SDKs; keep this document + frontend builder docs current so builders know how to author new structures.
+2. **Scheduler backend** – teach plan building + `RunRegistry` to hydrate subgraph definitions, resolve container bindings via the scope index, and honor `containerConfig` policies (loop/retry/timeout). Add validation for subgraph IDs, tenant ownership, and prefixed bindings.
+3. **Dashboard builder** – add subgraph management UI (create/import, alias metadata), container-node inspectors (subgraph picker, execution policy controls), and ensure draft ↔ API converters round-trip `subgraphs[]` / `containerConfig`.
+4. **Runtime validation & tests** – extend unit/integration coverage for container execution, SSE updates, and cross-workflow bindings; document migration steps for existing workflows and monitor the rollout.
+
+Each phase is tracked in the upgrade checklist so we can land schema, backend, frontend, and QA changes in lockstep.
+
+**Execution pipeline upgrades**
+
+1. **Planner expansion**:
+   - Clone subgraphs referenced by containers during plan build: assign scoped node ids (`<containerId>::<nodeId>`), merge edges, and tag each cloned node with its alias chain.
+   - Validate `containerConfig` (loop/retry/timeout) plus any subgraph-level constraints (ownership, version).
+   - Persist the expanded plan so API consumers see a single DAG with metadata describing which nodes belong to which container frame.
+2. **Stack-based runtime**:
+   - Update the dispatcher to push container frames onto a stack (frame = cloned subgraph DAG + policy state). While a frame is active, scheduling/dispatch works exactly like the top-level DAG.
+   - When the frame completes, pop back to the parent container, propagate child results into the container node, and continue the parent DAG.
+   - Support recursion by allowing a frame to push another frame (container inside container) without special casing.
+3. **Binding scope enforcement**:
+   - Extend `WorkflowScopeIndex` and `BindingScopeHint` so nested alias chains resolve to the proper scoped node ids inside the active frame.
+   - When bindings reference subgraph outputs (`@sg_alias.#node.results.*`), automatically copy those values back into the parent container when the frame returns.
+4. **Loop/retry/timeout integration**:
+   - Implement loop state per frame: evaluate exit conditions after each iteration, requeue the frame with updated parameters when the loop continues.
+   - Implement retry policies per frame: on failure, re-run the entire frame up to `maxAttempts` with configurable backoff.
+   - Enforce `timeoutSeconds` by canceling/discarding frames that exceed their allotted time and surfacing a container-level failure.
+5. **Observability**:
+   - Aggregate child stage/progress metrics so container nodes report meaningful status (e.g., `running (2/5 child nodes complete)`).
+   - Emit SSE events and audit logs annotated with the frame stack (`["node_container_debug","sg_node_normalise"]`) so operators can trace into subgraphs.
+   - Update dashboard views to display stacked breadcrumbs when inspecting nested nodes.
 
 - `metadata.namespace` provides a logical grouping (default `default`) that bindings can reference when targeting nodes in other workflows.
 - `metadata.originId` links versions of the same workflow. When a workflow is cloned/published, a new `id` is issued but `originId` remains stable so loop nodes can reference a specific revision on purpose.
@@ -387,8 +521,32 @@ Example welcome journey:
     "name": "Playwright Smoke Check",
     "description": "Open a target page and click the login button to verify availability.",
     "tags": ["playwright", "smoke-test"],
-    "environment": "staging"
+    "environment": "staging",
+    "namespace": "default",
+    "originId": "ba55c67a-9ad4-4b6f-a719-b84e774c2d11"
   },
+  "subgraphs": [
+    {
+      "id": "sg_welcome_stage",
+      "definition": {
+        "id": "883d0c5f-53a8-487b-91fc-7d7f4e5d5b1b",
+        "schemaVersion": "2025-10",
+        "metadata": {
+          "name": "Welcome Journey Snapshot",
+          "namespace": "default",
+          "originId": "7c1f3d77-7017-4f41-90f7-7f7ac0eaa901"
+        },
+        "nodes": [{ "...": "subgraph workflow JSON omitted for brevity" }],
+        "edges": []
+      },
+      "metadata": {
+        "label": "Welcome Journey v3",
+        "referenceWorkflowId": "7c1f3d77-7017-4f41-90f7-7f7ac0eaa901",
+        "referenceWorkflowName": "Customer Welcome Journey",
+        "ownerId": "team-success"
+      }
+    }
+  ],
   "nodes": [
     {
       "id": "2b2c3fcb-9c18-4ca2-9b5a-8ad4deb1f164",
@@ -685,6 +843,48 @@ Example welcome journey:
           }
         ]
       }
+    },
+    {
+      "id": "fa112d74-8cb6-497c-9a53-8f6cbd8c3e7a",
+      "type": "workflow.container",
+      "label": "Run Welcome Subgraph",
+      "package": {
+        "name": "platform_control",
+        "version": "2025.10.0"
+      },
+      "position": { "x": 620, "y": 180 },
+      "parameters": {
+        "customerId": "{{results.notificationId}}"
+      },
+      "results": {},
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "customer",
+            "label": "Customer Record",
+            "binding": {
+              "path": "/parameters/customerId",
+              "mode": "two_way"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "welcomeResult",
+            "label": "Welcome Result",
+            "binding": {
+              "path": "/results/welcomeSummary",
+              "mode": "read",
+              "prefix": "@sg_welcome_stage.#final_stage"
+            }
+          }
+        ]
+      },
+      "containerConfig": {
+        "subgraphId": "sg_welcome_stage",
+        "loop": { "enabled": false },
+        "timeoutSeconds": 900
+      }
     }
   ],
   "edges": [
@@ -697,19 +897,17 @@ Example welcome journey:
       "id": "a36f5d7c-4c4d-4c46-9a8f-21d612f0b143",
       "source": { "node": "2b2c3fcb-9c18-4ca2-9b5a-8ad4deb1f164", "port": "page" },
       "target": { "node": "8f5dea1f-6a13-4e43-843f-5361c40f8f5a", "port": "page" }
+    },
+    {
+      "id": "c79957bc-e371-4c60-a6c5-682a1cf726a4",
+      "source": { "node": "8f5dea1f-6a13-4e43-843f-5361c40f8f5a", "port": "done" },
+      "target": { "node": "fa112d74-8cb6-497c-9a53-8f6cbd8c3e7a", "port": "customer" }
     }
   ],
-  "runtimes": {
-    "playwright": {
-      "workerHints": {
-        "package": "crawlerx_playwright",
-        "minVersion": "2025.10.0"
-      }
-    }
-  },
   "tags": ["web", "smoke"]
 }
 ```
+> **Debug harness:** `docs/examples/debug-workflow.json` contains a second, richer workflow that exercises `workflow.container` nodes, localized subgraphs, and the new `example.pkg.collect_metrics` / `example.pkg.debug_gate` adapters so engineers can validate binding prefixes end-to-end. Persist it via `python scripts/persist_workflow.py --token <Bearer token> --endpoint http://<scheduler-host>/api/v1/workflows` (all arguments are optional; defaults target the bundled demo).
 Each entry under `workflow.nodes[]` may include a `state` object populated by the scheduler during execution. The schema mirrors `WorkflowNodeState` from the public API and supplies the latest stage, progress, and failure details so the builder can surface live feedback without mutating package-controlled `parameters` or `results`.
 
 This payload is stored alongside the manifest-driven catalog. When a run is triggered, the Scheduler selects adapters by `type` and dispatches `RunTaskCommand` messages per node following the defined edges. Per-node parameters are passed through exactly as authored in the workflow JSON.
@@ -823,7 +1021,7 @@ Use that document as the authoritative blueprint when implementing resource-awar
 
 - **Domain model**: Added `users`, `roles`, and `user_roles` tables plus the corresponding SQLAlchemy models. Passwords are stored as bcrypt hashes and linked to simple RBAC roles (`admin`, `workflow.editor`, `workflow.viewer`, `run.viewer`).
 - **Seed admin**: Migration `20251105_0004` inserts an `admin` account whose password comes from `SCHEDULER_ADMIN_PASSWORD` (default `changeme`). Rotate that env var in every deployment before exposing the API.
-- **JWT issuance**: `/api/v1/auth/login` exchanges username/password for a Bearer token signed with `SCHEDULER_JWT_SECRET` (algorithm `SCHEDULER_JWT_ALGORITHM`, default HS256). Expiry is controlled by `SCHEDULER_JWT_ACCESS_MINUTES` and returned as `expiresIn` for the UI.
+- **JWT issuance**: `/api/v1/auth/login` exchanges username/password for a Bearer token signed with `SCHEDULER_JWT_SECRET` (algorithm `SCHEDULER_JWT_ALGORITHM`, default HS256). Expiry is controlled by `SCHEDULER_JWT_ACCESS_MINUTES` (default `525600`, i.e. 1 year) and returned as `expiresIn` for the UI.
 - **Request flow**: Every REST/SSE route except `/auth/login` now requires the Bearer token. `security_api.get_token_bearerAuth` decodes the JWT, raises 401 on failure, and publishes the token to `scheduler_api.auth.context` so business logic (e.g., workflow persistence) can access the current user id.
 - **Dashboard UX**: Added a login page, Zustand-powered auth store, and guarded routes. Tokens persist in `localStorage`, axios/EventSource automatically attach the header, and a dev escape hatch (`VITE_SCHEDULER_TOKEN`) remains available until we wire OIDC/SAML.
 - **Audit trail**: The `audit_events` table records key state transitions (currently workflow create/update, run.start, auth attempts) with actor, target, and structured metadata to support later compliance reporting. `/api/v1/audit-events` exposes filterable/paginated access for admins in both API and dashboard.

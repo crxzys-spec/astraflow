@@ -199,6 +199,7 @@ Workflow:
   properties:
     id:
       type: string
+      format: uuid
       description: Workflow UUID
     schemaVersion:
       type: string
@@ -225,12 +226,52 @@ Workflow:
       type: string
       description: Base64-encoded preview of the workflow canvas.
       nullable: true
+    subgraphs:
+      type: array
+      description: Reusable workflow fragments (localized snapshots) that container nodes can reference.
+      items:
+        $ref: '#/WorkflowSubgraph'
 WorkflowRef:
   type: object
   required:
   - workflowId
   properties:
     workflowId:
+      type: string
+      format: uuid
+WorkflowSubgraph:
+  type: object
+  additionalProperties: false
+  required:
+  - id
+  - definition
+  properties:
+    id:
+      type: string
+      description: Stable identifier referenced by container nodes.
+    definition:
+      $ref: '#/Workflow'
+      description: Localized workflow snapshot backing this subgraph.
+    metadata:
+      $ref: '#/WorkflowSubgraphMetadata'
+WorkflowSubgraphMetadata:
+  type: object
+  additionalProperties: false
+  properties:
+    label:
+      type: string
+      description: Optional human-friendly label for the subgraph.
+    description:
+      type: string
+    referenceWorkflowId:
+      type: string
+      format: uuid
+      description: Original workflow id when this subgraph was created from a reference.
+    referenceWorkflowName:
+      type: string
+    ownerId:
+      type: string
+    notes:
       type: string
 AuthLoginRequest:
   type: object
@@ -599,6 +640,11 @@ ManifestBinding:
       - read
       - write
       - two_way
+    prefix:
+      type: string
+      description: Optional textual prefix (e.g. '@workflowA.subgraphB.#nodeY') applied before resolving the JSON pointer.
+    scope:
+      $ref: '#/BindingScope'
 ManifestResource:
   type: object
   additionalProperties: false
@@ -660,6 +706,7 @@ WorkflowMetadata:
       description: Logical workflow namespace used for indexing/cross-workflow bindings. Defaults to "default".
     originId:
       type: string
+      format: uuid
       description: Identifier linking versions of the same workflow. By default equals the workflow id.
     ownerId:
       type: string
@@ -730,6 +777,7 @@ WorkflowNode:
   properties:
     id:
       type: string
+      format: uuid
       description: Node UUID
     type:
       type: string
@@ -791,6 +839,9 @@ WorkflowNode:
           additionalProperties: true
     ui:
       $ref: '#/NodeUI'
+    containerConfig:
+      $ref: '#/WorkflowContainerConfig'
+      description: Present when the node embeds a reusable subgraph (type = workflow.container).
 NodePackage:
   type: object
   additionalProperties: false
@@ -978,6 +1029,7 @@ NodeStateEvent:
       type: string
     nodeId:
       type: string
+      format: uuid
     state:
       $ref: '#/WorkflowNodeState'
 NodeStatusEvent:
@@ -1131,6 +1183,7 @@ ArtifactEvent:
       type: string
     nodeId:
       type: string
+      format: uuid
       nullable: true
     artifactId:
       type: string
@@ -1311,6 +1364,34 @@ UIBinding:
       - read
       - write
       - two_way
+    prefix:
+      type: string
+      description: Optional textual prefix (e.g. '@welcomeJourney.stage2.#notifyCustomer') that scopes the binding before the JSON pointer root.
+    scope:
+      $ref: '#/BindingScope'
+BindingScope:
+  type: object
+  additionalProperties: false
+  description: Canonical representation of a binding prefix used to resolve nodes across workflows or subgraphs.
+  properties:
+    kind:
+      type: string
+      enum:
+      - local
+      - subgraph
+      description: local = default workflow, subgraph = inline subgraph alias chain.
+    subgraphAliases:
+      type: array
+      description: Ordered list of inline subgraph aliases traversed to reach the node.
+      items:
+        type: string
+    nodeId:
+      type: string
+      format: uuid
+      description: Explicit node identifier within the resolved scope (used for '#nodeId' prefixes or workflow-level references).
+    prefix:
+      type: string
+      description: Raw prefix string captured before parsing (mirrors UIBinding.prefix for auditing/backwards compatibility).
 UIWidget:
   type: object
   additionalProperties: false
@@ -1355,6 +1436,7 @@ EdgeEndpoint:
   properties:
     node:
       type: string
+      format: uuid
       description: Node UUID
     port:
       type: string
@@ -1845,3 +1927,44 @@ WorkflowPublishResponse:
       type: string
     version:
       type: string
+WorkflowContainerConfig:
+  type: object
+  additionalProperties: false
+  required:
+  - subgraphId
+  properties:
+    subgraphId:
+      type: string
+      description: Identifier of the subgraph definition to run.
+    loop:
+      $ref: '#/WorkflowContainerLoopPolicy'
+    retry:
+      $ref: '#/WorkflowContainerRetryPolicy'
+    timeoutSeconds:
+      type: integer
+      minimum: 1
+    notes:
+      type: string
+WorkflowContainerLoopPolicy:
+  type: object
+  additionalProperties: false
+  properties:
+    enabled:
+      type: boolean
+      default: false
+    maxIterations:
+      type: integer
+      minimum: 1
+    condition:
+      type: string
+      description: Expression evaluated against container results/parameters to exit the loop.
+WorkflowContainerRetryPolicy:
+  type: object
+  additionalProperties: false
+  properties:
+    maxAttempts:
+      type: integer
+      minimum: 1
+    backoffSeconds:
+      type: integer
+      minimum: 0

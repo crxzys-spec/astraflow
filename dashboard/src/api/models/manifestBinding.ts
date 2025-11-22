@@ -5,8 +5,12 @@
  * OpenAPI spec version: 1.3.0
  */
 import type { ManifestBindingMode } from './manifestBindingMode';
+import type { BindingScope } from './bindingScope';
 
 export interface ManifestBinding {
   path: string;
   mode?: ManifestBindingMode;
+  /** Optional textual prefix (e.g. '@workflowA.subgraphB.#nodeY') applied before resolving the JSON pointer. */
+  prefix?: string;
+  scope?: BindingScope;
 }

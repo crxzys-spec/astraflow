@@ -40,11 +40,12 @@ class GetWorkflowPackage200Response(BaseModel):
     visibility: StrictStr = Field(description="Visibility policy (private/internal/public).")
     tags: Optional[List[StrictStr]] = None
     owner_id: Optional[StrictStr] = Field(default=None, alias="ownerId")
+    owner_name: Optional[StrictStr] = Field(default=None, alias="ownerName")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
     latest_version: Optional[ListWorkflowPackages200ResponseItemsInnerLatestVersion] = Field(default=None, alias="latestVersion")
     preview_image: Optional[StrictStr] = Field(default=None, description="Base64-encoded preview from the latest version when available.", alias="previewImage")
     versions: List[ListWorkflowPackages200ResponseItemsInnerLatestVersion]
-    __properties: ClassVar[List[str]] = ["id", "slug", "displayName", "summary", "visibility", "tags", "ownerId", "updatedAt", "latestVersion", "previewImage", "versions"]
+    __properties: ClassVar[List[str]] = ["id", "slug", "displayName", "summary", "visibility", "tags", "ownerId", "ownerName", "updatedAt", "latestVersion", "previewImage", "versions"]
 
     model_config = {
         "populate_by_name": True,
@@ -112,6 +113,7 @@ class GetWorkflowPackage200Response(BaseModel):
             "visibility": obj.get("visibility"),
             "tags": obj.get("tags"),
             "ownerId": obj.get("ownerId"),
+            "ownerName": obj.get("ownerName"),
             "updatedAt": obj.get("updatedAt"),
             "latestVersion": ListWorkflowPackages200ResponseItemsInnerLatestVersion.from_dict(obj.get("latestVersion")) if obj.get("latestVersion") is not None else None,
             "previewImage": obj.get("previewImage"),

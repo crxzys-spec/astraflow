@@ -19,7 +19,8 @@ from scheduler_api.db.session import AsyncSessionLocal, SessionLocal
 
 JWT_ALGORITHM = os.getenv("SCHEDULER_JWT_ALGORITHM", "HS256")
 JWT_SECRET = os.getenv("SCHEDULER_JWT_SECRET", "dev-secret")
-JWT_ACCESS_MINUTES = int(os.getenv("SCHEDULER_JWT_ACCESS_MINUTES", "60"))
+# Default access token lifetime: 1 year (365 days).
+JWT_ACCESS_MINUTES = int(os.getenv("SCHEDULER_JWT_ACCESS_MINUTES", str(60 * 24 * 365)))
 
 
 class AuthenticatedUser:

@@ -7,6 +7,7 @@
 import type { WorkflowMetadata } from './workflowMetadata';
 import type { WorkflowNode } from './workflowNode';
 import type { WorkflowEdge } from './workflowEdge';
+import type { WorkflowSubgraph } from './workflowSubgraph';
 
 export interface Workflow {
   /** Workflow UUID */
@@ -28,4 +29,6 @@ export interface Workflow {
    * @nullable
    */
   previewImage?: string | null;
+  /** Reusable workflow fragments (localized snapshots) that container nodes can reference. */
+  subgraphs?: WorkflowSubgraph[];
 }

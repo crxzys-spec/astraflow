@@ -1841,7 +1841,7 @@ class RunRegistry:
                     parent_frame_id=None,
                 )
                 ready.extend(frame_ready)
-                continue
+                break
             else:
                 ready.append(self._build_dispatch_request(record, node))
         return ready
@@ -1858,7 +1858,7 @@ class RunRegistry:
                     parent_frame_id=frame.frame_id,
                 )
                 ready.extend(frame_ready)
-                continue
+                break
             else:
                 ready.append(self._build_dispatch_request(record, node))
         return ready

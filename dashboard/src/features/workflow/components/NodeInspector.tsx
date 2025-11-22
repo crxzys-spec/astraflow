@@ -1,5 +1,6 @@
-﻿import { useMemo } from "react";
+import { useMemo } from "react";
 import { useWorkflowStore } from "../store";
+import { formatBindingDisplay, resolveBindingPath } from "../utils/binding";
 import type { NodePortDefinition, WorkflowNodeDraft } from "../types";
 
 const formatPackageId = (node: WorkflowNodeDraft) => {
@@ -48,26 +49,36 @@ const NodeMeta = ({ node }: { node: WorkflowNodeDraft }) => (
 );
 
 type PortOrigin = "declared" | "inferred";
+type PortKind = "input" | "output";
 
 interface InspectorPort {
   key: string;
   label: string;
   bindingPath?: string | null;
+  bindingPrefix?: string | null;
   bindingMode?: string | null;
   origin: PortOrigin;
+  kind: PortKind;
 }
 
 const collectPorts = (
   ports: NodePortDefinition[] | undefined,
-  fallbackKeys: Set<string>
+  fallbackKeys: Set<string>,
+  kind: PortKind
 ): InspectorPort[] => {
-  const declared = (ports ?? []).map<InspectorPort>((port) => ({
-    key: port.key,
-    label: port.label,
-    bindingPath: port.binding?.path ?? null,
-    bindingMode: port.binding?.mode ?? null,
-    origin: "declared"
-  }));
+  const declared = (ports ?? []).map<InspectorPort>((port) => {
+    const resolution = resolveBindingPath(port.binding?.path ?? "");
+    const bindingPath = formatBindingDisplay(port.binding, resolution);
+    return {
+      key: port.key,
+      label: port.label,
+      bindingPath: bindingPath ?? null,
+      bindingPrefix: port.binding?.prefix ?? null,
+      bindingMode: port.binding?.mode ?? null,
+      origin: "declared",
+      kind
+    };
+  });
   const declaredKeys = new Set(declared.map((port) => port.key));
 
   fallbackKeys.forEach((key) => {
@@ -76,8 +87,10 @@ const collectPorts = (
         key,
         label: key,
         bindingPath: null,
+        bindingPrefix: null,
         bindingMode: null,
-        origin: "inferred"
+        origin: "inferred",
+        kind
       });
     }
   });
@@ -88,6 +101,7 @@ const collectPorts = (
 export const NodeInspector = () => {
   const selectedNodeId = useWorkflowStore((state) => state.selectedNodeId);
   const workflow = useWorkflowStore((state) => state.workflow);
+  const updateNode = useWorkflowStore((state) => state.updateNode);
 
   const node = selectedNodeId ? workflow?.nodes[selectedNodeId] : undefined;
 
@@ -110,10 +124,44 @@ export const NodeInspector = () => {
     });
 
     return {
-      inputs: collectPorts(node.ui?.inputPorts, fallbackInputs),
-      outputs: collectPorts(node.ui?.outputPorts, fallbackOutputs)
+      inputs: collectPorts(node.ui?.inputPorts, fallbackInputs, "input"),
+      outputs: collectPorts(node.ui?.outputPorts, fallbackOutputs, "output")
     };
   }, [node, workflow]);
+
+  const updatePortBinding = (port: InspectorPort, nextPrefix: string) => {
+    if (!node) {
+      return;
+    }
+    updateNode(node.id, (current) => {
+      const ui = current.ui ?? {};
+      const key = port.kind === "input" ? "inputPorts" : "outputPorts";
+      const ports = [...((ui[key] as NodePortDefinition[] | undefined) ?? [])];
+      const index = ports.findIndex((candidate) => candidate.key === port.key);
+      if (index === -1) {
+        return current;
+      }
+      const existing = ports[index];
+      if (!existing.binding) {
+        return current;
+      }
+      const nextBinding = {
+        ...existing.binding,
+        prefix: nextPrefix.trim() ? nextPrefix.trim() : undefined
+      };
+      ports[index] = {
+        ...existing,
+        binding: nextBinding
+      };
+      return {
+        ...current,
+        ui: {
+          ...ui,
+          [key]: ports
+        }
+      };
+    });
+  };
 
   if (!node) {
     return (
@@ -216,6 +264,17 @@ export const NodeInspector = () => {
                         )}
                       </>
                     )}
+                    {port.origin === "declared" && (
+                      <label className="inspector__binding-input">
+                        <span>Binding prefix</span>
+                        <input
+                          type="text"
+                          value={port.bindingPrefix ?? ""}
+                        placeholder="@subgraphAlias.#nodeId"
+                          onChange={(event) => updatePortBinding(port, event.target.value)}
+                        />
+                      </label>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -248,6 +307,17 @@ export const NodeInspector = () => {
                           </div>
                         )}
                       </>
+                    )}
+                    {port.origin === "declared" && (
+                      <label className="inspector__binding-input">
+                        <span>Binding prefix</span>
+                        <input
+                          type="text"
+                          value={port.bindingPrefix ?? ""}
+                        placeholder="@subgraphAlias.#nodeId"
+                          onChange={(event) => updatePortBinding(port, event.target.value)}
+                        />
+                      </label>
                     )}
                   </li>
                 ))}
@@ -290,3 +360,6 @@ export const NodeInspector = () => {
 };
 
 export default NodeInspector;
+
+
+

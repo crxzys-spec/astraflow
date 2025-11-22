@@ -159,6 +159,17 @@ export interface Binding {
    * Binding mode that describes read/write behaviour.
    */
   mode?: 'read' | 'write' | 'two_way';
+  /**
+   * Optional textual prefix (e.g. '@subgraphA.#nodeY') that scopes the binding before resolving the JSON pointer.
+   */
+  prefix?: string;
+  scope?: BindingScope;
+}
+export interface BindingScope {
+  kind?: 'local' | 'subgraph';
+  subgraphAliases?: string[];
+  nodeId?: string;
+  prefix?: string;
 }
 export interface Widget {
   /**

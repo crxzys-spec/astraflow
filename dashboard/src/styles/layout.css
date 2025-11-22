@@ -1113,7 +1113,6 @@ select:focus {
   display: flex;
   flex-direction: column;
   min-height: calc(100vh - 10rem);
-  padding-top: calc(var(--builder-header-offset, 6.5rem) + 4.25rem);
   border-radius: 1.5rem;
   background: rgba(3, 7, 18, 0.35);
   overflow: hidden;
@@ -1152,6 +1151,8 @@ select:focus {
   display: flex;
   flex-direction: column;
   z-index: 1;
+  padding-top: calc(var(--builder-header-offset, 6.5rem) + 4.25rem);
+  box-sizing: border-box;
 }
 
 .builder-stage__body .reactflow-provider {
@@ -1797,11 +1798,14 @@ select:focus {
 @media (max-width: 1024px) {
   .builder-stage {
     min-height: unset;
-    padding-top: 5.25rem;
   }
 
   .builder-stage__canvas {
     min-height: 380px;
+  }
+
+  .builder-stage__body {
+    padding: 5.25rem 1.5rem 1.5rem;
   }
 
   .builder-stage__actions {

@@ -337,12 +337,16 @@
 
 .btn {
   border: none;
-  border-radius: 0.75rem;
-  padding: 0.45rem 0.95rem;
+  border-radius: 0.8rem;
+  padding: 0 1.1rem;
+  min-height: 2.75rem;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  justify-content: center;
+  gap: 0.6rem;
   font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1;
   cursor: pointer;
   background: linear-gradient(135deg, #2563eb, #7c3aed);
   color: #f9fafb;
@@ -2827,19 +2831,6 @@ select:focus {
 .workflow-card__action-buttons .btn {
   white-space: nowrap;
   box-shadow: 0 12px 25px rgba(79, 70, 229, 0.3);
-}
-
-.btn__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25em;
-  margin-right: 0.35rem;
-}
-
-.btn__icon svg {
-  width: 1em;
-  height: 1em;
 }
 
 .workflow-card__footer {

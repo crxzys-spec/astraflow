@@ -1151,7 +1151,7 @@ select:focus {
   display: flex;
   flex-direction: column;
   z-index: 1;
-  padding-top: calc(var(--builder-header-offset, 6.5rem) + 4.25rem);
+  padding-top: 0;
   box-sizing: border-box;
 }
 

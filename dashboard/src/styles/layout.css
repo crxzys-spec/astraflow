@@ -1204,6 +1204,9 @@ select:focus {
 
 .builder-flyout--palette {
   left: 1.5rem;
+  top: calc(var(--app-shell-header-height, 6.5rem) + 1rem);
+  transform: none;
+  max-height: min(70vh, 560px);
 }
 
 .builder-flyout--inspector {

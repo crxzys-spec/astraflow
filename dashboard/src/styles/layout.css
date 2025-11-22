@@ -1171,20 +1171,23 @@ select:focus {
   pointer-events: none;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: rgba(248, 250, 252, 0.12);
+  color: rgba(248, 250, 252, 0.4);
   font-weight: 700;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  text-shadow: 0 10px 30px rgba(2, 6, 23, 0.65);
+  z-index: 2;
 }
 
 .builder-watermark__title {
   font-size: 2.5rem;
+  mix-blend-mode: screen;
 }
 
 .builder-watermark__subtitle {
   font-size: 0.85rem;
-  color: rgba(148, 163, 184, 0.45);
+  color: rgba(226, 232, 240, 0.65);
 }
 
 .builder-flyout {

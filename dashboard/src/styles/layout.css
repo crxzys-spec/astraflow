@@ -1122,7 +1122,6 @@ select:focus {
   display: flex;
   flex-direction: column;
   min-height: calc(100vh - 10rem);
-  padding-top: 6.5rem;
   border-radius: 1.5rem;
   background: rgba(3, 7, 18, 0.35);
   overflow: hidden;
@@ -1135,6 +1134,7 @@ select:focus {
   overflow: hidden;
   box-shadow: 0 40px 80px rgba(2, 6, 23, 0.45);
   flex: 1;
+  width: 100%;
 }
 
 .builder-stage::before {
@@ -1160,13 +1160,23 @@ select:focus {
   display: flex;
   flex-direction: column;
   z-index: 1;
-  gap: 1.5rem;
-  padding: 0 2rem 2rem;
 }
 
 .builder-stage__body .reactflow-provider {
   flex: 1;
   display: flex;
+  width: 100%;
+  min-height: 0;
+}
+
+.builder-stage__body .reactflow-provider > div {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.builder-stage__body .reactflow-provider .react-flow {
+  flex: 1;
   min-height: 0;
 }
 
@@ -1765,7 +1775,6 @@ select:focus {
 @media (max-width: 1024px) {
   .builder-stage {
     min-height: unset;
-    padding-top: 5.25rem;
   }
 
   .builder-stage__canvas {

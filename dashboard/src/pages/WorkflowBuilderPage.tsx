@@ -802,10 +802,6 @@ const WorkflowBuilderPage = () => {
     );
   }
 
-  if (!workflow) {
-    return <div className="card">Initializing builder...</div>;
-  }
-
   const packagesError = packagesQuery.isError ? (packagesQuery.error as Error) : undefined;
   const packageDetailError = packageDetailQuery.isError
     ? (packageDetailQuery.error as Error)
@@ -827,81 +823,86 @@ const WorkflowBuilderPage = () => {
       : Boolean(derivedSlugForValidation));
   const publishInProgress = publishWorkflowMutation.isPending;
 
-  const builderToolbar = useMemo(() => (
-    <div className="builder-toolbar">
-      <div className="builder-actions">
-        {saveMessage && (
-          <span
-            className={`builder-alert builder-alert--${saveMessage.type}`}
-            role={saveMessage.type === "error" ? "alert" : "status"}
-          >
-            {saveMessage.text}
-          </span>
-        )}
-        {publishMessage && (
-          <span
-            className={`builder-alert builder-alert--${publishMessage.type}`}
-            role={publishMessage.type === "error" ? "alert" : "status"}
-          >
-            {publishMessage.text}
-          </span>
-        )}
-        {runMessage && (
-          <span
-            className={`builder-alert builder-alert--${runMessage.type}`}
-            role={runMessage.type === "error" ? "alert" : "status"}
-          >
-            {runMessage.text}
-          </span>
-        )}
-        {!canEditWorkflow && (
-          <span className="builder-alert builder-alert--error">
-            You have read-only access. Request workflow.editor rights to edit or run workflows.
-          </span>
-        )}
-      </div>
-      <div className="builder-actions builder-actions--buttons">
-        {canEditWorkflow && (
+  const builderToolbar = useMemo(() => {
+    if (!workflow) {
+      return null;
+    }
+    return (
+      <div className="builder-toolbar">
+        <div className="builder-actions">
+          {saveMessage && (
+            <span
+              className={`builder-alert builder-alert--${saveMessage.type}`}
+              role={saveMessage.type === "error" ? "alert" : "status"}
+            >
+              {saveMessage.text}
+            </span>
+          )}
+          {publishMessage && (
+            <span
+              className={`builder-alert builder-alert--${publishMessage.type}`}
+              role={publishMessage.type === "error" ? "alert" : "status"}
+            >
+              {publishMessage.text}
+            </span>
+          )}
+          {runMessage && (
+            <span
+              className={`builder-alert builder-alert--${runMessage.type}`}
+              role={runMessage.type === "error" ? "alert" : "status"}
+            >
+              {runMessage.text}
+            </span>
+          )}
+          {!canEditWorkflow && (
+            <span className="builder-alert builder-alert--error">
+              You have read-only access. Request workflow.editor rights to edit or run workflows.
+            </span>
+          )}
+        </div>
+        <div className="builder-actions builder-actions--buttons">
+          {canEditWorkflow && (
+            <button
+              className="btn"
+              type="button"
+              onClick={handleSaveWorkflow}
+              disabled={persistWorkflowMutation.isPending}
+            >
+              <span className="btn__icon" aria-hidden="true">
+                <IconSave />
+              </span>
+              {persistWorkflowMutation.isPending ? "Saving..." : "Save"}
+            </button>
+          )}
+          {canEditWorkflow && (
+            <button
+              className="btn"
+              type="button"
+              onClick={openPublishModal}
+              disabled={!canPublishWorkflow}
+              title={!canPublishWorkflow ? "Save before publishing." : undefined}
+            >
+              <span className="btn__icon" aria-hidden="true">
+                <IconPublish />
+              </span>
+              Publish
+            </button>
+          )}
           <button
-            className="btn"
+            className="btn btn--primary"
             type="button"
-            onClick={handleSaveWorkflow}
-            disabled={persistWorkflowMutation.isPending}
+            onClick={handleRunWorkflow}
+            disabled={!canEditWorkflow || startRun.isPending}
           >
             <span className="btn__icon" aria-hidden="true">
-              <IconSave />
+              <IconRun />
             </span>
-            {persistWorkflowMutation.isPending ? "Saving..." : "Save"}
+            {startRun.isPending ? "Launching..." : "Run"}
           </button>
-        )}
-        {canEditWorkflow && (
-          <button
-            className="btn"
-            type="button"
-            onClick={openPublishModal}
-            disabled={!canPublishWorkflow}
-            title={!canPublishWorkflow ? "Save before publishing." : undefined}
-          >
-            <span className="btn__icon" aria-hidden="true">
-              <IconPublish />
-            </span>
-            Publish
-          </button>
-        )}
-        <button
-          className="btn btn--primary"
-          type="button"
-          onClick={handleRunWorkflow}
-          disabled={!canEditWorkflow || startRun.isPending}
-        >
-          <span className="btn__icon" aria-hidden="true">
-            <IconRun />
-          </span>
-          {startRun.isPending ? "Launching..." : "Run"}
-        </button>
+        </div>
       </div>
-    </div>
-  ), [
+    );
+  }, [
     canEditWorkflow,
     handleRunWorkflow,
     handleSaveWorkflow,
@@ -911,13 +912,18 @@ const WorkflowBuilderPage = () => {
     saveMessage,
     publishMessage,
     canPublishWorkflow,
-    startRun.isPending
+    startRun.isPending,
+    workflow
   ]);
 
   useEffect(() => {
     setToolbar(builderToolbar);
     return () => setToolbar(null);
   }, [builderToolbar, setToolbar]);
+
+  if (!workflow) {
+    return <div className="card">Initializing builder...</div>;
+  }
 
   return (
     <WidgetRegistryProvider>

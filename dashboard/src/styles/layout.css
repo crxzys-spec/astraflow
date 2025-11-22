@@ -1166,28 +1166,28 @@ select:focus {
 
 .builder-stage__watermark {
   position: absolute;
-  left: 2rem;
-  bottom: 2rem;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
   pointer-events: none;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: rgba(248, 250, 252, 0.4);
-  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(248, 250, 252, 0.12);
+  font-weight: 600;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  text-shadow: 0 10px 30px rgba(2, 6, 23, 0.65);
+  gap: 0.18rem;
+  text-shadow: 0 3px 9px rgba(2, 6, 23, 0.45);
   z-index: 2;
 }
 
 .builder-watermark__title {
-  font-size: 2.5rem;
-  mix-blend-mode: screen;
+  font-size: 1.1rem;
 }
 
 .builder-watermark__subtitle {
-  font-size: 0.85rem;
-  color: rgba(226, 232, 240, 0.65);
+  font-size: 0.55rem;
+  color: rgba(226, 232, 240, 0.35);
 }
 
 .builder-flyout {

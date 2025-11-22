@@ -1,5 +1,4 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import AppShell, { type NavItem } from "./components/AppShell";
 import RunsPage from "./pages/RunsPage";
 import RunDetailPage from "./pages/RunDetailPage";
@@ -338,7 +337,6 @@ function App() {
         <Route path="/audit" element={<Navigate to="/admin/audit" replace />} />
         <Route path="/users" element={<Navigate to="/admin/users" replace />} />
       </Routes>
-      <ReactQueryDevtools initialIsOpen={false} position="bottom" />
     </BrowserRouter>
   );
 }

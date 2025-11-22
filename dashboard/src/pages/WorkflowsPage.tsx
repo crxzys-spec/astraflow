@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDeleteWorkflow, useListWorkflows } from "../api/endpoints";
 import { useAuthStore } from "../features/auth/store";
+import { useToolbarStore } from "../features/workflow/hooks/useToolbar";
 
 const WorkflowsPage = () => {
   const workflowsQuery = useListWorkflows(undefined, {
@@ -21,6 +22,24 @@ const WorkflowsPage = () => {
     (workflowsQuery.error as Error | undefined)?.message ??
     (workflowsQuery.error as { response?: { data?: { message?: string } } } | undefined)?.response
       ?.data?.message;
+
+  const setToolbar = useToolbarStore((state) => state.setContent);
+
+  const toolbarContent = useMemo(() => {
+    if (!canCreateWorkflow) {
+      return null;
+    }
+    return (
+      <Link className="btn btn--primary" to="/workflows/new">
+        Create Workflow
+      </Link>
+    );
+  }, [canCreateWorkflow]);
+
+  useEffect(() => {
+    setToolbar(toolbarContent);
+    return () => setToolbar(null);
+  }, [toolbarContent, setToolbar]);
 
   const handleDelete = async (workflowId: string, workflowName: string) => {
     if (!window.confirm(`Delete workflow "${workflowName}"? This action can be undone by re-saving.`)) {
@@ -50,11 +69,6 @@ const WorkflowsPage = () => {
             Browse workflow definitions and open them in the interactive builder.
           </p>
         </div>
-        {canCreateWorkflow && (
-          <Link className="btn btn--primary" to="/workflows/new">
-            Create Workflow
-          </Link>
-        )}
       </header>
       <div className="store-content">
       {deleteError && (

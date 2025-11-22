@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useListRuns } from "../api/endpoints";
 import StatusBadge from "../components/StatusBadge";
 import { sseClient } from "../lib/sseClient";
@@ -10,6 +10,7 @@ import type { RunStatusEvent } from "../api/models/runStatusEvent";
 import type { RunSnapshotEvent } from "../api/models/runSnapshotEvent";
 import { replaceRunSnapshot, updateRunCaches } from "../lib/sseCache";
 import { useAuthStore } from "../features/auth/store";
+import { useToolbarStore } from "../features/workflow/hooks/useToolbar";
 
 export const RunsPage = () => {
   const canViewRuns = useAuthStore((state) =>
@@ -20,6 +21,23 @@ export const RunsPage = () => {
   });
   const runs = data?.data.items ?? [];
   const queryClient = useQueryClient();
+  const setToolbar = useToolbarStore((state) => state.setContent);
+
+  const toolbarContent = useMemo(() => {
+    if (!canViewRuns) {
+      return null;
+    }
+    return (
+      <button className="btn" type="button" onClick={() => refetch()}>
+        Refresh
+      </button>
+    );
+  }, [canViewRuns, refetch]);
+
+  useEffect(() => {
+    setToolbar(toolbarContent);
+    return () => setToolbar(null);
+  }, [setToolbar, toolbarContent]);
 
   useEffect(() => {
     getClientSessionId();
@@ -95,7 +113,6 @@ export const RunsPage = () => {
           <h2>Runs</h2>
           <p className="text-subtle">Most recent execution attempts</p>
         </div>
-        <button className="btn" onClick={() => refetch()}>Refresh</button>
       </header>
       {runs.length === 0 ? (
         <p>No runs yet.</p>

@@ -277,7 +277,6 @@
 .app-shell__body {
   flex: 1;
   padding: 0;
-  padding-top: var(--app-shell-body-offset, 4rem);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -1046,6 +1045,8 @@ select:focus {
   gap: 1.25rem;
   flex: 1;
   min-height: 0;
+  margin-top: var(--app-shell-body-offset, 4rem);
+  padding: 0 2rem 2rem;
 }
 
 .builder-stage__actions {

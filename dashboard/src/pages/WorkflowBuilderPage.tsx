@@ -177,6 +177,8 @@ const WorkflowBuilderPage = () => {
   const [slugEdited, setSlugEdited] = useState(false);
   const [publishModalError, setPublishModalError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<PublishMessage | null>(null);
+  const [isPaletteOpen, setPaletteOpen] = useState(true);
+  const [isInspectorOpen, setInspectorOpen] = useState(true);
 
   const isNewSession = !workflowId || workflowId === "new";
   const workflowKey = !isNewSession ? workflowId : undefined;
@@ -826,116 +828,143 @@ const WorkflowBuilderPage = () => {
   return (
     <WidgetRegistryProvider>
       <section className="builder-screen">
-        <header className="builder-toolbar card">
-          <div className="builder-meta">
-            <span className="builder-meta__title">{workflow.metadata?.name ?? "Untitled Workflow"}</span>
-            <span className="builder-meta__subtitle">ID: {workflow.id}</span>
-          </div>
-          <div className="builder-actions">
-            {saveMessage && (
-              <span
-                className={`builder-alert builder-alert--${saveMessage.type}`}
-                role={saveMessage.type === "error" ? "alert" : "status"}
-              >
-                {saveMessage.text}
-              </span>
-            )}
-            {publishMessage && (
-              <span
-                className={`builder-alert builder-alert--${publishMessage.type}`}
-                role={publishMessage.type === "error" ? "alert" : "status"}
-              >
-                {publishMessage.text}
-              </span>
-            )}
-            {runMessage && (
-              <span
-                className={`builder-alert builder-alert--${runMessage.type}`}
-                role={runMessage.type === "error" ? "alert" : "status"}
-              >
-                {runMessage.text}
-              </span>
-            )}
-            {!canEditWorkflow && (
-              <span className="builder-alert builder-alert--error">
-                You have read-only access. Request workflow.editor rights to edit or run workflows.
-              </span>
-            )}
-            {canEditWorkflow && (
+        <div className="builder-stage">
+          <header className="builder-toolbar card">
+            <div className="builder-meta">
+              <span className="builder-meta__title">{workflow.metadata?.name ?? "Untitled Workflow"}</span>
+              <span className="builder-meta__subtitle">ID: {workflow.id}</span>
+            </div>
+            <div className="builder-actions">
+              {saveMessage && (
+                <span
+                  className={`builder-alert builder-alert--${saveMessage.type}`}
+                  role={saveMessage.type === "error" ? "alert" : "status"}
+                >
+                  {saveMessage.text}
+                </span>
+              )}
+              {publishMessage && (
+                <span
+                  className={`builder-alert builder-alert--${publishMessage.type}`}
+                  role={publishMessage.type === "error" ? "alert" : "status"}
+                >
+                  {publishMessage.text}
+                </span>
+              )}
+              {runMessage && (
+                <span
+                  className={`builder-alert builder-alert--${runMessage.type}`}
+                  role={runMessage.type === "error" ? "alert" : "status"}
+                >
+                  {runMessage.text}
+                </span>
+              )}
+              {!canEditWorkflow && (
+                <span className="builder-alert builder-alert--error">
+                  You have read-only access. Request workflow.editor rights to edit or run workflows.
+                </span>
+              )}
+              {canEditWorkflow && (
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={handleSaveWorkflow}
+                  disabled={persistWorkflowMutation.isPending}
+                >
+                  <span className="btn__icon" aria-hidden="true">
+                    <IconSave />
+                  </span>
+                  {persistWorkflowMutation.isPending ? "Saving..." : "Save"}
+                </button>
+              )}
+              {canEditWorkflow && (
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={openPublishModal}
+                  disabled={!canPublishWorkflow}
+                  title={!canPublishWorkflow ? "Save before publishing." : undefined}
+                >
+                  <span className="btn__icon" aria-hidden="true">
+                    <IconPublish />
+                  </span>
+                  Publish to Store
+                </button>
+              )}
               <button
-                className="btn"
+                className="btn btn--primary"
                 type="button"
-                onClick={handleSaveWorkflow}
-                disabled={persistWorkflowMutation.isPending}
+                onClick={handleRunWorkflow}
+                disabled={!canEditWorkflow || startRun.isPending}
               >
                 <span className="btn__icon" aria-hidden="true">
-                  <IconSave />
+                  <IconRun />
                 </span>
-                {persistWorkflowMutation.isPending ? "Saving..." : "Save"}
+                {startRun.isPending ? "Launching..." : "Run Workflow"}
               </button>
-            )}
-            {canEditWorkflow && (
-              <button
-                className="btn"
-                type="button"
-                onClick={openPublishModal}
-                disabled={!canPublishWorkflow}
-                title={!canPublishWorkflow ? "Save before publishing." : undefined}
-              >
-                <span className="btn__icon" aria-hidden="true">
-                  <IconPublish />
-                </span>
-                Publish to Store
-              </button>
-            )}
-            <button
-              className="btn btn--primary"
-              type="button"
-              onClick={handleRunWorkflow}
-              disabled={!canEditWorkflow || startRun.isPending}
-            >
-              <span className="btn__icon" aria-hidden="true">
-                <IconRun />
-              </span>
-              {startRun.isPending ? "Launching..." : "Run Workflow"}
-            </button>
-          </div>
-        </header>
+            </div>
+          </header>
 
-        <div className="builder-grid">
-          <div className="builder-panel card card--surface">
-            {canEditWorkflow ? (
-              <WorkflowPalette
-                packages={packageSummaries}
-                selectedPackageName={selectedPackageName}
-                selectedVersion={selectedVersion}
-                onSelectPackage={handleSelectPackage}
-                onSelectVersion={handleSelectVersion}
-                nodes={paletteItems}
-                isLoadingPackages={packagesQuery.isLoading}
-                isLoadingNodes={packageDetailQuery.isLoading}
-                packagesError={packagesError}
-                nodesError={packageDetailError}
-                onRetryPackages={() => packagesQuery.refetch()}
-                onRetryNodes={selectedPackageName ? () => packageDetailQuery.refetch() : undefined}
-              />
-            ) : (
-              <div className="text-subtle">
-                Viewer role detected. Palette editing is disabled until you obtain workflow.editor access.
-              </div>
-            )}
-          </div>
-
-          <div className="builder-canvas card card--canvas">
+          <div className="builder-stage__body">
             <ReactFlowProvider>
-              <div className="builder-canvas__viewport" ref={canvasRef}>
-                <WorkflowCanvas onNodeDrop={canEditWorkflow ? handleNodeDrop : undefined} />
+              <div className="builder-stage__canvas card card--canvas">
+                <div className="builder-canvas__viewport" ref={canvasRef}>
+                  <WorkflowCanvas onNodeDrop={canEditWorkflow ? handleNodeDrop : undefined} />
+                </div>
               </div>
             </ReactFlowProvider>
-          </div>
 
-          <div className="builder-inspector card card--surface">
-            <NodeInspector />
+            <button
+              className="builder-flyout-toggle builder-flyout-toggle--left"
+              type="button"
+              onClick={() => setPaletteOpen((value) => !value)}
+              aria-pressed={isPaletteOpen}
+            >
+              {isPaletteOpen ? "Hide catalog" : "Show catalog"}
+            </button>
+            <button
+              className="builder-flyout-toggle builder-flyout-toggle--right"
+              type="button"
+              onClick={() => setInspectorOpen((value) => !value)}
+              aria-pressed={isInspectorOpen}
+            >
+              {isInspectorOpen ? "Hide inspector" : "Show inspector"}
+            </button>
+
+            <div
+              className={`builder-flyout builder-flyout--palette card card--surface ${
+                isPaletteOpen ? "is-open" : "is-collapsed"
+              }`}
+            >
+              {canEditWorkflow ? (
+                <WorkflowPalette
+                  packages={packageSummaries}
+                  selectedPackageName={selectedPackageName}
+                  selectedVersion={selectedVersion}
+                  onSelectPackage={handleSelectPackage}
+                  onSelectVersion={handleSelectVersion}
+                  nodes={paletteItems}
+                  isLoadingPackages={packagesQuery.isLoading}
+                  isLoadingNodes={packageDetailQuery.isLoading}
+                  packagesError={packagesError}
+                  nodesError={packageDetailError}
+                  onRetryPackages={() => packagesQuery.refetch()}
+                  onRetryNodes={selectedPackageName ? () => packageDetailQuery.refetch() : undefined}
+                />
+              ) : (
+                <div className="text-subtle">
+                  Viewer role detected. Palette editing is disabled until you obtain workflow.editor access.
+                </div>
+              )}
+            </div>
+
+            <div
+              className={`builder-flyout builder-flyout--inspector card card--surface ${
+                isInspectorOpen ? "is-open" : "is-collapsed"
+              }`}
+            >
+              <NodeInspector />
+            </div>
           </div>
         </div>
       </section>

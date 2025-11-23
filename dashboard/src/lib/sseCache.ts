@@ -210,118 +210,171 @@ const updateWorkflowDefinitionNodeRuntime = (
   const definitionKey = getGetRunDefinitionQueryKey(runId);
   const effectiveUpdates: Record<string, WorkflowNodeRuntimeUpdate> = {};
   const storeInstance = useWorkflowStore.getState();
-  queryClient.setQueryData<AxiosResponse<Workflow>>(definitionKey, (existing) => {
-    if (!existing?.data?.nodes?.length) {
-      return existing;
+
+  const applyNodeRuntimeUpdate = (
+    node: Workflow["nodes"][number],
+  ): { next: Workflow["nodes"][number]; changed: boolean } => {
+    const update = updates[node.id];
+    if (!update) {
+      return { next: node, changed: false };
     }
-    let changed = false;
-    const nextNodes = existing.data.nodes.map((node) => {
-      const update = updates[node.id];
-      if (!update) {
-        return node;
-      }
-      const currentResult =
-        (node as unknown as { results?: Record<string, unknown> | null }).results ?? {};
-      const currentArtifacts =
-        (node as unknown as { artifacts?: RunArtifact[] | null }).artifacts ?? null;
-      const currentSummary =
-        (node as unknown as { metadata?: Record<string, unknown> | null }).metadata?.summary ?? null;
+    const currentResult =
+      (node as unknown as { results?: Record<string, unknown> | null }).results ?? {};
+    const currentArtifacts =
+      (node as unknown as { artifacts?: RunArtifact[] | null }).artifacts ?? null;
+    const currentSummary =
+      (node as unknown as { metadata?: Record<string, unknown> | null }).metadata?.summary ?? null;
 
-      const nextResult = cloneResultRecord(update.result);
-      const nextArtifacts = cloneRuntimeArtifacts(update.artifacts);
-      const nextSummary = update.summary !== undefined ? update.summary ?? null : currentSummary;
+    const nextResult = cloneResultRecord(update.result);
+    const nextArtifacts = cloneRuntimeArtifacts(update.artifacts);
+    const nextSummary = update.summary !== undefined ? update.summary ?? null : currentSummary;
 
-      const willUpdateResult =
-        nextResult !== undefined && !valuesEqual(currentResult, nextResult);
-      const willUpdateArtifacts =
-        update.artifacts !== undefined && !valuesEqual(currentArtifacts ?? undefined, nextArtifacts);
-      const willUpdateSummary =
-        update.summary !== undefined && !valuesEqual(currentSummary ?? undefined, nextSummary);
+    const willUpdateResult =
+      nextResult !== undefined && !valuesEqual(currentResult, nextResult);
+    const willUpdateArtifacts =
+      update.artifacts !== undefined && !valuesEqual(currentArtifacts ?? undefined, nextArtifacts);
+    const willUpdateSummary =
+      update.summary !== undefined && !valuesEqual(currentSummary ?? undefined, nextSummary);
 
-      if (!willUpdateResult && !willUpdateArtifacts && !willUpdateSummary) {
-        return node;
-      }
+    if (!willUpdateResult && !willUpdateArtifacts && !willUpdateSummary) {
+      return { next: node, changed: false };
+    }
 
-      const nodeUpdate: WorkflowNodeRuntimeUpdate = {};
-      if (willUpdateResult) {
-        nodeUpdate.result =
-          update.result === undefined
-            ? undefined
-            : update.result === null
-            ? null
-            : (JSON.parse(JSON.stringify(update.result)) as Record<string, unknown>);
-      }
-      if (willUpdateArtifacts) {
-        nodeUpdate.artifacts = nextArtifacts ?? null;
-      }
-      if (willUpdateSummary) {
-        nodeUpdate.summary = nextSummary ?? null;
-      }
-      effectiveUpdates[node.id] = nodeUpdate;
-      changed = true;
+    const nodeUpdate: WorkflowNodeRuntimeUpdate = {};
+    if (willUpdateResult) {
+      nodeUpdate.result =
+        update.result === undefined
+          ? undefined
+          : update.result === null
+          ? null
+          : (JSON.parse(JSON.stringify(update.result)) as Record<string, unknown>);
+    }
+    if (willUpdateArtifacts) {
+      nodeUpdate.artifacts = nextArtifacts ?? null;
+    }
+    if (willUpdateSummary) {
+      nodeUpdate.summary = nextSummary ?? null;
+    }
+    effectiveUpdates[node.id] = nodeUpdate;
 
-      return {
+    return {
+      next: {
         ...node,
         results: willUpdateResult ? nextResult ?? {} : currentResult,
         artifacts: willUpdateArtifacts ? nextArtifacts ?? null : currentArtifacts,
         metadata: willUpdateSummary
           ? { ...(node.metadata ?? {}), summary: nextSummary ?? undefined }
           : node.metadata,
-      };
+      },
+      changed: true,
+    };
+  };
+
+  const applyRuntimeUpdatesToWorkflow = (
+    workflow: Workflow,
+  ): { workflow: Workflow; changed: boolean } => {
+    let nodesChanged = false;
+    const nextNodes = workflow.nodes.map((node) => {
+      const result = applyNodeRuntimeUpdate(node);
+      if (result.changed) {
+        nodesChanged = true;
+      }
+      return result.next;
     });
-    if (!changed) {
+
+    let subgraphsChanged = false;
+    const nextSubgraphs = workflow.subgraphs?.length
+      ? workflow.subgraphs.map((subgraph) => {
+          const result = applyRuntimeUpdatesToWorkflow(subgraph.definition);
+          if (result.changed) {
+            subgraphsChanged = true;
+            return {
+              ...subgraph,
+              definition: result.workflow,
+            };
+          }
+          return subgraph;
+        })
+      : workflow.subgraphs;
+
+    if (!nodesChanged && !subgraphsChanged) {
+      return { workflow, changed: false };
+    }
+
+    return {
+      workflow: {
+        ...workflow,
+        nodes: nodesChanged ? nextNodes : workflow.nodes,
+        subgraphs: subgraphsChanged ? nextSubgraphs : workflow.subgraphs,
+      },
+      changed: true,
+    };
+  };
+
+  queryClient.setQueryData<AxiosResponse<Workflow>>(definitionKey, (existing) => {
+    if (!existing?.data) {
+      return existing;
+    }
+    const result = applyRuntimeUpdatesToWorkflow(existing.data);
+    if (!result.changed) {
       return existing;
     }
     return {
       ...existing,
-      data: {
-        ...existing.data,
-        nodes: nextNodes,
-      },
+      data: result.workflow,
     };
   });
-  let storePayload: Record<string, WorkflowNodeRuntimeUpdate> = effectiveUpdates;
-  if (
-    Object.keys(storePayload).length === 0 &&
-    storeInstance.workflow &&
-    Object.keys(updates).length
-  ) {
-    const fallback: Record<string, WorkflowNodeRuntimeUpdate> = {};
-    Object.entries(updates).forEach(([nodeId, update]) => {
-      const node = storeInstance.workflow?.nodes[nodeId];
-      if (!node) {
-        return;
+
+  const findDraftNode = (nodeId: string) => {
+    const rootNode = storeInstance.workflow?.nodes[nodeId];
+    if (rootNode) {
+      return rootNode;
+    }
+    for (const entry of storeInstance.subgraphDrafts) {
+      const candidate = entry.definition.nodes[nodeId];
+      if (candidate) {
+        return candidate;
       }
-      const candidate: WorkflowNodeRuntimeUpdate = {};
-      if (update.result !== undefined) {
-        const nextResult = cloneResultRecord(update.result);
-        if (nextResult !== undefined && !valuesEqual(node.results ?? {}, nextResult)) {
-          candidate.result =
-            update.result === null
-              ? null
-              : (JSON.parse(JSON.stringify(update.result)) as Record<string, unknown>);
-        }
+    }
+    return undefined;
+  };
+
+  const storePayload: Record<string, WorkflowNodeRuntimeUpdate> = { ...effectiveUpdates };
+  Object.entries(updates).forEach(([nodeId, update]) => {
+    if (storePayload[nodeId]) {
+      return;
+    }
+    const node = findDraftNode(nodeId);
+    if (!node) {
+      return;
+    }
+    const candidate: WorkflowNodeRuntimeUpdate = {};
+    if (update.result !== undefined) {
+      const nextResult = cloneResultRecord(update.result);
+      if (nextResult !== undefined && !valuesEqual(node.results ?? {}, nextResult)) {
+        candidate.result =
+          update.result === null
+            ? null
+            : (JSON.parse(JSON.stringify(update.result)) as Record<string, unknown>);
       }
-      if (update.artifacts !== undefined) {
-        const nextArtifacts = cloneRuntimeArtifacts(update.artifacts);
-        if (!valuesEqual(node.runtimeArtifacts ?? undefined, nextArtifacts)) {
-          candidate.artifacts = nextArtifacts ?? null;
-        }
+    }
+    if (update.artifacts !== undefined) {
+      const nextArtifacts = cloneRuntimeArtifacts(update.artifacts);
+      if (!valuesEqual(node.runtimeArtifacts ?? undefined, nextArtifacts)) {
+        candidate.artifacts = nextArtifacts ?? null;
       }
-      if (update.summary !== undefined) {
-        const nextSummary = update.summary ?? null;
-        const currentSummary =
-          (node.metadata ?? {})["summary"] ?? null;
-        if (!valuesEqual(currentSummary ?? undefined, nextSummary)) {
-          candidate.summary = nextSummary;
-        }
+    }
+    if (update.summary !== undefined) {
+      const nextSummary = update.summary ?? null;
+      if (!valuesEqual(node.runtimeSummary ?? undefined, nextSummary)) {
+        candidate.summary = nextSummary;
       }
-      if (Object.keys(candidate).length > 0) {
-        fallback[nodeId] = candidate;
-      }
-    });
-    storePayload = fallback;
-  }
+    }
+    if (Object.keys(candidate).length > 0) {
+      storePayload[nodeId] = candidate;
+    }
+  });
+
   if (Object.keys(storePayload).length > 0) {
     Object.entries(storePayload).forEach(([nodeId, data]) => {
       storeInstance.updateNodeRuntime(nodeId, data);

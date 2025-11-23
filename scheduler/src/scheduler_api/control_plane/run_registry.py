@@ -413,6 +413,10 @@ class NodeState:
     pending_ack: bool = False
     dispatch_id: Optional[str] = None
     ack_deadline: Optional[datetime] = None
+    frame_id: Optional[str] = None
+    container_node_id: Optional[str] = None
+    subgraph_id: Optional[str] = None
+    frame_alias: Tuple[str, ...] = field(default_factory=tuple)
 
 
 @dataclass
@@ -479,6 +483,7 @@ class RunRecord:
     frames_by_parent: Dict[Tuple[Optional[str], str], "FrameDefinition"] = field(default_factory=dict)
     active_frames: Dict[str, "FrameRuntimeState"] = field(default_factory=dict)
     frame_stack: List[str] = field(default_factory=list)
+    completed_frames: Dict[str, Dict[str, NodeState]] = field(default_factory=dict)
 
 
     def to_summary(self) -> ListRuns200ResponseItemsInner:
@@ -486,10 +491,26 @@ class RunRecord:
             ListRuns200ResponseItemsInnerArtifactsInner.from_dict(self._format_artifact(artifact))
             for artifact in self.artifacts
         ] if self.artifacts else None
+        all_node_states: List[NodeState] = []
+        if self.nodes:
+            all_node_states.extend(self.nodes.values())
+        if self.active_frames:
+            for frame in self.active_frames.values():
+                all_node_states.extend(frame.nodes.values())
+        if self.completed_frames:
+            for frame_nodes in self.completed_frames.values():
+                all_node_states.extend(frame_nodes.values())
         nodes = [
             ListRuns200ResponseItemsInnerNodesInner.from_dict(self._format_node(node))
-            for node in sorted(self.nodes.values(), key=lambda n: n.node_id)
-        ] if self.nodes else None
+            for node in sorted(
+                all_node_states,
+                key=lambda n: (
+                    0 if n.frame_id is None else 1,
+                    len(n.frame_alias) if n.frame_alias else 0,
+                    n.task_id or n.node_id,
+                ),
+            )
+        ] if all_node_states else None
         return ListRuns200ResponseItemsInner(
             runId=self.run_id,
             status=self.status,
@@ -658,6 +679,27 @@ class RunRecord:
             node_payload["state"] = state_payload
         return StartRunRequestWorkflow.from_dict(workflow_dict)
 
+    def _build_frame_metadata(self, node: NodeState) -> Optional[Dict[str, Any]]:
+        if not node.frame_id:
+            return None
+        frame_meta: Dict[str, Any] = {"frameId": node.frame_id}
+        if node.container_node_id:
+            frame_meta["containerNodeId"] = node.container_node_id
+        if node.subgraph_id:
+            frame_meta["subgraphId"] = node.subgraph_id
+        if node.frame_alias:
+            frame_meta["aliasChain"] = list(node.frame_alias)
+        frame_definition = self.frames.get(node.frame_id)
+        if frame_definition:
+            subgraph_name = getattr(
+                getattr(frame_definition.workflow, "metadata", None),
+                "name",
+                None,
+            )
+            if subgraph_name:
+                frame_meta["subgraphName"] = subgraph_name
+        return frame_meta
+
     def _format_node(self, node: NodeState) -> Dict[str, Any]:
         payload: Dict[str, Any] = {
             "nodeId": node.node_id,
@@ -690,8 +732,12 @@ class RunRecord:
             ]
         if node.result is not None:
             payload["result"] = node.result
-        if node.metadata is not None:
-            payload["metadata"] = node.metadata
+        metadata_source = copy.deepcopy(node.metadata) if node.metadata else {}
+        frame_metadata = self._build_frame_metadata(node)
+        if frame_metadata:
+            metadata_source["__frame"] = frame_metadata
+        if metadata_source:
+            payload["metadata"] = metadata_source
         if node.error:
             payload["error"] = node.error.to_dict()
         state_payload = self._build_node_state_payload(
@@ -1079,8 +1125,7 @@ class RunRegistry:
             record_snapshot = copy.deepcopy(record)
             node_snapshot = copy.deepcopy(node_state)
         tasks = []
-        if frame_state is None:
-            tasks.append(self._publish_node_state(record_snapshot, node_snapshot))
+        tasks.append(self._publish_node_state(record_snapshot, node_snapshot))
         if new_status != previous_status:
             tasks.append(self._publish_run_state(record_snapshot))
         tasks.append(self._publish_run_snapshot(record_snapshot))
@@ -1108,8 +1153,7 @@ class RunRegistry:
             record_snapshot = copy.deepcopy(record)
             node_snapshot = copy.deepcopy(node_state)
         tasks = []
-        if frame_state is None:
-            tasks.append(self._publish_node_state(record_snapshot, node_snapshot))
+        tasks.append(self._publish_node_state(record_snapshot, node_snapshot))
         if record_snapshot.status != previous_status:
             tasks.append(self._publish_run_state(record_snapshot))
         tasks.append(self._publish_run_snapshot(record_snapshot))
@@ -1164,8 +1208,7 @@ class RunRegistry:
             record_snapshot = copy.deepcopy(record)
             node_snapshot = copy.deepcopy(node_state)
         tasks = []
-        if frame_state is None:
-            tasks.append(self._publish_node_state(record_snapshot, node_snapshot))
+        tasks.append(self._publish_node_state(record_snapshot, node_snapshot))
         if new_status != previous_status:
             tasks.append(self._publish_run_state(record_snapshot))
         tasks.append(self._publish_run_snapshot(record_snapshot))
@@ -1253,18 +1296,14 @@ class RunRegistry:
             new_status = record.status
             record_snapshot = copy.deepcopy(record)
             node_snapshot = copy.deepcopy(node_state)
-        tasks = []
-        if frame_state is None:
-            tasks.extend(
-                [
-                    self._publish_node_state(record_snapshot, node_snapshot),
-                    self._publish_node_snapshot(
-                        record_snapshot,
-                        node_snapshot,
-                        complete=status in FINAL_STATUSES,
-                    ),
-                ]
-            )
+        tasks = [
+            self._publish_node_state(record_snapshot, node_snapshot),
+            self._publish_node_snapshot(
+                record_snapshot,
+                node_snapshot,
+                complete=status in FINAL_STATUSES,
+            ),
+        ]
         if container_snapshot:
             tasks.extend(
                 [
@@ -1372,7 +1411,7 @@ class RunRegistry:
                 node_snapshot = record_snapshot.nodes.get(node_state.node_id)
                 if node_snapshot is None:
                     node_snapshot = copy.deepcopy(node_state)
-            publish_node_state = bool(changed_state and record_snapshot and node_snapshot and frame_state is None)
+            publish_node_state = bool(changed_state and record_snapshot and node_snapshot)
         tasks: List[asyncio.Future[Any]] = []
         if publish_node_state:
             tasks.append(self._publish_node_state(record_snapshot, node_snapshot))
@@ -1383,8 +1422,8 @@ class RunRegistry:
                     complete=False,
                 )
             )
-        if frame_state is None and chunk_events and record_snapshot:
-            node_for_delta = node_snapshot or record_snapshot.nodes.get(node_state.node_id)
+        if chunk_events and record_snapshot:
+            node_for_delta = node_snapshot or record_snapshot.nodes.get(node_state.node_id) or node_state
             for event in chunk_events:
                 chunk = event["chunk"]
                 channel = chunk.get("channel") or "log"
@@ -1415,7 +1454,7 @@ class RunRegistry:
                         terminal=terminal,
                     )
                 )
-        if frame_state is None and result_deltas and record_snapshot:
+        if result_deltas and record_snapshot:
             node_for_delta = node_snapshot or record_snapshot.nodes.get(node_state.node_id) or node_state
             for delta in result_deltas:
                 operation = delta["operation"]
@@ -1499,7 +1538,7 @@ class RunRegistry:
             record.refresh_rollup()
             record_snapshot = copy.deepcopy(record)
         tasks = []
-        if node_snapshot is not None and frame_state is None:
+        if node_snapshot is not None:
             tasks.append(self._publish_node_state(record_snapshot, node_snapshot))
         if container_snapshot:
             tasks.append(self._publish_node_state(record_snapshot, container_snapshot))
@@ -1650,6 +1689,10 @@ class RunRegistry:
                 package_version=package_version,
                 parameters=parameters,
                 concurrency_key=f"{record.run_id}:{task_namespace}:{node.id}",
+                frame_id=frame.frame_id,
+                container_node_id=frame.container_node_id,
+                subgraph_id=frame.subgraph_id,
+                frame_alias=frame.alias_chain,
             )
             nodes[node.id] = node_state
             task_index[node_state.task_id] = node_state
@@ -1817,6 +1860,9 @@ class RunRegistry:
         else:
             container_node.status = "succeeded"
 
+        record.completed_frames[frame.frame_id] = {
+            node_id: copy.deepcopy(node_state) for node_id, node_state in frame.nodes.items()
+        }
         self._pop_frame(record, frame.frame_id)
         ready: List[DispatchRequest] = []
         for dependent_id in container_node.dependents:

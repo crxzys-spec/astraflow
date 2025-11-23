@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactElement, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetRun, useGetRunDefinition } from "../api/endpoints";
 import { UiEventType } from "../api/models/uiEventType";
@@ -8,6 +8,8 @@ import type { RunSnapshotEvent } from "../api/models/runSnapshotEvent";
 import type { NodeStateEvent } from "../api/models/nodeStateEvent";
 import type { NodeResultSnapshotEvent } from "../api/models/nodeResultSnapshotEvent";
 import type { NodeErrorEvent } from "../api/models/nodeErrorEvent";
+import type { RunNodeStatus } from "../api/models/runNodeStatus";
+import type { RunNodeStatusMetadata } from "../api/models/runNodeStatusMetadata";
 import { sseClient } from "../lib/sseClient";
 import { getClientSessionId } from "../lib/clientSession";
 import {
@@ -27,6 +29,57 @@ type JsonValue =
   | {
       [key: string]: JsonValue;
     };
+
+type FrameMetadata = {
+  frameId?: string;
+  containerNodeId?: string;
+  subgraphId?: string;
+  subgraphName?: string;
+  aliasChain?: string[];
+};
+
+type NodeWithFrame = {
+  node: RunNodeStatus;
+  frame?: FrameMetadata;
+};
+
+type NodeGroup = {
+  key: string;
+  label: string;
+  description?: string;
+  nodes: NodeWithFrame[];
+};
+
+const parseFrameMetadata = (
+  metadata: RunNodeStatusMetadata | undefined | null,
+): FrameMetadata | undefined => {
+  if (!metadata || typeof metadata !== "object") {
+    return undefined;
+  }
+  const frame = (metadata as Record<string, unknown>)["__frame"];
+  if (!frame || typeof frame !== "object") {
+    return undefined;
+  }
+  const source = frame as Record<string, unknown>;
+  const aliasSource = source["aliasChain"];
+  const aliasChain = Array.isArray(aliasSource)
+    ? aliasSource.filter((entry): entry is string => typeof entry === "string")
+    : undefined;
+  return {
+    frameId: typeof source["frameId"] === "string" ? (source["frameId"] as string) : undefined,
+    containerNodeId:
+      typeof source["containerNodeId"] === "string"
+        ? (source["containerNodeId"] as string)
+        : undefined,
+    subgraphId:
+      typeof source["subgraphId"] === "string" ? (source["subgraphId"] as string) : undefined,
+    subgraphName:
+      typeof source["subgraphName"] === "string"
+        ? (source["subgraphName"] as string)
+        : undefined,
+    aliasChain,
+  };
+};
 
 const isRecord = (value: JsonValue): value is Record<string, JsonValue> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -169,8 +222,15 @@ const DurationLabel = ({
   return <>{`${seconds.toFixed(2)} s`}</>;
 };
 
-export const RunDetailPage = () => {
-  const { runId } = useParams<{ runId: string }>();
+interface RunDetailPageProps {
+  runIdOverride?: string;
+  onClose?: () => void;
+}
+
+export const RunDetailPage = ({ runIdOverride, onClose }: RunDetailPageProps = {}) => {
+  const params = useParams<{ runId: string }>();
+  const routeRunId = params?.runId;
+  const runId = runIdOverride ?? routeRunId;
   const navigate = useNavigate();
   const [activePanel, setActivePanel] = useState<DetailPanel>("run");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">(
@@ -193,6 +253,71 @@ export const RunDetailPage = () => {
   const workflowLink = workflowDefinition?.id;
   const runData = runQuery.data?.data;
   const queryClient = useQueryClient();
+  const nodesWithFrame = useMemo((): NodeWithFrame[] => {
+    if (!runData?.nodes?.length) {
+      return [];
+    }
+    return runData.nodes.map((node) => ({
+      node,
+      frame: parseFrameMetadata(node.metadata),
+    }));
+  }, [runData?.nodes]);
+  const nodeGroups = useMemo((): NodeGroup[] => {
+    if (!nodesWithFrame.length) {
+      return [];
+    }
+    const groups: NodeGroup[] = [];
+    const rootNodes = nodesWithFrame.filter((entry) => !entry.frame);
+    if (rootNodes.length) {
+      groups.push({
+        key: "main",
+        label: "Main Graph",
+        nodes: rootNodes,
+      });
+    }
+    const subgraphMap = new Map<string, NodeGroup>();
+    nodesWithFrame.forEach((entry) => {
+      const frame = entry.frame;
+      if (!frame) {
+        return;
+      }
+      const aliasKey = frame.aliasChain?.join("::");
+      const fallbackKey = [frame.containerNodeId, frame.subgraphId].filter(Boolean).join("::");
+      const mapKey =
+        frame.frameId ??
+        aliasKey ??
+        (fallbackKey.length > 0 ? fallbackKey : `subgraph-${subgraphMap.size + 1}`);
+      const baseLabel =
+        frame.subgraphName ??
+        frame.subgraphId ??
+        frame.frameId ??
+        frame.containerNodeId ??
+        "Subgraph";
+      const description =
+        frame.aliasChain && frame.aliasChain.length > 1
+          ? frame.aliasChain.join(" / ")
+          : frame.aliasChain?.[0];
+      const existing = subgraphMap.get(mapKey);
+      if (existing) {
+        existing.nodes.push(entry);
+        if (!existing.description && description) {
+          existing.description = description;
+        }
+        return;
+      }
+      subgraphMap.set(mapKey, {
+        key: mapKey,
+        label: `Subgraph: ${baseLabel}`,
+        description,
+        nodes: [entry],
+      });
+    });
+    const orderedSubgraphs = Array.from(subgraphMap.values()).sort((a, b) =>
+      a.label.localeCompare(b.label),
+    );
+    groups.push(...orderedSubgraphs);
+    return groups;
+  }, [nodesWithFrame]);
 
   const rawPayload = activePanel === "workflow" ? workflowDefinition : runData;
   const normalizedPayload = useMemo<JsonValue | undefined>(() => {
@@ -335,29 +460,49 @@ export const RunDetailPage = () => {
     setCopyStatus("idle");
   }, [activePanel, workflowDefinition?.id, runData?.runId]);
 
+  const handleClose = useCallback(() => {
+    if (onClose) {
+      onClose();
+    } else {
+      navigate(-1);
+    }
+  }, [navigate, onClose]);
+
+  let modalContent: ReactNode = null;
+
   if (!runId) {
-    return <p className="error">Missing run identifier.</p>;
-  }
-
-  if (runQuery.isLoading) {
-    return <p>Loading run...</p>;
-  }
-
-  if (runQuery.isError) {
-    return (
-      <div className="card">
-        <p className="error">
-          Failed to load run: {(runQuery.error as Error).message}
-        </p>
-        <button className="btn" onClick={() => navigate(-1)}>
-          Back
+    modalContent = (
+      <div className="run-detail__status">
+        <p className="error">Missing run identifier.</p>
+        <button className="btn btn--ghost" type="button" onClick={handleClose}>
+          Close
         </button>
       </div>
     );
-  }
-
-  if (!runData) {
-    return <p>No details available.</p>;
+  } else if (runQuery.isLoading) {
+    modalContent = (
+      <div className="run-detail__status">
+        <p>Loading run...</p>
+      </div>
+    );
+  } else if (runQuery.isError) {
+    modalContent = (
+      <div className="run-detail__status">
+        <p className="error">Failed to load run: {(runQuery.error as Error).message}</p>
+        <button className="btn btn--ghost" type="button" onClick={handleClose}>
+          Close
+        </button>
+      </div>
+    );
+  } else if (!runData) {
+    modalContent = (
+      <div className="run-detail__status">
+        <p>No details available.</p>
+        <button className="btn btn--ghost" type="button" onClick={handleClose}>
+          Close
+        </button>
+      </div>
+    );
   }
 
   const displayPayload = normalizedPayload;
@@ -389,14 +534,15 @@ export const RunDetailPage = () => {
     }
   };
 
-  return (
-    <div className="run-detail">
-      <div className="run-detail__layout">
+  if (!modalContent && runData) {
+    modalContent = (
+      <div className="run-detail">
+        <div className="run-detail__layout">
         <div className="card run-detail__primary">
           <button
             type="button"
             className="run-detail__back"
-            onClick={() => navigate(-1)}
+            onClick={handleClose}
           >
             <span className="run-detail__back-icon" aria-hidden="true">
               &larr;
@@ -459,81 +605,107 @@ export const RunDetailPage = () => {
               </div>
             )}
 
-            {runData?.nodes && runData?.nodes.length > 0 && (
+            {nodeGroups.length > 0 && (
               <div className="run-detail__nodes">
                 <h3>Node Status</h3>
-                <div className="run-detail__nodes-grid">
-                  {runData?.nodes.map((node) => (
-                    <div key={node.nodeId} className="run-detail__node-card">
-                      <header>
-                        <span className="run-detail__node-id">
-                          {node.nodeId}
-                        </span>
-                        {node.status && <StatusBadge status={node.status} />}
-                      </header>
-                      <dl>
-                        <div>
-                          <dt>Task</dt>
-                          <dd>{node.taskId ?? "-"}</dd>
-                        </div>
-                        <div>
-                          <dt>Worker</dt>
-                          <dd>{node.workerId ?? "-"}</dd>
-                        </div>
-                        <div>
-                          <dt>Started</dt>
-                          <dd>{node.startedAt ?? "-"}</dd>
-                        </div>
-                        <div>
-                          <dt>Finished</dt>
-                          <dd>{node.finishedAt ?? "-"}</dd>
-                        </div>
-                        {node.state?.message && (
-                          <div>
-                            <dt>Message</dt>
-                            <dd>{node.state.message}</dd>
-                          </div>
-                        )}
-                        {typeof node.state?.progress === "number" && (
-                          <div>
-                            <dt>Progress</dt>
-                            <dd>{`${Math.round((node.state.progress ?? 0) * 100)}%`}</dd>
-                          </div>
-                        )}
-                        {node.state?.lastUpdatedAt && (
-                          <div>
-                            <dt>Updated</dt>
-                            <dd>{node.state.lastUpdatedAt}</dd>
-                          </div>
-                        )}
-                      </dl>
-                    {node.error && (
-                        <details className="run-detail__node-section">
-                          <summary>Error</summary>
-                          <pre className="run-detail__payload">
-                            {JSON.stringify(node.error, null, 2)}
-                          </pre>
-                        </details>
-                      )}
-                      {node.result && Object.keys(node.result).length > 0 && (
-                        <details className="run-detail__node-section">
-                          <summary>Result</summary>
-                          <pre className="run-detail__payload">
-                            {JSON.stringify(node.result, null, 2)}
-                          </pre>
-                        </details>
-                      )}
-                      {node.artifacts && node.artifacts.length > 0 && (
-                        <details className="run-detail__node-section">
-                          <summary>Artifacts</summary>
-                          <pre className="run-detail__payload">
-                            {JSON.stringify(node.artifacts, null, 2)}
-                          </pre>
-                        </details>
+                {nodeGroups.map((group) => (
+                  <section key={group.key} className="run-detail__nodes-section">
+                    <div className="run-detail__nodes-section-header">
+                      <h4 className="run-detail__nodes-section-title">{group.label}</h4>
+                      {group.description && (
+                        <p className="run-detail__nodes-section-description">{group.description}</p>
                       )}
                     </div>
-                  ))}
-                </div>
+                    <div className="run-detail__nodes-grid">
+                      {group.nodes.map(({ node, frame }) => {
+                        const scopeLabel =
+                          frame?.aliasChain && frame.aliasChain.length > 0
+                            ? frame.aliasChain.join(" / ")
+                            : frame?.frameId ?? frame?.subgraphId;
+                        return (
+                          <div key={node.taskId ?? node.nodeId} className="run-detail__node-card">
+                            <header>
+                              <span className="run-detail__node-id">{node.nodeId}</span>
+                              {node.status && <StatusBadge status={node.status} />}
+                            </header>
+                            <dl>
+                              <div>
+                                <dt>Task</dt>
+                                <dd>{node.taskId ?? "-"}</dd>
+                              </div>
+                              {scopeLabel && (
+                                <div>
+                                  <dt>Scope</dt>
+                                  <dd>{scopeLabel}</dd>
+                                </div>
+                              )}
+                              {frame?.containerNodeId && (
+                                <div>
+                                  <dt>Container</dt>
+                                  <dd>{frame.containerNodeId}</dd>
+                                </div>
+                              )}
+                              <div>
+                                <dt>Worker</dt>
+                                <dd>{node.workerId ?? "-"}</dd>
+                              </div>
+                              <div>
+                                <dt>Started</dt>
+                                <dd>{node.startedAt ?? "-"}</dd>
+                              </div>
+                              <div>
+                                <dt>Finished</dt>
+                                <dd>{node.finishedAt ?? "-"}</dd>
+                              </div>
+                              {node.state?.message && (
+                                <div>
+                                  <dt>Message</dt>
+                                  <dd>{node.state.message}</dd>
+                                </div>
+                              )}
+                              {typeof node.state?.progress === "number" && (
+                                <div>
+                                  <dt>Progress</dt>
+                                  <dd>{`${Math.round((node.state.progress ?? 0) * 100)}%`}</dd>
+                                </div>
+                              )}
+                              {node.state?.lastUpdatedAt && (
+                                <div>
+                                  <dt>Updated</dt>
+                                  <dd>{node.state.lastUpdatedAt}</dd>
+                                </div>
+                              )}
+                            </dl>
+                            {node.error && (
+                              <details className="run-detail__node-section">
+                                <summary>Error</summary>
+                                <pre className="run-detail__payload">
+                                  {JSON.stringify(node.error, null, 2)}
+                                </pre>
+                              </details>
+                            )}
+                            {node.result && Object.keys(node.result).length > 0 && (
+                              <details className="run-detail__node-section">
+                                <summary>Result</summary>
+                                <pre className="run-detail__payload">
+                                  {JSON.stringify(node.result, null, 2)}
+                                </pre>
+                              </details>
+                            )}
+                            {node.artifacts && node.artifacts.length > 0 && (
+                              <details className="run-detail__node-section">
+                                <summary>Artifacts</summary>
+                                <pre className="run-detail__payload">
+                                  {JSON.stringify(node.artifacts, null, 2)}
+                                </pre>
+                              </details>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
               </div>
             )}
           </div>
@@ -597,6 +769,16 @@ export const RunDetailPage = () => {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+    );
+  }
+
+  return (
+    <div className="run-detail-modal" role="dialog" aria-modal="true">
+      <div className="run-detail-modal__backdrop" onClick={handleClose} />
+      <div className="run-detail-modal__panel">
+        {modalContent}
       </div>
     </div>
   );

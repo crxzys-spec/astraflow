@@ -1,8 +1,9 @@
 import type { DragEvent, MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ReactFlow, { Background, Controls, useReactFlow } from "reactflow";
+import ReactFlow, { Background, useReactFlow } from "reactflow";
 import type { Connection, Edge, EdgeChange, EdgeTypes, Node, NodeChange, NodeTypes } from "reactflow";
 import "reactflow/dist/style.css";
+import WorkflowControls from "./WorkflowControls";
 import { nanoid } from "nanoid";
 import { useWorkflowStore } from "../store.ts";
 import { buildFlowEdges, buildFlowNodes } from "../utils/flowTransforms.ts";
@@ -21,6 +22,13 @@ interface WorkflowCanvasProps {
     position: XYPosition
   ) => void;
 }
+
+const NODE_TYPES: NodeTypes = {
+  workflow: WorkflowNode,
+  default: WorkflowNode
+};
+
+const EDGE_TYPES: EdgeTypes = {};
 
 const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   const workflow = useWorkflowStore((state) => {
@@ -43,14 +51,6 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   const addEdge = useWorkflowStore((state) => state.addEdge);
   const removeEdge = useWorkflowStore((state) => state.removeEdge);
   const { screenToFlowPosition, getEdges } = useReactFlow();
-  const nodeTypes = useMemo<NodeTypes>(
-    () => ({
-      workflow: WorkflowNode,
-      default: WorkflowNode
-    }),
-    []
-  );
-  const edgeTypes = useMemo<EdgeTypes>(() => ({}), []);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string>();
 
   const nodes: Node[] = useMemo(
@@ -263,8 +263,8 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
         key={activeGraph.type === "subgraph" ? `subgraph-${activeGraph.subgraphId}` : "root"}
         nodes={nodes}
         edges={edges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
+        nodeTypes={NODE_TYPES}
+        edgeTypes={EDGE_TYPES}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -277,7 +277,7 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
         className="workflow-canvas__flow"
       >
         <Background gap={16} size={1} />
-        <Controls position="top-right" />
+        <WorkflowControls />
       </ReactFlow>
       {!nodes.length && (
         <div className="workflow-canvas__overlay">No nodes yet. Drag components from the palette.</div>

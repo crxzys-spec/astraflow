@@ -7,6 +7,7 @@ import type { WorkflowNodeState } from "../api/models/workflowNodeState";
 import type { RunArtifact } from "../api/models/runArtifact";
 import type { RunList } from "../api/models/runList";
 import type { RunNodeStatus } from "../api/models/runNodeStatus";
+import type { RunRef } from "../api/models/runRef";
 import { getGetRunDefinitionQueryKey, getGetRunQueryKey } from "../api/endpoints";
 import { useWorkflowStore } from "../features/workflow";
 import type { WorkflowNodeStateUpdateMap } from "../features/workflow";
@@ -18,6 +19,46 @@ type RunMutator = (run: Run) => Run;
 const applyMutator = (run: Run, mutator: RunMutator): Run => {
   const next = mutator(run);
   return next === run ? run : { ...next };
+};
+
+export const upsertRunCaches = (queryClient: QueryClient, run: Run | RunRef) => {
+  const normalizedRun: Run = {
+    runId: run.runId,
+    status: run.status,
+    definitionHash: (run as Run).definitionHash ?? "",
+    clientId: (run as Run).clientId ?? "",
+    startedAt: (run as Run).startedAt ?? null,
+    finishedAt: (run as Run).finishedAt ?? null,
+    error: (run as Run).error,
+    artifacts: (run as Run).artifacts,
+    nodes: (run as Run).nodes,
+  };
+
+  const runKey = getGetRunQueryKey(run.runId);
+  queryClient.setQueryData<AxiosResponse<Run>>(runKey, (existing) => ({
+    ...existing,
+    data: normalizedRun,
+  }));
+
+  const matchingLists = queryClient.getQueriesData<AxiosResponse<RunList>>({
+    queryKey: [RUNS_QUERY_PREFIX],
+  });
+
+  matchingLists.forEach(([queryKey, response]) => {
+    const items = response?.data?.items ?? [];
+    const index = items.findIndex((item) => item.runId === run.runId);
+    const nextItems =
+      index === -1
+        ? [normalizedRun, ...items]
+        : items.map((item, idx) => (idx === index ? { ...item, ...normalizedRun } : item));
+    queryClient.setQueryData(queryKey, {
+      ...response,
+      data: {
+        ...(response?.data ?? { items: [] }),
+        items: nextItems,
+      },
+    });
+  });
 };
 
 export const updateRunCaches = (

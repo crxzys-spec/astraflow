@@ -49,3 +49,10 @@ class BaseRunsApi:
         runId: StrictStr,
     ) -> StartRunRequestWorkflow:
         ...
+
+
+    async def cancel_run(
+        self,
+        runId: StrictStr,
+    ) -> StartRun202Response:
+        ...

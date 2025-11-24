@@ -99,6 +99,26 @@ class RunsApiImpl(BaseRunsApi):
             )
         return record.to_summary()
 
+    async def cancel_run(
+        self,
+        runId: str,
+    ) -> StartRun202Response:
+        token = require_roles(*WORKFLOW_EDIT_ROLES)
+        record = await run_registry.cancel_run(runId)
+        if not record:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Run {runId} not found",
+            )
+        await run_orchestrator.cancel_run(runId)
+        record_audit_event(
+            actor_id=token.sub if token else None,
+            action="run.cancel",
+            target_type="run",
+            target_id=runId,
+        )
+        return record.to_start_response()
+
     async def get_run_definition(
         self,
         runId: str,

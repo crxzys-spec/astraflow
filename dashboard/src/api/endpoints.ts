@@ -380,6 +380,67 @@ export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = A
 
 
 /**
+ * @summary Cancel a run
+ */
+export const cancelRun = (
+    runId: string, options?: AxiosRequestConfig
+ ): Promise<AxiosResponse<RunRef>> => {
+    
+    
+    return axios.default.post(
+      `/api/v1/runs/${runId}/cancel`,undefined,options
+    );
+  }
+
+
+
+export const getCancelRunMutationOptions = <TError = AxiosError<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelRun>>, TError,{runId: string}, TContext>, axios?: AxiosRequestConfig}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelRun>>, TError,{runId: string}, TContext> => {
+
+const mutationKey = ['cancelRun'];
+const {mutation: mutationOptions, axios: axiosOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, axios: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelRun>>, {runId: string}> = (props) => {
+          const {runId} = props ?? {};
+
+          return  cancelRun(runId,axiosOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelRunMutationResult = NonNullable<Awaited<ReturnType<typeof cancelRun>>>
+    
+    export type CancelRunMutationError = AxiosError<NotFoundResponse>
+
+    /**
+ * @summary Cancel a run
+ */
+export const useCancelRun = <TError = AxiosError<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelRun>>, TError,{runId: string}, TContext>, axios?: AxiosRequestConfig}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof cancelRun>>,
+        TError,
+        {runId: string},
+        TContext
+      > => {
+
+      const mutationOptions = getCancelRunMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+/**
  * @summary Get the immutable workflow snapshot used by this run
  */
 export const getRunDefinition = (

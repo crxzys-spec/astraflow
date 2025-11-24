@@ -1018,6 +1018,18 @@
             }
           },
           {
+            "key": "loopIteration",
+            "label": "Loop Iteration",
+            "component": "number",
+            "binding": {
+              "path": "/results/loopIteration",
+              "mode": "read"
+            },
+            "options": {
+              "readOnly": true
+            }
+          },
+          {
             "key": "timeoutSeconds",
             "label": "Timeout (s)",
             "component": "number",

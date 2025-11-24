@@ -11,7 +11,7 @@ from shared.models.ws.error import ErrorPayload
 from shared.models.ws.cmd.dispatch import Affinity, CommandDispatchPayload, Constraints, ResourceRef
 
 from .manager import WorkerSession, worker_manager
-from .run_registry import DispatchRequest, run_registry
+from .run_registry import DispatchRequest, FINAL_STATUSES, run_registry
 
 LOGGER = logging.getLogger(__name__)
 
@@ -47,6 +47,28 @@ class RunOrchestrator:
         self.ensure_started()
         for request in requests:
             await self._queue.put(request)
+
+    async def cancel_run(self, run_id: str) -> None:
+        # Flush queued dispatches for this run
+        if not self._queue.empty():
+            retained: List[DispatchRequest] = []
+            while not self._queue.empty():
+                request = await self._queue.get()
+                if request.run_id != run_id:
+                    retained.append(request)
+                self._queue.task_done()
+            for request in retained:
+                await self._queue.put(request)
+
+        # Cancel pending ack waiters for this run to avoid retries/timeouts
+        async with self._ack_lock:
+            for dispatch_id, request in list(self._pending_acks.items()):
+                if request.run_id != run_id:
+                    continue
+                self._pending_acks.pop(dispatch_id, None)
+                waiter = self._ack_waiters.pop(dispatch_id, None)
+                if waiter:
+                    waiter.cancel()
 
     async def register_ack(self, dispatch_id: str) -> None:
         async with self._ack_lock:
@@ -91,6 +113,16 @@ class RunOrchestrator:
                 self._queue.task_done()
 
     async def _dispatch(self, request: DispatchRequest) -> None:
+        record = await run_registry.get(request.run_id)
+        if not record or record.status in FINAL_STATUSES:
+            LOGGER.info(
+                "Skipping dispatch for run=%s node=%s (status=%s)",
+                request.run_id,
+                request.node_id,
+                record.status if record else "missing",
+            )
+            return
+
         session = self._select_worker(request)
         if not session:
             LOGGER.info(
@@ -123,7 +155,7 @@ class RunOrchestrator:
             return
 
         ack_deadline = datetime.now(timezone.utc) + timedelta(seconds=self._ack_timeout_seconds)
-        await run_registry.mark_dispatched(
+        record = await run_registry.mark_dispatched(
             request.run_id,
             worker_id=session.worker_id,
             task_id=request.task_id,
@@ -137,6 +169,9 @@ class RunOrchestrator:
             dispatch_id=dispatch_id,
             ack_deadline=ack_deadline,
         )
+        if not record or record.status in FINAL_STATUSES:
+            LOGGER.info("Dropping dispatch for run=%s node=%s (status=%s)", request.run_id, request.node_id, record.status if record else "unknown")
+            return
 
         async with self._ack_lock:
             request.dispatch_id = dispatch_id
@@ -233,6 +268,17 @@ class RunOrchestrator:
         )
 
     async def _handle_retry(self, request: DispatchRequest, message: str) -> None:
+        record = await run_registry.get(request.run_id)
+        if not record or record.status in FINAL_STATUSES:
+            LOGGER.info(
+                "Skip retry for run=%s node=%s (status=%s) reason=%s",
+                request.run_id,
+                request.node_id,
+                record.status if record else "missing",
+                message,
+            )
+            return
+
         request.attempts += 1
         if request.attempts > self._max_attempts:
             LOGGER.error(

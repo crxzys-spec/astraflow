@@ -108,6 +108,27 @@ async def get_run(
     return await BaseRunsApi.subclasses[0]().get_run(runId)
 
 
+@router.post(
+    "/api/v1/runs/{runId}/cancel",
+    responses={
+        202: {"model": StartRun202Response, "description": "Accepted"},
+        404: {"model": AuthLogin401Response, "description": "Resource not found"},
+    },
+    tags=["Runs"],
+    summary="Cancel a run",
+    response_model_by_alias=True,
+)
+async def cancel_run(
+    runId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> StartRun202Response:
+    if not BaseRunsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseRunsApi.subclasses[0]().cancel_run(runId)
+
+
 @router.get(
     "/api/v1/runs/{runId}/definition",
     responses={

@@ -163,6 +163,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     setSelectedNode: (nodeId) => {
       set((state) => {
+        if (state.selectedNodeId === nodeId) {
+          return;
+        }
         state.selectedNodeId = nodeId;
       });
     },

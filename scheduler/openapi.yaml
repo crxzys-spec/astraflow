@@ -23,6 +23,8 @@ paths:
     $ref: ./paths/runs.yaml
   /api/v1/runs/{runId}:
     $ref: ./paths/run-by-id.yaml
+  /api/v1/runs/{runId}/cancel:
+    $ref: ./paths/run-cancel.yaml
   /api/v1/runs/{runId}/definition:
     $ref: ./paths/run-definition.yaml
   /api/v1/workflows:

@@ -14,7 +14,8 @@ import {
   useListWorkflowPackages,
   usePersistWorkflow,
   usePublishWorkflow,
-  useStartRun
+  useStartRun,
+  useCancelRun
 } from "../api/endpoints";
 import type { StartRunMutationError } from "../api/endpoints";
 import type { AxiosError } from "axios";
@@ -41,8 +42,10 @@ import type { RunStatusEvent } from "../api/models/runStatusEvent";
 import type { RunSnapshotEvent } from "../api/models/runSnapshotEvent";
 import type { NodeStateEvent } from "../api/models/nodeStateEvent";
 import type { NodeResultSnapshotEvent } from "../api/models/nodeResultSnapshotEvent";
+import type { RunStatus } from "../api/models/runStatus";
 import { sseClient } from "../lib/sseClient";
 import {
+  upsertRunCaches,
   applyRunDefinitionSnapshot,
   replaceRunSnapshot,
   updateRunCaches,
@@ -196,6 +199,21 @@ const RunsInspectorPanel = ({ onSelectRun }: RunsInspectorPanelProps) => {
     state.hasRole(["admin", "run.viewer", "workflow.editor"])
   );
   const queryClient = useQueryClient();
+  const cancelRun = useCancelRun(
+    {
+      mutation: {
+        onSuccess: (_result, variables) => {
+          const runId = variables?.runId;
+          if (runId) {
+            updateRunCaches(queryClient, runId, (run) =>
+              run.runId === runId ? { ...run, status: "cancelled" } : run
+            );
+          }
+        }
+      }
+    },
+    queryClient
+  );
   const { data, isLoading, isError, error, refetch } = useListRuns(undefined, {
     query: { enabled: canViewRuns }
   });
@@ -285,23 +303,50 @@ const RunsInspectorPanel = ({ onSelectRun }: RunsInspectorPanelProps) => {
         </button>
       </div>
       <div className="runs-panel__list">
-        {runs.map((run) => (
-          <button
-            key={run.runId}
-            type="button"
-            className="runs-panel__item"
-            onClick={() => onSelectRun(run.runId)}
-          >
-            <div className="runs-panel__identity">
-              <p className="runs-panel__run-id">{run.runId}</p>
-              <p className="runs-panel__meta">Client {run.clientId ?? "–"}</p>
+        {runs.map((run) => {
+          const isCancelable = run.status === "running" || run.status === "queued";
+          const isCancelling = cancelRun.isPending && cancelRun.variables?.runId === run.runId;
+          return (
+            <div
+              key={run.runId}
+              className="runs-panel__item"
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectRun(run.runId)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectRun(run.runId);
+                }
+              }}
+            >
+              <div className="runs-panel__identity">
+                <p className="runs-panel__run-id">{run.runId}</p>
+                <p className="runs-panel__meta">Client {run.clientId ?? "—"}</p>
+              </div>
+              <div className="runs-panel__status">
+                <StatusBadge status={run.status} />
+                <span>{run.startedAt ?? "Pending"}</span>
+              </div>
+              {isCancelable && (
+                <button
+                  type="button"
+                  className="btn btn--ghost runs-panel__stop"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    cancelRun.mutate(
+                      { runId: run.runId },
+                      { onError: (mutationError) => console.error("Failed to stop run", mutationError) }
+                    );
+                  }}
+                  disabled={isCancelling}
+                >
+                  {isCancelling ? "Stopping..." : "Stop"}
+                </button>
+              )}
             </div>
-            <div className="runs-panel__status">
-              <StatusBadge status={run.status} />
-              <span>{run.startedAt ?? "Pending"}</span>
-            </div>
-          </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -450,6 +495,7 @@ const WorkflowBuilderPage = () => {
   const [activePaletteTab, setActivePaletteTab] = useState<"catalog" | "graphs">("catalog");
   const [activeInspectorTab, setActiveInspectorTab] = useState<"inspector" | "runs">("inspector");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [activeRunStatus, setActiveRunStatus] = useState<RunStatus | undefined>();
   const readStoredPanelWidth = (key: "paletteWidth" | "inspectorWidth", fallback: number) => {
     if (typeof window === "undefined") {
       return fallback;
@@ -559,6 +605,7 @@ const WorkflowBuilderPage = () => {
   );
 
   const startRun = useStartRun(undefined, queryClient);
+  const cancelRun = useCancelRun(undefined, queryClient);
   const setToolbar = useToolbarStore((state) => state.setContent);
   const publishWorkflowMutation = usePublishWorkflow(undefined, queryClient);
   const persistWorkflowMutation = usePersistWorkflow(undefined, queryClient);
@@ -1026,10 +1073,19 @@ const WorkflowBuilderPage = () => {
           const run = result.data;
           const runId = run?.runId;
           if (runId) {
+            upsertRunCaches(queryClient, {
+              runId,
+              status: run.status as RunStatus,
+              definitionHash: run.definitionHash ?? "",
+              clientId: run.clientId ?? "",
+              startedAt: null,
+              finishedAt: null
+            });
             const storeSnapshot = useWorkflowStore.getState();
             storeSnapshot.resetRunState();
             activeRunRef.current = runId;
             setActiveRunId(runId);
+            setActiveRunStatus((run?.status as RunStatus) ?? "queued");
           }
           setRunMessage({
             type: "success",
@@ -1046,8 +1102,34 @@ const WorkflowBuilderPage = () => {
     );
   }, [startRun, workflow, canEditWorkflow, toWorkflowDefinition]);
 
+  const handleCancelActiveRun = useCallback(() => {
+    if (!activeRunId) {
+      return;
+    }
+    cancelRun.mutate(
+      { runId: activeRunId },
+      {
+        onSuccess: () => {
+          setRunMessage({
+            type: "success",
+            runId: activeRunId,
+            text: `Run ${activeRunId} cancellation requested`,
+          });
+          setActiveRunStatus("cancelled");
+        },
+        onError: (error) => {
+          const message = getErrorMessage(error);
+          setRunMessage({ type: "error", text: message });
+        }
+      }
+    );
+  }, [activeRunId, cancelRun, getErrorMessage, setRunMessage]);
+
   useEffect(() => {
     activeRunRef.current = activeRunId;
+    if (!activeRunId) {
+      setActiveRunStatus(undefined);
+    }
   }, [activeRunId]);
 
   useEffect(() => {
@@ -1081,6 +1163,7 @@ const WorkflowBuilderPage = () => {
         const readableStatus = status.replace(/[_-]+/g, " ").replace(/^\w/, (char) => char.toUpperCase());
         const messageSuffix = payload.reason ? ` (${payload.reason})` : "";
         const messageText = `Run ${payload.runId} ${readableStatus}${messageSuffix}`;
+        setActiveRunStatus(status as RunStatus);
         setRunMessage({
           type: status === "failed" || status === "cancelled" ? "error" : "success",
           runId: payload.runId,
@@ -1259,13 +1342,32 @@ const WorkflowBuilderPage = () => {
             </span>
             {startRun.isPending ? "Launching..." : "Run"}
           </button>
+          {activeRunId &&
+            (!activeRunStatus || !["succeeded", "failed", "cancelled"].includes(activeRunStatus)) && (
+              <button
+                className="btn btn--ghost"
+                type="button"
+                onClick={handleCancelActiveRun}
+                disabled={cancelRun.isPending && cancelRun.variables?.runId === activeRunId}
+              >
+                <span className="btn__icon" aria-hidden="true">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <rect x="5" y="5" width="10" height="10" rx="2" />
+                  </svg>
+                </span>
+                {cancelRun.isPending && cancelRun.variables?.runId === activeRunId ? "Stopping..." : "Stop"}
+              </button>
+            )}
         </div>
       </div>
     );
   }, [
+    activeRunId,
+    activeRunStatus,
     canEditWorkflow,
     handleRunWorkflow,
     handleSaveWorkflow,
+    handleCancelActiveRun,
     openPublishModal,
     persistWorkflowMutation.isPending,
     runMessage,
@@ -1273,7 +1375,9 @@ const WorkflowBuilderPage = () => {
     publishMessage,
     canPublishWorkflow,
     startRun.isPending,
-    workflow
+    workflow,
+    cancelRun.isPending,
+    cancelRun.variables
   ]);
 
   useEffect(() => {

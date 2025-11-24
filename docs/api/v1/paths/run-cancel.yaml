@@ -1,0 +1,15 @@
+post:
+  tags: [Runs]
+  summary: Cancel a run
+  operationId: cancelRun
+  parameters:
+    - $ref: '../components/parameters.yaml#/RunId'
+  responses:
+    '202':
+      description: Accepted
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/RunRef'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

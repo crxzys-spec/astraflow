@@ -106,6 +106,23 @@ paths:
                 $ref: '#/components/schemas/Run'
         '404':
           $ref: '#/components/responses/NotFound'
+  '/api/v1/runs/{runId}/cancel':
+    post:
+      tags:
+        - Runs
+      summary: Cancel a run
+      operationId: cancelRun
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunRef'
+        '404':
+          $ref: '#/components/responses/NotFound'
   '/api/v1/runs/{runId}/definition':
     get:
       tags:
@@ -2650,4 +2667,4 @@ components:
         versionId:
           type: string
         version:
-          type: string\n    
+          type: string

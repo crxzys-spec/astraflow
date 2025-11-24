@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useMemo } from "react";
-import { useListRuns } from "../api/endpoints";
+import { useCancelRun, useListRuns } from "../api/endpoints";
 import StatusBadge from "../components/StatusBadge";
 import { sseClient } from "../lib/sseClient";
 import { UiEventType } from "../api/models/uiEventType";
@@ -21,6 +21,21 @@ export const RunsPage = () => {
   });
   const runs = data?.data.items ?? [];
   const queryClient = useQueryClient();
+  const cancelRun = useCancelRun(
+    {
+      mutation: {
+        onSuccess: (_result, variables) => {
+          const runId = variables?.runId;
+          if (runId) {
+            updateRunCaches(queryClient, runId, (run) =>
+              run.runId === runId ? { ...run, status: "cancelled" } : run
+            );
+          }
+        }
+      }
+    },
+    queryClient
+  );
   const setToolbar = useToolbarStore((state) => state.setContent);
 
   const toolbarContent = useMemo(() => {
@@ -135,6 +150,7 @@ export const RunsPage = () => {
               <th>Client ID</th>
               <th>Started</th>
               <th>Finished</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -151,6 +167,25 @@ export const RunsPage = () => {
                 <td>{run.clientId ?? "-"}</td>
                 <td>{run.startedAt ?? "-"}</td>
                 <td>{run.finishedAt ?? "-"}</td>
+                <td>
+                  {run.status === "running" || run.status === "queued" ? (
+                    <button
+                      className="btn btn--ghost"
+                      type="button"
+                      onClick={() =>
+                        cancelRun.mutate(
+                          { runId: run.runId },
+                          { onError: (mutationError) => console.error("Failed to stop run", mutationError) }
+                        )
+                      }
+                      disabled={cancelRun.isPending && cancelRun.variables?.runId === run.runId}
+                    >
+                      Stop
+                    </button>
+                  ) : (
+                    "-"
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

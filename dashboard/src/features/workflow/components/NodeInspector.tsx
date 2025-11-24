@@ -1,7 +1,12 @@
-import { useMemo } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
+import { nanoid } from "nanoid";
+
 import { useWorkflowStore } from "../store";
 import { formatBindingDisplay, resolveBindingPath } from "../utils/binding";
-import type { NodePortDefinition, WorkflowNodeDraft } from "../types";
+import type { NodePortDefinition, WorkflowDraft, WorkflowNodeDraft } from "../types";
+import { widgetRegistry, registerBuiltinWidgets } from "../widgets";
+
+registerBuiltinWidgets();
 
 const formatPackageId = (node: WorkflowNodeDraft) => {
   if (!node.packageName) {
@@ -10,43 +15,76 @@ const formatPackageId = (node: WorkflowNodeDraft) => {
   return `${node.packageName}@${node.packageVersion ?? "latest"}`;
 };
 
-const formatTags = (tags: string[] | undefined) => {
-  if (!tags || tags.length === 0) {
-    return "-";
-  }
-  return tags.join(", ");
-};
+const NodeMeta = ({ node, onLabelChange }: { node: WorkflowNodeDraft; onLabelChange: (value: string) => void }) => {
+  const [isEditingLabel, setIsEditingLabel] = useState(false);
 
-const NodeMeta = ({ node }: { node: WorkflowNodeDraft }) => (
-  <div className="card inspector__summary">
-    <header className="card__header">
-      <h3>{node.label}</h3>
-      <span className="text-subtle">{node.nodeKind}</span>
-    </header>
-    <dl className="data-grid inspector__meta-grid">
-      <div>
-        <dt>Node ID</dt>
-        <dd>{node.id}</dd>
+  useEffect(() => {
+    setIsEditingLabel(false);
+  }, [node.id]);
+
+  const stopEditing = () => setIsEditingLabel(false);
+
+  return (
+    <div className="card inspector__summary">
+      <header className="card__header inspector__summary-header">
+        <div className="inspector__summary-title">
+          {isEditingLabel ? (
+            <input
+              className="inspector__summary-title-input"
+              type="text"
+              value={node.label ?? ""}
+              onChange={(event) => onLabelChange(event.target.value)}
+              onBlur={stopEditing}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === "Escape") {
+                  stopEditing();
+                }
+              }}
+              autoFocus
+              aria-label="Node label"
+            />
+          ) : (
+            <button
+              type="button"
+              className="inspector__summary-title-display"
+              onClick={() => setIsEditingLabel(true)}
+              aria-label="Edit node label"
+              title="Click to edit"
+            >
+              {node.label || "Untitled node"}
+            </button>
+          )}
+        </div>
+        <div className="inspector__summary-meta">
+          <span className="inspector__badge">{node.nodeKind}</span>
+          <span className="inspector__badge inspector__badge--muted">{formatPackageId(node)}</span>
+          <span className="inspector__badge inspector__badge--muted">{node.category ?? "-"}</span>
+          <span className="inspector__badge inspector__badge--status">{node.status ?? "-"}</span>
+        </div>
+      </header>
+      <div className="inspector__summary-grid">
+        <div className="inspector__field">
+          <span className="inspector__field-label">Node ID</span>
+          <span className="inspector__field-value inspector__field-value--mono">{node.id}</span>
+        </div>
+        <div className="inspector__field">
+          <span className="inspector__field-label">Tags</span>
+          {node.tags && node.tags.length ? (
+            <div className="inspector__tags">
+              {node.tags.map((tag) => (
+                <span key={tag} className="inspector__pill inspector__pill--muted">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="inspector__field-value">-</span>
+          )}
+        </div>
       </div>
-      <div>
-        <dt>Package</dt>
-        <dd>{formatPackageId(node)}</dd>
-      </div>
-      <div>
-        <dt>Category</dt>
-        <dd>{node.category ?? "-"}</dd>
-      </div>
-      <div>
-        <dt>Status</dt>
-        <dd>{node.status ?? "-"}</dd>
-      </div>
-      <div>
-        <dt>Tags</dt>
-        <dd>{formatTags(node.tags)}</dd>
-      </div>
-    </dl>
-  </div>
-);
+    </div>
+  );
+};
 
 type PortOrigin = "declared" | "inferred";
 type PortKind = "input" | "output";
@@ -100,10 +138,44 @@ const collectPorts = (
 
 export const NodeInspector = () => {
   const selectedNodeId = useWorkflowStore((state) => state.selectedNodeId);
-  const workflow = useWorkflowStore((state) => state.workflow);
+  const rootWorkflow = useWorkflowStore((state) => state.workflow);
+  const activeGraph = useWorkflowStore((state) => state.activeGraph);
+  const subgraphDrafts = useWorkflowStore((state) => state.subgraphDrafts);
   const updateNode = useWorkflowStore((state) => state.updateNode);
-
+  const workflow: WorkflowDraft | undefined = useMemo(() => {
+    if (!rootWorkflow) {
+      return undefined;
+    }
+    if (activeGraph.type === "subgraph") {
+      const subgraph = subgraphDrafts.find((entry) => entry.id === activeGraph.subgraphId)?.definition;
+      return subgraph ?? rootWorkflow;
+    }
+    return rootWorkflow;
+  }, [rootWorkflow, activeGraph, subgraphDrafts]);
   const node = selectedNodeId ? workflow?.nodes[selectedNodeId] : undefined;
+  const widgetComponentOptions = useMemo(() => {
+    const ids = new Set<string>();
+    try {
+      widgetRegistry.entries().forEach(([id]) => ids.add(id));
+    } catch {
+      // ignore
+    }
+    if (workflow?.nodes) {
+      Object.values(workflow.nodes).forEach((draft) => {
+        draft.ui?.widgets?.forEach((widget) => {
+          if (widget.component) {
+            ids.add(widget.component);
+          }
+        });
+      });
+    }
+    node?.ui?.widgets?.forEach((widget) => {
+      if (widget.component) {
+        ids.add(widget.component);
+      }
+    });
+    return Array.from(ids);
+  }, [workflow?.nodes, node?.ui?.widgets]);
 
   const ports = useMemo(() => {
     if (!node) {
@@ -163,6 +235,218 @@ export const NodeInspector = () => {
     });
   };
 
+  const updatePortBindingFields = (
+    port: InspectorPort,
+    changes: { path?: string; mode?: string; prefix?: string; label?: string; key?: string }
+  ) => {
+    if (!node) {
+      return;
+    }
+    updateNode(node.id, (current) => {
+      const ui = current.ui ?? {};
+      const key = port.kind === "input" ? "inputPorts" : "outputPorts";
+      const ports = [...((ui[key] as NodePortDefinition[] | undefined) ?? [])];
+      const index = ports.findIndex((candidate) => candidate.key === port.key);
+      if (index === -1) {
+        return current;
+      }
+      const existing = ports[index];
+      if (!existing.binding) {
+        return current;
+      }
+      const nextBinding = {
+        ...existing.binding,
+        path: changes.path !== undefined ? changes.path.trim() : existing.binding.path,
+        mode: changes.mode ?? existing.binding.mode,
+        prefix:
+          changes.prefix !== undefined
+            ? changes.prefix.trim()
+              ? changes.prefix.trim()
+              : undefined
+            : existing.binding.prefix
+      };
+      const nextKey = changes.key ?? existing.key;
+      const nextLabel = changes.label ?? existing.label;
+      ports[index] = { ...existing, key: nextKey, label: nextLabel, binding: nextBinding };
+      return {
+        ...current,
+        ui: {
+          ...ui,
+          [key]: ports
+        }
+      };
+    });
+  };
+
+  const addPort = (kind: PortKind) => {
+    if (!node) {
+      return;
+    }
+    updateNode(node.id, (current) => {
+      const ui = current.ui ?? {};
+      const key = kind === "input" ? "inputPorts" : "outputPorts";
+      const ports = [...((ui[key] as NodePortDefinition[] | undefined) ?? [])];
+      const index = ports.length + 1;
+      const newPort: NodePortDefinition = {
+        key: `${kind}-${nanoid(5)}`,
+        label: `${kind === "input" ? "Input" : "Output"} ${index}`,
+        binding: {
+          path: kind === "input" ? "/parameters/" : "/results/",
+          mode: kind === "input" ? "write" : "read",
+        },
+      };
+      ports.push(newPort);
+      return {
+        ...current,
+        ui: {
+          ...ui,
+          [key]: ports,
+        },
+      };
+    });
+  };
+
+  const removePort = (kind: PortKind, portKey: string) => {
+    if (!node) {
+      return;
+    }
+    updateNode(node.id, (current) => {
+      const ui = current.ui ?? {};
+      const key = kind === "input" ? "inputPorts" : "outputPorts";
+      const ports = [...((ui[key] as NodePortDefinition[] | undefined) ?? [])].filter(
+        (port) => port.key !== portKey,
+      );
+      return {
+        ...current,
+        ui: {
+          ...ui,
+          [key]: ports,
+        },
+      };
+    });
+  };
+
+  const updateWidgetBinding = (widgetKey: string, nextPrefix: string) => {
+    if (!node) {
+      return;
+    }
+    updateNode(node.id, (current) => {
+      const ui = current.ui ?? {};
+      const widgets = [...(ui.widgets ?? [])];
+      const index = widgets.findIndex((entry) => entry.key === widgetKey);
+      if (index === -1) {
+        return current;
+      }
+      const existing = widgets[index];
+      if (!existing.binding) {
+        return current;
+      }
+      const nextBinding = {
+        ...existing.binding,
+        prefix: nextPrefix.trim() ? nextPrefix.trim() : undefined
+      };
+      widgets[index] = { ...existing, binding: nextBinding };
+      return {
+        ...current,
+        ui: {
+          ...ui,
+          widgets
+        }
+      };
+    });
+  };
+
+  const updateWidgetFields = (
+    widgetKey: string,
+    changes: { path?: string; mode?: string; prefix?: string; component?: string; label?: string; key?: string }
+  ) => {
+    if (!node) {
+      return;
+    }
+    updateNode(node.id, (current) => {
+      const ui = current.ui ?? {};
+      const widgets = [...(ui.widgets ?? [])];
+      const index = widgets.findIndex((entry) => entry.key === widgetKey);
+      if (index === -1) {
+        return current;
+      }
+      const existing = widgets[index];
+      const nextBinding = existing.binding
+        ? {
+            ...existing.binding,
+            path: changes.path !== undefined ? changes.path.trim() : existing.binding.path,
+            mode: changes.mode ?? existing.binding.mode,
+            prefix:
+              changes.prefix !== undefined
+                ? changes.prefix.trim()
+                  ? changes.prefix.trim()
+                  : undefined
+                : existing.binding.prefix
+          }
+        : undefined;
+      widgets[index] = {
+        ...existing,
+        key: changes.key ?? existing.key,
+        label: changes.label !== undefined ? changes.label : existing.label,
+        component: changes.component !== undefined ? changes.component.trim() : existing.component,
+        binding: nextBinding
+      };
+      return {
+        ...current,
+        ui: {
+          ...ui,
+          widgets
+        }
+      };
+    });
+  };
+
+  const bindingModes = ["read", "write", "two_way"];
+
+  const addWidget = () => {
+    if (!node) {
+      return;
+    }
+    updateNode(node.id, (current) => {
+      const ui = current.ui ?? {};
+      const widgets = [...(ui.widgets ?? [])];
+      const newWidget = {
+        key: `widget-${nanoid(5)}`,
+        label: `Widget ${widgets.length + 1}`,
+        component: "text",
+        binding: {
+          path: "/parameters/",
+          mode: "two_way",
+        },
+      };
+      widgets.push(newWidget);
+      return {
+        ...current,
+        ui: {
+          ...ui,
+          widgets,
+        },
+      };
+    });
+  };
+
+  const removeWidget = (widgetKey: string) => {
+    if (!node) {
+      return;
+    }
+    updateNode(node.id, (current) => {
+      const ui = current.ui ?? {};
+      const widgets = [...(ui.widgets ?? [])].filter((entry) => entry.key !== widgetKey);
+      return {
+        ...current,
+        ui: {
+          ...ui,
+          widgets,
+        },
+      };
+    });
+  };
+
   if (!node) {
     return (
       <div className="card inspector inspector--empty">
@@ -171,110 +455,119 @@ export const NodeInspector = () => {
     );
   }
 
-  const runtimeState = node.state ?? null;
-  const runtimeStage = runtimeState?.stage ?? "-";
-  const runtimeProgress =
-    typeof runtimeState?.progress === "number"
-      ? Math.max(0, Math.min(1, runtimeState.progress))
-      : undefined;
-  const runtimeMessage = runtimeState?.message ?? null;
-  const runtimeUpdatedAt = runtimeState?.lastUpdatedAt ?? null;
-  const runtimeError = runtimeState?.error;
+  const updateNodeLabel = (nextLabel: string) => {
+    if (!node) {
+      return;
+    }
+    updateNode(node.id, (current) => ({
+      ...current,
+      label: nextLabel
+    }));
+  };
+
   const resultData = node.results ?? {};
   const hasResultData = Object.keys(resultData).length > 0;
-  const runtimeArtifacts = node.runtimeArtifacts ?? null;
 
   return (
     <aside className="inspector">
-      <NodeMeta node={node} />
+      <NodeMeta node={node} onLabelChange={updateNodeLabel} />
       <div className="card inspector__panel">
         <header className="card__header">
-          <h3>Execution State</h3>
-        </header>
-        {runtimeState ? (
-          <>
-            <dl className="data-grid inspector__meta-grid">
-              <div>
-                <dt>Stage</dt>
-                <dd>{runtimeStage}</dd>
-              </div>
-              <div>
-                <dt>Progress</dt>
-                <dd>{runtimeProgress !== undefined ? `${Math.round(runtimeProgress * 100)}%` : "-"}</dd>
-              </div>
-              <div>
-                <dt>Last Updated</dt>
-                <dd>{runtimeUpdatedAt ?? "-"}</dd>
-              </div>
-            </dl>
-            {runtimeMessage && <p className="text-subtle">{runtimeMessage}</p>}
-            {runtimeError && (
-              <details>
-                <summary>Error</summary>
-                <pre className="inspector__payload">
-                  {JSON.stringify(runtimeError, null, 2)}
-                </pre>
-              </details>
-            )}
-          </>
-        ) : (
-          <p className="text-subtle inspector__payload-empty">No execution data yet.</p>
-        )}
-      </div>
-      <div className="card inspector__panel">
-        <header className="card__header">
-          <h3>Runtime Artifacts</h3>
-        </header>
-        {runtimeArtifacts === null ? (
-          <p className="text-subtle inspector__payload-empty">No artifacts produced.</p>
-        ) : (
-          <pre className="inspector__payload">
-            {JSON.stringify(runtimeArtifacts, null, 2)}
-          </pre>
-        )}
-      </div>
-      <div className="card inspector__panel">
-        <header className="card__header">
-          <h3>Ports</h3>
+          <h3>UI</h3>
         </header>
         <div className="inspector__ports">
           <div className="inspector__ports-column">
-            <h4 className="inspector__ports-heading">Inputs</h4>
+            <div className="inspector__ports-heading-row">
+              <h4 className="inspector__ports-heading">Input Ports</h4>
+              <button type="button" className="inspector__add-btn" onClick={() => addPort("input")}>
+                + Add
+              </button>
+            </div>
             {ports.inputs.length ? (
               <ul className="inspector__port-list">
                 {ports.inputs.map((port) => (
                   <li key={`input-${port.key}`} className="inspector__port">
                     <div className="inspector__port-header">
-                      <span className="inspector__port-label">{port.label}</span>
-                      {port.origin === "inferred" && <span className="badge badge--muted">inferred</span>}
+                      <div className="inspector__port-header-row">
+                        <span className="inspector__port-label">{port.label}</span>
+                        {port.origin === "inferred" && <span className="badge badge--muted">inferred</span>}
+                      </div>
+                      <div className="inspector__port-actions">
+                        <button
+                          type="button"
+                          className="inspector__remove-btn"
+                          onClick={() => removePort("input", port.key)}
+                          aria-label="Remove input port"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    </div>
+                    <div className="inspector__port-title">
+                      <label className="inspector__inline-input">
+                        <span>Label</span>
+                        <input
+                          className="inspector__port-input"
+                          type="text"
+                          value={port.label}
+                          onChange={(event) => updatePortBindingFields(port, { label: event.target.value })}
+                        />
+                      </label>
+                      <label className="inspector__inline-input">
+                        <span>Key</span>
+                        <input
+                          className="inspector__port-input"
+                          type="text"
+                          value={port.key}
+                          onChange={(event) => updatePortBindingFields(port, { key: event.target.value })}
+                        />
+                      </label>
                     </div>
                     {port.bindingPath && (
                       <>
                         <div className="inspector__port-binding">
                           <span className="inspector__port-binding-label">Binding</span>
-                          <code className="inspector__port-code">{port.bindingPath}</code>
-                        </div>
-                        {port.bindingMode && (
-                          <div className="inspector__port-mode">
-                            Mode
-                            <span className="inspector__port-mode-value">
-                              {port.bindingMode.toUpperCase()}
-                            </span>
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {port.origin === "declared" && (
+                      <input
+                        className="inspector__port-input"
+                        type="text"
+                        value={port.bindingPath ?? ""}
+                        onChange={(event) => updatePortBindingFields(port, { path: event.target.value })}
+                      />
+                    </div>
+                    {port.origin === "declared" ? (
                       <label className="inspector__binding-input">
                         <span>Binding prefix</span>
                         <input
                           type="text"
                           value={port.bindingPrefix ?? ""}
-                        placeholder="@subgraphAlias.#nodeId"
+                          placeholder="@subgraphAlias.#nodeId"
                           onChange={(event) => updatePortBinding(port, event.target.value)}
                         />
                       </label>
+                    ) : (
+                      <div className="inspector__port-binding">
+                        <span className="inspector__port-binding-label">Binding prefix</span>
+                        <code className="inspector__port-code">{port.bindingPrefix ?? "-"}</code>
+                      </div>
                     )}
+                    {port.bindingMode && (
+                      <div className="inspector__port-mode">
+                        Mode
+                        <select
+                          className="inspector__port-select"
+                          value={port.bindingMode}
+                          onChange={(event) => updatePortBindingFields(port, { mode: event.target.value })}
+                        >
+                          {bindingModes.map((mode) => (
+                            <option key={mode} value={mode}>
+                              {mode.toUpperCase()}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </>
+                )}
                   </li>
                 ))}
               </ul>
@@ -283,42 +576,97 @@ export const NodeInspector = () => {
             )}
           </div>
           <div className="inspector__ports-column">
-            <h4 className="inspector__ports-heading">Outputs</h4>
+            <div className="inspector__ports-heading-row">
+              <h4 className="inspector__ports-heading">Output Ports</h4>
+              <button type="button" className="inspector__add-btn" onClick={() => addPort("output")}>
+                + Add
+              </button>
+            </div>
             {ports.outputs.length ? (
               <ul className="inspector__port-list">
                 {ports.outputs.map((port) => (
                   <li key={`output-${port.key}`} className="inspector__port">
                     <div className="inspector__port-header">
-                      <span className="inspector__port-label">{port.label}</span>
-                      {port.origin === "inferred" && <span className="badge badge--muted">inferred</span>}
+                      <div className="inspector__port-header-row">
+                        <span className="inspector__port-label">{port.label}</span>
+                        {port.origin === "inferred" && <span className="badge badge--muted">inferred</span>}
+                      </div>
+                      <div className="inspector__port-actions">
+                        <button
+                          type="button"
+                          className="inspector__remove-btn"
+                          onClick={() => removePort("output", port.key)}
+                          aria-label="Remove output port"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    </div>
+                    <div className="inspector__port-title">
+                      <label className="inspector__inline-input">
+                        <span>Label</span>
+                        <input
+                          className="inspector__port-input"
+                          type="text"
+                          value={port.label}
+                          onChange={(event) => updatePortBindingFields(port, { label: event.target.value })}
+                        />
+                      </label>
+                      <label className="inspector__inline-input">
+                        <span>Key</span>
+                        <input
+                          className="inspector__port-input"
+                          type="text"
+                          value={port.key}
+                          onChange={(event) => updatePortBindingFields(port, { key: event.target.value })}
+                        />
+                      </label>
                     </div>
                     {port.bindingPath && (
                       <>
-                        <div className="inspector__port-binding">
-                          <span className="inspector__port-binding-label">Binding</span>
-                          <code className="inspector__port-code">{port.bindingPath}</code>
-                        </div>
-                        {port.bindingMode && (
-                          <div className="inspector__port-mode">
-                            Mode
-                            <span className="inspector__port-mode-value">
-                              {port.bindingMode.toUpperCase()}
-                            </span>
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {port.origin === "declared" && (
+                    <div className="inspector__port-binding">
+                      <span className="inspector__port-binding-label">Binding</span>
+                      <input
+                        className="inspector__port-input"
+                        type="text"
+                        value={port.bindingPath ?? ""}
+                        onChange={(event) => updatePortBindingFields(port, { path: event.target.value })}
+                      />
+                    </div>
+                    {port.origin === "declared" ? (
                       <label className="inspector__binding-input">
                         <span>Binding prefix</span>
                         <input
                           type="text"
                           value={port.bindingPrefix ?? ""}
-                        placeholder="@subgraphAlias.#nodeId"
+                          placeholder="@subgraphAlias.#nodeId"
                           onChange={(event) => updatePortBinding(port, event.target.value)}
                         />
                       </label>
+                    ) : (
+                      <div className="inspector__port-binding">
+                        <span className="inspector__port-binding-label">Binding prefix</span>
+                        <code className="inspector__port-code">{port.bindingPrefix ?? "-"}</code>
+                      </div>
                     )}
+                    {port.bindingMode && (
+                      <div className="inspector__port-mode">
+                        Mode
+                        <select
+                          className="inspector__port-select"
+                          value={port.bindingMode}
+                          onChange={(event) => updatePortBindingFields(port, { mode: event.target.value })}
+                        >
+                          {bindingModes.map((mode) => (
+                            <option key={mode} value={mode}>
+                              {mode.toUpperCase()}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </>
+                )}
                   </li>
                 ))}
               </ul>
@@ -326,6 +674,122 @@ export const NodeInspector = () => {
               <p className="text-subtle">No output ports.</p>
             )}
           </div>
+        </div>
+        <div className="inspector__widgets">
+          <div className="inspector__ports-heading-row">
+            <h4 className="inspector__ports-heading">Widgets</h4>
+            <button type="button" className="inspector__add-btn" onClick={addWidget}>
+              + Add
+            </button>
+          </div>
+          {node.ui?.widgets?.length ? (
+            <ul className="inspector__widget-list">
+              {node.ui.widgets.map((widget) => {
+                const resolution = resolveBindingPath(widget.binding?.path ?? "");
+                const bindingPath = formatBindingDisplay(widget.binding, resolution);
+                return (
+                  <li key={widget.key} className="inspector__widget">
+                    <div className="inspector__widget-header">
+                      <div className="inspector__port-header-row">
+                        <span className="inspector__port-label">{widget.label ?? widget.key}</span>
+                      </div>
+                      <div className="inspector__port-actions">
+                        <button
+                          type="button"
+                          className="inspector__remove-btn"
+                          onClick={() => removeWidget(widget.key)}
+                          aria-label="Remove widget"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    </div>
+                    <div className="inspector__port-title">
+                      <label className="inspector__inline-input">
+                        <span>Label</span>
+                        <input
+                          className="inspector__port-input"
+                          type="text"
+                          value={widget.label ?? ""}
+                          onChange={(event) =>
+                            updateWidgetFields(widget.key, { label: event.target.value || undefined })
+                          }
+                        />
+                      </label>
+                      <label className="inspector__inline-input">
+                        <span>Key</span>
+                        <input
+                          className="inspector__port-input"
+                          type="text"
+                          value={widget.key}
+                          onChange={(event) =>
+                            updateWidgetFields(widget.key, { key: event.target.value || widget.key })
+                          }
+                        />
+                      </label>
+                    </div>
+                    {bindingPath && (
+                      <div className="inspector__widget-binding">
+                        <span className="inspector__widget-binding-label">Binding</span>
+                        <input
+                          className="inspector__port-input"
+                          type="text"
+                          value={bindingPath ?? ""}
+                          onChange={(event) => updateWidgetFields(widget.key, { path: event.target.value })}
+                        />
+                      </div>
+                    )}
+                    <label className="inspector__binding-input">
+                      <span>Binding prefix</span>
+                      <input
+                        type="text"
+                        value={widget.binding?.prefix ?? ""}
+                        placeholder="@subgraphAlias.#nodeId"
+                        onChange={(event) => updateWidgetFields(widget.key, { prefix: event.target.value })}
+                      />
+                    </label>
+                    <div className="inspector__widget-binding">
+                      <span className="inspector__widget-binding-label">Component</span>
+                      <select
+                        className="inspector__port-select"
+                        value={widget.component}
+                        onChange={(event) => updateWidgetFields(widget.key, { component: event.target.value })}
+                      >
+                        {Array.from(
+                          new Set([
+                            ...widgetComponentOptions,
+                            widget.component
+                          ].filter(Boolean) as string[])
+                        ).map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {widget.binding?.mode && (
+                      <div className="inspector__port-mode">
+                        Mode
+                        <select
+                          className="inspector__port-select"
+                          value={widget.binding.mode}
+                          onChange={(event) => updateWidgetFields(widget.key, { mode: event.target.value })}
+                        >
+                          {bindingModes.map((mode) => (
+                            <option key={mode} value={mode}>
+                              {mode.toUpperCase()}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-subtle inspector__payload-empty">No widgets defined.</p>
+          )}
         </div>
       </div>
       <div className="card inspector__panel">
@@ -360,6 +824,13 @@ export const NodeInspector = () => {
 };
 
 export default NodeInspector;
+
+
+
+
+
+
+
 
 
 

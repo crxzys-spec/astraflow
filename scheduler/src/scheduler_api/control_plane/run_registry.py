@@ -120,6 +120,57 @@ def _get_node_subgraph_id(node: Any) -> Optional[str]:
     return None
 
 
+def _get_container_loop(node: NodeState) -> Dict[str, Any]:
+    params = getattr(node, "parameters", None)
+    if not isinstance(params, dict):
+        return {}
+    container = params.get(CONTAINER_PARAMS_KEY) or {}
+    if not isinstance(container, dict):
+        return {}
+    loop_cfg = container.get("loop") or {}
+    return loop_cfg if isinstance(loop_cfg, dict) else {}
+
+
+def _should_continue_loop(
+    loop_cfg: Dict[str, Any],
+    *,
+    iteration: int,
+    container_node: NodeState,
+    frame: FrameRuntimeState,
+) -> bool:
+    enabled = bool(loop_cfg.get("enabled"))
+    if not enabled:
+        return False
+
+    max_iterations = loop_cfg.get("maxIterations")
+    if isinstance(max_iterations, int) and max_iterations > 0 and iteration >= max_iterations:
+        return False
+
+    condition = loop_cfg.get("condition")
+    if not condition:
+        if max_iterations is None:
+            return False
+        return iteration < max_iterations
+
+    context = {
+        "parameters": container_node.parameters or {},
+        "results": container_node.result or {},
+        "iteration": iteration,
+        "frame": frame.definition.frame_id,
+    }
+    try:
+        should_exit = bool(eval(condition, {"__builtins__": {}}, context))
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning(
+            "Loop condition evaluation failed for container %s (iteration=%s): %s",
+            container_node.node_id,
+            iteration,
+            exc,
+        )
+        should_exit = False
+    return not should_exit
+
+
 _MISSING = object()
 
 
@@ -450,6 +501,8 @@ class FrameRuntimeState:
     task_index: Dict[str, NodeState]
     scope_index: WorkflowScopeIndex
     edge_bindings: Dict[str, List[EdgeBinding]]
+    loop_config: Dict[str, Any] = field(default_factory=dict)
+    loop_iteration: int = 1
     status: str = "idle"
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
@@ -1072,7 +1125,7 @@ class RunRegistry:
                 records = self._runs.values()
             requests: List[DispatchRequest] = []
             for record in records:
-                if not record:
+                if not record or record.status in FINAL_STATUSES:
                     continue
                 active_frame = self._current_frame(record)
                 if active_frame:
@@ -1101,6 +1154,8 @@ class RunRegistry:
             record = self._runs.get(run_id)
             if not record:
                 return None
+            if record.status in FINAL_STATUSES:
+                return copy.deepcopy(record)
             previous_status = record.status
             timestamp = _utc_now()
             record.status = "running"
@@ -1157,6 +1212,8 @@ class RunRegistry:
             record = self._runs.get(run_id)
             if not record:
                 return None
+            if record.status in FINAL_STATUSES:
+                return copy.deepcopy(record)
             node_state, frame_state = self._find_node_by_dispatch(record, dispatch_id)
             if not node_state or node_state.node_id != node_id:
                 return copy.deepcopy(record)
@@ -1174,6 +1231,43 @@ class RunRegistry:
         await asyncio.gather(*tasks)
         return record_snapshot
 
+    async def cancel_run(self, run_id: str) -> Optional[RunRecord]:
+        def _cancel_nodes(nodes: Dict[str, NodeState], timestamp: datetime) -> None:
+            for node in nodes.values():
+                if node.status in FINAL_STATUSES:
+                    continue
+                node.status = "cancelled"
+                node.enqueued = False
+                node.pending_dependencies = 0
+                node.pending_ack = False
+                node.dispatch_id = None
+                node.ack_deadline = None
+                node.finished_at = timestamp
+
+        async with self._lock:
+            record = self._runs.get(run_id)
+            if not record:
+                return None
+            if record.status in FINAL_STATUSES:
+                return copy.deepcopy(record)
+            timestamp = _utc_now()
+            _cancel_nodes(record.nodes, timestamp)
+            for frame in record.active_frames.values():
+                _cancel_nodes(frame.nodes, timestamp)
+            record.active_frames.clear()
+            record.frame_stack.clear()
+            record.status = "cancelled"
+            record.finished_at = timestamp
+            record.refresh_rollup()
+            record.status = "cancelled"
+            record_snapshot = copy.deepcopy(record)
+
+        await asyncio.gather(
+            self._publish_run_state(record_snapshot),
+            self._publish_run_snapshot(record_snapshot),
+        )
+        return record_snapshot
+
     async def reset_after_ack_timeout(
         self,
         run_id: str,
@@ -1185,6 +1279,8 @@ class RunRegistry:
             record = self._runs.get(run_id)
             if not record:
                 return None
+            if record.status in FINAL_STATUSES:
+                return copy.deepcopy(record)
             node_state, frame_state = self._find_node_by_dispatch(record, dispatch_id)
             if not node_state or node_state.node_id != node_id:
                 return copy.deepcopy(record)
@@ -1238,6 +1334,8 @@ class RunRegistry:
             record = self._runs.get(run_id)
             if not record:
                 return None, []
+            if record.status in FINAL_STATUSES:
+                return copy.deepcopy(record), []
             previous_status = record.status
             status = _normalise_status(payload.status.value)
             node_state, frame_state = self._resolve_node_state(
@@ -1508,6 +1606,8 @@ class RunRegistry:
                 )
             if not record:
                 return None, []
+            if record.status in FINAL_STATUSES:
+                return copy.deepcopy(record), []
             previous_status = record.status
             details = payload.context.details if payload.context and payload.context.details else None
             error = ListRuns200ResponseItemsInnerError(
@@ -1874,6 +1974,39 @@ class RunRegistry:
         else:
             container_node.status = "succeeded"
 
+        loop_cfg = frame.loop_config if hasattr(frame, "loop_config") else {}
+        should_repeat = False
+        if not failed and loop_cfg:
+            should_repeat = _should_continue_loop(
+                loop_cfg,
+                iteration=frame.loop_iteration,
+                container_node=container_node,
+                frame=frame,
+            )
+
+        if should_repeat:
+            next_iteration = frame.loop_iteration + 1
+            container_node.metadata = container_node.metadata or {}
+            container_node.metadata["loopIteration"] = next_iteration
+            container_node.status = "running"
+            container_node.finished_at = None
+            if container_node.result is None or not isinstance(container_node.result, dict):
+                container_node.result = {}
+            container_node.result["loopIteration"] = next_iteration
+            frame_definition = frame.definition
+            new_state = self._initialise_frame_runtime(record, frame_definition)
+            new_state.loop_config = loop_cfg
+            new_state.loop_iteration = next_iteration
+            record.active_frames[frame.frame_id] = new_state
+            if frame.frame_id not in record.frame_stack:
+                record.frame_stack.append(frame.frame_id)
+            container_snapshot = copy.deepcopy(container_node)
+            return self._collect_ready_for_frame(record, new_state), container_snapshot
+
+        if container_node.result is None or not isinstance(container_node.result, dict):
+            container_node.result = {}
+        container_node.result["loopIteration"] = frame.loop_iteration
+
         record.completed_frames[frame.frame_id] = {
             node_id: copy.deepcopy(node_state) for node_id, node_state in frame.nodes.items()
         }
@@ -1962,7 +2095,22 @@ class RunRegistry:
         container_node.metadata = container_node.metadata or {}
         container_node.metadata["frameId"] = frame_definition.frame_id
 
+        loop_cfg = _get_container_loop(container_node)
+        iteration = 1
+        try:
+            iteration = int(container_node.metadata.get("loopIteration", 1)) if container_node.metadata else 1
+        except Exception:  # noqa: BLE001
+            iteration = 1
+        container_node.metadata["loopIteration"] = iteration
+        if loop_cfg:
+            container_node.metadata["loopConfig"] = loop_cfg
+        if container_node.result is None or not isinstance(container_node.result, dict):
+            container_node.result = {}
+        container_node.result["loopIteration"] = iteration
+
         frame_state = self._activate_frame(record, frame_definition)
+        frame_state.loop_config = loop_cfg
+        frame_state.loop_iteration = iteration
         return self._collect_ready_for_frame(record, frame_state)
 
     def _build_dispatch_request(self, record: RunRecord, node: NodeState) -> DispatchRequest:

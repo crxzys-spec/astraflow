@@ -3,7 +3,7 @@ import { memo, useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import type { NodeProps } from "reactflow";
 import { Handle, Position } from "reactflow";
-import type { NodePortDefinition, NodeWidgetDefinition, WorkflowNodeDraft } from "../types.ts";
+import type { NodePortDefinition, NodeWidgetDefinition, WorkflowDraft, WorkflowNodeDraft } from "../types.ts";
 import { useWorkflowStore } from "../store.ts";
 import {
   formatBindingDisplay,
@@ -123,8 +123,21 @@ const mergePorts = (
 
 const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) => {
   const nodeId = data?.nodeId ?? id;
-  const workflowNode = useWorkflowStore((state) => state.workflow?.nodes[nodeId]);
-  const workflowEdges = useWorkflowStore((state) => state.workflow?.edges ?? []);
+  const rootWorkflow = useWorkflowStore((state) => state.workflow);
+  const activeGraph = useWorkflowStore((state) => state.activeGraph);
+  const subgraphDrafts = useWorkflowStore((state) => state.subgraphDrafts);
+  const workflow: WorkflowDraft | undefined = useMemo(() => {
+    if (!rootWorkflow) {
+      return undefined;
+    }
+    if (activeGraph.type === "subgraph") {
+      const subgraph = subgraphDrafts.find((entry) => entry.id === activeGraph.subgraphId)?.definition;
+      return subgraph ?? rootWorkflow;
+    }
+    return rootWorkflow;
+  }, [activeGraph, rootWorkflow, subgraphDrafts]);
+  const workflowNode = workflow?.nodes[nodeId];
+  const workflowEdges = workflow?.edges ?? [];
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const { resolve } = useWidgetRegistry();
 

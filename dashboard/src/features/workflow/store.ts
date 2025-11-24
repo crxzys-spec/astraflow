@@ -11,6 +11,8 @@ import type {
   WorkflowStore,
   WorkflowStoreState,
   WorkflowDefinition,
+  WorkflowSubgraphDraftEntry,
+  WorkflowGraphScope,
   XYPosition
 } from './types.ts';
 import {
@@ -24,6 +26,29 @@ const requireWorkflow = (state: WorkflowStoreState): WorkflowDraft => {
     throw new Error('Workflow not loaded');
   }
   return state.workflow;
+};
+
+const defaultGraphScope: WorkflowGraphScope = { type: 'root' };
+
+const requireActiveGraph = (state: WorkflowStoreState): WorkflowDraft => {
+  if (state.activeGraph.type === 'subgraph') {
+    const entry = state.subgraphDrafts.find((item) => item.id === state.activeGraph.subgraphId);
+    if (!entry) {
+      throw new Error(`Subgraph ${state.activeGraph.subgraphId} not loaded`);
+    }
+    return entry.definition;
+  }
+  return requireWorkflow(state);
+};
+
+const forEachDraft = (
+  state: WorkflowStoreState,
+  iterator: (draft: WorkflowDraft) => void,
+) => {
+  if (state.workflow) {
+    iterator(state.workflow);
+  }
+  state.subgraphDrafts.forEach((entry) => iterator(entry.definition));
 };
 
 const ensureDependency = (node: WorkflowNodeDraft, dependencyId: string) => {
@@ -51,11 +76,21 @@ export const useWorkflowStore = create<WorkflowStore>()(
   immer((set, get) => ({
     workflow: undefined,
     selectedNodeId: undefined,
+    subgraphDrafts: [],
+    activeGraph: defaultGraphScope,
 
     loadWorkflow: (definition: WorkflowDefinition) => {
       set((state) => {
         state.workflow = workflowDefinitionToDraft(definition);
+        const subgraphDrafts: WorkflowSubgraphDraftEntry[] =
+          definition.subgraphs?.map((subgraph) => ({
+            id: subgraph.id,
+            metadata: subgraph.metadata,
+            definition: workflowDefinitionToDraft(subgraph.definition),
+          })) ?? [];
+        state.subgraphDrafts = subgraphDrafts;
         state.selectedNodeId = undefined;
+        state.activeGraph = defaultGraphScope;
       });
     },
 
@@ -63,6 +98,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
       set((state) => {
         state.workflow = undefined;
         state.selectedNodeId = undefined;
+        state.subgraphDrafts = [];
+        state.activeGraph = defaultGraphScope;
       });
     },
     setPreviewImage: (preview) => {
@@ -75,8 +112,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     addNodeFromTemplate: (template: WorkflowPaletteNode, position: XYPosition) => {
       const nodeDraft = createNodeDraftFromTemplate(template, position);
+      let addedNode: WorkflowNodeDraft | undefined;
       set((state) => {
-        const workflow = requireWorkflow(state);
+        const workflow = requireActiveGraph(state);
         // guarantee unique id
         let nodeId = nodeDraft.id;
         while (workflow.nodes[nodeId]) {
@@ -88,13 +126,14 @@ export const useWorkflowStore = create<WorkflowStore>()(
         workflow.nodes[nodeDraft.id] = nodeDraft;
         workflow.dirty = true;
         state.selectedNodeId = nodeDraft.id;
+        addedNode = workflow.nodes[nodeDraft.id];
       });
-      return get().workflow?.nodes[nodeDraft.id] ?? nodeDraft;
+      return addedNode ?? nodeDraft;
     },
 
     updateNode: (nodeId, updater) => {
       set((state) => {
-        const workflow = requireWorkflow(state);
+        const workflow = requireActiveGraph(state);
         const node = workflow.nodes[nodeId];
         if (!node) {
           return;
@@ -106,7 +145,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     removeNode: (nodeId) => {
       set((state) => {
-        const workflow = requireWorkflow(state);
+        const workflow = requireActiveGraph(state);
         if (!workflow.nodes[nodeId]) {
           return;
         }
@@ -130,7 +169,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     addEdge: (edge) => {
       set((state) => {
-        const workflow = requireWorkflow(state);
+        const workflow = requireActiveGraph(state);
         const edgeId = edge.id ?? nanoid();
         const existingIndex = workflow.edges.findIndex((e) => e.id === edgeId);
         const nextEdge: WorkflowEdgeDraft = existingIndex >= 0 ? { ...workflow.edges[existingIndex], ...edge, id: edgeId } : { ...edge, id: edgeId };
@@ -149,7 +188,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     updateEdge: (edgeId, updater) => {
       set((state) => {
-        const workflow = requireWorkflow(state);
+        const workflow = requireActiveGraph(state);
         const index = workflow.edges.findIndex((edge) => edge.id === edgeId);
         if (index === -1) {
           return;
@@ -166,7 +205,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     removeEdge: (edgeId) => {
       set((state) => {
-        const workflow = requireWorkflow(state);
+        const workflow = requireActiveGraph(state);
         const edge = workflow.edges.find((item) => item.id === edgeId);
         workflow.edges = workflow.edges.filter((item) => item.id !== edgeId);
         if (edge) {
@@ -179,73 +218,77 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     markDirty: () => {
       set((state) => {
-        const workflow = state.workflow;
-        if (workflow) {
-          workflow.dirty = true;
-        }
+        const workflow = requireActiveGraph(state);
+        workflow.dirty = true;
       });
     },
 
     updateNodeStates: (updates: WorkflowNodeStateUpdateMap) => {
       set((state) => {
-        const workflow = state.workflow;
-        if (!workflow) {
-          return;
-        }
-        Object.entries(updates).forEach(([nodeId, nextState]) => {
-          const node = workflow.nodes[nodeId];
-          if (!node) {
-            return;
-          }
-          const normalized = cloneState(nextState);
-          if (statesEqual(node.state, normalized)) {
-            return;
-          }
-          node.state = normalized;
+        forEachDraft(state, (workflow) => {
+          Object.entries(updates).forEach(([nodeId, nextState]) => {
+            const node = workflow.nodes[nodeId];
+            if (!node) {
+              return;
+            }
+            const normalized = cloneState(nextState);
+            if (statesEqual(node.state, normalized)) {
+              return;
+            }
+            node.state = normalized;
+          });
         });
       });
     },
 
     updateNodeRuntime: (nodeId, payload) => {
       set((state) => {
-        const workflow = state.workflow;
-        if (!workflow) {
-          return;
-        }
-        const node = workflow.nodes[nodeId];
-        if (!node) {
-          return;
-        }
-        if (payload.result !== undefined) {
-          node.results =
-            payload.result === null
-              ? {}
-              : (JSON.parse(JSON.stringify(payload.result)) as Record<string, unknown>);
-        }
-        if (payload.artifacts !== undefined) {
-          node.runtimeArtifacts = payload.artifacts
-            ? JSON.parse(JSON.stringify(payload.artifacts))
-            : null;
-        }
-        if (payload.summary !== undefined) {
-          node.runtimeSummary = payload.summary ?? null;
-        }
+        forEachDraft(state, (workflow) => {
+          const node = workflow.nodes[nodeId];
+          if (!node) {
+            return;
+          }
+          if (payload.result !== undefined) {
+            node.results =
+              payload.result === null
+                ? {}
+                : (JSON.parse(JSON.stringify(payload.result)) as Record<string, unknown>);
+          }
+          if (payload.artifacts !== undefined) {
+            node.runtimeArtifacts = payload.artifacts
+              ? JSON.parse(JSON.stringify(payload.artifacts))
+              : null;
+          }
+          if (payload.summary !== undefined) {
+            node.runtimeSummary = payload.summary ?? null;
+          }
+        });
       });
     },
 
     resetRunState: () => {
       set((state) => {
-        const workflow = state.workflow;
-        if (!workflow) {
-          return;
-        }
-        Object.values(workflow.nodes).forEach((node) => {
-          node.state = undefined;
-          node.runtimeArtifacts = null;
-          node.runtimeSummary = null;
-          const defaults = nodeDefaultsFromSchema(node.schema);
-          node.results = JSON.parse(JSON.stringify(defaults.results ?? {}));
+        forEachDraft(state, (workflow) => {
+          Object.values(workflow.nodes).forEach((node) => {
+            node.state = undefined;
+            node.runtimeArtifacts = null;
+            node.runtimeSummary = null;
+            const defaults = nodeDefaultsFromSchema(node.schema);
+            node.results = JSON.parse(JSON.stringify(defaults.results ?? {}));
+          });
         });
+      });
+    },
+
+    setActiveGraph: (scope) => {
+      set((state) => {
+        if (scope.type === 'subgraph') {
+          const exists = state.subgraphDrafts.some((entry) => entry.id === scope.subgraphId);
+          state.activeGraph = exists ? scope : defaultGraphScope;
+        } else {
+          state.activeGraph = scope;
+        }
+        state.selectedNodeId = undefined;
       });
     },
   }))

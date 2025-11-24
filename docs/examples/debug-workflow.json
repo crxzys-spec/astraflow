@@ -901,8 +901,8 @@
       "id": "node_triage_container",
       "type": "workflow.container",
       "package": {
-        "name": "platform_control",
-        "version": "2025.10.0"
+        "name": "system",
+        "version": "1.0.0"
       },
       "status": "published",
       "category": "Control",
@@ -912,6 +912,13 @@
         "y": 20
       },
       "parameters": {
+        "__container": {
+          "subgraphId": "sg_triage_response",
+          "loop": {
+            "enabled": false
+          },
+          "timeoutSeconds": 120
+        },
         "payload": {
           "summary": "{{nodes.node_craft_message.results.message}}",
           "priority": "{{nodes.node_ingest_brief.results.config.priority}}",
@@ -950,18 +957,79 @@
               "prefix": "@sg_triage_response.#sg_node_regional_notification"
             }
           }
+        ],
+        "widgets": [
+          {
+            "key": "subgraph",
+            "label": "Target Subgraph",
+            "component": "subgraph-picker",
+            "binding": {
+              "path": "/parameters/__container/subgraphId",
+              "mode": "write"
+            },
+            "options": {
+              "placeholder": "Choose subgraph..."
+            }
+          },
+          {
+            "key": "openSubgraph",
+            "label": "Open Selected Subgraph",
+            "component": "subgraph-jump",
+            "binding": {
+              "path": "/parameters/__container/subgraphId",
+              "mode": "read"
+            },
+            "options": {
+              "buttonLabel": "Jump to subgraph"
+            }
+          },
+          {
+            "key": "loopEnabled",
+            "label": "Loop Enabled",
+            "component": "checkbox",
+            "binding": {
+              "path": "/parameters/__container/loop/enabled",
+              "mode": "two_way"
+            }
+          },
+          {
+            "key": "loopIterations",
+            "label": "Max Iterations",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/__container/loop/maxIterations",
+              "mode": "two_way"
+            },
+            "options": {
+              "min": 1,
+              "placeholder": "Unlimited"
+            }
+          },
+          {
+            "key": "loopCondition",
+            "label": "Exit Condition",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/__container/loop/condition",
+              "mode": "two_way"
+            },
+            "options": {
+              "placeholder": "responses.length >= 3"
+            }
+          },
+          {
+            "key": "timeoutSeconds",
+            "label": "Timeout (s)",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/__container/timeoutSeconds",
+              "mode": "two_way"
+            },
+            "options": {
+              "min": 1
+            }
+          }
         ]
-      },
-      "containerConfig": {
-        "subgraphId": "sg_triage_response",
-        "loop": {
-          "enabled": false,
-          "maxIterations": null,
-          "condition": null
-        },
-        "retry": null,
-        "timeoutSeconds": 120,
-        "notes": "Runs policy checks and regional notification in a nested DAG."
       }
     },
     {
@@ -1490,3 +1558,8 @@
     }
   ]
 }
+
+
+
+
+

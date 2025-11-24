@@ -6,6 +6,9 @@ import { NumberWidget } from "../components/NumberWidget";
 import { CheckboxWidget } from "../components/CheckboxWidget";
 import { JsonWidget } from "../components/JsonWidget";
 import { FallbackWidget } from "../components/FallbackWidget";
+import { SubgraphPickerWidget } from "../components/SubgraphPickerWidget";
+import { SectionWidget } from "../components/SectionWidget";
+import { SubgraphJumpWidget } from "../components/SubgraphJumpWidget";
 
 let registered = false;
 
@@ -23,5 +26,8 @@ export const registerBuiltinWidgets = () => {
   widgetRegistry.register("checkbox", { component: CheckboxWidget });
   widgetRegistry.register("boolean", { component: CheckboxWidget, supports: supportsBoolean });
   widgetRegistry.register("json", { component: JsonWidget });
+  widgetRegistry.register("subgraph-picker", { component: SubgraphPickerWidget });
+  widgetRegistry.register("subgraph-jump", { component: SubgraphJumpWidget });
+  widgetRegistry.register("section", { component: SectionWidget });
   widgetRegistry.register("fallback", { component: FallbackWidget });
 };

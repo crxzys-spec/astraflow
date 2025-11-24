@@ -23,7 +23,19 @@ interface WorkflowCanvasProps {
 }
 
 const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
-  const workflow = useWorkflowStore((state) => state.workflow);
+  const workflow = useWorkflowStore((state) => {
+    if (!state.workflow) {
+      return undefined;
+    }
+    if (state.activeGraph.type === "subgraph") {
+      return (
+        state.subgraphDrafts.find((entry) => entry.id === state.activeGraph.subgraphId)?.definition ??
+        state.workflow
+      );
+    }
+    return state.workflow;
+  });
+  const activeGraph = useWorkflowStore((state) => state.activeGraph);
   const selectedNodeId = useWorkflowStore((state) => state.selectedNodeId);
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const removeNode = useWorkflowStore((state) => state.removeNode);
@@ -248,6 +260,7 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   return (
     <div className="workflow-canvas">
       <ReactFlow
+        key={activeGraph.type === "subgraph" ? `subgraph-${activeGraph.subgraphId}` : "root"}
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}

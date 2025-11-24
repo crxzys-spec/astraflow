@@ -1034,9 +1034,6 @@ components:
               additionalProperties: true
         ui:
           $ref: '#/components/schemas/NodeUI'
-        containerConfig:
-          $ref: '#/components/schemas/WorkflowContainerConfig'
-          description: Present when the node embeds a reusable subgraph (type = workflow.container).
     NodePackage:
       type: object
       additionalProperties: false
@@ -2127,39 +2124,7 @@ components:
           type: string
         version:
           type: string
-    WorkflowContainerConfig:
-      type: object
-      additionalProperties: false
-      required:
-      - subgraphId
-      properties:
-        subgraphId:
-          type: string
-          description: Identifier of the subgraph definition to run.
-        loop:
-          $ref: '#/components/schemas/WorkflowContainerLoopPolicy'
-        retry:
-          $ref: '#/components/schemas/WorkflowContainerRetryPolicy'
-        timeoutSeconds:
-          type: integer
-          minimum: 1
-        notes:
-          type: string
-    WorkflowContainerLoopPolicy:
-      type: object
-      additionalProperties: false
-      properties:
-        enabled:
-          type: boolean
-          default: false
-        maxIterations:
-          type: integer
-          minimum: 1
-        condition:
-          type: string
-          description: Expression evaluated against container results/parameters to
-            exit the loop.
-    WorkflowContainerRetryPolicy:
+
       type: object
       additionalProperties: false
       properties:
@@ -2169,3 +2134,10 @@ components:
         backoffSeconds:
           type: integer
           minimum: 0
+
+
+
+
+
+
+

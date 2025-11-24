@@ -10,6 +10,7 @@ import {
   useGetPackage,
   useGetWorkflow,
   useListPackages,
+  useListRuns,
   useListWorkflowPackages,
   usePersistWorkflow,
   usePublishWorkflow,
@@ -20,10 +21,19 @@ import type { AxiosError } from "axios";
 import { WidgetRegistryProvider, useWorkflowStore } from "../features/workflow";
 import type { WorkflowNodeStateUpdateMap } from "../features/workflow";
 import { workflowDraftToDefinition } from "../features/workflow/utils/converters";
-import type { WorkflowDefinition, WorkflowPaletteNode, XYPosition } from "../features/workflow";
+import type {
+  WorkflowDefinition,
+  WorkflowDraft,
+  WorkflowGraphScope,
+  WorkflowPaletteNode,
+  WorkflowSubgraphDraftEntry,
+  XYPosition
+} from "../features/workflow";
 import WorkflowCanvas from "../features/workflow/components/WorkflowCanvas";
 import WorkflowPalette, { type PaletteNode } from "../features/workflow/components/WorkflowPalette";
 import NodeInspector from "../features/workflow/components/NodeInspector";
+import RunDetailPage from "./RunDetailPage";
+import StatusBadge from "../components/StatusBadge";
 import { getClientSessionId } from "../lib/clientSession";
 import { UiEventType } from "../api/models/uiEventType";
 import type { UiEventEnvelope } from "../api/models/uiEventEnvelope";
@@ -34,6 +44,8 @@ import type { NodeResultSnapshotEvent } from "../api/models/nodeResultSnapshotEv
 import { sseClient } from "../lib/sseClient";
 import {
   applyRunDefinitionSnapshot,
+  replaceRunSnapshot,
+  updateRunCaches,
   updateRunDefinitionNodeRuntime,
   updateRunDefinitionNodeState,
 } from "../lib/sseCache";
@@ -61,6 +73,254 @@ const IconRun = () => (
     <path d="M6 4.5v11l8-5.5-8-5.5z" />
   </svg>
 );
+
+const IconInspector = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3.5" y="6" width="13" height="8" rx="2" />
+    <path d="M6.5 3.5v3" />
+    <path d="M13.5 3.5v3" />
+    <path d="M6.5 14v3" />
+    <path d="M13.5 14v3" />
+  </svg>
+);
+
+const IconRunsTab = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4.5 15.5h11" />
+    <path d="M5.5 12V8.5h3V12" />
+    <path d="M9.5 12V6.5h3V12" />
+    <path d="M13.5 12V5h3V12" />
+  </svg>
+);
+
+const IconCatalog = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3.5" y="3.5" width="6" height="6" rx="1.2" />
+    <rect x="10.5" y="3.5" width="6" height="6" rx="1.2" />
+    <rect x="3.5" y="10.5" width="6" height="6" rx="1.2" />
+    <rect x="10.5" y="10.5" width="6" height="6" rx="1.2" />
+  </svg>
+);
+
+const IconViews = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 6.5h12" />
+    <path d="M4 10h12" />
+    <path d="M4 13.5h12" />
+    <path d="M6.5 4v12" />
+    <path d="M13.5 4v12" />
+  </svg>
+);
+
+const DEFAULT_PALETTE_WIDTH = 340;
+const DEFAULT_INSPECTOR_WIDTH = 360;
+
+interface GraphSwitcherProps {
+  activeGraph: WorkflowGraphScope;
+  subgraphs: WorkflowSubgraphDraftEntry[];
+  workflowName?: string;
+  workflowId?: string;
+  onSelect: (scope: WorkflowGraphScope) => void;
+}
+
+const GraphSwitcher = ({ activeGraph, subgraphs, workflowName, workflowId, onSelect }: GraphSwitcherProps) => {
+  const mainActive = activeGraph.type === "root";
+  return (
+    <div className="graph-switcher">
+      <div className="graph-switcher__section">
+        <button
+          type="button"
+          className={`graph-switcher__option ${mainActive ? "is-active" : ""}`}
+          aria-pressed={mainActive}
+          onClick={() => onSelect({ type: "root" })}
+        >
+          <div className="graph-switcher__option-primary">
+            <span className="graph-switcher__eyebrow">Primary workflow</span>
+            <strong>{workflowName ?? "Untitled workflow"}</strong>
+            <p className="graph-switcher__helper">Drag nodes from the catalog to build the main flow.</p>
+          </div>
+          <div className="graph-switcher__meta">
+            <code>{workflowId}</code>
+          </div>
+        </button>
+      </div>
+      <div className="graph-switcher__section">
+        <div className="graph-switcher__section-heading">
+          <h4>Subgraphs</h4>
+          <span className="graph-switcher__count">{subgraphs.length}</span>
+        </div>
+        {subgraphs.length ? (
+          <div className="graph-switcher__list">
+            {subgraphs.map((entry) => {
+              const isActive = activeGraph.type === "subgraph" && activeGraph.subgraphId === entry.id;
+              const label = entry.definition.metadata?.name ?? entry.definition.id;
+              const description = entry.metadata?.description ?? entry.definition.metadata?.description;
+              const nodeCount = Object.keys(entry.definition.nodes).length;
+              return (
+                <button
+                  key={entry.id}
+                  type="button"
+                  className={`graph-switcher__option ${isActive ? "is-active" : ""}`}
+                  aria-pressed={isActive}
+                  onClick={() => onSelect({ type: "subgraph", subgraphId: entry.id })}
+                >
+                  <div className="graph-switcher__option-primary">
+                    <span className="graph-switcher__eyebrow">Container target</span>
+                    <strong>{label}</strong>
+                    {description && <p>{description}</p>}
+                  </div>
+                  <div className="graph-switcher__meta">
+                    <code>{entry.id}</code>
+                    <span>{nodeCount} nodes</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="graph-switcher__empty">
+            No localized subgraphs yet. Container nodes referencing reusable workflows will be managed here.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+interface RunsInspectorPanelProps {
+  onSelectRun: (runId: string) => void;
+}
+
+const RunsInspectorPanel = ({ onSelectRun }: RunsInspectorPanelProps) => {
+  const canViewRuns = useAuthStore((state) =>
+    state.hasRole(["admin", "run.viewer", "workflow.editor"])
+  );
+  const queryClient = useQueryClient();
+  const { data, isLoading, isError, error, refetch } = useListRuns(undefined, {
+    query: { enabled: canViewRuns }
+  });
+  const runs = data?.data.items ?? [];
+
+  useEffect(() => {
+    if (!canViewRuns) {
+      return;
+    }
+    const unsubscribe = sseClient.subscribe((event) => {
+      if (event.type === UiEventType.runstatus && event.data?.kind === "run.status") {
+        const payload = event.data as RunStatusEvent;
+        const runId = payload.runId;
+        updateRunCaches(queryClient, runId, (run) => {
+          if (run.runId !== runId) {
+            return run;
+          }
+          const next = { ...run, status: payload.status };
+          if (payload.startedAt !== undefined) {
+            next.startedAt = payload.startedAt ?? null;
+          }
+          if (payload.finishedAt !== undefined) {
+            next.finishedAt = payload.finishedAt ?? null;
+          }
+          return next;
+        });
+      } else if (
+        event.type === UiEventType.runsnapshot &&
+        event.data?.kind === "run.snapshot" &&
+        event.data.run?.runId
+      ) {
+        const snapshot = event.data as RunSnapshotEvent;
+        const runId = snapshot.run.runId;
+        const combinedRun = {
+          ...snapshot.run,
+          nodes: snapshot.nodes ?? snapshot.run.nodes,
+        };
+        replaceRunSnapshot(queryClient, runId, combinedRun);
+      }
+    });
+    return () => unsubscribe();
+  }, [canViewRuns, queryClient]);
+
+  if (!canViewRuns) {
+    return (
+      <div className="inspector-panel__empty">
+        <p>You do not have permission to view runs.</p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return <div className="inspector-panel__loading">Loading runs...</div>;
+  }
+
+  if (isError) {
+    return (
+      <div className="inspector-panel__empty">
+        <p>Failed to load runs: {(error as Error).message}</p>
+        <button className="btn btn--ghost" type="button" onClick={() => refetch()}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!runs.length) {
+    return (
+      <div className="inspector-panel__empty">
+        <p>No runs yet.</p>
+        <button className="btn btn--ghost" type="button" onClick={() => refetch()}>
+          Refresh
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="runs-panel">
+      <div className="runs-panel__header">
+        <div>
+          <h4>Recent runs</h4>
+          <p className="text-subtle">Latest execution attempts</p>
+        </div>
+        <button className="btn btn--ghost runs-panel__refresh" type="button" onClick={() => refetch()}>
+          Refresh
+        </button>
+      </div>
+      <div className="runs-panel__list">
+        {runs.map((run) => (
+          <button
+            key={run.runId}
+            type="button"
+            className="runs-panel__item"
+            onClick={() => onSelectRun(run.runId)}
+          >
+            <div className="runs-panel__identity">
+              <p className="runs-panel__run-id">{run.runId}</p>
+              <p className="runs-panel__meta">Client {run.clientId ?? "–"}</p>
+            </div>
+            <div className="runs-panel__status">
+              <StatusBadge status={run.status} />
+              <span>{run.startedAt ?? "Pending"}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const composeWorkflowDefinition = (
+  draft: WorkflowDraft,
+  subgraphs: WorkflowSubgraphDraftEntry[]
+): WorkflowDefinition => {
+  const persistableSubgraphs = subgraphs.map((entry) => ({
+    id: entry.id,
+    metadata: entry.metadata,
+    definition: workflowDraftToDefinition(entry.definition),
+  }));
+  return workflowDraftToDefinition({
+    ...draft,
+    subgraphs: persistableSubgraphs.length ? persistableSubgraphs : undefined,
+  });
+};
 
 const getErrorMessage = (error: unknown): string => {
   if (!error) {
@@ -151,7 +411,14 @@ const WorkflowBuilderPage = () => {
   const resetWorkflow = useWorkflowStore((state) => state.resetWorkflow);
   const setPreviewImage = useWorkflowStore((state) => state.setPreviewImage);
   const workflow = useWorkflowStore((state) => state.workflow);
+  const subgraphDrafts = useWorkflowStore((state) => state.subgraphDrafts);
+  const activeGraph = useWorkflowStore((state) => state.activeGraph);
+  const setActiveGraph = useWorkflowStore((state) => state.setActiveGraph);
   const addNodeFromTemplate = useWorkflowStore((state) => state.addNodeFromTemplate);
+  const toWorkflowDefinition = useCallback(
+    (draft: WorkflowDraft) => composeWorkflowDefinition(draft, subgraphDrafts),
+    [subgraphDrafts]
+  );
   const updateNodeStates = useWorkflowStore((state) => state.updateNodeStates);
   const hasHydrated = useRef(false);
 
@@ -180,6 +447,99 @@ const WorkflowBuilderPage = () => {
   const [saveMessage, setSaveMessage] = useState<PublishMessage | null>(null);
   const [isPaletteOpen, setPaletteOpen] = useState(true);
   const [isInspectorOpen, setInspectorOpen] = useState(true);
+  const [activePaletteTab, setActivePaletteTab] = useState<"catalog" | "graphs">("catalog");
+  const [activeInspectorTab, setActiveInspectorTab] = useState<"inspector" | "runs">("inspector");
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const readStoredPanelWidth = (key: "paletteWidth" | "inspectorWidth", fallback: number) => {
+    if (typeof window === "undefined") {
+      return fallback;
+    }
+    const stored = localStorage.getItem(`builder.${key}`);
+    if (!stored) {
+      return fallback;
+    }
+    const parsed = Number.parseInt(stored, 10);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  const [paletteWidth, setPaletteWidth] = useState<number>(() =>
+    readStoredPanelWidth("paletteWidth", DEFAULT_PALETTE_WIDTH)
+  );
+  const [inspectorWidth, setInspectorWidth] = useState<number>(() =>
+    readStoredPanelWidth("inspectorWidth", DEFAULT_INSPECTOR_WIDTH)
+  );
+  const handlePaletteTabSelect = useCallback(
+    (tab: "catalog" | "graphs") => {
+      if (activePaletteTab === tab) {
+        setPaletteOpen((open) => !open);
+        return;
+      }
+      setActivePaletteTab(tab);
+      setPaletteOpen(true);
+    },
+    [activePaletteTab]
+  );
+
+  const handleInspectorTabSelect = useCallback(
+    (tab: "inspector" | "runs") => {
+      if (activeInspectorTab === tab) {
+        setInspectorOpen((open) => !open);
+        return;
+      }
+      setActiveInspectorTab(tab);
+      setInspectorOpen(true);
+    },
+    [activeInspectorTab]
+  );
+
+  const resizeStateRef = useRef<{
+    type: "palette" | "inspector";
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+
+  const handleResizeStart = useCallback(
+    (type: "palette" | "inspector") => (event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const startX = event.clientX;
+      const startWidth = type === "palette" ? paletteWidth : inspectorWidth;
+      resizeStateRef.current = { type, startX, startWidth };
+      document.body.classList.add("is-resizing");
+    },
+    [paletteWidth, inspectorWidth]
+  );
+
+  useEffect(() => {
+    const handleMove = (event: MouseEvent) => {
+      const state = resizeStateRef.current;
+      if (!state) {
+        return;
+      }
+      const delta = event.clientX - state.startX;
+      if (state.type === "palette") {
+        const nextWidth = Math.min(800, Math.max(220, state.startWidth + delta));
+        setPaletteWidth(nextWidth);
+        localStorage.setItem("builder.paletteWidth", String(nextWidth));
+      } else {
+        const nextWidth = Math.min(820, Math.max(260, state.startWidth - delta));
+        setInspectorWidth(nextWidth);
+        localStorage.setItem("builder.inspectorWidth", String(nextWidth));
+      }
+    };
+    const handleUp = () => {
+      if (resizeStateRef.current) {
+        resizeStateRef.current = null;
+        document.body.classList.remove("is-resizing");
+      }
+    };
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, []);
 
   const isNewSession = !workflowId || workflowId === "new";
   const workflowKey = !isNewSession ? workflowId : undefined;
@@ -458,7 +818,7 @@ const WorkflowBuilderPage = () => {
       setPreviewImage(previewImage);
       workflowForPersist.previewImage = previewImage;
     }
-    const definition = workflowDraftToDefinition(workflowForPersist);
+    const definition = toWorkflowDefinition(workflowForPersist);
     persistWorkflowMutation.mutate(
       { data: definition },
       {
@@ -655,7 +1015,7 @@ const WorkflowBuilderPage = () => {
       });
       return;
     }
-    const definition = workflowDraftToDefinition(workflow);
+    const definition = toWorkflowDefinition(workflow);
     setRunMessage(null);
 
     const clientSessionId = getClientSessionId();
@@ -684,7 +1044,7 @@ const WorkflowBuilderPage = () => {
         },
       }
     );
-  }, [startRun, workflow, canEditWorkflow]);
+  }, [startRun, workflow, canEditWorkflow, toWorkflowDefinition]);
 
   useEffect(() => {
     activeRunRef.current = activeRunId;
@@ -925,6 +1285,17 @@ const WorkflowBuilderPage = () => {
     return <div className="card">Initializing builder...</div>;
   }
 
+  const paletteFlyoutStyle = { width: `${paletteWidth}px` };
+  const inspectorFlyoutStyle = { width: `${inspectorWidth}px` };
+  const paletteHandleStyle = { left: `calc(1.5rem + ${paletteWidth}px - 0.4rem)` };
+  const inspectorHandleStyle = { right: `calc(1.5rem + ${inspectorWidth}px - 0.4rem)` };
+  const paletteSwitchStyle = {
+    left: isPaletteOpen ? `calc(${paletteWidth}px + 3rem)` : "1.25rem"
+  };
+  const inspectorSwitchStyle = {
+    right: isInspectorOpen ? `calc(${inspectorWidth}px + 3rem)` : "1.25rem"
+  };
+
   return (
     <WidgetRegistryProvider>
       <section className="builder-screen">
@@ -938,64 +1309,159 @@ const WorkflowBuilderPage = () => {
               </div>
             </ReactFlowProvider>
 
-            <button
-              className="builder-flyout-toggle builder-flyout-toggle--left"
-              type="button"
-              onClick={() => setPaletteOpen((value) => !value)}
-              aria-pressed={isPaletteOpen}
-            >
-              {isPaletteOpen ? "Hide catalog" : "Show catalog"}
-            </button>
-            <button
-              className="builder-flyout-toggle builder-flyout-toggle--right"
-              type="button"
-              onClick={() => setInspectorOpen((value) => !value)}
-              aria-pressed={isInspectorOpen}
-            >
-              {isInspectorOpen ? "Hide inspector" : "Show inspector"}
-            </button>
+            <div className="palette-switch" style={paletteSwitchStyle}>
+              <div className="palette-tabs" role="group" aria-label="Workflow builder panels">
+                <button
+                  type="button"
+                  className={`palette-tab ${
+                    activePaletteTab === "catalog" && isPaletteOpen ? "is-active" : ""
+                  }`}
+                  aria-pressed={activePaletteTab === "catalog" && isPaletteOpen}
+                  title="Catalog"
+                  aria-label="Catalog"
+                  data-label="Catalog"
+                  onClick={() => handlePaletteTabSelect("catalog")}
+                >
+                  <span className="palette-tab__icon" aria-hidden="true">
+                    <IconCatalog />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`palette-tab ${
+                    activePaletteTab === "graphs" && isPaletteOpen ? "is-active" : ""
+                  }`}
+                  aria-pressed={activePaletteTab === "graphs" && isPaletteOpen}
+                  title="Workflow views"
+                  aria-label="Workflow views"
+                  data-label="Workflow views"
+                  onClick={() => handlePaletteTabSelect("graphs")}
+                >
+                  <span className="palette-tab__icon" aria-hidden="true">
+                    <IconViews />
+                  </span>
+                </button>
+              </div>
+            </div>
+            {isPaletteOpen && (
+              <button
+                type="button"
+                className="builder-resize-handle builder-resize-handle--palette"
+                onMouseDown={handleResizeStart("palette")}
+                aria-label="Resize catalog panel"
+                style={paletteHandleStyle}
+              />
+            )}
 
             <div
               className={`builder-flyout builder-flyout--palette card card--surface ${
                 isPaletteOpen ? "is-open" : "is-collapsed"
               }`}
+              style={paletteFlyoutStyle}
             >
-              {canEditWorkflow ? (
-                <WorkflowPalette
-                  packages={packageSummaries}
-                  selectedPackageName={selectedPackageName}
-                  selectedVersion={selectedVersion}
-                  onSelectPackage={handleSelectPackage}
-                  onSelectVersion={handleSelectVersion}
-                  nodes={paletteItems}
-                  isLoadingPackages={packagesQuery.isLoading}
-                  isLoadingNodes={packageDetailQuery.isLoading}
-                  packagesError={packagesError}
-                  nodesError={packageDetailError}
-                  onRetryPackages={() => packagesQuery.refetch()}
-                  onRetryNodes={selectedPackageName ? () => packageDetailQuery.refetch() : undefined}
-                />
-              ) : (
-                <div className="text-subtle">
-                  Viewer role detected. Palette editing is disabled until you obtain workflow.editor access.
-                </div>
-              )}
+              <div className="palette-tabpanel">
+                {activePaletteTab === "catalog" ? (
+                  canEditWorkflow ? (
+                    <WorkflowPalette
+                      packages={packageSummaries}
+                      selectedPackageName={selectedPackageName}
+                      selectedVersion={selectedVersion}
+                      onSelectPackage={handleSelectPackage}
+                      onSelectVersion={handleSelectVersion}
+                      nodes={paletteItems}
+                      isLoadingPackages={packagesQuery.isLoading}
+                      isLoadingNodes={packageDetailQuery.isLoading}
+                      packagesError={packagesError}
+                      nodesError={packageDetailError}
+                      onRetryPackages={() => packagesQuery.refetch()}
+                      onRetryNodes={selectedPackageName ? () => packageDetailQuery.refetch() : undefined}
+                    />
+                  ) : (
+                    <div className="palette__viewer-message">
+                      Viewer role detected. Palette editing is disabled until you obtain workflow.editor access.
+                    </div>
+                  )
+                ) : (
+                  <GraphSwitcher
+                    activeGraph={activeGraph}
+                    subgraphs={subgraphDrafts}
+                    workflowName={workflow.metadata?.name}
+                    workflowId={workflow.id}
+                    onSelect={setActiveGraph}
+                  />
+                )}
+              </div>
             </div>
+
+            <div className="inspector-switch" style={inspectorSwitchStyle}>
+              <div className="inspector-tabs-floating" role="group" aria-label="Inspector panels">
+                <button
+                  type="button"
+                  className={`inspector-tab ${
+                    isInspectorOpen && activeInspectorTab === "inspector" ? "is-active" : ""
+                  }`}
+                  aria-pressed={isInspectorOpen && activeInspectorTab === "inspector"}
+                  title="Inspector"
+                  aria-label="Inspector"
+                  data-label="Inspector"
+                  onClick={() => handleInspectorTabSelect("inspector")}
+                  >
+                  <span className="inspector-tab__icon" aria-hidden="true">
+                    <IconInspector />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`inspector-tab ${
+                    isInspectorOpen && activeInspectorTab === "runs" ? "is-active" : ""
+                  }`}
+                  aria-pressed={isInspectorOpen && activeInspectorTab === "runs"}
+                  title="Runs"
+                  aria-label="Runs"
+                  data-label="Runs"
+                  onClick={() => handleInspectorTabSelect("runs")}
+                >
+                  <span className="inspector-tab__icon" aria-hidden="true">
+                    <IconRunsTab />
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {isInspectorOpen && (
+              <button
+                type="button"
+                className="builder-resize-handle builder-resize-handle--inspector"
+                onMouseDown={handleResizeStart("inspector")}
+                aria-label="Resize inspector panel"
+                style={inspectorHandleStyle}
+              />
+            )}
 
             <div
               className={`builder-flyout builder-flyout--inspector card card--surface ${
                 isInspectorOpen ? "is-open" : "is-collapsed"
               }`}
+              style={inspectorFlyoutStyle}
             >
-              <NodeInspector />
+              <div className="inspector-panel">
+                {activeInspectorTab === "inspector" ? (
+                  <NodeInspector />
+                ) : (
+                  <RunsInspectorPanel onSelectRun={setSelectedRunId} />
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
           <div className="builder-stage__watermark">
             <span className="builder-watermark__title">{workflow.metadata?.name ?? "Untitled Workflow"}</span>
             <span className="builder-watermark__subtitle">ID: {workflow.id}</span>
           </div>
         </div>
       </section>
+      {selectedRunId && (
+        <RunDetailPage runIdOverride={selectedRunId} onClose={() => setSelectedRunId(null)} />
+      )}
       {isPublishModalOpen && (
         <div className="modal">
           <div className="modal__backdrop" onClick={closePublishModal} />

@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "1.0.0",
+  "name": "system",
+  "version": "1.0.0",
+  "description": "Scheduler managed control-plane nodes.",
+  "adapters": [
+    {
+      "name": "scheduler",
+      "entrypoint": "adapters.container",
+      "capabilities": [
+        "workflow.container"
+      ]
+    }
+  ],
+  "python": {
+    "requires": ">=3.10,<3.12",
+    "dependencies": []
+  },
+  "nodes": [
+    {
+      "type": "workflow.container",
+      "status": "published",
+      "category": "System",
+      "label": "Workflow Container",
+      "description": "Executes a nested workflow subgraph with optional loop policies.",
+      "adapter": "scheduler",
+      "handler": "container",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "__container": {
+              "type": "object",
+              "properties": {
+                "subgraphId": {
+                  "type": "string",
+                  "description": "Identifier of the subgraph definition to run."
+                },
+                "loop": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": { "type": "boolean", "default": false },
+                    "maxIterations": { "type": "integer", "minimum": 1 },
+                    "condition": {
+                      "type": "string",
+                      "description": "Exit expression evaluated against container parameters/results."
+                    }
+                  },
+                  "additionalProperties": true
+                },
+                "timeoutSeconds": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Optional runtime timeout for the nested workflow."
+                }
+              },
+              "required": ["subgraphId"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["__container"],
+          "additionalProperties": true
+        },
+        "results": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "ui": {
+        "widgets": [
+          {
+            "key": "subgraph",
+            "label": "Target Subgraph",
+            "component": "subgraph-picker",
+            "binding": {
+              "path": "/parameters/__container/subgraphId",
+              "mode": "write"
+            },
+            "options": {
+              "placeholder": "Choose subgraph..."
+            }
+          },
+          {
+            "key": "openSubgraph",
+            "label": "Open Selected Subgraph",
+            "component": "subgraph-jump",
+            "binding": {
+              "path": "/parameters/__container/subgraphId",
+              "mode": "read"
+            },
+            "options": {
+              "buttonLabel": "Jump to subgraph"
+            }
+          },
+          {
+            "key": "loopEnabled",
+            "label": "Loop Enabled",
+            "component": "checkbox",
+            "binding": {
+              "path": "/parameters/__container/loop/enabled",
+              "mode": "two_way"
+            }
+          },
+          {
+            "key": "loopIterations",
+            "label": "Max Iterations",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/__container/loop/maxIterations",
+              "mode": "two_way"
+            },
+            "options": {
+              "min": 1,
+              "placeholder": "Unlimited"
+            }
+          },
+          {
+            "key": "loopCondition",
+            "label": "Exit Condition",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/__container/loop/condition",
+              "mode": "two_way"
+            },
+            "options": {
+              "placeholder": "responses.length >= 3"
+            }
+          },
+          {
+            "key": "timeoutSeconds",
+            "label": "Timeout (s)",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/__container/timeoutSeconds",
+              "mode": "two_way"
+            },
+            "options": {
+              "min": 1
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "resources": [],
+  "hooks": {
+    "install": [],
+    "uninstall": []
+  }
+}
+
+
+

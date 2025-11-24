@@ -1,4 +1,4 @@
-Ôªø# Worker-Scheduler Architecture
+# Worker-Scheduler Architecture
 
 This document captures the backend positioning for AstraFlow, detailing the roles, communication channels, package lifecycle, runtime management, scheduling strategy, and rollout plan for the Scheduler and Worker services.
 
@@ -65,7 +65,7 @@ class SummariseAdapter:
             await reporter.send(
                 stage="running",
                 progress=0.05,
-                message="Downloading source articles‚Ä¶",
+                message="Downloading source articles°≠",
             )
 
         articles = await self._load_articles(ctx.params["urls"])
@@ -108,11 +108,11 @@ For synchronous adapters, call `ctx.feedback.send_nowait(...)` (or `emit_text`) 
 ### Package Layout Example
 ```
 crawlerx_playwright/
-ÈàπÊ∫æÊî¢Èàπ‚Ç¨ manifest.json
-ÈàπÊ∫æÊî¢Èàπ‚Ç¨ adapters/crawlerx_playwright/*.py
-ÈàπÊ∫æÊî¢Èàπ‚Ç¨ resources/...
-ÈàπÊ∫æÊî¢Èàπ‚Ç¨ scripts/install_extra.sh
-ÈàπÊñ∫Êî¢Èàπ‚Ç¨ requirements.txt
+‚îú‚îÄ‚îÄ manifest.json
+‚îú‚îÄ‚îÄ adapters/crawlerx_playwright/*.py
+‚îú‚îÄ‚îÄ resources/...
+‚îú‚îÄ‚îÄ scripts/install_extra.sh
+‚îî‚îÄ‚îÄ requirements.txt
  manifest.json
  adapters/crawlerx_playwright/*.py
  resources/...
@@ -359,11 +359,11 @@ To support loops and conditional fan-out while keeping workflows as DAGs, the sc
 
 ### 3.6 Binding Scope Upgrade Plan
 
-We are expanding bindings so a node can point at any other node‚Äôs `parameters.*` / `results.*`, including nodes housed inside inline subgraphs or external workflows owned by the same user. The upgrade introduces explicit prefixes plus supporting metadata so resolution remains deterministic.
+We are expanding bindings so a node can point at any other node°Øs `parameters.*` / `results.*`, including nodes housed inside inline subgraphs or external workflows owned by the same user. The upgrade introduces explicit prefixes plus supporting metadata so resolution remains deterministic.
 
 - **Prefix grammar**:
-  - `@subgraphAlias(.childAlias)*(.nodeId)?` ‚Äî hop into a localized subgraph declared in the current definition (imported workflows must be owned by the same tenant before localization). Example: `@welcomeJourney.stage2.#notifyCustomer.results.status`.
-  - `#nodeId` ‚Äî target another node within the current workflow scope before falling back to the JSON pointer root. Example: `#reader.parameters.tokenDelayMs`.
+  - `@subgraphAlias(.childAlias)*(.nodeId)?` °™ hop into a localized subgraph declared in the current definition (imported workflows must be owned by the same tenant before localization). Example: `@welcomeJourney.stage2.#notifyCustomer.results.status`.
+  - `#nodeId` °™ target another node within the current workflow scope before falling back to the JSON pointer root. Example: `#reader.parameters.tokenDelayMs`.
   - If no prefix is present, bindings stay local (legacy behaviour) and continue to resolve against the current node.
   - After the prefix, JSON pointer semantics still apply (`/parameters/message`, `/results/summary`), so existing tooling continues to parse the paths.
 
@@ -373,11 +373,11 @@ We are expanding bindings so a node can point at any other node‚Äôs `parameters.
 - Scheduler enforcement checks that `@` aliases map to localized subgraphs whose provenance (`referenceWorkflowId` / ownership) matches the tenant. During execution the run registry walks the scope tree before applying the JSON pointer to the resolved node payload.
 
 - **Upgrade tasks**:
-  1. **Schema & API** ‚Äî extend `binding` objects (OpenAPI + manifest) with optional structured scope fields, regenerate SDKs, and document the string prefix shorthand for humans/editors.
-  2. **Backend logic** ‚Äî enhance workflow validation (ownership, alias lookup), update binding resolution utilities to parse prefixes, and persist the new scope metadata alongside run plans.
-  3. **Runtime indexing** ‚Äî teach the scheduler/run registry to hydrate the hierarchical index so SSE streams and dependency tracking continue to work with nested scopes.
-  4. **Frontend/editor** ‚Äî expose alias-aware pickers/autocomplete, serialize the structured fields, and surface the resolved scope in the inspector so authors can see when a widget targets another workflow.
-  5. **Docs & rollout** ‚Äî keep this section plus release notes updated, communicate the syntax change, and include migration guidance for teams who want to refactor existing bindings.
+  1. **Schema & API** °™ extend `binding` objects (OpenAPI + manifest) with optional structured scope fields, regenerate SDKs, and document the string prefix shorthand for humans/editors.
+  2. **Backend logic** °™ enhance workflow validation (ownership, alias lookup), update binding resolution utilities to parse prefixes, and persist the new scope metadata alongside run plans.
+  3. **Runtime indexing** °™ teach the scheduler/run registry to hydrate the hierarchical index so SSE streams and dependency tracking continue to work with nested scopes.
+  4. **Frontend/editor** °™ expose alias-aware pickers/autocomplete, serialize the structured fields, and surface the resolved scope in the inspector so authors can see when a widget targets another workflow.
+  5. **Docs & rollout** °™ keep this section plus release notes updated, communicate the syntax change, and include migration guidance for teams who want to refactor existing bindings.
 
 Legacy bindings do not need immediate changes; they omit the prefix and serialize with `scope.kind = local`. New bindings may mix both forms, letting teams adopt cross-workflow bindings gradually while the scheduler enforces tenant boundaries throughout the stack.
 
@@ -413,8 +413,8 @@ Workflows can now embed **subgraphs** to encapsulate reusable logic. Subgraphs a
 ```
 Adapters register handlers once via `adapters[]`, and every catalogued node picks the adapter plus handler combo it needs (`adapter: "browser"`, `handler: "open_page"`). This mirrors the `worker/packages/<package>/<version>/manifest.json` layout so execution routing no longer depends on runtime buckets.
 
-- All subgraphs are ‚Äúlocalized‚Äù when the workflow is saved/published: even external references are stored as a copy of the referenced workflow so Scheduler does not need to fetch anything at runtime.
-- Each container node references one of these subgraphs through `containerConfig.subgraphId`. The node itself keeps the standard schema (`parameters`, `results`, `ui.inputPorts`, `ui.outputPorts`, `ui.widgets`). The additional `containerConfig` block holds the subgraph link and any execution policies:
+- All subgraphs are °∞localized°± when the workflow is saved/published: even external references are stored as a copy of the referenced workflow so Scheduler does not need to fetch anything at runtime.
+- Each container node references one of these subgraphs through a reserved parameter bucket: `parameters.__container.subgraphId`. The node itself keeps the standard schema (`parameters`, `results`, `ui.inputPorts`, `ui.outputPorts`, `ui.widgets`). The `__container` parameter holds the subgraph link and any execution policies:
 
 ```json
 {
@@ -432,49 +432,51 @@ Adapters register handlers once via `adapters[]`, and every catalogued node pick
       { "key": "loopToggle", "label": "Loop", "component": "checkbox", "binding": { "path": "/parameters/loopEnabled" } }
     ]
   },
-  "parameters": { "loopEnabled": false },
-  "results": {},
-  "containerConfig": {
-    "subgraphId": "sg_local_a",
-    "loop": {
-      "enabled": true,
-      "maxIterations": 5,
-      "condition": "results.status != 'done'"
+  "parameters": {
+    "__container": {
+      "subgraphId": "sg_local_a",
+      "loop": {
+        "enabled": true,
+        "maxIterations": 5,
+        "condition": "results.status != 'done'"
+      },
+      "timeoutSeconds": 600
     },
-    "timeoutSeconds": 600
-  }
+    "loopEnabled": false
+  },
+  "results": {}
 }
 ```
 
-- Bindings from container ports/widgets to the subgraph internals use the same prefix syntax described in ¬ß3.6. For example, `/parameters/profile` may be wired to the subgraph‚Äôs entry node by binding with `@sg_local_a.#entryNode.parameters.profile`.
-- Loop/retry/timeout semantics are stored inside `containerConfig` so Scheduler can treat the subgraph invocation like any other node task while still honoring the extra policies.
+- Bindings from container ports/widgets to the subgraph internals use the same prefix syntax described in °Ï3.6. For example, `/parameters/profile` may be wired to the subgraph°Øs entry node by binding with `@sg_local_a.#entryNode.parameters.profile`.
+- Loop/retry/timeout semantics live under the reserved `parameters.__container` namespace so Scheduler can treat the subgraph invocation like any other node task while still honoring the extra policies.
 
-This approach keeps container nodes structurally identical to other nodes while allowing them to encapsulate entire sub-workflows that can be reused, looped, or imported from other definitions.
+This approach keeps container nodes structurally identical to other nodes while allowing them to encapsulate entire sub-workflows that can be reused, looped, or imported from other definitions.\r\n\r\nThe dashboard ships with a built-in system@1.0.0 package whose manifest defines the canonical workflow.container node. Its schema establishes the parameters.__container contract (subgraphId, loop.*, 	imeoutSeconds, etc.) and its UI widgets drive the subgraph picker / loop controls via the regular widget registry, so container behaviour stays declarative instead of hard-coded in the builder.
 
 #### Additional design notes
 
-- **Subgraphs are always localized**: regardless of origin, `workflow.subgraphs[]` stores a complete `Workflow` definition. Reference metadata (original workflow id/owner/name) can live inside the subgraph‚Äôs `metadata` block for UI display, but Scheduler never re-fetches the source at runtime.
-- **Top-level metadata stays local**: `workflow.metadata.*` always reflects the currently edited workflow (namespace, originId, owner, etc.). Imported snapshots only record their provenance inside their own subgraph `metadata`, so referencing another workflow never overwrites the parent‚Äôs metadata.
-- **Containers reuse the existing node schema**: they still expose `label`, `position`, `parameters`, `results`, and `ui.*`. The only new field is `containerConfig`, which records `subgraphId` plus optional orchestration settings (loop/retry/timeout). No custom handler development is required‚Äîcontainers are platform-provided control nodes.
-- **Bindings bridge container <-> subgraph**: widgets and ports continue to bind to `/parameters/...` or `/results/...`. When a binding needs to reach into the subgraph, it uses the same prefix syntax (`@subgraphAlias.#node.parameters.foo`). The Scheduler‚Äôs scope index resolves these prefixes, so data injection/extraction works just like any other node.
-- **Execution flow**: before dispatching the subgraph, the container copies relevant `parameters` into the subgraph definition; once the subgraph run completes, specified `results` are copied back to the container node. Loop/retry policies defined in `containerConfig` control how many times the subgraph is invoked or when to stop.
+- **Subgraphs are always localized**: regardless of origin, `workflow.subgraphs[]` stores a complete `Workflow` definition. Reference metadata (original workflow id/owner/name) can live inside the subgraph°Øs `metadata` block for UI display, but Scheduler never re-fetches the source at runtime.
+- **Top-level metadata stays local**: `workflow.metadata.*` always reflects the currently edited workflow (namespace, originId, owner, etc.). Imported snapshots only record their provenance inside their own subgraph `metadata`, so referencing another workflow never overwrites the parent°Øs metadata.
+- **Containers reuse the existing node schema**: they still expose `label`, `position`, `parameters`, `results`, and `ui.*`. The only convention is the reserved `parameters.__container` bucket, which records `subgraphId` plus optional orchestration settings (loop/retry/timeout). No custom handler development is required°™containers are platform-provided control nodes.
+- **Bindings bridge container <-> subgraph**: widgets and ports continue to bind to `/parameters/...` or `/results/...`. When a binding needs to reach into the subgraph, it uses the same prefix syntax (`@subgraphAlias.#node.parameters.foo`). The Scheduler°Øs scope index resolves these prefixes, so data injection/extraction works just like any other node.
+- **Execution flow**: before dispatching the subgraph, the container copies relevant `parameters` into the subgraph definition; once the subgraph run completes, specified `results` are copied back to the container node. Loop/retry policies defined in `parameters.__container` control how many times the subgraph is invoked or when to stop.
 
 #### Containers vs. Subgraphs at a glance
 
-- **Placement**: `workflow.subgraphs[]` exists at the workflow root (peer to `nodes[]`/`edges[]`) and stores localized workflow snapshots, while containers remain regular `workflow.nodes[]` entries with an additional `containerConfig` bucket.
-- **Execution contract**: containers inherit every standard node field and merely add optional orchestration hooks (`loop`, `retry`, `timeoutSeconds`). Subgraphs never execute by themselves‚Äîthey are invoked only through containers referencing their `subgraphId`.
-- **Authoring flow**: builders create/import subgraphs once, then reuse them across multiple containers. Adjusting a container‚Äôs `subgraphId` or policies changes behavior without rewriting the subgraph JSON.
+- **Placement**: `workflow.subgraphs[]` exists at the workflow root (peer to `nodes[]`/`edges[]`) and stores localized workflow snapshots, while containers remain regular `workflow.nodes[]` entries with an extra `parameters.__container` bucket.
+- **Execution contract**: containers inherit every standard node field and merely add optional orchestration hooks (`loop`, `retry`, `timeoutSeconds`). Subgraphs never execute by themselves°™they are invoked only through containers referencing their `subgraphId`.
+- **Authoring flow**: builders create/import subgraphs once, then reuse them across multiple containers. Adjusting a container°Øs `subgraphId` or policies changes behavior without rewriting the subgraph JSON.
 
 Below is a representative instance of the top-level workflow wiring two Playwright adapters plus a containerized subgraph:
 
 ### 4.2 Upgrade Plan Snapshot
 
-To roll out subgraphs/containers end-to-end we‚Äôre tackling the work in four coordinated streams:
+To roll out subgraphs/containers end-to-end we°Øre tackling the work in four coordinated streams:
 
-1. **Schema & docs** ‚Äì finalize the OpenAPI/manifest models for `workflow.subgraphs[]`, `workflow.container` nodes, and binding prefixes; regenerate SDKs; keep this document + frontend builder docs current so builders know how to author new structures.
-2. **Scheduler backend** ‚Äì teach plan building + `RunRegistry` to hydrate subgraph definitions, resolve container bindings via the scope index, and honor `containerConfig` policies (loop/retry/timeout). Add validation for subgraph IDs, tenant ownership, and prefixed bindings.
-3. **Dashboard builder** ‚Äì add subgraph management UI (create/import, alias metadata), container-node inspectors (subgraph picker, execution policy controls), and ensure draft ‚Üî API converters round-trip `subgraphs[]` / `containerConfig`.
-4. **Runtime validation & tests** ‚Äì extend unit/integration coverage for container execution, SSE updates, and cross-workflow bindings; document migration steps for existing workflows and monitor the rollout.
+1. **Schema & docs** ®C finalize the OpenAPI/manifest models for `workflow.subgraphs[]`, `workflow.container` nodes, and binding prefixes; regenerate SDKs; keep this document + frontend builder docs current so builders know how to author new structures.
+2. **Scheduler backend** ®C teach plan building + `RunRegistry` to hydrate subgraph definitions, resolve container bindings via the scope index, and honor `parameters.__container` policies (loop/retry/timeout). Add validation for subgraph IDs, tenant ownership, and prefixed bindings.
+3. **Dashboard builder** ®C add subgraph management UI (create/import, alias metadata), container-node inspectors (subgraph picker, execution policy controls), and ensure draft ? API converters round-trip `subgraphs[]` / `parameters.__container`.
+4. **Runtime validation & tests** ®C extend unit/integration coverage for container execution, SSE updates, and cross-workflow bindings; document migration steps for existing workflows and monitor the rollout.
 
 Each phase is tracked in the upgrade checklist so we can land schema, backend, frontend, and QA changes in lockstep.
 
@@ -482,7 +484,7 @@ Each phase is tracked in the upgrade checklist so we can land schema, backend, f
 
 1. **Planner expansion**:
    - Clone subgraphs referenced by containers during plan build: assign scoped node ids (`<containerId>::<nodeId>`), merge edges, and tag each cloned node with its alias chain.
-   - Validate `containerConfig` (loop/retry/timeout) plus any subgraph-level constraints (ownership, version).
+   - Validate `parameters.__container` (loop/retry/timeout) plus any subgraph-level constraints (ownership, version).
    - Persist the expanded plan so API consumers see a single DAG with metadata describing which nodes belong to which container frame.
 2. **Stack-based runtime**:
    - Update the dispatcher to push container frames onto a stack (frame = cloned subgraph DAG + policy state). While a frame is active, scheduling/dispatch works exactly like the top-level DAG.
@@ -506,12 +508,12 @@ Each phase is tracked in the upgrade checklist so we can land schema, backend, f
 > **Tip:** The bundled `example.pkg.feedback_demo` node demonstrates the feedback contract: the worker emits incremental updates via `metadata.results`, for example `{"results": {"summary": "HELLO"}}`. The scheduler merges those keys into `results.*`, publishes `node.result.delta`, and the builder's `summaryPreview` widget (bound to `/results/summary`, `mode: "read"`) renders the stream live. Reuse the same convention for any other result fields you want to surface incrementally.
 
 Example welcome journey:
-- **Load Welcome Config** ‚Äî parses the JSON definition, expands the template into a ready-to-send message, and exposes derived fields (recipient, timing, channel).
-- **Personalise Message** ‚Äî formats the message, forwards routing metadata (`recipient`, `subject`, `delaySeconds`, `tokenDelayMs`) to downstream nodes, and provides the stream source for the feedback node.
-- **Stream Feedback** ‚Äî emits the formatted message token-by-token so the builder shows live progress.
-- **Schedule Delivery** ‚Äî waits for the configured delay, modelling long-running work.
-- **Send Welcome Notification** ‚Äî simulates dispatch, returns a `notificationId`, and summarises the action.
-- **Audit Delivery** ‚Äî records the outcome (including the notification ID) for traceability.
+- **Load Welcome Config** °™ parses the JSON definition, expands the template into a ready-to-send message, and exposes derived fields (recipient, timing, channel).
+- **Personalise Message** °™ formats the message, forwards routing metadata (`recipient`, `subject`, `delaySeconds`, `tokenDelayMs`) to downstream nodes, and provides the stream source for the feedback node.
+- **Stream Feedback** °™ emits the formatted message token-by-token so the builder shows live progress.
+- **Schedule Delivery** °™ waits for the configured delay, modelling long-running work.
+- **Send Welcome Notification** °™ simulates dispatch, returns a `notificationId`, and summarises the action.
+- **Audit Delivery** °™ records the outcome (including the notification ID) for traceability.
 
 ```json
 {
@@ -849,12 +851,17 @@ Example welcome journey:
       "type": "workflow.container",
       "label": "Run Welcome Subgraph",
       "package": {
-        "name": "platform_control",
-        "version": "2025.10.0"
+        "name": "system",
+        "version": "1.0.0"
       },
       "position": { "x": 620, "y": 180 },
       "parameters": {
-        "customerId": "{{results.notificationId}}"
+        "customerId": "{{results.notificationId}}",
+        "__container": {
+          "subgraphId": "sg_welcome_stage",
+          "loop": { "enabled": false },
+          "timeoutSeconds": 900
+        }
       },
       "results": {},
       "ui": {
@@ -880,11 +887,6 @@ Example welcome journey:
           }
         ]
       },
-      "containerConfig": {
-        "subgraphId": "sg_welcome_stage",
-        "loop": { "enabled": false },
-        "timeoutSeconds": 900
-      }
     }
   ],
   "edges": [
@@ -1061,3 +1063,13 @@ Use that document as the authoritative blueprint when implementing resource-awar
 - Backend deploy order: (1) schema migration + models, (2) API handlers guarded by feature flags, (3) dashboard Store route + publish/clone UX, (4) remove legacy publish reminders.
 - Update `docs/api/v1/openapi.yaml` plus individual path/component files to document the new catalog endpoints once implemented.
 - Provide operational runbook: `manage_users.py` already supports `activate/deactivate`; extend it (or a new CLI) with `publish-workflow` helper for seed data and automated tests.
+
+
+
+
+
+
+
+
+
+

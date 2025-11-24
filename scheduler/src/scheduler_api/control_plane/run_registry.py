@@ -104,6 +104,20 @@ def _merge_result_updates(
 
 
 FINAL_STATUSES = {"succeeded", "failed", "cancelled"}
+CONTAINER_PARAMS_KEY = "__container"
+
+
+def _get_node_subgraph_id(node: Any) -> Optional[str]:
+    params = getattr(node, "parameters", None)
+    if isinstance(params, dict):
+        container_params = params.get(CONTAINER_PARAMS_KEY)
+        if isinstance(container_params, dict):
+            value = container_params.get("subgraphId")
+            if isinstance(value, str):
+                value = value.strip()
+                if value:
+                    return value
+    return None
 
 
 _MISSING = object()
@@ -1659,15 +1673,15 @@ class RunRegistry:
             frames[frame_id] = frame_definition
             frames_by_parent[(parent_frame_id, container_node_id)] = frame_definition
             for child in frame_workflow.nodes or []:
-                cfg = getattr(child, "container_config", None)
-                if child.type == "workflow.container" and cfg and getattr(cfg, "subgraph_id", None):
-                    walk(child.id, cfg.subgraph_id, frame_alias_chain, frame_id)
+                child_subgraph_id = _get_node_subgraph_id(child)
+                if child.type == "workflow.container" and child_subgraph_id:
+                    walk(child.id, child_subgraph_id, frame_alias_chain, frame_id)
 
         task_index: Dict[str, NodeState] = {}
         for node in workflow.nodes or []:
-            cfg = getattr(node, "container_config", None)
-            if node.type == "workflow.container" and cfg and getattr(cfg, "subgraph_id", None):
-                walk(node.id, cfg.subgraph_id, (workflow.id or "root",), None)
+            subgraph_id = _get_node_subgraph_id(node)
+            if node.type == "workflow.container" and subgraph_id:
+                walk(node.id, subgraph_id, (workflow.id or "root",), None)
 
         return frames, frames_by_parent
 

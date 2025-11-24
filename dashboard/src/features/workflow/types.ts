@@ -10,8 +10,7 @@ import type { UIPort } from '../../api/models/uIPort';
 import type { UIWidget } from '../../api/models/uIWidget';
 import type { WorkflowNodeState } from '../../api/models/workflowNodeState';
 import type { WorkflowSubgraph } from '../../api/models/workflowSubgraph';
-import type { WorkflowContainerConfig } from '../../api/models/workflowContainerConfig';
-
+import type { WorkflowSubgraphMetadata } from '../../api/models/workflowSubgraphMetadata';
 export type WorkflowDefinition = ApiWorkflow;
 export type WorkflowDefinitionNode = ApiWorkflowNode;
 export type WorkflowDefinitionEdge = ApiWorkflowEdge;
@@ -43,7 +42,6 @@ export interface WorkflowNodeDraft {
   results: Record<string, unknown>;
   schema?: WorkflowNodeSchema;
   ui?: NodeUI;
-  containerConfig?: WorkflowContainerConfig;
   position: XYPosition;
   dependencies: string[];
   resources?: WorkflowResourceBinding[];
@@ -86,16 +84,18 @@ export interface WorkflowPaletteNode {
   packageVersion?: string;
 }
 
-export type WorkflowNodeStore = Record<string, WorkflowNodeDraft>;
-
-export interface WorkflowStoreState {
-  workflow?: WorkflowDraft;
-  selectedNodeId?: string;
-}
+export type WorkflowNodeStore = Record<string, WorkflowNodeDraft>;
+
+export interface WorkflowStoreState {
+  workflow?: WorkflowDraft;
+  selectedNodeId?: string;
+  subgraphDrafts: WorkflowSubgraphDraftEntry[];
+  activeGraph: WorkflowGraphScope;
+}
 
 export type WorkflowNodeStateUpdateMap = Record<string, WorkflowNodeState | null | undefined>;
 
-export interface WorkflowStoreActions {
+export interface WorkflowStoreActions {
   loadWorkflow: (definition: WorkflowDefinition) => void;
   resetWorkflow: () => void;
   setPreviewImage: (preview?: string | null) => void;
@@ -125,15 +125,38 @@ export interface WorkflowStoreActions {
       summary?: string | null;
     }
   ) => void;
-  resetRunState: () => void;
-}
-
-export type WorkflowStore = WorkflowStoreState & WorkflowStoreActions;
+  resetRunState: () => void;
+  setActiveGraph: (scope: WorkflowGraphScope) => void;
+}
+
+export type WorkflowStore = WorkflowStoreState & WorkflowStoreActions;
 
 export type NodeWidgetDefinition = UIWidget;
 export type NodePortDefinition = UIPort;
 
-export type WorkflowSubgraphDraft = WorkflowSubgraph;
+export type WorkflowSubgraphDraft = WorkflowSubgraph;
+
+export interface WorkflowSubgraphDraftEntry {
+  id: string;
+  definition: WorkflowDraft;
+  metadata?: WorkflowSubgraphMetadata;
+}
+
+export type WorkflowGraphScope =
+  | { type: "root" }
+  | { type: "subgraph"; subgraphId: string };
+
+export interface ContainerSettings {
+  subgraphId?: string;
+  loop?: {
+    enabled?: boolean;
+    maxIterations?: number;
+    condition?: string | null;
+  };
+  retry?: Record<string, unknown> | null;
+  timeoutSeconds?: number | null;
+  notes?: string | null;
+}
 
 
 

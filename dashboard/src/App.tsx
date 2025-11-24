@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import AppShell, { type NavItem } from "./components/AppShell";
 import RunsPage from "./pages/RunsPage";
 import RunDetailPage from "./pages/RunDetailPage";
@@ -29,11 +29,6 @@ const baseNavItems: NavItem[] = [
     to: "/store",
     label: "Store",
     match: (pathname) => pathname === "/store"
-  },
-  {
-    to: "/runs",
-    label: "Runs",
-    match: (pathname) => pathname === "/runs" || pathname.startsWith("/runs/")
   }
 ];
 
@@ -140,6 +135,13 @@ const DashboardRoute = ({ children }: React.PropsWithChildren) => {
   );
 };
 
+const RunsRoute = () => (
+  <DashboardRoute>
+    <RunsPage />
+    <Outlet />
+  </DashboardRoute>
+);
+
 const adminLinks = [
   { to: "/admin/users", label: "Users" },
   { to: "/admin/audit", label: "Audit Log" },
@@ -243,27 +245,17 @@ function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
-        <Route path="/" element={<Navigate to="/runs" replace />} />
+        <Route path="/" element={<Navigate to="/workflows" replace />} />
         <Route
           path="/runs"
           element={
             <RequireAuth>
-              <DashboardRoute>
-                <RunsPage />
-              </DashboardRoute>
+              <RunsRoute />
             </RequireAuth>
           }
-        />
-        <Route
-          path="/runs/:runId"
-          element={
-            <RequireAuth>
-              <DashboardRoute>
-                <RunDetailPage />
-              </DashboardRoute>
-            </RequireAuth>
-          }
-        />
+        >
+          <Route path=":runId" element={<RunDetailPage />} />
+        </Route>
         <Route
           path="/workflows"
           element={

@@ -4,12 +4,12 @@ from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 
 from pydantic import StrictStr
 from typing import Any
-from scheduler_api.models.add_user_role_request import AddUserRoleRequest
-from scheduler_api.models.create_user201_response import CreateUser201Response
 from scheduler_api.models.create_user_request import CreateUserRequest
-from scheduler_api.models.list_users200_response import ListUsers200Response
 from scheduler_api.models.reset_user_password_request import ResetUserPasswordRequest
 from scheduler_api.models.update_user_status_request import UpdateUserStatusRequest
+from scheduler_api.models.user_list1 import UserList1
+from scheduler_api.models.user_role_request import UserRoleRequest
+from scheduler_api.models.user_summary import UserSummary
 from scheduler_api.security_api import get_token_bearerAuth
 
 class BaseUsersApi:
@@ -20,14 +20,14 @@ class BaseUsersApi:
         BaseUsersApi.subclasses = BaseUsersApi.subclasses + (cls,)
     async def list_users(
         self,
-    ) -> ListUsers200Response:
+    ) -> UserList1:
         ...
 
 
     async def create_user(
         self,
         create_user_request: CreateUserRequest,
-    ) -> CreateUser201Response:
+    ) -> UserSummary:
         ...
 
 
@@ -42,7 +42,7 @@ class BaseUsersApi:
     async def add_user_role(
         self,
         userId: StrictStr,
-        add_user_role_request: AddUserRoleRequest,
+        user_role_request: UserRoleRequest,
     ) -> None:
         ...
 

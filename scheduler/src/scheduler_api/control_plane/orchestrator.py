@@ -12,6 +12,7 @@ from shared.models.ws.cmd.dispatch import Affinity, CommandDispatchPayload, Cons
 
 from .manager import WorkerSession, worker_manager
 from .run_registry import DispatchRequest, FINAL_STATUSES, run_registry
+from scheduler_api.models.workflow_node import WorkflowNode
 
 LOGGER = logging.getLogger(__name__)
 
@@ -134,7 +135,33 @@ class RunOrchestrator:
             await self._handle_retry(request, "worker unavailable")
             return
 
-        payload = self._build_payload(request)
+        try:
+            payload = self._build_payload(request)
+        except ValueError as exc:
+            LOGGER.error(
+                "Dropping dispatch for run=%s node=%s due to invalid metadata: %s",
+                request.run_id,
+                request.node_id,
+                exc,
+            )
+            error_payload = ErrorPayload(
+                code="E.DISPATCH.INVALID_METADATA",
+                message=str(exc),
+                context={
+                    "where": "scheduler.dispatch",
+                    "details": {
+                        "run_id": request.run_id,
+                        "node_id": request.node_id,
+                        "task_id": request.task_id,
+                    },
+                },
+            )
+            await run_registry.record_command_error(
+                error_payload,
+                run_id=request.run_id,
+                task_id=request.task_id,
+            )
+            return
         try:
             dispatch_id = await worker_manager.dispatch_command(
                 session,
@@ -249,10 +276,46 @@ class RunOrchestrator:
         packages = session.packages or []
         return any(pkg.name == package_name and pkg.version == package_version for pkg in packages)
 
+    @staticmethod
+    def _validate_middleware_metadata(request: DispatchRequest) -> None:
+        """Ensure middleware chain metadata is self-consistent before dispatch."""
+
+        chain = request.middleware_chain or []
+        if not chain:
+            # host or non-middleware node without chain
+            return
+        if not request.host_node_id:
+            raise ValueError("middleware_chain present but host_node_id missing")
+        # middleware nodes must carry chain_index and match chain entry
+        if request.node_id != request.host_node_id:
+            if request.chain_index is None:
+                raise ValueError("middleware dispatch missing chain_index")
+            if request.chain_index < 0 or request.chain_index >= len(chain):
+                raise ValueError("middleware chain_index out of bounds")
+            if chain[request.chain_index] != request.node_id:
+                raise ValueError("middleware chain_index does not match chain entry")
+        else:
+            # host dispatch should not include chain_index
+            if request.chain_index is not None:
+                raise ValueError("host dispatch must not include chain_index when middleware_chain is present")
+
     def _build_payload(self, request: DispatchRequest) -> CommandDispatchPayload:
         resource_refs = [ResourceRef(**ref) for ref in request.resource_refs]
         affinity = Affinity(**request.affinity) if request.affinity else None
         constraints = Constraints()
+
+        # sanity check middleware metadata before payload construction
+        try:
+            self._validate_middleware_metadata(request)
+        except ValueError as exc:
+            LOGGER.error(
+                "Invalid middleware metadata for dispatch run=%s node=%s: %s",
+                request.run_id,
+                request.node_id,
+                exc,
+            )
+            raise
+
         return CommandDispatchPayload(
             run_id=request.run_id,
             task_id=request.task_id,
@@ -261,6 +324,9 @@ class RunOrchestrator:
             package_name=request.package_name,
             package_version=request.package_version,
             parameters=request.parameters,
+            host_node_id=request.host_node_id,
+            middleware_chain=request.middleware_chain,
+            chain_index=request.chain_index,
             constraints=constraints,
             concurrency_key=request.concurrency_key,
             resource_refs=resource_refs or None,

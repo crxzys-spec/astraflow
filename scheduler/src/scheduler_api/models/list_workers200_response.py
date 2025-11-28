@@ -22,7 +22,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from scheduler_api.models.list_workers200_response_items_inner import ListWorkers200ResponseItemsInner
+from scheduler_api.models.worker import Worker
 try:
     from typing import Self
 except ImportError:
@@ -32,7 +32,7 @@ class ListWorkers200Response(BaseModel):
     """
     ListWorkers200Response
     """ # noqa: E501
-    items: Optional[List[ListWorkers200ResponseItemsInner]] = None
+    items: Optional[List[Worker]] = None
     next_cursor: Optional[StrictStr] = Field(default=None, alias="nextCursor")
     __properties: ClassVar[List[str]] = ["items", "nextCursor"]
 
@@ -80,6 +80,11 @@ class ListWorkers200Response(BaseModel):
                 if _item:
                     _items.append(_item.to_dict())
             _dict['items'] = _items
+        # set to None if next_cursor (nullable) is None
+        # and model_fields_set contains the field
+        if self.next_cursor is None and "next_cursor" in self.model_fields_set:
+            _dict['nextCursor'] = None
+
         return _dict
 
     @classmethod
@@ -92,7 +97,7 @@ class ListWorkers200Response(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "items": [ListWorkers200ResponseItemsInner.from_dict(_item) for _item in obj.get("items")] if obj.get("items") is not None else None,
+            "items": [Worker.from_dict(_item) for _item in obj.get("items")] if obj.get("items") is not None else None,
             "nextCursor": obj.get("nextCursor")
         })
         return _obj

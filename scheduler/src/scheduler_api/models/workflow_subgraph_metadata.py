@@ -11,43 +11,34 @@
     Do not edit the class manually.
 """  # noqa: E501
 
+
 from __future__ import annotations
+import pprint
+import re  # noqa: F401
+import json
+
+
+
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, ClassVar, Dict, List, Optional
+from uuid import UUID
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-
 class WorkflowSubgraphMetadata(BaseModel):
     """
-    Additional metadata describing a localized subgraph snapshot.
-    """  # noqa: E501
-
+    WorkflowSubgraphMetadata
+    """ # noqa: E501
     label: Optional[StrictStr] = Field(default=None, description="Optional human-friendly label for the subgraph.")
     description: Optional[StrictStr] = None
-    reference_workflow_id: Optional[StrictStr] = Field(
-        default=None,
-        description="Original workflow id when this subgraph was created from a reference.",
-        alias="referenceWorkflowId",
-    )
-    reference_workflow_name: Optional[StrictStr] = Field(
-        default=None,
-        description="Display name of the referenced workflow.",
-        alias="referenceWorkflowName",
-    )
+    reference_workflow_id: Optional[UUID] = Field(default=None, description="Original workflow id when this subgraph was created from a reference.", alias="referenceWorkflowId")
+    reference_workflow_name: Optional[StrictStr] = Field(default=None, alias="referenceWorkflowName")
     owner_id: Optional[StrictStr] = Field(default=None, alias="ownerId")
     notes: Optional[StrictStr] = None
-    __properties: ClassVar[list[str]] = [
-        "label",
-        "description",
-        "referenceWorkflowId",
-        "referenceWorkflowName",
-        "ownerId",
-        "notes",
-    ]
+    __properties: ClassVar[List[str]] = ["label", "description", "referenceWorkflowId", "referenceWorkflowName", "ownerId", "notes"]
 
     model_config = {
         "populate_by_name": True,
@@ -55,29 +46,56 @@ class WorkflowSubgraphMetadata(BaseModel):
         "protected_namespaces": (),
     }
 
+
     def to_str(self) -> str:
         """Returns the string representation of the model using alias"""
-        return self.__repr__()
+        return pprint.pformat(self.model_dump(by_alias=True))
 
     def to_json(self) -> str:
         """Returns the JSON representation of the model using alias"""
-        return self.model_dump_json(by_alias=True, exclude_none=True)
+        # TODO: pydantic v2: use .model_dump_json(by_alias=True, exclude_unset=True) instead
+        return json.dumps(self.to_dict())
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
         """Create an instance of WorkflowSubgraphMetadata from a JSON string"""
-        return cls.model_validate_json(json_str)
+        return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
-        """Return the dictionary representation of the model using alias."""
-        return self.model_dump(by_alias=True, exclude_none=True)
+        """Return the dictionary representation of the model using alias.
+
+        This has the following differences from calling pydantic's
+        `self.model_dump(by_alias=True)`:
+
+        * `None` is only added to the output dict for nullable fields that
+          were set at model initialization. Other fields with value `None`
+          are ignored.
+        """
+        _dict = self.model_dump(
+            by_alias=True,
+            exclude={
+            },
+            exclude_none=True,
+        )
+        return _dict
 
     @classmethod
-    def from_dict(cls, obj: Dict[str, Any]) -> Self:
+    def from_dict(cls, obj: Dict) -> Self:
         """Create an instance of WorkflowSubgraphMetadata from a dict"""
         if obj is None:
             return None
+
         if not isinstance(obj, dict):
             return cls.model_validate(obj)
-        return cls.model_validate(obj)
+
+        _obj = cls.model_validate({
+            "label": obj.get("label"),
+            "description": obj.get("description"),
+            "referenceWorkflowId": obj.get("referenceWorkflowId"),
+            "referenceWorkflowName": obj.get("referenceWorkflowName"),
+            "ownerId": obj.get("ownerId"),
+            "notes": obj.get("notes")
+        })
+        return _obj
+
 

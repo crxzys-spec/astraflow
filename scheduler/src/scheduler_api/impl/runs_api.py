@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
@@ -13,6 +14,7 @@ from scheduler_api.models.list_runs200_response import ListRuns200Response
 from scheduler_api.models.list_runs200_response_items_inner import ListRuns200ResponseItemsInner
 from scheduler_api.models.start_run202_response import StartRun202Response
 from scheduler_api.models.start_run_request import StartRunRequest
+from scheduler_api.models.run_start_request1 import RunStartRequest1
 from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkflow
 from scheduler_api.models.start_run_request_workflow_nodes_inner import (
     StartRunRequestWorkflowNodesInner,
@@ -48,7 +50,7 @@ class RunsApiImpl(BaseRunsApi):
 
     async def start_run(
         self,
-        start_run_request: StartRunRequest,
+        start_run_request: RunStartRequest1,
         idempotency_key: Optional[str],
     ) -> StartRun202Response:
         token = require_roles(*WORKFLOW_EDIT_ROLES)
@@ -57,6 +59,10 @@ class RunsApiImpl(BaseRunsApi):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="start_run_request body is required",
             )
+
+        # Convert the public request (Workflow1/UUID ids) into the internal model
+        payload = start_run_request.model_dump(by_alias=True, exclude_none=True, mode="json")
+        start_run_request = StartRunRequest.from_dict(payload)
 
         workflow = start_run_request.workflow
         self._ensure_initial_node(workflow)
@@ -104,13 +110,15 @@ class RunsApiImpl(BaseRunsApi):
         runId: str,
     ) -> StartRun202Response:
         token = require_roles(*WORKFLOW_EDIT_ROLES)
-        record = await run_registry.cancel_run(runId)
+        record, cancelled_next = await run_registry.cancel_run(runId)
         if not record:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Run {runId} not found",
             )
         await run_orchestrator.cancel_run(runId)
+        if cancelled_next:
+            await self._notify_cancelled_next(cancelled_next, tenant=self.tenant)
         record_audit_event(
             actor_id=token.sub if token else None,
             action="run.cancel",
@@ -118,6 +126,40 @@ class RunsApiImpl(BaseRunsApi):
             target_id=runId,
         )
         return record.to_start_response()
+
+    @staticmethod
+    async def _notify_cancelled_next(
+        cancelled: list[tuple[str, str, str, Optional[str], Optional[str]]],
+        *,
+        tenant: str,
+    ) -> None:
+        """Notify workers waiting on middleware.next when the run is cancelled."""
+
+        from uuid import uuid4  # local import to avoid cycle
+
+        from scheduler_api.control_plane.manager import worker_manager  # late import
+        from shared.models.ws.envelope import Role, Sender, WsEnvelope
+        from shared.models.ws.next import NextResponsePayload
+
+        for request_id, worker_id, run_id, node_id, middleware_id in cancelled:
+            payload = NextResponsePayload(
+                requestId=request_id,
+                runId=run_id or "",
+                nodeId=node_id or "",
+                middlewareId=middleware_id or "",
+                error={"code": "next_cancelled", "message": run_registry.get_next_error_message("next_cancelled")},
+            )
+            envelope = WsEnvelope(
+                type="middleware.next_response",
+                id=str(uuid4()),
+                ts=datetime.now(timezone.utc),
+                corr=request_id,
+                seq=None,
+                tenant=tenant,
+                sender=Sender(role=Role.scheduler, id=worker_manager.scheduler_id),
+                payload=payload.model_dump(by_alias=True, exclude_none=True),
+            )
+            await worker_manager.send_envelope(worker_id, envelope)
 
     async def get_run_definition(
         self,

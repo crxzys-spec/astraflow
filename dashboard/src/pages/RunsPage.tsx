@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCancelRun, useListRuns } from "../api/endpoints";
 import StatusBadge from "../components/StatusBadge";
 import { sseClient } from "../lib/sseClient";
@@ -16,10 +16,35 @@ export const RunsPage = () => {
   const canViewRuns = useAuthStore((state) =>
     state.hasRole(["admin", "run.viewer", "workflow.editor"])
   );
+  const [showMiddlewareOnly, setShowMiddlewareOnly] = useState(false);
   const { data, isLoading, isError, error, refetch } = useListRuns(undefined, {
     query: { enabled: canViewRuns }
   });
   const runs = data?.data.items ?? [];
+  const filteredRuns = useMemo(
+    () =>
+      showMiddlewareOnly
+        ? runs.filter((run) =>
+            (run.nodes ?? []).some((node) => {
+              const meta = node.metadata as Record<string, unknown> | undefined;
+              const mids = meta?.middlewares;
+              if (!Array.isArray(mids) || mids.length === 0) {
+                return false;
+              }
+              return mids.some((entry) => {
+                if (typeof entry === "string") {
+                  return entry.length > 0;
+                }
+                if (entry && typeof entry === "object") {
+                  return typeof (entry as { id?: unknown }).id === "string";
+                }
+                return false;
+              });
+            })
+          )
+        : runs,
+    [runs, showMiddlewareOnly]
+  );
   const queryClient = useQueryClient();
   const cancelRun = useCancelRun(
     {
@@ -138,8 +163,17 @@ export const RunsPage = () => {
           <h2>Runs</h2>
           <p className="text-subtle">Most recent execution attempts</p>
         </div>
+        <div className="run-detail__toggle">
+          <input
+            id="middleware-filter"
+            type="checkbox"
+            checked={showMiddlewareOnly}
+            onChange={(event) => setShowMiddlewareOnly(event.target.checked)}
+          />
+          <label htmlFor="middleware-filter">Show middleware runs only</label>
+        </div>
       </header>
-      {runs.length === 0 ? (
+      {(showMiddlewareOnly ? filteredRuns : runs).length === 0 ? (
         <p>No runs yet.</p>
       ) : (
         <table className="data-table">
@@ -154,7 +188,7 @@ export const RunsPage = () => {
             </tr>
           </thead>
           <tbody>
-            {runs.map((run) => (
+            {(showMiddlewareOnly ? filteredRuns : runs).map((run) => (
               <tr key={run.runId}>
                 <td>
                   <Link to={`/runs/${run.runId}`} className="link">

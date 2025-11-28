@@ -1,4 +1,3 @@
-﻿import { nanoid } from 'nanoid';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { WorkflowNodeState } from '../../api/models/workflowNodeState';
@@ -20,6 +19,7 @@ import {
   nodeDefaultsFromSchema,
   workflowDefinitionToDraft
 } from './utils/converters.ts';
+import { generateId } from './utils/id.ts';
 
 const requireWorkflow = (state: WorkflowStoreState): WorkflowDraft => {
   if (!state.workflow) {
@@ -118,7 +118,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
         // guarantee unique id
         let nodeId = nodeDraft.id;
         while (workflow.nodes[nodeId]) {
-          nodeId = nanoid();
+          nodeId = generateId();
         }
         if (nodeId !== nodeDraft.id) {
           nodeDraft.id = nodeId;
@@ -173,7 +173,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
     addEdge: (edge) => {
       set((state) => {
         const workflow = requireActiveGraph(state);
-        const edgeId = edge.id ?? nanoid();
+        const edgeId = edge.id ?? generateId();
         const existingIndex = workflow.edges.findIndex((e) => e.id === edgeId);
         const nextEdge: WorkflowEdgeDraft = existingIndex >= 0 ? { ...workflow.edges[existingIndex], ...edge, id: edgeId } : { ...edge, id: edgeId };
         if (existingIndex >= 0) {
@@ -231,14 +231,22 @@ export const useWorkflowStore = create<WorkflowStore>()(
         forEachDraft(state, (workflow) => {
           Object.entries(updates).forEach(([nodeId, nextState]) => {
             const node = workflow.nodes[nodeId];
-            if (!node) {
-              return;
-            }
             const normalized = cloneState(nextState);
-            if (statesEqual(node.state, normalized)) {
+            if (node) {
+              if (!statesEqual(node.state, normalized)) {
+                node.state = normalized;
+              }
               return;
             }
-            node.state = normalized;
+            // middleware updates: find the host that owns this middleware id
+            const host = Object.values(workflow.nodes).find((candidate) =>
+              candidate.middlewares?.some((mw) => mw.id === nodeId)
+            );
+            if (host?.middlewares) {
+              host.middlewares = host.middlewares.map((mw) =>
+                mw.id === nodeId ? { ...mw, state: normalized } : mw
+              );
+            }
           });
         });
       });
@@ -248,22 +256,38 @@ export const useWorkflowStore = create<WorkflowStore>()(
       set((state) => {
         forEachDraft(state, (workflow) => {
           const node = workflow.nodes[nodeId];
-          if (!node) {
+          const applyRuntime = (target: any) => {
+            if (payload.result !== undefined) {
+              target.results =
+                payload.result === null
+                  ? {}
+                  : (JSON.parse(JSON.stringify(payload.result)) as Record<string, unknown>);
+            }
+            if (payload.artifacts !== undefined) {
+              target.runtimeArtifacts = payload.artifacts
+                ? JSON.parse(JSON.stringify(payload.artifacts))
+                : null;
+            }
+            if (payload.summary !== undefined) {
+              target.runtimeSummary = payload.summary ?? null;
+            }
+          };
+          if (node) {
+            applyRuntime(node);
             return;
           }
-          if (payload.result !== undefined) {
-            node.results =
-              payload.result === null
-                ? {}
-                : (JSON.parse(JSON.stringify(payload.result)) as Record<string, unknown>);
-          }
-          if (payload.artifacts !== undefined) {
-            node.runtimeArtifacts = payload.artifacts
-              ? JSON.parse(JSON.stringify(payload.artifacts))
-              : null;
-          }
-          if (payload.summary !== undefined) {
-            node.runtimeSummary = payload.summary ?? null;
+          const host = Object.values(workflow.nodes).find((candidate) =>
+            candidate.middlewares?.some((mw) => mw.id === nodeId)
+          );
+          if (host?.middlewares) {
+            host.middlewares = host.middlewares.map((mw) => {
+              if (mw.id === nodeId) {
+                const copy = { ...mw };
+                applyRuntime(copy);
+                return copy;
+              }
+              return mw;
+            });
           }
         });
       });

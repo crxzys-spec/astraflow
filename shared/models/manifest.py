@@ -169,6 +169,14 @@ class Node(BaseModel):
     config: Optional[dict[str, Any]] = Field(
         {}, description='Optional static configuration forwarded to the handler.'
     )
+    role: Optional[str] = Field(
+        None,
+        description='Execution role of the node (node, container, middleware).',
+    )
+    middlewares: Optional[list[str]] = Field(
+        None,
+        description='Ordered list of middleware node IDs attached to this node.',
+    )
     schema_: JsonSchema = Field(
         ...,
         alias='schema',

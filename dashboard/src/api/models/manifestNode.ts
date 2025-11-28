@@ -4,6 +4,7 @@
  * Scheduler Public API (v1)
  * OpenAPI spec version: 1.3.0
  */
+import type { ManifestNodeRole } from './manifestNodeRole';
 import type { ManifestNodeStatus } from './manifestNodeStatus';
 import type { ManifestNodeConfig } from './manifestNodeConfig';
 import type { ManifestNodeSchema } from './manifestNodeSchema';
@@ -12,6 +13,8 @@ import type { ManifestNodeUI } from './manifestNodeUI';
 export interface ManifestNode {
   /** @pattern ^[A-Za-z0-9_.-]+$ */
   type: string;
+  /** Execution role of the node. */
+  role?: ManifestNodeRole;
   status: ManifestNodeStatus;
   category: string;
   label: string;

@@ -9,22 +9,22 @@ from scheduler_api.db.models import WorkflowRecord
 from scheduler_api.db.session import SessionLocal
 
 
-DEMO_WORKFLOW_ID = "wf-demo"
+DEMO_WORKFLOW_ID = "857f2a71-2c02-443f-bfca-4dd0e7f0a8db"
 
 WELCOME_CONFIG_DEFAULT = '{\n  "recipient": {\n    "name": "Leslie Knope",\n    "email": "leslie@example.com"\n  },\n  "channel": "email",\n  "subject": "Welcome to AstraFlow",\n  "template": "Hello {{name}}, thank you for joining AstraFlow!",\n  "delaySeconds": 1.5,\n  "tokenDelayMs": 60\n}'
 
 RAW_DEMO_WORKFLOW_JSON = r"""{
-  "id": "wf-demo",
+  "id": "857f2a71-2c02-443f-bfca-4dd0e7f0a8de",
   "schemaVersion": "2025-10",
   "metadata": {
     "name": "Customer Welcome Journey",
     "description": "Streams a personalised welcome message, schedules delivery, and records the notification lifecycle.",
     "namespace": "default",
-    "originId": "wf-demo"
+    "originId": "857f2a71-2c02-443f-bfca-4dd0e7f0a8de"
   },
   "nodes": [
     {
-      "id": "node-config",
+      "id": "00000000-0000-0000-0000-000000000009",
       "type": "example.pkg.load_config",
       "package": {
         "name": "example.pkg",
@@ -127,7 +127,7 @@ RAW_DEMO_WORKFLOW_JSON = r"""{
       }
     },
     {
-      "id": "node-transform",
+      "id": "00000000-0000-0000-0000-00000000000a",
       "type": "example.pkg.transform_text",
       "package": {
         "name": "example.pkg",
@@ -335,7 +335,7 @@ RAW_DEMO_WORKFLOW_JSON = r"""{
       }
     },
     {
-      "id": "node-feedback",
+      "id": "00000000-0000-0000-0000-00000000000b",
       "type": "example.pkg.feedback_demo",
       "package": {
         "name": "example.pkg",
@@ -421,7 +421,7 @@ RAW_DEMO_WORKFLOW_JSON = r"""{
       }
     },
     {
-      "id": "node-delay",
+      "id": "00000000-0000-0000-0000-00000000000c",
       "type": "example.pkg.delay",
       "package": {
         "name": "example.pkg",
@@ -483,7 +483,7 @@ RAW_DEMO_WORKFLOW_JSON = r"""{
       }
     },
     {
-      "id": "node-notify",
+      "id": "00000000-0000-0000-0000-00000000000d",
       "type": "example.pkg.send_notification",
       "package": {
         "name": "example.pkg",
@@ -631,7 +631,7 @@ RAW_DEMO_WORKFLOW_JSON = r"""{
       }
     },
     {
-      "id": "node-audit",
+      "id": "00000000-0000-0000-0000-00000000000e",
       "type": "example.pkg.audit_log",
       "package": {
         "name": "example.pkg",
@@ -717,178 +717,178 @@ RAW_DEMO_WORKFLOW_JSON = r"""{
   ],
   "edges": [
     {
-      "id": "edge-1",
+      "id": "00000000-0000-0000-0000-00000000000f",
       "source": {
-        "node": "node-config",
+        "node": "00000000-0000-0000-0000-000000000009",
         "port": "message"
       },
       "target": {
-        "node": "node-transform",
+        "node": "00000000-0000-0000-0000-00000000000a",
         "port": "input"
       }
     },
     {
-      "id": "edge-2",
+      "id": "00000000-0000-0000-0000-000000000010",
       "source": {
-        "node": "node-config",
+        "node": "00000000-0000-0000-0000-000000000009",
         "port": "recipient"
       },
       "target": {
-        "node": "node-transform",
+        "node": "00000000-0000-0000-0000-00000000000a",
         "port": "recipient"
       }
     },
     {
-      "id": "edge-3",
+      "id": "00000000-0000-0000-0000-000000000011",
       "source": {
-        "node": "node-config",
+        "node": "00000000-0000-0000-0000-000000000009",
         "port": "channel"
       },
       "target": {
-        "node": "node-transform",
+        "node": "00000000-0000-0000-0000-00000000000a",
         "port": "channel"
       }
     },
     {
-      "id": "edge-4",
+      "id": "00000000-0000-0000-0000-000000000012",
       "source": {
-        "node": "node-config",
+        "node": "00000000-0000-0000-0000-000000000009",
         "port": "subject"
       },
       "target": {
-        "node": "node-transform",
+        "node": "00000000-0000-0000-0000-00000000000a",
         "port": "subject"
       }
     },
     {
-      "id": "edge-5",
+      "id": "00000000-0000-0000-0000-000000000013",
       "source": {
-        "node": "node-config",
+        "node": "00000000-0000-0000-0000-000000000009",
         "port": "tokenDelayMs"
       },
       "target": {
-        "node": "node-transform",
+        "node": "00000000-0000-0000-0000-00000000000a",
         "port": "tokenDelayMs"
       }
     },
     {
-      "id": "edge-6",
+      "id": "00000000-0000-0000-0000-000000000014",
       "source": {
-        "node": "node-config",
+        "node": "00000000-0000-0000-0000-000000000009",
         "port": "delaySeconds"
       },
       "target": {
-        "node": "node-transform",
+        "node": "00000000-0000-0000-0000-00000000000a",
         "port": "delaySeconds"
       }
     },
     {
-      "id": "edge-7",
+      "id": "00000000-0000-0000-0000-000000000015",
       "source": {
-        "node": "node-transform",
+        "node": "00000000-0000-0000-0000-00000000000a",
         "port": "message"
       },
       "target": {
-        "node": "node-feedback",
+        "node": "00000000-0000-0000-0000-00000000000b",
         "port": "prompt"
       }
     },
     {
-      "id": "edge-8",
+      "id": "00000000-0000-0000-0000-000000000016",
       "source": {
-        "node": "node-transform",
+        "node": "00000000-0000-0000-0000-00000000000a",
         "port": "tokenDelayMs"
       },
       "target": {
-        "node": "node-feedback",
+        "node": "00000000-0000-0000-0000-00000000000b",
         "port": "tokenDelayMs"
       }
     },
     {
-      "id": "edge-9",
+      "id": "00000000-0000-0000-0000-000000000017",
       "source": {
-        "node": "node-transform",
+        "node": "00000000-0000-0000-0000-00000000000a",
         "port": "delaySeconds"
       },
       "target": {
-        "node": "node-delay",
+        "node": "00000000-0000-0000-0000-00000000000c",
         "port": "input"
       }
     },
     {
-      "id": "edge-10",
+      "id": "00000000-0000-0000-0000-000000000018",
       "source": {
-        "node": "node-transform",
+        "node": "00000000-0000-0000-0000-00000000000a",
         "port": "message"
       },
       "target": {
-        "node": "node-notify",
+        "node": "00000000-0000-0000-0000-00000000000d",
         "port": "message"
       }
     },
     {
-      "id": "edge-11",
+      "id": "00000000-0000-0000-0000-000000000019",
       "source": {
-        "node": "node-transform",
+        "node": "00000000-0000-0000-0000-00000000000a",
         "port": "recipient"
       },
       "target": {
-        "node": "node-notify",
+        "node": "00000000-0000-0000-0000-00000000000d",
         "port": "recipient"
       }
     },
     {
-      "id": "edge-12",
+      "id": "00000000-0000-0000-0000-00000000001a",
       "source": {
-        "node": "node-transform",
+        "node": "00000000-0000-0000-0000-00000000000a",
         "port": "channel"
       },
       "target": {
-        "node": "node-notify",
+        "node": "00000000-0000-0000-0000-00000000000d",
         "port": "channel"
       }
     },
     {
-      "id": "edge-13",
+      "id": "00000000-0000-0000-0000-00000000001b",
       "source": {
-        "node": "node-transform",
+        "node": "00000000-0000-0000-0000-00000000000a",
         "port": "subject"
       },
       "target": {
-        "node": "node-notify",
+        "node": "00000000-0000-0000-0000-00000000000d",
         "port": "subject"
       }
     },
     {
-      "id": "edge-14",
+      "id": "00000000-0000-0000-0000-00000000001c",
       "source": {
-        "node": "node-delay",
+        "node": "00000000-0000-0000-0000-00000000000c",
         "port": "output"
       },
       "target": {
-        "node": "node-notify",
+        "node": "00000000-0000-0000-0000-00000000000d",
         "port": "handoff"
       }
     },
     {
-      "id": "edge-15",
+      "id": "00000000-0000-0000-0000-00000000001d",
       "source": {
-        "node": "node-notify",
+        "node": "00000000-0000-0000-0000-00000000000d",
         "port": "summary"
       },
       "target": {
-        "node": "node-audit",
+        "node": "00000000-0000-0000-0000-00000000000e",
         "port": "input"
       }
     },
     {
-      "id": "edge-16",
+      "id": "00000000-0000-0000-0000-00000000001e",
       "source": {
-        "node": "node-notify",
+        "node": "00000000-0000-0000-0000-00000000000d",
         "port": "notificationId"
       },
       "target": {
-        "node": "node-audit",
+        "node": "00000000-0000-0000-0000-00000000000e",
         "port": "notificationId"
       }
     }

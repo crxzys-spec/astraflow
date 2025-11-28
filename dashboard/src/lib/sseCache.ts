@@ -252,13 +252,63 @@ const updateWorkflowDefinitionNodeRuntime = (
   const effectiveUpdates: Record<string, WorkflowNodeRuntimeUpdate> = {};
   const storeInstance = useWorkflowStore.getState();
 
+  const applyMiddlewareRuntimeUpdate = (
+    mw: Workflow["nodes"][number]["middlewares"][number],
+  ): { next: Workflow["nodes"][number]["middlewares"][number]; changed: boolean } => {
+    const update = updates[mw.id];
+    if (!update) {
+      return { next: mw, changed: false };
+    }
+    const currentResult = (mw as unknown as { results?: Record<string, unknown> | null }).results ?? {};
+    const currentArtifacts = (mw as unknown as { artifacts?: RunArtifact[] | null }).artifacts ?? null;
+    const currentSummary =
+      (mw as unknown as { metadata?: Record<string, unknown> | null }).metadata?.summary ?? null;
+
+    const nextResult = cloneResultRecord(update.result);
+    const nextArtifacts = cloneRuntimeArtifacts(update.artifacts);
+    const nextSummary = update.summary !== undefined ? update.summary ?? null : currentSummary;
+
+    const willUpdateResult = nextResult !== undefined && !valuesEqual(currentResult, nextResult);
+    const willUpdateArtifacts =
+      update?.artifacts !== undefined && !valuesEqual(currentArtifacts ?? undefined, nextArtifacts);
+    const willUpdateSummary =
+      update?.summary !== undefined && !valuesEqual(currentSummary ?? undefined, nextSummary);
+
+    if (!willUpdateResult && !willUpdateArtifacts && !willUpdateSummary) {
+      return { next: mw, changed: false };
+    }
+
+    const baseMetadata = (mw as unknown as { metadata?: Record<string, unknown> | null }).metadata;
+    const nextMw = {
+      ...mw,
+      results: willUpdateResult ? nextResult ?? {} : currentResult,
+      artifacts: willUpdateArtifacts ? nextArtifacts ?? null : currentArtifacts,
+      metadata: willUpdateSummary
+        ? { ...(baseMetadata ?? {}), summary: nextSummary ?? undefined }
+        : baseMetadata,
+    };
+    effectiveUpdates[mw.id] = {
+      ...(willUpdateResult
+        ? {
+            result:
+              update.result === undefined
+                ? undefined
+                : update.result === null
+                ? null
+                : (JSON.parse(JSON.stringify(update.result)) as Record<string, unknown>),
+          }
+        : {}),
+      ...(willUpdateArtifacts ? { artifacts: nextArtifacts ?? null } : {}),
+      ...(willUpdateSummary ? { summary: nextSummary ?? null } : {}),
+    };
+    return { next: nextMw, changed: true };
+  };
+
   const applyNodeRuntimeUpdate = (
     node: Workflow["nodes"][number],
   ): { next: Workflow["nodes"][number]; changed: boolean } => {
     const update = updates[node.id];
-    if (!update) {
-      return { next: node, changed: false };
-    }
+    let changed = false;
     const currentResult =
       (node as unknown as { results?: Record<string, unknown> | null }).results ?? {};
     const currentArtifacts =
@@ -268,35 +318,55 @@ const updateWorkflowDefinitionNodeRuntime = (
 
     const nextResult = cloneResultRecord(update.result);
     const nextArtifacts = cloneRuntimeArtifacts(update.artifacts);
-    const nextSummary = update.summary !== undefined ? update.summary ?? null : currentSummary;
+    const nextSummary = update?.summary !== undefined ? update.summary ?? null : currentSummary;
 
     const willUpdateResult =
       nextResult !== undefined && !valuesEqual(currentResult, nextResult);
     const willUpdateArtifacts =
-      update.artifacts !== undefined && !valuesEqual(currentArtifacts ?? undefined, nextArtifacts);
+      update?.artifacts !== undefined && !valuesEqual(currentArtifacts ?? undefined, nextArtifacts);
     const willUpdateSummary =
-      update.summary !== undefined && !valuesEqual(currentSummary ?? undefined, nextSummary);
+      update?.summary !== undefined && !valuesEqual(currentSummary ?? undefined, nextSummary);
 
-    if (!willUpdateResult && !willUpdateArtifacts && !willUpdateSummary) {
-      return { next: node, changed: false };
+    if (update) {
+      if (willUpdateResult) {
+        effectiveUpdates[node.id] = {
+          ...effectiveUpdates[node.id],
+          result:
+            update.result === undefined
+              ? undefined
+              : update.result === null
+              ? null
+              : (JSON.parse(JSON.stringify(update.result)) as Record<string, unknown>),
+        };
+        changed = true;
+      }
+      if (willUpdateArtifacts) {
+        effectiveUpdates[node.id] = {
+          ...effectiveUpdates[node.id],
+          artifacts: nextArtifacts ?? null,
+        };
+        changed = true;
+      }
+      if (willUpdateSummary) {
+        effectiveUpdates[node.id] = {
+          ...effectiveUpdates[node.id],
+          summary: nextSummary ?? null,
+        };
+        changed = true;
+      }
     }
 
-    const nodeUpdate: WorkflowNodeRuntimeUpdate = {};
-    if (willUpdateResult) {
-      nodeUpdate.result =
-        update.result === undefined
-          ? undefined
-          : update.result === null
-          ? null
-          : (JSON.parse(JSON.stringify(update.result)) as Record<string, unknown>);
+    let middlewareChanged = false;
+    const nextMiddlewares = node.middlewares?.map((mw) => {
+      const res = applyMiddlewareRuntimeUpdate(mw);
+      if (res.changed) {
+        middlewareChanged = true;
+      }
+      return res.next;
+    });
+    if (middlewareChanged) {
+      changed = true;
     }
-    if (willUpdateArtifacts) {
-      nodeUpdate.artifacts = nextArtifacts ?? null;
-    }
-    if (willUpdateSummary) {
-      nodeUpdate.summary = nextSummary ?? null;
-    }
-    effectiveUpdates[node.id] = nodeUpdate;
 
     return {
       next: {
@@ -306,8 +376,9 @@ const updateWorkflowDefinitionNodeRuntime = (
         metadata: willUpdateSummary
           ? { ...(node.metadata ?? {}), summary: nextSummary ?? undefined }
           : node.metadata,
+        middlewares: middlewareChanged ? nextMiddlewares : node.middlewares,
       },
-      changed: true,
+      changed,
     };
   };
 
@@ -367,12 +438,31 @@ const updateWorkflowDefinitionNodeRuntime = (
   });
 
   const findDraftNode = (nodeId: string) => {
-    const rootNode = storeInstance.workflow?.nodes[nodeId];
+    const searchWorkflow = (workflow?: { nodes: Record<string, any> }) => {
+      if (!workflow?.nodes) {
+        return undefined;
+      }
+      const direct = workflow.nodes[nodeId];
+      if (direct) {
+        return direct;
+      }
+      for (const candidate of Object.values(workflow.nodes)) {
+        const middleware = (candidate as { middlewares?: { id: string }[] }).middlewares?.find(
+          (mw) => mw.id === nodeId,
+        );
+        if (middleware) {
+          return middleware;
+        }
+      }
+      return undefined;
+    };
+
+    const rootNode = searchWorkflow(storeInstance.workflow);
     if (rootNode) {
       return rootNode;
     }
     for (const entry of storeInstance.subgraphDrafts) {
-      const candidate = entry.definition.nodes[nodeId];
+      const candidate = searchWorkflow(entry.definition);
       if (candidate) {
         return candidate;
       }
@@ -392,7 +482,8 @@ const updateWorkflowDefinitionNodeRuntime = (
     const candidate: WorkflowNodeRuntimeUpdate = {};
     if (update.result !== undefined) {
       const nextResult = cloneResultRecord(update.result);
-      if (nextResult !== undefined && !valuesEqual(node.results ?? {}, nextResult)) {
+      const currentResult = (node as { results?: Record<string, unknown> | null }).results ?? {};
+      if (nextResult !== undefined && !valuesEqual(currentResult, nextResult)) {
         candidate.result =
           update.result === null
             ? null
@@ -401,13 +492,20 @@ const updateWorkflowDefinitionNodeRuntime = (
     }
     if (update.artifacts !== undefined) {
       const nextArtifacts = cloneRuntimeArtifacts(update.artifacts);
-      if (!valuesEqual(node.runtimeArtifacts ?? undefined, nextArtifacts)) {
+      const currentArtifacts =
+        (node as { runtimeArtifacts?: RunArtifact[] | null }).runtimeArtifacts ??
+        (node as { artifacts?: RunArtifact[] | null }).artifacts ??
+        null;
+      if (!valuesEqual(currentArtifacts ?? undefined, nextArtifacts)) {
         candidate.artifacts = nextArtifacts ?? null;
       }
     }
     if (update.summary !== undefined) {
       const nextSummary = update.summary ?? null;
-      if (!valuesEqual(node.runtimeSummary ?? undefined, nextSummary)) {
+      const currentSummary =
+        (node as { runtimeSummary?: string | null }).runtimeSummary ??
+        ((node as { metadata?: Record<string, unknown> | null }).metadata?.summary ?? null);
+      if (!valuesEqual(currentSummary ?? undefined, nextSummary)) {
         candidate.summary = nextSummary;
       }
     }

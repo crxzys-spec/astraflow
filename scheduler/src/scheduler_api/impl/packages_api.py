@@ -10,10 +10,10 @@ from scheduler_api.catalog import (
     PackageVersionNotFoundError,
     catalog,
 )
-from scheduler_api.models.get_package200_response import GetPackage200Response
-from scheduler_api.models.get_package200_response_manifest import GetPackage200ResponseManifest
 from scheduler_api.models.list_packages200_response import ListPackages200Response
 from scheduler_api.models.list_packages200_response_items_inner import ListPackages200ResponseItemsInner
+from scheduler_api.models.package_detail1 import PackageDetail1
+from scheduler_api.models.package_manifest1 import PackageManifest1
 
 
 class PackagesApiImpl(BasePackagesApi):
@@ -36,7 +36,7 @@ class PackagesApiImpl(BasePackagesApi):
         self,
         packageName: str,
         version: str | None,
-    ) -> GetPackage200Response:
+    ) -> PackageDetail1:
         require_roles(*WORKFLOW_VIEW_ROLES)
         try:
             detail = catalog.get_package_detail(packageName, version)
@@ -48,9 +48,23 @@ class PackagesApiImpl(BasePackagesApi):
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
         manifest_dict = detail["manifest"].model_dump(by_alias=True, exclude_none=True, mode="json")
-        manifest_model = GetPackage200ResponseManifest.from_dict(manifest_dict)
+        # Ensure schemas are serialized to plain dicts/bools (avoid BaseModel.schema method leaks)
+        nodes = manifest_dict.get("nodes")
+        if isinstance(nodes, list):
+            cleaned_nodes = []
+            for node in nodes:
+                if not isinstance(node, dict):
+                    continue
+                node_copy = dict(node)
+                schema_val = node_copy.get("schema")
+                if hasattr(schema_val, "model_dump"):
+                    node_copy["schema"] = schema_val.model_dump(by_alias=True, exclude_none=True)
+                cleaned_nodes.append(node_copy)
+            manifest_dict["nodes"] = cleaned_nodes
 
-        return GetPackage200Response(
+        manifest_model = PackageManifest1.from_dict(manifest_dict)
+
+        return PackageDetail1(
             name=detail["name"],
             version=detail["version"],
             availableVersions=detail.get("availableVersions"),

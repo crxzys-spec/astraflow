@@ -1006,6 +1006,7 @@ const WorkflowBuilderPage = () => {
         type: node.type ?? "",
         label: node.label ?? node.type ?? "",
         category: node.category ?? "uncategorised",
+        role: node.role,
         description: node.description,
         tags: node.tags,
         status: node.status

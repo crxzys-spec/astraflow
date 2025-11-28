@@ -4,6 +4,7 @@
  * Scheduler Public API (v1)
  * OpenAPI spec version: 1.3.0
  */
+import type { WorkflowNodeRole } from './workflowNodeRole';
 import type { NodePackage } from './nodePackage';
 import type { WorkflowNodeStatus } from './workflowNodeStatus';
 import type { WorkflowNodePosition } from './workflowNodePosition';
@@ -12,12 +13,15 @@ import type { WorkflowNodeResults } from './workflowNodeResults';
 import type { WorkflowNodeState } from './workflowNodeState';
 import type { WorkflowNodeSchema } from './workflowNodeSchema';
 import type { NodeUI } from './nodeUI';
+import type { WorkflowMiddleware } from './workflowMiddleware';
 
 export interface WorkflowNode {
   /** Node UUID */
   id: string;
   /** e.g. "playwright.open_page" */
   type: string;
+  /** Execution role of the node. */
+  role?: WorkflowNodeRole;
   package: NodePackage;
   /** Node lifecycle state. */
   status: WorkflowNodeStatus;
@@ -38,4 +42,6 @@ export interface WorkflowNode {
   /** JSON Schemas for parameters/results. */
   schema?: WorkflowNodeSchema;
   ui?: NodeUI;
+  /** Ordered list of middleware definitions attached to this node. */
+  middlewares?: WorkflowMiddleware[];
 }

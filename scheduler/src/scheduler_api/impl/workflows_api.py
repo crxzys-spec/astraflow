@@ -3,8 +3,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 from typing import Optional
+import uuid
 
 from fastapi import HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy import and_, or_, select
 
 from scheduler_api.audit import record_audit_event
@@ -12,12 +14,13 @@ from scheduler_api.auth.roles import WORKFLOW_EDIT_ROLES, WORKFLOW_VIEW_ROLES, r
 from scheduler_api.db.models import WorkflowRecord, UserRecord
 from scheduler_api.db.session import SessionLocal
 from scheduler_api.apis.workflows_api_base import BaseWorkflowsApi
-from scheduler_api.models.list_workflows200_response import ListWorkflows200Response
 from scheduler_api.models.list_workflows200_response_items_inner import (
     ListWorkflows200ResponseItemsInner,
 )
 from scheduler_api.models.persist_workflow201_response import PersistWorkflow201Response
 from scheduler_api.models.start_run400_response import StartRun400Response
+from scheduler_api.models.workflow1 import Workflow1
+from scheduler_api.models.workflow_list1 import WorkflowList1
 
 
 class WorkflowsApiImpl(BaseWorkflowsApi):
@@ -25,7 +28,7 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
         self,
         limit: Optional[int],
         cursor: Optional[str],
-    ) -> ListWorkflows200Response:
+    ) -> WorkflowList1:
         del cursor  # pagination cursor reserved for future implementation
         token = require_roles(*WORKFLOW_VIEW_ROLES)
         page_size = limit or 50
@@ -48,19 +51,19 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
                             WorkflowRecord.created_by == owner_id,
                         ),
                     )
-                )
+            )
             rows = session.execute(stmt).scalars().all()
 
-        items: list[ListWorkflows200ResponseItemsInner] = []
+        items: list[Workflow1] = []
         for row in rows:
             try:
                 payload = self._hydrate_payload(row)
-                definition = ListWorkflows200ResponseItemsInner.from_json(json.dumps(payload))
-            except (json.JSONDecodeError, ValueError):  # pragma: no cover - defensive
+                definition = Workflow1.from_dict(payload)
+            except (json.JSONDecodeError, ValueError, ValidationError):  # pragma: no cover - defensive
                 continue
             items.append(definition)
 
-        return ListWorkflows200Response(items=items, next_cursor=None)
+        return WorkflowList1(items=items, next_cursor=None)
 
     async def persist_workflow(
         self,
@@ -79,6 +82,7 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
 
         workflow_json = list_workflows200_response_items_inner.to_json()
         workflow_id = list_workflows200_response_items_inner.id
+        workflow_id_str = str(workflow_id)
         metadata = list_workflows200_response_items_inner.metadata
         if metadata is None:
             raise HTTPException(
@@ -106,16 +110,18 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
 
         created = False
         with SessionLocal() as session:
-            record = session.get(WorkflowRecord, workflow_id)
+            record = session.get(WorkflowRecord, workflow_id_str)
             if record is None:
                 created = True
+                origin_id = metadata.origin_id or workflow_id_str
+                origin_id_str = str(origin_id) if origin_id is not None else None
                 record = WorkflowRecord(
-                    id=workflow_id,
+                    id=workflow_id_str,
                     name=workflow_name,
                     definition=json.dumps(structure, ensure_ascii=False),
                     schema_version=payload.get("schemaVersion") or "2025-10",
                     namespace=metadata.namespace or "default",
-                    origin_id=metadata.origin_id or workflow_id,
+                    origin_id=origin_id_str,
                     description=metadata.description,
                     environment=metadata.environment,
                     tags=json.dumps(metadata.tags) if metadata.tags else None,
@@ -141,7 +147,8 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
                 record.definition = json.dumps(structure, ensure_ascii=False)
                 record.schema_version = payload.get("schemaVersion") or record.schema_version
                 record.namespace = metadata.namespace or record.namespace or "default"
-                record.origin_id = metadata.origin_id or record.origin_id or workflow_id
+                origin_id = metadata.origin_id or record.origin_id or workflow_id_str
+                record.origin_id = str(origin_id) if origin_id is not None else None
                 record.description = metadata.description
                 record.environment = metadata.environment
                 record.tags = json.dumps(metadata.tags) if metadata.tags else None
@@ -157,16 +164,16 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
             actor_id=token.sub if token else None,
             action="workflow.create" if created else "workflow.update",
             target_type="workflow",
-            target_id=workflow_id,
+            target_id=workflow_id_str,
             metadata={"name": workflow_name, "namespace": metadata.namespace or "default"},
         )
 
-        return PersistWorkflow201Response(workflow_id=workflow_id)
+        return PersistWorkflow201Response(workflow_id=workflow_id_str)
 
     async def get_workflow(
         self,
         workflowId: str,
-    ) -> ListWorkflows200ResponseItemsInner:
+    ) -> Workflow1:
         token = require_roles(*WORKFLOW_VIEW_ROLES)
         is_admin = "admin" in (token.roles if token else [])
         owner_id = token.sub if token else None
@@ -193,8 +200,8 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
 
         try:
             payload = self._hydrate_payload(record)
-            return ListWorkflows200ResponseItemsInner.from_json(json.dumps(payload))
-        except (json.JSONDecodeError, ValueError) as exc:  # pragma: no cover - defensive
+            return Workflow1.from_dict(payload)
+        except (json.JSONDecodeError, ValueError, ValidationError) as exc:  # pragma: no cover - defensive
             raise HTTPException(
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=StartRun400Response(
@@ -283,8 +290,86 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
             "schemaVersion": record.schema_version or "2025-10",
             "metadata": metadata,
         }
+        payload = WorkflowsApiImpl._ensure_uuid_fields(payload)
         if record.preview_image:
             payload["previewImage"] = record.preview_image
+        return payload
+
+    @staticmethod
+    def _ensure_uuid(value: Optional[str], salt: str) -> str:
+        try:
+            return str(uuid.UUID(str(value)))
+        except Exception:
+            return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{salt}:{value}"))
+
+    @staticmethod
+    def _ensure_uuid_fields(payload: dict[str, object]) -> dict[str, object]:
+        """Coerce workflow/node/edge ids to UUID strings to satisfy response models."""
+
+        payload = dict(payload)
+        payload["id"] = WorkflowsApiImpl._ensure_uuid(payload.get("id"), "workflow")
+        metadata = payload.get("metadata")
+        if isinstance(metadata, dict):
+            origin = metadata.get("originId")
+            metadata["originId"] = WorkflowsApiImpl._ensure_uuid(origin, "origin")
+            payload["metadata"] = metadata
+
+        def _fix_node_list(nodes: list[dict[str, object]]) -> list[dict[str, object]]:
+            fixed: list[dict[str, object]] = []
+            for node in nodes:
+                if not isinstance(node, dict):
+                    continue
+                entry = dict(node)
+                entry["id"] = WorkflowsApiImpl._ensure_uuid(entry.get("id"), "node")
+                # force schema to a concrete dict or null to avoid leaking BaseModel.schema
+                entry["schema"] = entry["schema"] if isinstance(entry.get("schema"), dict) else None
+                fixed.append(entry)
+            return fixed
+
+        def _fix_edges(edges: list[dict[str, object]]) -> list[dict[str, object]]:
+            fixed: list[dict[str, object]] = []
+            for edge in edges:
+                if not isinstance(edge, dict):
+                    continue
+                entry = dict(edge)
+                entry["id"] = WorkflowsApiImpl._ensure_uuid(entry.get("id"), "edge")
+                source = entry.get("source")
+                if isinstance(source, dict):
+                    source = dict(source)
+                    source["node"] = WorkflowsApiImpl._ensure_uuid(source.get("node"), "edge-src")
+                    entry["source"] = source
+                target = entry.get("target")
+                if isinstance(target, dict):
+                    target = dict(target)
+                    target["node"] = WorkflowsApiImpl._ensure_uuid(target.get("node"), "edge-tgt")
+                    entry["target"] = target
+                fixed.append(entry)
+            return fixed
+
+        if isinstance(payload.get("nodes"), list):
+            payload["nodes"] = _fix_node_list(payload["nodes"])  # type: ignore[index]
+        if isinstance(payload.get("edges"), list):
+            payload["edges"] = _fix_edges(payload["edges"])  # type: ignore[index]
+
+        if isinstance(payload.get("subgraphs"), list):
+            subgraphs = []
+            for sub in payload["subgraphs"]:  # type: ignore[index]
+                if not isinstance(sub, dict):
+                    continue
+                sub_entry = dict(sub)
+                sub_entry["id"] = WorkflowsApiImpl._ensure_uuid(sub_entry.get("id"), "subgraph")
+                definition = sub_entry.get("definition")
+                if isinstance(definition, dict):
+                    def_entry = dict(definition)
+                    if "schema" in def_entry and not isinstance(def_entry.get("schema"), dict):
+                        def_entry["schema"] = None
+                    if isinstance(def_entry.get("nodes"), list):
+                        def_entry["nodes"] = _fix_node_list(def_entry["nodes"])  # type: ignore[index]
+                    if isinstance(def_entry.get("edges"), list):
+                        def_entry["edges"] = _fix_edges(def_entry["edges"])  # type: ignore[index]
+                    sub_entry["definition"] = def_entry
+                subgraphs.append(sub_entry)
+            payload["subgraphs"] = subgraphs
         return payload
 
     @staticmethod

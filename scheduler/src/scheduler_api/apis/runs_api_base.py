@@ -2,15 +2,16 @@
 
 from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 
-from pydantic import Field, StrictStr, field_validator
+from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
-from scheduler_api.models.auth_login401_response import AuthLogin401Response
-from scheduler_api.models.list_runs200_response import ListRuns200Response
-from scheduler_api.models.list_runs200_response_items_inner import ListRuns200ResponseItemsInner
-from scheduler_api.models.start_run202_response import StartRun202Response
-from scheduler_api.models.start_run_request import StartRunRequest
-from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkflow
+from scheduler_api.models.error import Error
+from scheduler_api.models.run1 import Run1
+from scheduler_api.models.run_list1 import RunList1
+from scheduler_api.models.run_ref1 import RunRef1
+from scheduler_api.models.run_start_request1 import RunStartRequest1
+from scheduler_api.models.run_status import RunStatus
+from scheduler_api.models.workflow1 import Workflow1
 from scheduler_api.security_api import get_token_bearerAuth
 
 class BaseRunsApi:
@@ -23,36 +24,36 @@ class BaseRunsApi:
         self,
         limit: Optional[Annotated[int, Field(le=200, ge=1)]],
         cursor: Optional[StrictStr],
-        status: Optional[StrictStr],
+        status: Optional[RunStatus],
         client_id: Optional[StrictStr],
-    ) -> ListRuns200Response:
+    ) -> RunList1:
         ...
 
 
     async def start_run(
         self,
-        start_run_request: StartRunRequest,
+        run_start_request1: RunStartRequest1,
         idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")],
-    ) -> StartRun202Response:
+    ) -> RunRef1:
         ...
 
 
     async def get_run(
         self,
         runId: StrictStr,
-    ) -> ListRuns200ResponseItemsInner:
-        ...
-
-
-    async def get_run_definition(
-        self,
-        runId: StrictStr,
-    ) -> StartRunRequestWorkflow:
+    ) -> Run1:
         ...
 
 
     async def cancel_run(
         self,
         runId: StrictStr,
-    ) -> StartRun202Response:
+    ) -> RunRef1:
+        ...
+
+
+    async def get_run_definition(
+        self,
+        runId: StrictStr,
+    ) -> Workflow1:
         ...

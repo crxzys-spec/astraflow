@@ -25,12 +25,12 @@ from fastapi import (  # noqa: F401
 from scheduler_api.models.extra_models import TokenModel  # noqa: F401
 from pydantic import StrictStr
 from typing import Any
-from scheduler_api.models.add_user_role_request import AddUserRoleRequest
-from scheduler_api.models.create_user201_response import CreateUser201Response
 from scheduler_api.models.create_user_request import CreateUserRequest
-from scheduler_api.models.list_users200_response import ListUsers200Response
 from scheduler_api.models.reset_user_password_request import ResetUserPasswordRequest
 from scheduler_api.models.update_user_status_request import UpdateUserStatusRequest
+from scheduler_api.models.user_list1 import UserList1
+from scheduler_api.models.user_role_request import UserRoleRequest
+from scheduler_api.models.user_summary import UserSummary
 from scheduler_api.security_api import get_token_bearerAuth
 
 router = APIRouter()
@@ -43,7 +43,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 @router.get(
     "/api/v1/users",
     responses={
-        200: {"model": ListUsers200Response, "description": "OK"},
+        200: {"model": UserList1, "description": "OK"},
     },
     tags=["Users"],
     summary="List users and their roles",
@@ -53,7 +53,7 @@ async def list_users(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> ListUsers200Response:
+) -> UserList1:
     if not BaseUsersApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseUsersApi.subclasses[0]().list_users()
@@ -62,7 +62,7 @@ async def list_users(
 @router.post(
     "/api/v1/users",
     responses={
-        201: {"model": CreateUser201Response, "description": "Created"},
+        201: {"model": UserSummary, "description": "Created"},
     },
     tags=["Users"],
     summary="Create a new user",
@@ -73,7 +73,7 @@ async def create_user(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> CreateUser201Response:
+) -> UserSummary:
     if not BaseUsersApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseUsersApi.subclasses[0]().create_user(create_user_request)
@@ -111,14 +111,14 @@ async def reset_user_password(
 )
 async def add_user_role(
     userId: StrictStr = Path(..., description=""),
-    add_user_role_request: AddUserRoleRequest = Body(None, description=""),
+    user_role_request: UserRoleRequest = Body(None, description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
 ) -> None:
     if not BaseUsersApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseUsersApi.subclasses[0]().add_user_role(userId, add_user_role_request)
+    return await BaseUsersApi.subclasses[0]().add_user_role(userId, user_role_request)
 
 
 @router.delete(

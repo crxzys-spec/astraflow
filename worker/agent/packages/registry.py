@@ -53,6 +53,26 @@ class AdapterRegistry:
         LOGGER.debug("Registered handler %s@%s:%s -> %s", package, version, handler_key, entrypoint)
         return descriptor
 
+    def register_callable(
+        self,
+        package: str,
+        version: str,
+        handler_key: str,
+        handler_callable: HandlerCallable,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> HandlerDescriptor:
+        """Register an already-loaded handler callable."""
+        descriptor = HandlerDescriptor(
+            package=package,
+            version=version,
+            handler=handler_key,
+            callable=handler_callable,
+            metadata=metadata or {},
+        )
+        self._handlers[(package, version, handler_key)] = descriptor
+        LOGGER.debug("Registered handler %s@%s:%s (callable)", package, version, handler_key)
+        return descriptor
+
     def unregister(self, package: str, version: str) -> None:
         """Remove all handlers associated with the package version."""
 
@@ -68,6 +88,8 @@ class AdapterRegistry:
         try:
             return self._handlers[key]
         except KeyError as exc:
+            available = ", ".join(f"{pkg}@{ver}:{handler}" for (pkg, ver, handler) in self._handlers.keys())
+            LOGGER.error("Handler not registered: %s (available: %s)", key, available or "none")
             raise KeyError(f"Handler not registered: {key}") from exc
 
     def list_handlers(self) -> Dict[RegistryKey, HandlerDescriptor]:

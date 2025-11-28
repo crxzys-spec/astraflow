@@ -4,6 +4,7 @@ import type { PackageSummary } from "../../../api/models/packageSummary";
 import {
   WORKFLOW_NODE_DRAG_FORMAT,
   WORKFLOW_NODE_DRAG_PACKAGE_KEY,
+  WORKFLOW_NODE_DRAG_ROLE_KEY,
   WORKFLOW_NODE_DRAG_TYPE_KEY,
   WORKFLOW_NODE_DRAG_VERSION_KEY
 } from "../constants";
@@ -12,6 +13,7 @@ export interface PaletteNode {
   type: string;
   label: string;
   category: string;
+  role?: string;
   description?: string;
   tags?: string[];
   status?: string;
@@ -361,18 +363,23 @@ const PaletteSelect = ({
   );
 };
 
-const groupByCategory = (nodes: PaletteNode[]): PaletteSection[] => {
+const groupByRole = (nodes: PaletteNode[]): PaletteSection[] => {
+  const labelForRole: Record<string, string> = {
+    middleware: "Middlewares",
+    container: "Containers",
+    node: "Nodes"
+  };
   const grouped = new Map<string, PaletteNode[]>();
   nodes.forEach((node) => {
-    const category = node.category ?? "uncategorised";
-    const list = grouped.get(category) ?? [];
+    const role = (node.role ?? "node").toLowerCase();
+    const list = grouped.get(role) ?? [];
     list.push(node);
-    grouped.set(category, list);
+    grouped.set(role, list);
   });
   return Array.from(grouped.entries())
     .map(([id, items]) => ({
       id,
-      label: id.replace(/_/g, " "),
+      label: labelForRole[id] ?? id.replace(/_/g, " "),
       nodes: items.sort((a, b) => a.label.localeCompare(b.label))
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
@@ -396,7 +403,7 @@ export const WorkflowPalette = ({
     () => packages.find((pkg) => pkg.name === selectedPackageName),
     [packages, selectedPackageName]
   );
-  const sections = useMemo(() => groupByCategory(nodes), [nodes]);
+  const sections = useMemo(() => groupByRole(nodes), [nodes]);
   const versionOptions = useMemo(() => selectedPackage?.versions ?? [], [selectedPackage]);
 
   const packageLabelId = useId();
@@ -554,6 +561,7 @@ export const WorkflowPalette = ({
                       JSON.stringify({
                         [WORKFLOW_NODE_DRAG_TYPE_KEY]: node.type,
                         [WORKFLOW_NODE_DRAG_PACKAGE_KEY]: selectedPackageName,
+                        [WORKFLOW_NODE_DRAG_ROLE_KEY]: node.role,
                         [WORKFLOW_NODE_DRAG_VERSION_KEY]: selectedVersion
                       })
                     );

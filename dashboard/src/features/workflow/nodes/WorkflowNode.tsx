@@ -1,9 +1,17 @@
 import clsx from "clsx";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
+import type { DragEvent } from "react";
 import type { NodeProps } from "reactflow";
 import { Handle, Position } from "reactflow";
-import type { NodePortDefinition, NodeWidgetDefinition, WorkflowDraft, WorkflowNodeDraft } from "../types.ts";
+import { useQueryClient } from "@tanstack/react-query";
+import type {
+  NodePortDefinition,
+  NodeWidgetDefinition,
+  WorkflowDraft,
+  WorkflowMiddlewareDraft,
+  WorkflowNodeDraft,
+} from "../types.ts";
 import { useWorkflowStore } from "../store.ts";
 import {
   formatBindingDisplay,
@@ -15,14 +23,25 @@ import {
 } from "../utils/binding.ts";
 import type { BindingResolution } from "../utils/binding.ts";
 import type { JsonSchema } from "../utils/schemaDefaults.ts";
+import { createNodeDraftFromTemplate } from "../utils/converters.ts";
 import { UIBindingMode } from "../../../api/models/uIBindingMode";
 import { useWidgetRegistry, registerBuiltinWidgets } from "../widgets";
+import {
+  WORKFLOW_NODE_DRAG_FORMAT,
+  WORKFLOW_NODE_DRAG_PACKAGE_KEY,
+  WORKFLOW_NODE_DRAG_ROLE_KEY,
+  WORKFLOW_NODE_DRAG_TYPE_KEY,
+  WORKFLOW_NODE_DRAG_VERSION_KEY
+} from "../constants.ts";
+import { getGetPackageQueryOptions } from "../../../api/endpoints";
+import type { WorkflowPaletteNode } from "../types.ts";
 
 interface WorkflowNodeData {
   nodeId: string;
   label?: string;
   status?: string;
   stage?: string;
+  role?: string;
   progress?: number;
   message?: string;
   lastUpdatedAt?: string;
@@ -33,6 +52,8 @@ interface WorkflowNodeData {
   widgets?: NodeWidgetDefinition[];
   fallbackInputPorts?: string[];
   fallbackOutputPorts?: string[];
+  middlewares?: WorkflowMiddlewareDraft[];
+  attachedMiddlewares?: { id: string; label: string; node: WorkflowMiddlewareDraft; index: number }[];
 }
 
 registerBuiltinWidgets();
@@ -140,6 +161,8 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
   const workflowEdges = workflow?.edges ?? [];
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const { resolve } = useWidgetRegistry();
+  const queryClient = useQueryClient();
+  const setSelectedNode = useWorkflowStore((state) => state.setSelectedNode);
 
   const displayLabel = workflowNode?.label ?? data?.label ?? nodeId;
   const status = workflowNode?.status ?? data?.status;
@@ -164,12 +187,53 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
     typeof progressPercent === "number"
       ? Math.max(0, Math.min(100, progressPercent))
       : undefined;
-  const inputPorts = mergePorts(workflowNode?.ui?.inputPorts, data?.fallbackInputPorts);
-  const outputPorts = mergePorts(workflowNode?.ui?.outputPorts, data?.fallbackOutputPorts);
-  const adapter = workflowNode?.adapter ?? data?.adapter;
-  const handler = workflowNode?.handler ?? data?.handler;
+  const filteredFallbackInputs =
+    data?.fallbackInputPorts?.filter((key) => !key.startsWith("mw:")) ?? data?.fallbackInputPorts;
+  const filteredFallbackOutputs =
+    data?.fallbackOutputPorts?.filter((key) => !key.startsWith("mw:")) ?? data?.fallbackOutputPorts;
+  const inputPorts = mergePorts(workflowNode?.ui?.inputPorts, filteredFallbackInputs);
+  const outputPorts = mergePorts(workflowNode?.ui?.outputPorts, filteredFallbackOutputs);
   const widgets = workflowNode?.ui?.widgets ?? data?.widgets ?? [];
   const [connectedWidgetExpansion, setConnectedWidgetExpansion] = useState<Record<string, boolean>>({});
+  const [middlewareWidgetExpansion, setMiddlewareWidgetExpansion] = useState<Record<string, boolean>>({});
+  const isMiddlewareNode = (workflowNode?.role ?? data?.role) === "middleware";
+  const attachedMiddlewares =
+    (!isMiddlewareNode ? data?.attachedMiddlewares ?? [] : []) ?? [];
+
+  const middlewareInputPorts = useMemo(() => {
+    if (isMiddlewareNode) {
+      return [];
+    }
+    return attachedMiddlewares.flatMap((mw) =>
+      (mw.node.ui?.inputPorts ?? []).map((port) => ({
+        ...port,
+        key: `mw:${mw.id}:input:${port.key}`,
+        label: `${mw.label ?? "Middleware"} · ${port.label ?? port.key}`,
+      }))
+    );
+  }, [attachedMiddlewares, isMiddlewareNode]);
+
+  const middlewareOutputPorts = useMemo(() => {
+    if (isMiddlewareNode) {
+      return [];
+    }
+    return attachedMiddlewares.flatMap((mw) =>
+      (mw.node.ui?.outputPorts ?? []).map((port) => ({
+        ...port,
+        key: `mw:${mw.id}:output:${port.key}`,
+        label: `${mw.label ?? "Middleware"} · ${port.label ?? port.key}`,
+      }))
+    );
+  }, [attachedMiddlewares, isMiddlewareNode]);
+
+  const displayInputPorts = useMemo(
+    () => [...inputPorts, ...middlewareInputPorts],
+    [inputPorts, middlewareInputPorts]
+  );
+  const displayOutputPorts = useMemo(
+    () => [...outputPorts, ...middlewareOutputPorts],
+    [outputPorts, middlewareOutputPorts]
+  );
 
   const parameterInputBindings = useMemo(() => {
     const connected = new Set<string>();
@@ -206,6 +270,101 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
       return next;
     });
   }, [parameterInputBindings]);
+
+  const renderMiddlewareWidgets = useCallback(
+    (mw: WorkflowMiddlewareDraft, hostId: string): ReactElement[] => {
+      if (!mw.ui?.widgets?.length) {
+        return [];
+      }
+      const bindingByPortKey = new Map<string, string>();
+      (mw.ui?.inputPorts ?? []).forEach((port) => {
+        const binding = resolveBindingPath(port.binding?.path ?? "");
+        if (binding && binding.root === "parameters") {
+          bindingByPortKey.set(`mw:${mw.id}:input:${port.key}`, `${binding.root}:${binding.path.join("/")}`);
+        }
+      });
+      const connected = new Set<string>();
+      workflowEdges.forEach((edge) => {
+        if (edge.target.nodeId !== hostId || !edge.target.portId) {
+          return;
+        }
+        const bindingKey = bindingByPortKey.get(edge.target.portId);
+        if (bindingKey) {
+          connected.add(bindingKey);
+        }
+      });
+
+      return mw.ui.widgets.reduce<ReactElement[]>((acc, widget) => {
+        const binding = resolveWidgetBinding(widget);
+        if (!binding) {
+          return acc;
+        }
+        const registration = resolve(widget);
+        if (!registration) {
+          return acc;
+        }
+        const value = getBindingValue(mw, binding);
+        const bindingKey = `${binding.root}:${binding.path.join("/")}`;
+        const coveredByInput = binding.root === "parameters" && connected.has(bindingKey);
+        const readOnly =
+          !isBindingEditable(widget.binding?.mode) || binding.root === "results" || coveredByInput;
+        const expansionKey = `${mw.id}:${bindingKey}`;
+        const isExpanded = !coveredByInput || middlewareWidgetExpansion[expansionKey] === true;
+
+        const handleChange = (nextValue: unknown) => {
+          updateNode(hostId, (current) => {
+            const list = current.middlewares ? [...current.middlewares] : [];
+            const index = list.findIndex((entry) => entry.id === mw.id);
+            if (index === -1) {
+              return current;
+            }
+            const nextMiddleware = setBindingValue(list[index], binding, nextValue) as WorkflowMiddlewareDraft;
+            const nextList = [...list];
+            nextList[index] = nextMiddleware;
+            return { ...current, middlewares: nextList };
+          });
+        };
+
+        acc.push(
+          <div
+            key={`${mw.id}-${widget.key}`}
+            className={clsx("workflow-node__widget-wrapper", "workflow-node__widget-wrapper--middleware", {
+              "workflow-node__widget-wrapper--upstream": coveredByInput,
+            })}
+          >
+            {coveredByInput && (
+              <div className="workflow-node__widget-meta">
+                <span className="workflow-node__widget-hint">Provided by upstream connection</span>
+                <button
+                  type="button"
+                  className="workflow-node__widget-toggle"
+                  onClick={() =>
+                    setMiddlewareWidgetExpansion((previous) => ({
+                      ...previous,
+                      [expansionKey]: !isExpanded,
+                    }))
+                  }
+                >
+                  {isExpanded ? "Hide" : "View"}
+                </button>
+              </div>
+            )}
+            {(!coveredByInput || isExpanded) && (
+              <registration.component
+                widget={widget}
+                node={mw}
+                value={value}
+                onChange={handleChange}
+                readOnly={readOnly}
+              />
+            )}
+          </div>
+        );
+        return acc;
+      }, []);
+    },
+    [middlewareWidgetExpansion, resolve, updateNode, workflowEdges]
+  );
 
   const widgetElements = useMemo<ReactElement[]>(() => {
     if (!workflowNode || !widgets.length) {
@@ -288,13 +447,108 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
 
   const nodeClassName = clsx("workflow-node", {
     "workflow-node--selected": selected,
+    "workflow-node--middleware": isMiddlewareNode,
     ...(stageClass ? { [`workflow-node--stage-${stageClass}`]: true } : {}),
   });
-
   const isContainerNode = workflowNode?.nodeKind === "workflow.container";
+  const canAttachMiddleware = !isMiddlewareNode;
+
+  const handleMiddlewareDragOver = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!canAttachMiddleware) {
+        return;
+      }
+      const raw = event.dataTransfer.getData(WORKFLOW_NODE_DRAG_FORMAT);
+      if (!raw) {
+        return;
+      }
+      try {
+        const payload = JSON.parse(raw) as Record<string, unknown>;
+        const role = payload[WORKFLOW_NODE_DRAG_ROLE_KEY];
+        if (role === "middleware") {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+        }
+      } catch {
+        // ignore malformed payloads
+      }
+    },
+    [canAttachMiddleware]
+  );
+
+  const handleMiddlewareDrop = useCallback(
+    async (event: DragEvent<HTMLDivElement>) => {
+      if (!canAttachMiddleware || !workflowNode) {
+        return;
+      }
+      const raw = event.dataTransfer.getData(WORKFLOW_NODE_DRAG_FORMAT);
+      if (!raw) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        const payload = JSON.parse(raw) as Record<string, unknown>;
+        if (payload[WORKFLOW_NODE_DRAG_ROLE_KEY] !== "middleware") {
+          return;
+        }
+        const nodeType = payload[WORKFLOW_NODE_DRAG_TYPE_KEY];
+        const packageName = payload[WORKFLOW_NODE_DRAG_PACKAGE_KEY];
+        const packageVersion = payload[WORKFLOW_NODE_DRAG_VERSION_KEY];
+        if (typeof nodeType !== "string" || typeof packageName !== "string") {
+          return;
+        }
+        const response = await queryClient.ensureQueryData(
+          getGetPackageQueryOptions(
+            packageName,
+            typeof packageVersion === "string" && packageVersion.length
+              ? { version: packageVersion }
+              : undefined,
+            { query: { staleTime: 5 * 60 * 1000 } }
+          )
+        );
+        const definition = response?.data;
+        const template = definition?.manifest?.nodes?.find((node) => node.type === nodeType);
+        if (!template || template.role !== "middleware") {
+          return;
+        }
+        const paletteNode: WorkflowPaletteNode = {
+          template,
+          packageName: definition.name,
+          packageVersion: definition.version
+        };
+        const draftNode = createNodeDraftFromTemplate(
+          paletteNode,
+          workflowNode.position ? { ...workflowNode.position } : { x: 0, y: 0 }
+        );
+        const { position: _mwPosition, dependencies: _mwDependencies, middlewares: _nestedMiddlewares, ...rest } =
+          draftNode;
+        const middlewareDraft: WorkflowMiddlewareDraft = {
+          ...rest,
+          role: "middleware",
+        };
+        updateNode(workflowNode.id, (current) => {
+          const next = current.middlewares ? [...current.middlewares] : [];
+          const hasExisting = next.some((entry) => entry.id === middlewareDraft.id);
+          if (!hasExisting) {
+            next.push(middlewareDraft);
+          }
+          return { ...current, middlewares: next };
+        });
+      } catch (error) {
+        console.error("Failed to attach middleware", error);
+      }
+    },
+    [canAttachMiddleware, queryClient, updateNode, workflowNode]
+  );
 
   return (
-    <div className={nodeClassName}>
+    <div
+      className={nodeClassName}
+      onDragOver={handleMiddlewareDragOver}
+      onDrop={handleMiddlewareDrop}
+      style={undefined} // no dynamic height; middleware renders in its own zone
+    >
       <header className="workflow-node__header">
         <span className="workflow-node__label">{displayLabel}</span>
         <div className="workflow-node__header-badges">
@@ -325,9 +579,9 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
           {status && <span className="workflow-node__status">{status}</span>}
         </div>
       </header>
-      <div className="workflow-node__body">
-        <div className="workflow-node__ports workflow-node__ports--inputs">
-          {inputPorts.map((port) => {
+        <div className="workflow-node__body">
+          <div className="workflow-node__ports workflow-node__ports--inputs">
+          {displayInputPorts.map((port) => {
             const binding = resolveBindingPath(port.binding?.path ?? "");
             const schemaInfo = getSchemaInfo(workflowNode, binding);
             const bindingDisplay = formatBindingDisplay(port.binding, binding);
@@ -356,22 +610,6 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
         <div className="workflow-node__content">
           <div className="workflow-node__badges">
             <span className="workflow-node__package">{formatPackage(workflowNode ?? data)}</span>
-            {(adapter || handler) && (
-              <div className="workflow-node__meta">
-                {adapter && (
-                  <span className="workflow-node__meta-item">
-                    <span className="workflow-node__meta-item-label">Adapter</span>
-                    <span className="workflow-node__meta-item-value">{adapter}</span>
-                  </span>
-                )}
-                {handler && (
-                  <span className="workflow-node__meta-item">
-                    <span className="workflow-node__meta-item-label">Handler</span>
-                    <span className="workflow-node__meta-item-value">{handler}</span>
-                  </span>
-                )}
-              </div>
-            )}
             {widgetElements.length > 0 && (
               <div
                 className="workflow-node__widgets nodrag"
@@ -383,7 +621,7 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
           </div>
         </div>
         <div className="workflow-node__ports workflow-node__ports--outputs">
-          {outputPorts.map((port) => {
+          {displayOutputPorts.map((port) => {
             const binding = resolveBindingPath(port.binding?.path ?? "");
             const schemaInfo = getSchemaInfo(workflowNode, binding);
             const bindingDisplay = formatBindingDisplay(port.binding, binding);
@@ -410,6 +648,87 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
           })}
         </div>
       </div>
+      {!isMiddlewareNode && attachedMiddlewares.length > 0 && (
+        <div className="workflow-node__middleware-zone" title="Attached middlewares">
+          <div className="workflow-node__middleware-zone__header">
+            <span className="workflow-node__middleware-label">Middlewares</span>
+          </div>
+          <div className="workflow-node__middleware-zone__list">
+            {attachedMiddlewares
+              .sort((a, b) => a.index - b.index)
+              .map((mw) => {
+                const mwStatus = mw.node.status;
+                const mwWidgets = renderMiddlewareWidgets(mw.node, workflowNode?.id ?? nodeId);
+                const mwInputPorts = mw.node.ui?.inputPorts ?? [];
+                const mwOutputPorts = mw.node.ui?.outputPorts ?? [];
+                const mwRuntimeState = mw.node.state;
+                const mwStage = mwRuntimeState?.stage;
+                const mwProgress =
+                  typeof mwRuntimeState?.progress === "number"
+                    ? Math.max(0, Math.min(1, mwRuntimeState.progress))
+                    : undefined;
+                const mwProgressPercent =
+                  typeof mwProgress === "number" ? Math.round(mwProgress * 100) : undefined;
+                const mwProgressDisplay =
+                  typeof mwProgressPercent === "number"
+                    ? Math.max(0, Math.min(100, mwProgressPercent))
+                    : undefined;
+                const mwStageClass =
+                  mwStage && mwStage.length
+                    ? mwStage.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+                    : undefined;
+                const mwPackage = formatPackage(mw.node);
+                const buildHandleId = (dir: "input" | "output", key: string) =>
+                  `mw:${mw.id}:${dir === "input" ? "in" : "out"}:${key}`;
+                return (
+                  <div key={mw.id} className="workflow-node__middleware-card" role="button" tabIndex={0}>
+                    <header className="workflow-node__middleware-card__header">
+                      <div className="workflow-node__middleware-card__title">
+                        <span className="workflow-node__middleware-index">#{mw.index + 1}</span>
+                        <span>{mw.label}</span>
+                      </div>
+                      <div className="workflow-node__header-badges">
+                        {mwStage && (
+                          <span
+                            className={clsx(
+                              "workflow-node__stage",
+                              mwStageClass ? `workflow-node__stage--${mwStageClass}` : undefined,
+                            )}
+                          >
+                            {formatStage(mwStage)}
+                            {typeof mwProgressDisplay === "number" && (
+                              <span className="workflow-node__stage-progress">
+                                (
+                                <span className="workflow-node__stage-progress-value">
+                                  {mwProgressDisplay.toString().padStart(3, "\u00a0")}
+                                </span>
+                                %)
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        {mwStatus && <span className="workflow-node__status">{mwStatus}</span>}
+                      </div>
+                    </header>
+                    <div className="workflow-node__middleware-card__body">
+                      <div className="workflow-node__badges">
+                        <span className="workflow-node__package">{mwPackage}</span>
+                      </div>
+                      {mwWidgets.length ? (
+                        <div
+                          className="workflow-node__middleware-widgets workflow-node__widgets nodrag"
+                          onPointerDown={(event) => event.stopPropagation()}
+                        >
+                          {mwWidgets}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
     </div>
   );
 });

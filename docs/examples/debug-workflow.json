@@ -15,7 +15,7 @@
   ],
   "subgraphs": [
     {
-      "id": "sg_triage_response",
+      "id": "40000000-0000-0000-0000-000000000001",
       "definition": {
         "id": "f5c8454c-061d-4c0f-9e0f-7a9b68a1d7a5",
         "schemaVersion": "2025-10",
@@ -26,7 +26,7 @@
         },
         "nodes": [
           {
-            "id": "sg_node_prepare_script",
+            "id": "10000000-0000-0000-0000-000000000001",
             "type": "example.pkg.transform_text",
             "package": {
               "name": "example.pkg",
@@ -237,7 +237,7 @@
             }
           },
           {
-            "id": "sg_node_policy_gate",
+            "id": "10000000-0000-0000-0000-000000000002",
             "type": "example.pkg.debug_gate",
             "package": {
               "name": "example.pkg",
@@ -253,10 +253,10 @@
             "parameters": {
               "condition": "payload.priority in ['critical','high']",
               "payload": {
-                "summary": "{{nodes.node_craft_message.results.message}}",
-                "priority": "{{nodes.node_ingest_brief.results.config.priority}}",
-                "region": "{{nodes.node_ingest_brief.results.config.region}}",
-                "regionalContact": "{{nodes.node_ingest_brief.results.config.recipient}}"
+                "summary": "{{nodes.00000000-0000-0000-0000-000000000002.results.message}}",
+                "priority": "{{nodes.00000000-0000-0000-0000-000000000001.results.config.priority}}",
+                "region": "{{nodes.00000000-0000-0000-0000-000000000001.results.config.region}}",
+                "regionalContact": "{{nodes.00000000-0000-0000-0000-000000000001.results.config.recipient}}"
               }
             },
             "results": {},
@@ -336,7 +336,7 @@
             }
           },
           {
-            "id": "sg_node_regional_notification",
+            "id": "10000000-0000-0000-0000-000000000003",
             "type": "example.pkg.send_notification",
             "package": {
               "name": "example.pkg",
@@ -353,7 +353,7 @@
               "recipient": "{{payload.regionalContact}}",
               "channel": "sms",
               "subject": "Regional {{payload.region}} update",
-              "message": "{{nodes.sg_node_prepare_script.results.output}}"
+              "message": "{{nodes.10000000-0000-0000-0000-000000000001.results.output}}"
             },
             "results": {},
             "ui": {
@@ -484,13 +484,13 @@
         ],
         "edges": [
           {
-            "id": "sg_edge_script_regional",
+            "id": "30000000-0000-0000-0000-000000000001",
             "source": {
-              "node": "sg_node_prepare_script",
+              "node": "10000000-0000-0000-0000-000000000001",
               "port": "output"
             },
             "target": {
-              "node": "sg_node_regional_notification",
+              "node": "10000000-0000-0000-0000-000000000003",
               "port": "message"
             }
           }
@@ -508,7 +508,7 @@
   ],
   "nodes": [
     {
-      "id": "node_ingest_brief",
+      "id": "00000000-0000-0000-0000-000000000001",
       "type": "example.pkg.load_config",
       "package": {
         "name": "example.pkg",
@@ -626,7 +626,7 @@
       }
     },
     {
-      "id": "node_craft_message",
+      "id": "00000000-0000-0000-0000-000000000002",
       "type": "example.pkg.transform_text",
       "package": {
         "name": "example.pkg",
@@ -640,8 +640,8 @@
         "y": 40
       },
       "parameters": {
-        "text": "Immediate action: {{nodes.node_ingest_brief.results.config.summary}}",
-        "recipient": "{{nodes.node_ingest_brief.results.config.recipient}}",
+        "text": "Immediate action: {{nodes.00000000-0000-0000-0000-000000000001.results.config.summary}}",
+        "recipient": "{{nodes.00000000-0000-0000-0000-000000000001.results.config.recipient}}",
         "mode": "uppercase"
       },
       "results": {},
@@ -837,7 +837,7 @@
       }
     },
     {
-      "id": "node_delay_checkpoint",
+      "id": "00000000-0000-0000-0000-000000000003",
       "type": "example.pkg.delay",
       "package": {
         "name": "example.pkg",
@@ -851,7 +851,7 @@
         "y": 360
       },
       "parameters": {
-        "durationSeconds": "{{nodes.node_ingest_brief.results.config.readyInSeconds}}"
+        "durationSeconds": "{{nodes.00000000-0000-0000-0000-000000000001.results.config.readyInSeconds}}"
       },
       "results": {},
       "ui": {
@@ -898,7 +898,7 @@
       }
     },
     {
-      "id": "node_triage_container",
+      "id": "00000000-0000-0000-0000-000000000004",
       "type": "workflow.container",
       "package": {
         "name": "system",
@@ -913,17 +913,17 @@
       },
       "parameters": {
         "__container": {
-          "subgraphId": "sg_triage_response",
+          "subgraphId": "40000000-0000-0000-0000-000000000001",
           "loop": {
             "enabled": false
           },
           "timeoutSeconds": 120
         },
         "payload": {
-          "summary": "{{nodes.node_craft_message.results.message}}",
-          "priority": "{{nodes.node_ingest_brief.results.config.priority}}",
-          "region": "{{nodes.node_ingest_brief.results.config.region}}",
-          "regionalContact": "{{nodes.node_ingest_brief.results.config.recipient}}"
+          "summary": "{{nodes.00000000-0000-0000-0000-000000000002.results.message}}",
+          "priority": "{{nodes.00000000-0000-0000-0000-000000000001.results.config.priority}}",
+          "region": "{{nodes.00000000-0000-0000-0000-000000000001.results.config.region}}",
+          "regionalContact": "{{nodes.00000000-0000-0000-0000-000000000001.results.config.recipient}}"
         }
       },
       "results": {},
@@ -945,7 +945,7 @@
             "binding": {
               "path": "/results/triageDecision",
               "mode": "read",
-              "prefix": "@sg_triage_response.#sg_node_policy_gate"
+              "prefix": "@40000000-0000-0000-0000-000000000001.#10000000-0000-0000-0000-000000000002"
             }
           },
           {
@@ -954,7 +954,7 @@
             "binding": {
               "path": "/results/regionalNotification",
               "mode": "read",
-              "prefix": "@sg_triage_response.#sg_node_regional_notification"
+              "prefix": "@40000000-0000-0000-0000-000000000001.#10000000-0000-0000-0000-000000000003"
             }
           }
         ],
@@ -1045,7 +1045,7 @@
       }
     },
     {
-      "id": "node_send_primary",
+      "id": "00000000-0000-0000-0000-000000000005",
       "type": "example.pkg.send_notification",
       "package": {
         "name": "example.pkg",
@@ -1059,10 +1059,10 @@
         "y": 20
       },
       "parameters": {
-        "recipient": "{{nodes.node_ingest_brief.results.config.recipient}}",
-        "channel": "{{nodes.node_ingest_brief.results.config.channel}}",
-        "subject": "Global status: {{nodes.node_ingest_brief.results.config.summary}}",
-        "message": "{{nodes.node_craft_message.results.message}}"
+        "recipient": "{{nodes.00000000-0000-0000-0000-000000000001.results.config.recipient}}",
+        "channel": "{{nodes.00000000-0000-0000-0000-000000000001.results.config.channel}}",
+        "subject": "Global status: {{nodes.00000000-0000-0000-0000-000000000001.results.config.summary}}",
+        "message": "{{nodes.00000000-0000-0000-0000-000000000002.results.message}}"
       },
       "results": {},
       "ui": {
@@ -1191,7 +1191,7 @@
       }
     },
     {
-      "id": "node_feedback_stream",
+      "id": "00000000-0000-0000-0000-000000000006",
       "type": "example.pkg.feedback_demo",
       "package": {
         "name": "example.pkg",
@@ -1205,7 +1205,7 @@
         "y": 360
       },
       "parameters": {
-        "prompt": "Executive update for {{nodes.node_ingest_brief.results.config.region}}: {{nodes.node_send_primary.results.summary}}",
+        "prompt": "Executive update for {{nodes.00000000-0000-0000-0000-000000000001.results.config.region}}: {{nodes.00000000-0000-0000-0000-000000000005.results.summary}}",
         "tokenDelayMs": 45
       },
       "results": {},
@@ -1276,7 +1276,7 @@
       }
     },
     {
-      "id": "node_audit_broadcast",
+      "id": "00000000-0000-0000-0000-000000000007",
       "type": "example.pkg.audit_log",
       "package": {
         "name": "example.pkg",
@@ -1291,11 +1291,11 @@
       },
       "parameters": {
         "level": "INFO",
-        "message": "Global broadcast acknowledged for {{nodes.node_ingest_brief.results.config.region}}",
+        "message": "Global broadcast acknowledged for {{nodes.00000000-0000-0000-0000-000000000001.results.config.region}}",
         "entry": {
-          "notificationId": "{{nodes.node_send_primary.results.notificationId}}",
-          "summary": "{{nodes.node_send_primary.results.summary}}",
-          "triage": "{{nodes.node_triage_container.results.triageDecision.message}}"
+          "notificationId": "{{nodes.00000000-0000-0000-0000-000000000005.results.notificationId}}",
+          "summary": "{{nodes.00000000-0000-0000-0000-000000000005.results.summary}}",
+          "triage": "{{nodes.00000000-0000-0000-0000-000000000004.results.triageDecision.message}}"
         },
         "runStartedAt": null,
         "runStartedAtMs": null
@@ -1381,7 +1381,7 @@
       }
     },
     {
-      "id": "node_metrics_latency",
+      "id": "00000000-0000-0000-0000-000000000008",
       "type": "example.pkg.collect_metrics",
       "package": {
         "name": "example.pkg",
@@ -1399,7 +1399,7 @@
         "value": 0,
         "tags": {
           "runId": "{{run.id}}",
-          "region": "{{nodes.node_ingest_brief.results.config.region}}"
+          "region": "{{nodes.00000000-0000-0000-0000-000000000001.results.config.region}}"
         }
       },
       "results": {},
@@ -1481,90 +1481,90 @@
   ],
   "edges": [
     {
-      "id": "edge_ingest_to_craft",
+      "id": "20000000-0000-0000-0000-000000000001",
       "source": {
-        "node": "node_ingest_brief",
+        "node": "00000000-0000-0000-0000-000000000001",
         "port": "message"
       },
       "target": {
-        "node": "node_craft_message",
+        "node": "00000000-0000-0000-0000-000000000002",
         "port": "input"
       }
     },
     {
-      "id": "edge_delay_to_send",
+      "id": "20000000-0000-0000-0000-000000000002",
       "source": {
-        "node": "node_delay_checkpoint",
+        "node": "00000000-0000-0000-0000-000000000003",
         "port": "output"
       },
       "target": {
-        "node": "node_send_primary",
+        "node": "00000000-0000-0000-0000-000000000005",
         "port": "handoff"
       }
     },
     {
-      "id": "edge_craft_to_send",
+      "id": "20000000-0000-0000-0000-000000000003",
       "source": {
-        "node": "node_craft_message",
+        "node": "00000000-0000-0000-0000-000000000002",
         "port": "message"
       },
       "target": {
-        "node": "node_send_primary",
+        "node": "00000000-0000-0000-0000-000000000005",
         "port": "message"
       }
     },
     {
-      "id": "edge_triage_to_feedback",
+      "id": "20000000-0000-0000-0000-000000000004",
       "source": {
-        "node": "node_triage_container",
+        "node": "00000000-0000-0000-0000-000000000004",
         "port": "regionalSummary"
       },
       "target": {
-        "node": "node_feedback_stream",
+        "node": "00000000-0000-0000-0000-000000000006",
         "port": "prompt"
       }
     },
     {
-      "id": "edge_send_to_audit",
+      "id": "20000000-0000-0000-0000-000000000005",
       "source": {
-        "node": "node_send_primary",
+        "node": "00000000-0000-0000-0000-000000000005",
         "port": "summary"
       },
       "target": {
-        "node": "node_audit_broadcast",
+        "node": "00000000-0000-0000-0000-000000000007",
         "port": "input"
       }
     },
     {
-      "id": "edge_ingest_to_audit_started_at",
+      "id": "20000000-0000-0000-0000-000000000006",
       "source": {
-        "node": "node_ingest_brief",
+        "node": "00000000-0000-0000-0000-000000000001",
         "port": "startedAt"
       },
       "target": {
-        "node": "node_audit_broadcast",
+        "node": "00000000-0000-0000-0000-000000000007",
         "port": "runStartedAt"
       }
     },
     {
-      "id": "edge_ingest_to_audit_started_at_ms",
+      "id": "20000000-0000-0000-0000-000000000007",
       "source": {
-        "node": "node_ingest_brief",
+        "node": "00000000-0000-0000-0000-000000000001",
         "port": "startedAtMs"
       },
       "target": {
-        "node": "node_audit_broadcast",
+        "node": "00000000-0000-0000-0000-000000000007",
         "port": "runStartedAtMs"
       }
     },
     {
-      "id": "edge_audit_to_metrics",
+      "id": "20000000-0000-0000-0000-000000000008",
       "source": {
-        "node": "node_audit_broadcast",
+        "node": "00000000-0000-0000-0000-000000000007",
         "port": "latency"
       },
       "target": {
-        "node": "node_metrics_latency",
+        "node": "00000000-0000-0000-0000-000000000008",
         "port": "metricValue"
       }
     }

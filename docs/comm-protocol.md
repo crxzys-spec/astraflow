@@ -50,11 +50,19 @@ Reconnect reconciliation (§4.4): scheduler compares `worker_id` and last `sessi
 - `register` -> `ws.register.schema.json`
 - `ack` -> `ws.ack.schema.json`
 - `heartbeat` -> `ws.heartbeat.schema.json`
-- `cmd.dispatch` -> `ws.cmd.dispatch.schema.json`
+- `cmd.dispatch` -> `ws.cmd.dispatch.schema.json`（含 middleware 链路元数据：`host_node_id`、`middleware_chain`、`chain_index`，可选）
 - `feedback` -> `ws.feedback.schema.json`
 - `result` -> `ws.result.schema.json`
 - `error` -> `ws.error.schema.json`
 - `pkg.install` / `pkg.uninstall` / `pkg.event` -> corresponding `ws.pkg.*.schema.json`
+
+**Middleware trace 元数据**
+
+- cmd.dispatch payload 可携带：`host_node_id`（宿主节点 id）、`middleware_chain`（挂载的 middleware id 数组）、`chain_index`（当前 middleware 在链路中的位置，宿主为 null）。
+- node state/metadata 中会包含：
+  - 对宿主：`middlewares: string[]`
+  - 对 middleware：`host_node_id`、`chain_index`
+  - 可由 UI 用于 trace 展示/过滤，不影响执行语义。
 
 ### 3.1 Dispatch resources and affinity
 

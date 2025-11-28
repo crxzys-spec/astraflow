@@ -1,9 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import { nanoid } from "nanoid";
-
 import { useWorkflowStore } from "../store";
 import { formatBindingDisplay, resolveBindingPath } from "../utils/binding";
-import type { NodePortDefinition, WorkflowDraft, WorkflowNodeDraft } from "../types";
+import type { NodePortDefinition, WorkflowDraft, WorkflowMiddlewareDraft, WorkflowNodeDraft } from "../types";
 import { widgetRegistry, registerBuiltinWidgets } from "../widgets";
 
 registerBuiltinWidgets();
@@ -187,19 +185,66 @@ export const NodeInspector = () => {
     workflow?.edges.forEach((edge) => {
       const inputKey = edge.target.portId;
       const outputKey = edge.source.portId;
-      if (edge.target.nodeId === node.id && inputKey) {
+      if (edge.target.nodeId === node.id && inputKey && !inputKey.startsWith("mw:")) {
         fallbackInputs.add(inputKey);
       }
-      if (edge.source.nodeId === node.id && outputKey) {
+      if (edge.source.nodeId === node.id && outputKey && !outputKey.startsWith("mw:")) {
         fallbackOutputs.add(outputKey);
       }
     });
 
+    const middlewareInputPorts =
+      node.middlewares?.flatMap((mw) =>
+        (mw.ui?.inputPorts ?? []).map((port) => ({
+          ...port,
+          key: `mw:${mw.id}:input:${port.key}`,
+          label: `${mw.label ?? "Middleware"} · ${port.label ?? port.key}`
+        }))
+      ) ?? [];
+    const middlewareOutputPorts =
+      node.middlewares?.flatMap((mw) =>
+        (mw.ui?.outputPorts ?? []).map((port) => ({
+          ...port,
+          key: `mw:${mw.id}:output:${port.key}`,
+          label: `${mw.label ?? "Middleware"} · ${port.label ?? port.key}`
+        }))
+      ) ?? [];
+
     return {
-      inputs: collectPorts(node.ui?.inputPorts, fallbackInputs, "input"),
-      outputs: collectPorts(node.ui?.outputPorts, fallbackOutputs, "output")
+      inputs: collectPorts([...(node.ui?.inputPorts ?? []), ...middlewareInputPorts], fallbackInputs, "input"),
+      outputs: collectPorts([...(node.ui?.outputPorts ?? []), ...middlewareOutputPorts], fallbackOutputs, "output")
     };
   }, [node, workflow]);
+
+  const removeMiddleware = (middlewareId: string) => {
+    if (!node) {
+      return;
+    }
+    updateNode(node.id, (current) => ({
+      ...current,
+      middlewares: (current.middlewares || []).filter((entry) => entry.id !== middlewareId)
+    }));
+  };
+
+  const moveMiddleware = (middlewareId: string, direction: -1 | 1) => {
+    if (!node) {
+      return;
+    }
+    updateNode(node.id, (current) => {
+      const list = [...(current.middlewares || [])];
+      const index = list.findIndex((item) => item.id === middlewareId);
+      if (index === -1) {
+        return current;
+      }
+      const target = index + direction;
+      if (target < 0 || target >= list.length) {
+        return current;
+      }
+      const [item] = list.splice(index, 1);
+      list.splice(target, 0, item);
+      return { ...current, middlewares: list };
+    });
+  };
 
   const updatePortBinding = (port: InspectorPort, nextPrefix: string) => {
     if (!node) {
@@ -791,6 +836,68 @@ export const NodeInspector = () => {
             <p className="text-subtle inspector__payload-empty">No widgets defined.</p>
           )}
         </div>
+      </div>
+      <div className="card inspector__panel">
+        <header className="card__header">
+          <h3>Middlewares</h3>
+        </header>
+        {node?.role === "middleware" ? (
+          <p className="text-subtle inspector__payload-empty">
+            Middleware nodes cannot attach other middlewares.
+          </p>
+        ) : (
+          <div className="inspector__section">
+            {node?.middlewares && node.middlewares.length ? (
+              <ul className="inspector__list">
+                {node.middlewares.map((middleware) => {
+                  const label = middleware.label || middleware.id;
+                  return (
+                    <li key={middleware.id} className="inspector__list-item">
+                      <div className="inspector__list-text">
+                        <span className="inspector__pill">{label}</span>
+                        <span className="inspector__field-value inspector__field-value--mono">{middleware.id}</span>
+                      </div>
+                      <div className="inspector__list-actions">
+                        <button
+                          type="button"
+                          className="button button--ghost"
+                          onClick={() => moveMiddleware(middleware.id, -1)}
+                          title="Move up"
+                          aria-label="Move middleware up"
+                        >
+                          Up
+                        </button>
+                        <button
+                          type="button"
+                          className="button button--ghost"
+                          onClick={() => moveMiddleware(middleware.id, 1)}
+                          title="Move down"
+                          aria-label="Move middleware down"
+                        >
+                          Down
+                        </button>
+                        <button
+                          type="button"
+                          className="button button--ghost"
+                          onClick={() => removeMiddleware(middleware.id)}
+                          title="Remove middleware"
+                          aria-label="Remove middleware"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-subtle inspector__payload-empty">No middlewares attached.</p>
+            )}
+            <p className="text-subtle inspector__payload-hint">
+              Drag middleware from the palette onto this node to attach it.
+            </p>
+          </div>
+        )}
       </div>
       <div className="card inspector__panel">
         <header className="card__header">

@@ -539,6 +539,13 @@ ManifestNode:
     type:
       type: string
       pattern: '^[A-Za-z0-9_.-]+$'
+    role:
+      type: string
+      description: Execution role of the node.
+      enum:
+      - node
+      - container
+      - middleware
     status:
       type: string
       enum:
@@ -782,6 +789,13 @@ WorkflowNode:
     type:
       type: string
       description: e.g. "playwright.open_page"
+    role:
+      type: string
+      description: Execution role of the node.
+      enum:
+      - node
+      - container
+      - middleware
     package:
       $ref: '#/NodePackage'
     status:
@@ -815,6 +829,80 @@ WorkflowNode:
           type: number
         y:
           type: number
+    parameters:
+      type: object
+      description: Default parameter payload seeded from the manifest schema.
+      additionalProperties: true
+    results:
+      type: object
+      description: Default results payload seeded from the manifest schema.
+      additionalProperties: true
+    state:
+      $ref: '#/WorkflowNodeState'
+      description: Platform-managed execution hints surfaced in the builder (optional).
+    schema:
+      type: object
+      description: JSON Schemas for parameters/results.
+      additionalProperties: false
+      properties:
+        parameters:
+          type: object
+          additionalProperties: true
+        results:
+          type: object
+          additionalProperties: true
+    ui:
+      $ref: '#/NodeUI'
+    middlewares:
+      type: array
+      description: Ordered list of middleware definitions attached to this node.
+      items:
+        $ref: '#/WorkflowMiddleware'
+WorkflowMiddleware:
+  type: object
+  additionalProperties: false
+  required:
+  - id
+  - type
+  - package
+  - status
+  - category
+  - label
+  properties:
+    id:
+      type: string
+      format: uuid
+      description: Middleware UUID
+    type:
+      type: string
+      description: e.g. "middleware.loop"
+    role:
+      type: string
+      description: Execution role of the middleware (always middleware).
+      enum:
+      - middleware
+    package:
+      $ref: '#/NodePackage'
+    status:
+      type: string
+      description: Middleware lifecycle state.
+      enum:
+      - draft
+      - published
+      - deprecated
+    category:
+      type: string
+      description: Group/category shown in the builder palette.
+    label:
+      type: string
+    description:
+      type: string
+      description: Longer description of the middleware behaviour.
+    tags:
+      type: array
+      description: Keywords for search/filter.
+      items:
+        type: string
     parameters:
       type: object
       description: Default parameter payload seeded from the manifest schema.
@@ -1353,8 +1441,7 @@ UIBinding:
   properties:
     path:
       type: string
-      description: e.g.
-      parameters.url / results.status: null
+      description: e.g. parameters.url / results.status
     mode:
       type: string
       enum:

@@ -10,6 +10,7 @@ import type { NodeResultSnapshotEvent } from "../api/models/nodeResultSnapshotEv
 import type { NodeErrorEvent } from "../api/models/nodeErrorEvent";
 import type { RunNodeStatus } from "../api/models/runNodeStatus";
 import type { RunNodeStatusMetadata } from "../api/models/runNodeStatusMetadata";
+import type { WorkflowMiddleware } from "../api/models/workflowMiddleware";
 import { sseClient } from "../lib/sseClient";
 import { getClientSessionId } from "../lib/clientSession";
 import {
@@ -20,6 +21,8 @@ import {
   updateRunNode,
 } from "../lib/sseCache";
 import StatusBadge from "../components/StatusBadge";
+import { buildMiddlewareTraces } from "../lib/middlewareTrace";
+import { middlewareNextErrorMessages } from "../features/workflow/middlewareErrors";
 
 type DetailPanel = "run" | "workflow";
 type JsonPrimitive = string | number | boolean | null;
@@ -41,6 +44,12 @@ type FrameMetadata = {
 type NodeWithFrame = {
   node: RunNodeStatus;
   frame?: FrameMetadata;
+};
+
+type MiddlewareRelations = {
+  roleByNode: Record<string, string | undefined>;
+  chainByHost: Record<string, WorkflowMiddleware[]>;
+  hostByMiddleware: Record<string, string>;
 };
 
 type NodeGroup = {
@@ -232,7 +241,8 @@ export const RunDetailPage = ({ runIdOverride, onClose }: RunDetailPageProps = {
   const routeRunId = params?.runId;
   const runId = runIdOverride ?? routeRunId;
   const navigate = useNavigate();
-  const [activePanel, setActivePanel] = useState<DetailPanel>("run");
+const [activePanel, setActivePanel] = useState<DetailPanel>("run");
+const [showMiddlewareOnly, setShowMiddlewareOnly] = useState(false);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">(
     "idle",
   );
@@ -253,6 +263,25 @@ export const RunDetailPage = ({ runIdOverride, onClose }: RunDetailPageProps = {
   const workflowLink = workflowDefinition?.id;
   const runData = runQuery.data?.data;
   const queryClient = useQueryClient();
+  const middlewareRelations = useMemo<MiddlewareRelations>(() => {
+    const roleByNode: Record<string, string | undefined> = {};
+    const chainByHost: Record<string, WorkflowMiddleware[]> = {};
+    const hostByMiddleware: Record<string, string> = {};
+    const nodes = workflowDefinition?.nodes ?? [];
+    nodes.forEach((definitionNode) => {
+      roleByNode[definitionNode.id ?? ""] = (definitionNode as { role?: string }).role;
+      const middlewares = (definitionNode as { middlewares?: WorkflowMiddleware[] }).middlewares ?? [];
+      if (middlewares?.length) {
+        chainByHost[definitionNode.id ?? ""] = middlewares;
+        middlewares.forEach((mw) => {
+          if (mw.id) {
+            hostByMiddleware[mw.id] = definitionNode.id ?? "";
+          }
+        });
+      }
+    });
+    return { roleByNode, chainByHost, hostByMiddleware };
+  }, [workflowDefinition?.nodes]);
   const nodesWithFrame = useMemo((): NodeWithFrame[] => {
     if (!runData?.nodes?.length) {
       return [];
@@ -262,12 +291,26 @@ export const RunDetailPage = ({ runIdOverride, onClose }: RunDetailPageProps = {
       frame: parseFrameMetadata(node.metadata),
     }));
   }, [runData?.nodes]);
+  const middlewareTraces = useMemo(
+    () => buildMiddlewareTraces(runData?.nodes),
+    [runData?.nodes]
+  );
+  const filteredNodesWithFrame = useMemo(() => {
+    if (!showMiddlewareOnly) {
+      return nodesWithFrame;
+    }
+    return nodesWithFrame.filter(
+      (entry) =>
+        middlewareRelations.chainByHost[entry.node.nodeId]?.length ||
+        Boolean(middlewareRelations.hostByMiddleware[entry.node.nodeId]),
+    );
+  }, [middlewareRelations.chainByHost, middlewareRelations.hostByMiddleware, nodesWithFrame, showMiddlewareOnly]);
   const nodeGroups = useMemo((): NodeGroup[] => {
-    if (!nodesWithFrame.length) {
+    if (!filteredNodesWithFrame.length) {
       return [];
     }
     const groups: NodeGroup[] = [];
-    const rootNodes = nodesWithFrame.filter((entry) => !entry.frame);
+    const rootNodes = filteredNodesWithFrame.filter((entry) => !entry.frame);
     if (rootNodes.length) {
       groups.push({
         key: "main",
@@ -276,7 +319,7 @@ export const RunDetailPage = ({ runIdOverride, onClose }: RunDetailPageProps = {
       });
     }
     const subgraphMap = new Map<string, NodeGroup>();
-    nodesWithFrame.forEach((entry) => {
+    filteredNodesWithFrame.forEach((entry) => {
       const frame = entry.frame;
       if (!frame) {
         return;
@@ -608,6 +651,54 @@ export const RunDetailPage = ({ runIdOverride, onClose }: RunDetailPageProps = {
             {nodeGroups.length > 0 && (
               <div className="run-detail__nodes">
                 <h3>Node Status</h3>
+                <label className="run-detail__toggle">
+                  <input
+                    type="checkbox"
+                    checked={showMiddlewareOnly}
+                    onChange={(event) => setShowMiddlewareOnly(event.target.checked)}
+                  />
+                  <span>Show middleware hosts/middlewares only</span>
+                </label>
+                {middlewareTraces.length > 0 && (
+                  <div className="run-detail__trace">
+                    <h4>Middleware Chains</h4>
+                    <div className="run-detail__trace-grid">
+                      {middlewareTraces.map((trace) => (
+                        <div key={trace.hostId} className="run-detail__trace-card">
+                          <div className="run-detail__trace-host">
+                            <span className="run-detail__pill">Host: {trace.hostId}</span>
+                            {typeof trace.totalDurationMs === "number" && (
+                              <span className="run-detail__trace-total">
+                                Total: {Math.round(trace.totalDurationMs)} ms
+                              </span>
+                            )}
+                          </div>
+                          <ol className="run-detail__trace-chain">
+                            {trace.nodes.map((entry, index) => (
+                              <li key={`${trace.hostId}-${entry.nodeId}-${index}`}>
+                                <div className="run-detail__trace-node">
+                                  <span className="run-detail__pill" title={`#${index + 1} in chain`}>
+                                    <span className="run-detail__pill-index">{index + 1}</span>
+                                    {entry.nodeId}
+                                  </span>
+                                  {entry.status && <StatusBadge status={entry.status} />}
+                                  <span className="run-detail__trace-meta">
+                                    {entry.startedAt || entry.finishedAt
+                                      ? `${entry.startedAt ?? "-"} → ${entry.finishedAt ?? "-"}`
+                                      : ""}
+                                    {typeof entry.durationMs === "number"
+                                      ? ` (${Math.round(entry.durationMs)} ms)`
+                                      : ""}
+                                  </span>
+                                </div>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {nodeGroups.map((group) => (
                   <section key={group.key} className="run-detail__nodes-section">
                     <div className="run-detail__nodes-section-header">
@@ -633,6 +724,30 @@ export const RunDetailPage = ({ runIdOverride, onClose }: RunDetailPageProps = {
                                 <dt>Task</dt>
                                 <dd>{node.taskId ?? "-"}</dd>
                               </div>
+                              {middlewareRelations.roleByNode[node.nodeId] && (
+                                <div>
+                                  <dt>Role</dt>
+                                  <dd>{middlewareRelations.roleByNode[node.nodeId]}</dd>
+                                </div>
+                              )}
+                              {middlewareRelations.hostByMiddleware[node.nodeId] && (
+                                <div>
+                                  <dt>Host</dt>
+                                  <dd>{middlewareRelations.hostByMiddleware[node.nodeId]}</dd>
+                                </div>
+                              )}
+                              {middlewareRelations.chainByHost[node.nodeId]?.length ? (
+                                <div>
+                                  <dt>Middlewares</dt>
+                                  <dd className="run-detail__pill-row">
+                                    {middlewareRelations.chainByHost[node.nodeId].map((mw) => (
+                                      <span key={mw.id} className="run-detail__pill" title={mw.id}>
+                                        {mw.label || mw.id}
+                                      </span>
+                                    ))}
+                                  </dd>
+                                </div>
+                              ) : null}
                               {scopeLabel && (
                                 <div>
                                   <dt>Scope</dt>
@@ -680,7 +795,17 @@ export const RunDetailPage = ({ runIdOverride, onClose }: RunDetailPageProps = {
                               <details className="run-detail__node-section">
                                 <summary>Error</summary>
                                 <pre className="run-detail__payload">
-                                  {JSON.stringify(node.error, null, 2)}
+                                  {JSON.stringify(
+                                    {
+                                      ...node.error,
+                                      message:
+                                        node.error.code && middlewareNextErrorMessages[node.error.code]
+                                          ? middlewareNextErrorMessages[node.error.code]
+                                          : node.error.message,
+                                    },
+                                    null,
+                                    2,
+                                  )}
                                 </pre>
                               </details>
                             )}

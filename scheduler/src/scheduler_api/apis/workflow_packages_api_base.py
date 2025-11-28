@@ -5,14 +5,14 @@ from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 from pydantic import Field, StrictStr
 from typing import Any, Optional
 from typing_extensions import Annotated
-from scheduler_api.models.auth_login401_response import AuthLogin401Response
-from scheduler_api.models.clone_workflow_package_request import CloneWorkflowPackageRequest
-from scheduler_api.models.get_workflow_package200_response import GetWorkflowPackage200Response
-from scheduler_api.models.list_workflow_package_versions200_response import ListWorkflowPackageVersions200Response
-from scheduler_api.models.list_workflow_packages200_response import ListWorkflowPackages200Response
-from scheduler_api.models.persist_workflow201_response import PersistWorkflow201Response
-from scheduler_api.models.publish_workflow200_response import PublishWorkflow200Response
-from scheduler_api.models.publish_workflow_request import PublishWorkflowRequest
+from scheduler_api.models.error import Error
+from scheduler_api.models.workflow_package_clone_request import WorkflowPackageCloneRequest
+from scheduler_api.models.workflow_package_detail1 import WorkflowPackageDetail1
+from scheduler_api.models.workflow_package_list1 import WorkflowPackageList1
+from scheduler_api.models.workflow_package_version_list1 import WorkflowPackageVersionList1
+from scheduler_api.models.workflow_publish_request import WorkflowPublishRequest
+from scheduler_api.models.workflow_publish_response import WorkflowPublishResponse
+from scheduler_api.models.workflow_ref import WorkflowRef
 from scheduler_api.security_api import get_token_bearerAuth
 
 class BaseWorkflowPackagesApi:
@@ -28,14 +28,14 @@ class BaseWorkflowPackagesApi:
         owner: Annotated[Optional[StrictStr], Field(description="Filter by owner id; use `me` for the caller's id.")],
         visibility: Annotated[Optional[StrictStr], Field(description="Filter by visibility (private, internal, public).")],
         search: Annotated[Optional[StrictStr], Field(description="Full-text search across slug, display name, and summary.")],
-    ) -> ListWorkflowPackages200Response:
+    ) -> WorkflowPackageList1:
         ...
 
 
     async def get_workflow_package(
         self,
         packageId: StrictStr,
-    ) -> GetWorkflowPackage200Response:
+    ) -> WorkflowPackageDetail1:
         ...
 
 
@@ -49,21 +49,21 @@ class BaseWorkflowPackagesApi:
     async def list_workflow_package_versions(
         self,
         packageId: StrictStr,
-    ) -> ListWorkflowPackageVersions200Response:
+    ) -> WorkflowPackageVersionList1:
         ...
 
 
     async def clone_workflow_package(
         self,
         packageId: StrictStr,
-        clone_workflow_package_request: Optional[CloneWorkflowPackageRequest],
-    ) -> PersistWorkflow201Response:
+        workflow_package_clone_request: Optional[WorkflowPackageCloneRequest],
+    ) -> WorkflowRef:
         ...
 
 
     async def publish_workflow(
         self,
         workflowId: StrictStr,
-        publish_workflow_request: PublishWorkflowRequest,
-    ) -> PublishWorkflow200Response:
+        workflow_publish_request: WorkflowPublishRequest,
+    ) -> WorkflowPublishResponse:
         ...

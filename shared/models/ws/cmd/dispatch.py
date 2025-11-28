@@ -54,6 +54,9 @@ class CommandDispatchPayload(BaseModel):
     package_name: constr(min_length=1)
     package_version: constr(min_length=1)
     parameters: Dict[str, Any]
+    host_node_id: Optional[constr(min_length=1)] = None
+    middleware_chain: Optional[List[constr(min_length=1)]] = None
+    chain_index: Optional[conint(ge=0)] = None
     constraints: Constraints
     concurrency_key: Optional[constr(min_length=1)] = None
     resource_refs: Optional[List[ResourceRef]] = Field(

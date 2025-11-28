@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from itertools import count
 from pathlib import Path
-from typing import Any, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from pydantic import BaseModel, ValidationError
 
@@ -27,6 +27,7 @@ from shared.models.ws.pkg.event import PackageEvent
 from shared.models.ws.handshake import Auth, HandshakePayload, Mode, Worker
 from shared.models.ws.heartbeat import HeartbeatPayload, Metrics
 from shared.models.ws.register import Capabilities, Concurrency, Package, RegisterPayload, Status
+from shared.models.ws.next import NextRequestPayload, NextResponsePayload
 
 from .packages import AdapterRegistry, PackageManager
 from .runner import Runner
@@ -45,6 +46,21 @@ class TransportNotReady(RuntimeError):
 
 class ResourceLeaseError(RuntimeError):
     """Raised when required resources cannot be leased from the registry."""
+
+
+class MiddlewareNextError(RuntimeError):
+    """Raised when middleware next invocation returns an error."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: Optional[str] = None,
+        trace: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.trace = trace
 
 
 class ControlPlaneTransport:
@@ -87,6 +103,8 @@ class ControlPlaneConnection:
     _message_counter: Iterator[int] = field(default_factory=lambda: count())
     _pending_acks: dict[str, "PendingAck"] = field(default_factory=dict)
     _dispatch_tasks: Set[asyncio.Task[None]] = field(default_factory=set)
+    _pending_next: Dict[str, tuple[asyncio.Future, str]] = field(default_factory=dict)
+    _next_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     async def start(self) -> None:
         """Establish the control-plane connection and kick off heartbeat loop."""
@@ -119,6 +137,7 @@ class ControlPlaneConnection:
             with contextlib.suppress(asyncio.CancelledError):
                 await receive_task
         await self._cancel_dispatch_tasks()
+        self._cancel_pending_next()
         self._cancel_pending_acks()
         self.session.transition(SessionState.CLOSED)
         if self._transport:
@@ -193,6 +212,8 @@ class ControlPlaneConnection:
             runtimes=runtimes,
             features=self.settings.feature_flags or [],
         )
+        # refresh handler registry before register payload so scheduler sees latest
+        self._collect_package_inventory()
         return RegisterPayload(
             capabilities=capabilities,
             packages=self._collect_package_inventory(),
@@ -297,6 +318,7 @@ class ControlPlaneConnection:
         except Exception as exc:  # noqa: BLE001
             LOGGER.exception("Receive loop terminated due to error: %s", exc)
             self.session.transition(SessionState.BACKOFF)
+            self._cancel_pending_next()
 
     async def _handle_incoming(self, message: dict[str, Any]) -> None:
         LOGGER.debug("Received envelope: %s", message)
@@ -318,6 +340,8 @@ class ControlPlaneConnection:
         if message_type == "cmd.dispatch":
             LOGGER.info("Received dispatch command corr=%s", envelope.corr)
             self._schedule_dispatch(envelope)
+        elif message_type == "middleware.next_response":
+            await self._handle_next_response(envelope)
         elif message_type == "pkg.install":
             LOGGER.info("Received package install instruction: %s", payload)
             if self.package_handler:
@@ -446,6 +470,28 @@ class ControlPlaneConnection:
                     if self.resource_registry:
                         for resource_id in leased_resources:
                             self.resource_registry.release(resource_id)
+        except asyncio.CancelledError:
+            LOGGER.info("Task cancelled run=%s task=%s node=%s", dispatch.run_id, dispatch.task_id, dispatch.node_id)
+            try:
+                await self._interrupt_pending_next(dispatch.task_id, code="next_cancelled", message="task cancelled")
+                await self.send_command_error(
+                    ErrorPayload(
+                        code="E.RUNNER.CANCELLED",
+                        message="task cancelled",
+                        context={
+                            "where": "worker.runner",
+                            "details": {
+                                "run_id": dispatch.run_id,
+                                "task_id": dispatch.task_id,
+                                "node_id": dispatch.node_id,
+                            },
+                        },
+                    ),
+                    corr=corr,
+                    seq=seq,
+                )
+            finally:
+                raise
         except Exception as exc:  # noqa: BLE001
             LOGGER.exception("Command execution failed: %s", exc)
             await self.send_command_error(
@@ -464,6 +510,8 @@ class ControlPlaneConnection:
                 corr=corr,
                 seq=seq,
             )
+        finally:
+            self._cancel_pending_next_for_task(dispatch.task_id)
 
     def _coerce_artifacts(self, artifacts: Optional[List[Any]]) -> Optional[List[Artifact]]:
         if not artifacts:
@@ -498,12 +546,18 @@ class ControlPlaneConnection:
             "concurrency_key": dispatch.concurrency_key,
             "constraints": dispatch.constraints.model_dump(exclude_none=True),
         }
+        if dispatch.host_node_id:
+            metadata["host_node_id"] = dispatch.host_node_id
+        if dispatch.middleware_chain:
+            metadata["middleware_chain"] = list(dispatch.middleware_chain)
+        if dispatch.chain_index is not None:
+            metadata["chain_index"] = dispatch.chain_index
         resource_refs = list(dispatch.resource_refs) if dispatch.resource_refs else None
         if resource_refs:
             metadata["resource_refs"] = [ref.model_dump(exclude_none=True) for ref in resource_refs]
         if dispatch.affinity:
             metadata["affinity"] = dispatch.affinity.model_dump(exclude_none=True)
-        return ExecutionContext(
+        context = ExecutionContext(
             run_id=run_id,
             task_id=task_id,
             node_id=node_id,
@@ -512,12 +566,17 @@ class ControlPlaneConnection:
             params=parameters,
             data_dir=data_dir,
             tenant=self.settings.tenant,
+            host_node_id=dispatch.host_node_id,
+            middleware_chain=dispatch.middleware_chain,
+            chain_index=dispatch.chain_index,
             trace=trace,
             metadata=metadata,
             resource_refs=resource_refs,
             resource_registry=self.resource_registry,
             feedback=FeedbackPublisher(self, run_id=run_id, task_id=task_id),
         )
+        context.next_handler = self._middleware_next
+        return context
 
     @staticmethod
     def _sanitize_path_segment(segment: str) -> str:
@@ -551,7 +610,7 @@ class ControlPlaneConnection:
             return ResultStatus(canonical)
         except ValueError:
             LOGGER.warning("Adapter returned unsupported status '%s'; defaulting to FAILED", status)
-            return ResultStatus.FAILED
+        return ResultStatus.FAILED
 
     def _lease_resources(self, dispatch: CommandDispatchPayload) -> dict[str, ResourceHandle]:
         leased: dict[str, ResourceHandle] = {}
@@ -646,6 +705,29 @@ class ControlPlaneConnection:
                 pending.task.cancel()
         self._pending_acks.clear()
 
+    def _cancel_pending_next(self) -> None:
+        for fut, _ in self._pending_next.values():
+            if not fut.done():
+                fut.cancel()
+        self._pending_next.clear()
+
+    def _cancel_pending_next_for_task(self, task_id: str) -> None:
+        to_cancel = [req_id for req_id, (_, tid) in self._pending_next.items() if tid == task_id]
+        for req_id in to_cancel:
+            fut, _ = self._pending_next.pop(req_id, (None, task_id))
+            if fut and not fut.done():
+                fut.cancel()
+
+    async def _interrupt_pending_next(self, task_id: str, *, code: str, message: str) -> None:
+        """Actively fail pending ctx.next waits for a task with an error."""
+
+        async with self._next_lock:
+            targets = [(req_id, fut) for req_id, (fut, tid) in self._pending_next.items() if tid == task_id]
+            for req_id, fut in targets:
+                self._pending_next.pop(req_id, None)
+                if fut and not fut.done():
+                    fut.set_exception(MiddlewareNextError(message, code=code))
+
     async def _cancel_dispatch_tasks(self) -> None:
         if not self._dispatch_tasks:
             return
@@ -684,6 +766,86 @@ class ControlPlaneConnection:
 
         message = self._build_envelope("pkg.event", payload, request_ack=False)
         await self._send(message)
+
+    async def _middleware_next(
+        self,
+        context: "ExecutionContext",
+        payload: Optional[Dict[str, Any]],
+        host_ctx: Optional[Dict[str, Any]],
+        middleware_ctx: Optional[Dict[str, Any]],
+        timeout_ms: Optional[int],
+    ) -> Dict[str, Any]:
+        if not context.middleware_chain or context.chain_index is None:
+            raise RuntimeError("middleware chain metadata missing; cannot call next()")
+        request_id = self._next_message_id("next")
+        timeout_seconds = timeout_ms / 1000.0 if timeout_ms and timeout_ms > 0 else None
+        next_payload = NextRequestPayload(
+            requestId=request_id,
+            runId=context.run_id,
+            nodeId=context.node_id,
+            middlewareId=context.node_id,
+            chainIndex=context.chain_index,
+            hostCtx=host_ctx,
+            middlewareCtx=middleware_ctx,
+            payload=payload,
+            timeoutMs=timeout_ms,
+        )
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future = loop.create_future()
+        async with self._next_lock:
+            self._pending_next[request_id] = (future, context.task_id)
+        try:
+            message = self._build_envelope(
+                "middleware.next_request",
+                next_payload,
+                request_ack=True,
+                corr=context.task_id,
+                seq=None,
+            )
+            await self._send(message)
+        except Exception:
+            async with self._next_lock:
+                self._pending_next.pop(request_id, None)
+            raise
+
+        try:
+            if timeout_seconds:
+                return await asyncio.wait_for(future, timeout=timeout_seconds)
+            return await future
+        except asyncio.TimeoutError as exc:
+            future.cancel()
+            raise MiddlewareNextError(
+                "middleware next timed out locally",
+                code="next_timeout",
+            ) from exc
+        except asyncio.CancelledError:
+            future.cancel()
+            raise
+        finally:
+            async with self._next_lock:
+                self._pending_next.pop(request_id, None)
+
+    async def _handle_next_response(self, envelope: WsEnvelope) -> None:
+        payload = NextResponsePayload.model_validate(envelope.payload)
+        request_id = payload.request_id
+        async with self._next_lock:
+            entry = self._pending_next.pop(request_id, None)
+        if not entry:
+            LOGGER.warning(
+                "Received middleware.next_response with no pending waiter req=%s run=%s",
+                request_id,
+                payload.run_id,
+            )
+            return
+        future, _ = entry
+        if future.done():
+            return
+        if payload.error:
+            code = payload.error.get("code") if isinstance(payload.error, dict) else None
+            message = payload.error.get("message") if isinstance(payload.error, dict) else "middleware next failed"
+            future.set_exception(MiddlewareNextError(message, code=code, trace=payload.trace))
+            return
+        future.set_result(payload.result or {})
 
 
 @dataclass

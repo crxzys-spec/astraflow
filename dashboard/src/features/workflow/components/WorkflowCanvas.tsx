@@ -4,11 +4,11 @@ import ReactFlow, { Background, useReactFlow } from "reactflow";
 import type { Connection, Edge, EdgeChange, EdgeTypes, Node, NodeChange, NodeTypes } from "reactflow";
 import "reactflow/dist/style.css";
 import WorkflowControls from "./WorkflowControls";
-import { nanoid } from "nanoid";
 import { useWorkflowStore } from "../store.ts";
 import { buildFlowEdges, buildFlowNodes } from "../utils/flowTransforms.ts";
 import type { WorkflowEdgeDraft, XYPosition } from "../types.ts";
 import { WorkflowNode } from "../nodes";
+import { generateId } from "../utils/id.ts";
 import {
   WORKFLOW_NODE_DRAG_FORMAT,
   WORKFLOW_NODE_DRAG_PACKAGE_KEY,
@@ -123,7 +123,7 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
         return;
       }
       const edge: WorkflowEdgeDraft = {
-        id: nanoid(),
+        id: generateId(),
         source: { nodeId: connection.source, portId: connection.sourceHandle },
         target: { nodeId: connection.target, portId: connection.targetHandle }
       };

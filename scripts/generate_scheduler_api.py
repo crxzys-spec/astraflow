@@ -81,6 +81,7 @@ def main() -> None:
                     "../components/schemas/index.yaml#/schemas/": "#/components/schemas/",
                     "./components/schemas/index.yaml#/schemas/": "#/components/schemas/",
                     "./schemas/index.yaml#/schemas/": "#/components/schemas/",
+                    "./schemas/index.yaml#/": "#/components/schemas/",
                 }
                 for old, new in replacements.items():
                     node = node.replace(old, new)
@@ -96,6 +97,19 @@ def main() -> None:
             return node
 
         spec = transform_refs(spec)
+
+        def strip_const(node):
+            if isinstance(node, dict):
+                node.pop("const", None)
+                for k, v in list(node.items()):
+                    node[k] = strip_const(v)
+            elif isinstance(node, list):
+                return [strip_const(v) for v in node]
+            return node
+
+        spec = strip_const(spec)
+        # Downgrade to 3.0.3 for generator compatibility
+        spec["openapi"] = "3.0.3"
         spec_yaml = yaml.safe_dump(spec, sort_keys=False)
         spec_path.write_text(spec_yaml, encoding="utf-8")
         resolved_copy = OUTPUT_DIR / "openapi.resolved.yaml"
@@ -111,6 +125,7 @@ def main() -> None:
             str(OUTPUT_DIR),
             "--additional-properties",
             "packageName=scheduler_api",
+            # "--skip-validate-spec",
         ]
         if cli.lower().endswith(".ps1"):
             exec_cmd = [

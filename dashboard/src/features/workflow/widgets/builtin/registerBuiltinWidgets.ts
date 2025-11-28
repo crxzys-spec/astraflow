@@ -9,6 +9,8 @@ import { FallbackWidget } from "../components/FallbackWidget";
 import { SubgraphPickerWidget } from "../components/SubgraphPickerWidget";
 import { SectionWidget } from "../components/SectionWidget";
 import { SubgraphJumpWidget } from "../components/SubgraphJumpWidget";
+import { OptionSelectWidget } from "../components/OptionSelectWidget";
+import { TypedInputWidget } from "../components/TypedInputWidget";
 
 let registered = false;
 
@@ -28,6 +30,8 @@ export const registerBuiltinWidgets = () => {
   widgetRegistry.register("json", { component: JsonWidget });
   widgetRegistry.register("subgraph-picker", { component: SubgraphPickerWidget });
   widgetRegistry.register("subgraph-jump", { component: SubgraphJumpWidget });
+  widgetRegistry.register("options", { component: OptionSelectWidget });
+  widgetRegistry.register("typed-input", { component: TypedInputWidget });
   widgetRegistry.register("section", { component: SectionWidget });
   widgetRegistry.register("fallback", { component: FallbackWidget });
 };

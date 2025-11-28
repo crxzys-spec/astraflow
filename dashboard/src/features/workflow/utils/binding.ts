@@ -1,4 +1,4 @@
-﻿import type { WorkflowNodeDraft, NodeWidgetDefinition } from "../types";
+import type { WorkflowMiddlewareDraft, WorkflowNodeDraft, NodeWidgetDefinition } from "../types";
 import type { UIBindingMode } from "../../../api/models/uIBindingMode";
 
 type BindingRoot = "parameters" | "results";
@@ -33,7 +33,9 @@ export const resolveBindingPath = (path: string): BindingResolution | undefined 
   return { root, path: rest };
 };
 
-export const getBindingValue = (node: WorkflowNodeDraft, resolution: BindingResolution): unknown => {
+type BindableNode = WorkflowNodeDraft | WorkflowMiddlewareDraft;
+
+export const getBindingValue = (node: BindableNode, resolution: BindingResolution): unknown => {
   const source = resolution.root === "parameters" ? node.parameters : node.results;
   return resolution.path.reduce<unknown>((accumulator, key) => {
     if (accumulator && typeof accumulator === "object") {
@@ -64,23 +66,23 @@ const applyValue = (target: unknown, path: string[], value: unknown): unknown =>
   return container;
 };
 
-export const setBindingValue = (
-  node: WorkflowNodeDraft,
+export const setBindingValue = <TNode extends BindableNode>(
+  node: TNode,
   resolution: BindingResolution,
   value: unknown
-): WorkflowNodeDraft => {
+): TNode => {
   if (resolution.root === "parameters") {
     const nextParameters = applyValue(node.parameters, resolution.path, value);
     return {
       ...node,
       parameters: nextParameters as Record<string, unknown>
-    };
+    } as TNode;
   }
   const nextResults = applyValue(node.results, resolution.path, value);
   return {
     ...node,
     results: nextResults as Record<string, unknown>
-  };
+  } as TNode;
 };
 
 export const resolveWidgetBinding = (widget: NodeWidgetDefinition): BindingResolution | undefined =>
@@ -104,4 +106,3 @@ export const formatBindingDisplay = (
   }
   return prefix || undefined;
 };
-

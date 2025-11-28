@@ -7,6 +7,8 @@ import logging
 import shutil
 import sys
 import tempfile
+import importlib.machinery
+import importlib.util
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable
@@ -175,11 +177,19 @@ class PackageManager:
                     "config": node.get("config", {}),
                 }
             )
-            self._registry.register(
+            LOGGER.info(
+                "Registering handler %s@%s:%s -> %s",
                 package_name,
                 version,
                 node_type,
                 resolved_entrypoint,
+            )
+            handler_callable = self._load_handler(package_dir, resolved_entrypoint)
+            self._registry.register_callable(
+                package_name,
+                version,
+                node_type,
+                handler_callable,
                 metadata=metadata,
             )
 
@@ -192,3 +202,21 @@ class PackageManager:
             )
             return f"{module_name}:{target_attr}"
         return f"{module_path}:{handler_name}"
+
+    def _load_handler(self, package_dir: Path, entrypoint: str):
+        module_name, attr = AdapterRegistry._split_entrypoint(entrypoint)
+        module_path = module_name.replace(".", "/")
+        module_file = package_dir / f"{module_path}.py"
+        if not module_file.is_file():
+            # try package directory form
+            module_file = package_dir / module_path / "__init__.py"
+        if not module_file.is_file():
+            raise ModuleNotFoundError(f"Cannot resolve entrypoint {entrypoint} in {package_dir}")
+        alias = f"{package_dir.name}_{module_name}".replace(".", "_").replace("-", "_")
+        spec = importlib.util.spec_from_file_location(alias, module_file)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot load spec for {module_file}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[alias] = module
+        spec.loader.exec_module(module)
+        return getattr(module, attr)

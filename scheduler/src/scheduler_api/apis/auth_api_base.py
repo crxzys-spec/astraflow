@@ -2,9 +2,9 @@
 
 from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 
-from scheduler_api.models.auth_login200_response import AuthLogin200Response
-from scheduler_api.models.auth_login401_response import AuthLogin401Response
 from scheduler_api.models.auth_login_request import AuthLoginRequest
+from scheduler_api.models.auth_login_response1 import AuthLoginResponse1
+from scheduler_api.models.error import Error
 
 
 class BaseAuthApi:
@@ -16,5 +16,5 @@ class BaseAuthApi:
     async def auth_login(
         self,
         auth_login_request: AuthLoginRequest,
-    ) -> AuthLogin200Response:
+    ) -> AuthLoginResponse1:
         ...

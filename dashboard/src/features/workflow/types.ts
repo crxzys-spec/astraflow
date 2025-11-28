@@ -2,7 +2,7 @@ import type { ManifestNode } from '../../api/models/manifestNode';
 import type { Workflow as ApiWorkflow } from '../../api/models/workflow';
 import type { WorkflowEdge as ApiWorkflowEdge } from '../../api/models/workflowEdge';
 import type { WorkflowMetadata } from '../../api/models/workflowMetadata';
-import type { WorkflowNode as ApiWorkflowNode } from '../../api/models/workflowNode';
+import type { WorkflowNode as ApiWorkflowNode } from '../../api/models/workflowNode';
 import type { WorkflowNodeSchema } from '../../api/models/workflowNodeSchema';
 import type { RunArtifact } from '../../api/models/runArtifact';
 import type { NodeUI } from '../../api/models/nodeUI';
@@ -28,27 +28,57 @@ export interface WorkflowDraft {
   dirty: boolean;
 }
 
+export interface WorkflowMiddlewareDraft {
+  id: string;
+  label: string;
+  role?: "middleware";
+  nodeKind: string;
+  status?: string;
+  category?: string;
+  description?: string;
+  tags?: string[];
+  packageName?: string;
+  packageVersion?: string;
+  adapter?: string;
+  handler?: string;
+  parameters: Record<string, unknown>;
+  results: Record<string, unknown>;
+  schema?: WorkflowNodeSchema;
+  ui?: NodeUI;
+  resources?: WorkflowResourceBinding[];
+  affinity?: Record<string, unknown>;
+  concurrencyKey?: string;
+  metadata?: Record<string, unknown>;
+  state?: WorkflowNodeState;
+  runtimeArtifacts?: RunArtifact[] | null;
+  runtimeSummary?: string | null;
+}
+
 export interface WorkflowNodeDraft {
   id: string;
   label: string;
+  role?: "node" | "container" | "middleware";
   nodeKind: string;
   status?: string;
-  category?: string;
-  description?: string;
-  tags?: string[];
-  packageName?: string;
-  packageVersion?: string;
-  parameters: Record<string, unknown>;
-  results: Record<string, unknown>;
+  category?: string;
+  description?: string;
+  tags?: string[];
+  packageName?: string;
+  packageVersion?: string;
+  adapter?: string;
+  handler?: string;
+  parameters: Record<string, unknown>;
+  results: Record<string, unknown>;
   schema?: WorkflowNodeSchema;
   ui?: NodeUI;
-  position: XYPosition;
-  dependencies: string[];
-  resources?: WorkflowResourceBinding[];
-  affinity?: Record<string, unknown>;
-  concurrencyKey?: string;
-  metadata?: Record<string, unknown>;
-  state?: WorkflowNodeState;
+  position: XYPosition;
+  dependencies: string[];
+  middlewares?: WorkflowMiddlewareDraft[];
+  resources?: WorkflowResourceBinding[];
+  affinity?: Record<string, unknown>;
+  concurrencyKey?: string;
+  metadata?: Record<string, unknown>;
+  state?: WorkflowNodeState;
   runtimeArtifacts?: RunArtifact[] | null;
   runtimeSummary?: string | null;
 }

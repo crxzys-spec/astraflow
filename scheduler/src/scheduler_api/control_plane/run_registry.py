@@ -11,6 +11,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+from uuid import UUID
 
 from scheduler_api.models.list_runs200_response import ListRuns200Response
 from scheduler_api.models.list_runs200_response_items_inner import ListRuns200ResponseItemsInner
@@ -38,6 +39,7 @@ from scheduler_api.sse.mappers import (
 from shared.models.ws import result as ws_result
 from shared.models.ws.error import ErrorPayload
 from shared.models.ws.feedback import FeedbackPayload
+from shared.models.ws.next import NextRequestPayload, NextResponsePayload
 
 LOGGER = logging.getLogger(__name__)
 
@@ -48,7 +50,8 @@ def _utc_now() -> datetime:
 
 def _compute_definition_hash(workflow: StartRunRequestWorkflow) -> str:
     payload = workflow.to_dict()
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    # Ensure any uuid.UUID (or other non-JSON types) are rendered deterministically
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
     return hashlib.sha256(canonical).hexdigest()
 
 
@@ -373,7 +376,7 @@ def _resolve_binding_reference(
 ) -> Optional[BindingResolution]:
     if binding is None:
         return None
-    path_value = getattr(binding, "path", None)
+    path_value = binding.get("path") if isinstance(binding, dict) else getattr(binding, "path", None)
     parsed = _parse_binding_path(path_value)
     if not parsed or owning_node is None:
         return None
@@ -448,6 +451,9 @@ class DispatchRequest:
     preferred_worker_id: Optional[str] = None
     attempts: int = 0
     dispatch_id: Optional[str] = None
+    host_node_id: Optional[str] = None
+    middleware_chain: Optional[List[str]] = None
+    chain_index: Optional[int] = None
     ack_deadline: Optional[datetime] = None
 
 
@@ -482,6 +488,8 @@ class NodeState:
     container_node_id: Optional[str] = None
     subgraph_id: Optional[str] = None
     frame_alias: Tuple[str, ...] = field(default_factory=tuple)
+    middlewares: List[str] = field(default_factory=list)
+    middleware_defs: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -768,9 +776,11 @@ class RunRecord:
         return frame_meta
 
     def _format_node(self, node: NodeState) -> Dict[str, Any]:
+        node_id = str(node.node_id) if node.node_id is not None else None
+        task_id = str(node.task_id) if node.task_id is not None else None
         payload: Dict[str, Any] = {
-            "nodeId": node.node_id,
-            "taskId": node.task_id,
+            "nodeId": node_id,
+            "taskId": task_id,
             "status": node.status,
         }
         if node.worker_id:
@@ -804,6 +814,14 @@ class RunRecord:
         if frame_metadata:
             metadata_source["__frame"] = frame_metadata
         if metadata_source:
+            # expose middleware chain/host markers for trace UIs
+            if getattr(node, "middlewares", None):
+                middleware_defs = getattr(node, "middleware_defs", []) or []
+                metadata_source["middlewares"] = middleware_defs if middleware_defs else list(node.middlewares)
+            if node.metadata and "host_node_id" in node.metadata:
+                metadata_source["host_node_id"] = node.metadata.get("host_node_id")
+            if node.metadata and "chain_index" in node.metadata:
+                metadata_source["chain_index"] = node.metadata.get("chain_index")
             payload["metadata"] = metadata_source
         if node.error:
             payload["error"] = node.error.to_dict()
@@ -816,12 +834,109 @@ class RunRecord:
         return payload
 
 
+NEXT_ERROR_MESSAGES: Dict[str, str] = {
+    "next_run_finalised": "run already in final status",
+    "next_duplicate": "duplicate next request",
+    "next_no_chain": "middleware chain not found",
+    "next_invalid_chain": "invalid chain index",
+    "next_target_not_ready": "target node not ready",
+    "next_timeout": "next request timed out",
+    "next_cancelled": "next request cancelled",
+    "next_unavailable": "next request rejected",
+}
+
+
 class RunRegistry:
     """Thread-safe run registry to coordinate REST and WebSocket layers."""
 
     def __init__(self) -> None:
         self._runs: Dict[str, RunRecord] = {}
         self._lock = asyncio.Lock()
+        # pending middleware next requests keyed by request_id -> (run_id, worker_id, deadline, node_id, middleware_id, target_task_id)
+        self._pending_next_requests: Dict[str, Tuple[str, Optional[str], Optional[datetime], Optional[str], Optional[str], Optional[str]]] = {}
+        self._next_error_messages = NEXT_ERROR_MESSAGES
+
+    @staticmethod
+    def _is_middleware_node(node: NodeState) -> bool:
+        return bool(node.metadata and node.metadata.get("role") == "middleware")
+
+    def _is_host_with_middleware(self, node: NodeState) -> bool:
+        return bool(node.middlewares) and not self._is_middleware_node(node)
+
+    def _is_first_middleware(self, node: NodeState) -> bool:
+        if not self._is_middleware_node(node):
+            return False
+        chain_index = node.metadata.get("chain_index") if node.metadata else None
+        return chain_index is None or chain_index == 0
+
+    def _should_auto_dispatch(self, node: NodeState) -> bool:
+        if node.status != "queued" or node.pending_dependencies != 0 or node.enqueued:
+            return False
+        if self._is_host_with_middleware(node):
+            return False
+        if self._is_middleware_node(node) and not self._is_first_middleware(node):
+            return False
+        return True
+
+    def _release_dependents(
+        self,
+        record: RunRecord,
+        node_state: NodeState,
+        frame_state: Optional[FrameRuntimeState],
+        ready: List[DispatchRequest],
+    ) -> None:
+        """Release dependents of a completed node into the ready queue."""
+        graph_nodes = frame_state.nodes if frame_state else record.nodes
+        for dependent_id in node_state.dependents:
+            dependent = graph_nodes.get(dependent_id)
+            if not dependent or dependent.status != "queued":
+                continue
+            if dependent.pending_dependencies > 0:
+                dependent.pending_dependencies -= 1
+            if self._should_auto_dispatch(dependent):
+                if dependent.node_type == "workflow.container":
+                    parent_frame_id = frame_state.frame_id if frame_state else None
+                    frame_ready = self._start_container_execution(
+                        record,
+                        dependent,
+                        parent_frame_id=parent_frame_id,
+                    )
+                    ready.extend(frame_ready)
+                    break
+                ready.append(self._build_dispatch_request_for_node(record, dependent))
+
+    def _finalise_pending_next(
+        self,
+        payload: ws_result.ResultPayload,
+        node_state: NodeState,
+        *,
+        status: str,
+    ) -> List[Tuple[Optional[str], NextResponsePayload]]:
+        """Send a terminal next_response for any middleware.next waiting on this task."""
+        responses: List[Tuple[Optional[str], NextResponsePayload]] = []
+        pending_next_to_clear = [
+            (req_id, worker_id, run_id, node_id, middleware_id)
+            for req_id, (run_id, worker_id, deadline, node_id, middleware_id, target_task_id)
+            in self._pending_next_requests.items()
+            if target_task_id == node_state.task_id
+        ]
+        for req_id, worker_id, run_id, node_id, middleware_id in pending_next_to_clear:
+            self._pending_next_requests.pop(req_id, None)
+            err_body = None
+            if payload.error:
+                err_body = {"code": payload.error.code, "message": payload.error.message}
+            elif status != "succeeded":
+                err_body = {"code": f"next_{status}", "message": f"target {node_state.node_id} status {status}"}
+            resp = NextResponsePayload(
+                requestId=req_id,
+                runId=run_id,
+                nodeId=node_id or "",
+                middlewareId=middleware_id or "",
+                result=node_state.result,
+                error=err_body,
+            )
+            responses.append((worker_id, resp))
+        return responses
 
     async def _publish_run_state(self, record: RunRecord) -> None:
         if not record.client_id:
@@ -1024,9 +1139,11 @@ class RunRegistry:
         return StartRunRequestWorkflow.from_dict(workflow_dict)
 
     def _format_node(self, node: NodeState) -> Dict[str, Any]:
+        node_id = str(node.node_id) if node.node_id is not None else None
+        task_id = str(node.task_id) if node.task_id is not None else None
         payload: Dict[str, Any] = {
-            "nodeId": node.node_id,
-            "taskId": node.task_id,
+            "nodeId": node_id,
+            "taskId": task_id,
             "status": node.status,
         }
         if node.worker_id:
@@ -1191,6 +1308,12 @@ class RunRegistry:
             node_state.ack_deadline = ack_deadline
             record.refresh_rollup()
             new_status = record.status
+            if new_status in FINAL_STATUSES:
+                self._pending_next_requests = {
+                    req_id: (r_id, worker_id, deadline, node_id, middleware_id, target_task_id)
+                    for req_id, (r_id, worker_id, deadline, node_id, middleware_id, target_task_id) in self._pending_next_requests.items()
+                    if r_id != record.run_id
+                }
             record_snapshot = copy.deepcopy(record)
             node_snapshot = copy.deepcopy(node_state)
         tasks = []
@@ -1231,7 +1354,7 @@ class RunRegistry:
         await asyncio.gather(*tasks)
         return record_snapshot
 
-    async def cancel_run(self, run_id: str) -> Optional[RunRecord]:
+    async def cancel_run(self, run_id: str) -> tuple[Optional[RunRecord], List[Tuple[str, str, str, Optional[str], Optional[str]]]]:
         def _cancel_nodes(nodes: Dict[str, NodeState], timestamp: datetime) -> None:
             for node in nodes.values():
                 if node.status in FINAL_STATUSES:
@@ -1247,9 +1370,9 @@ class RunRegistry:
         async with self._lock:
             record = self._runs.get(run_id)
             if not record:
-                return None
+                return None, []
             if record.status in FINAL_STATUSES:
-                return copy.deepcopy(record)
+                return copy.deepcopy(record), []
             timestamp = _utc_now()
             _cancel_nodes(record.nodes, timestamp)
             for frame in record.active_frames.values():
@@ -1258,6 +1381,17 @@ class RunRegistry:
             record.frame_stack.clear()
             record.status = "cancelled"
             record.finished_at = timestamp
+            cancelled_next: List[Tuple[str, str, str, Optional[str], Optional[str]]] = []
+            # drop pending middleware next requests for this run and surface worker targets
+            remaining_next: Dict[str, Tuple[str, Optional[str], Optional[datetime], Optional[str], Optional[str], Optional[str]]] = {}
+            for req_id, (r_id, worker_id, deadline, node_id, middleware_id, target_task_id) in self._pending_next_requests.items():
+                if r_id == run_id and worker_id:
+                    cancelled_next.append((req_id, worker_id, r_id, node_id, middleware_id))
+                    continue
+                if r_id == run_id:
+                    continue
+                remaining_next[req_id] = (r_id, worker_id, deadline, node_id, middleware_id, target_task_id)
+            self._pending_next_requests = remaining_next
             record.refresh_rollup()
             record.status = "cancelled"
             record_snapshot = copy.deepcopy(record)
@@ -1266,7 +1400,7 @@ class RunRegistry:
             self._publish_run_state(record_snapshot),
             self._publish_run_snapshot(record_snapshot),
         )
-        return record_snapshot
+        return record_snapshot, cancelled_next
 
     async def reset_after_ack_timeout(
         self,
@@ -1329,13 +1463,13 @@ class RunRegistry:
         self,
         run_id: str,
         payload: ws_result.ResultPayload,
-    ) -> tuple[Optional[RunRecord], List[DispatchRequest]]:
+    ) -> tuple[Optional[RunRecord], List[DispatchRequest], List[Tuple[Optional[str], NextResponsePayload]]]:
         async with self._lock:
             record = self._runs.get(run_id)
             if not record:
-                return None, []
+                return None, [], []
             if record.status in FINAL_STATUSES:
-                return copy.deepcopy(record), []
+                return copy.deepcopy(record), [], []
             previous_status = record.status
             status = _normalise_status(payload.status.value)
             node_state, frame_state = self._resolve_node_state(
@@ -1350,7 +1484,11 @@ class RunRegistry:
             node_state.status = status
             node_state.finished_at = timestamp
             node_state.result = payload.result
-            node_state.metadata = payload.metadata
+            # Preserve existing metadata (role/host info) when merging adapter metadata
+            existing_meta = node_state.metadata or {}
+            incoming_meta = copy.deepcopy(payload.metadata) if payload.metadata else {}
+            merged_meta = {**existing_meta, **incoming_meta}
+            node_state.metadata = merged_meta if merged_meta else None
             node_state.artifacts = [
                 artifact.model_dump(exclude_none=True)
                 for artifact in (payload.artifacts or [])
@@ -1371,31 +1509,58 @@ class RunRegistry:
                 node_state.error = None
                 record.error = None
 
-            if status == "succeeded":
-                if frame_state:
-                    self._apply_frame_edge_bindings(frame_state, node_state)
-                else:
-                    self._apply_edge_bindings(record, node_state)
-
             ready: List[DispatchRequest] = []
-            graph_nodes = frame_state.nodes if frame_state else record.nodes
-            for dependent_id in node_state.dependents:
-                dependent = graph_nodes.get(dependent_id)
-                if not dependent or dependent.status != "queued":
-                    continue
-                if dependent.pending_dependencies > 0:
-                    dependent.pending_dependencies -= 1
-                if dependent.pending_dependencies == 0 and not dependent.enqueued:
-                    if dependent.node_type == "workflow.container":
-                        parent_frame_id = frame_state.frame_id if frame_state else None
-                        frame_ready = self._start_container_execution(
-                            record,
-                            dependent,
-                            parent_frame_id=parent_frame_id,
-                        )
-                        ready.extend(frame_ready)
-                        break
-                    ready.append(self._build_dispatch_request(record, dependent))
+            next_responses: List[Tuple[Optional[str], NextResponsePayload]] = []
+            # Host nodes with middleware chains keep looping; do not release dependents or finalize yet.
+            if not self._is_host_with_middleware(node_state):
+                if status == "succeeded":
+                    if frame_state:
+                        self._apply_frame_edge_bindings(frame_state, node_state)
+                    else:
+                        self._apply_edge_bindings(record, node_state)
+                    self._release_dependents(record, node_state, frame_state, ready)
+            else:
+                # Allow the host to be dispatched again by middleware.next()
+                node_state.status = "queued"
+                node_state.enqueued = False
+                node_state.pending_dependencies = 0
+
+            # Middleware completion finalises the host and releases its dependents.
+            host_snapshot: Optional[NodeState] = None
+            if self._is_middleware_node(node_state):
+                # Keep middleware reusable for subsequent next() invocations if it succeeded.
+                if status == "succeeded":
+                    node_state.status = "queued"
+                    node_state.enqueued = False
+                    node_state.pending_dependencies = 0
+
+                host_id = node_state.metadata.get("host_node_id") if node_state.metadata else None
+                if host_id:
+                    host_state, host_frame = self._resolve_node_state(record, node_id=str(host_id), task_id=None)
+                    if host_state:
+                        # Surface middleware outputs onto the host payload so downstream bindings can consume them.
+                        self._apply_middleware_output_bindings(host_state, node_state)
+                        chain_index = node_state.metadata.get("chain_index") if node_state.metadata else None
+                        chain_len = len(host_state.middlewares) if host_state.middlewares else 0
+                        # Only the outermost (first) middleware closes the U-shape and finalises the host.
+                        is_outermost = chain_index is None or chain_index == 0
+                        if is_outermost:
+                            host_state.status = status
+                            host_state.finished_at = timestamp
+                            # Keep host data isolated; middleware data remains on the middleware node
+                            host_state.result = host_state.result
+                            host_state.metadata = host_state.metadata
+                            host_state.artifacts = host_state.artifacts
+                            host_state.error = host_state.error
+                            host_state.enqueued = False
+                            host_state.pending_dependencies = 0
+                            if status == "succeeded":
+                                if host_frame:
+                                    self._apply_frame_edge_bindings(host_frame, host_state)
+                                else:
+                                    self._apply_edge_bindings(record, host_state)
+                                self._release_dependents(record, host_state, host_frame, ready)
+                        host_snapshot = copy.deepcopy(host_state)
 
             container_snapshot: Optional[NodeState] = None
             if frame_state:
@@ -1403,6 +1568,9 @@ class RunRegistry:
                 ready.extend(frame_ready)
                 if container_node and frame_state.parent_frame_id is None:
                     container_snapshot = copy.deepcopy(container_node)
+
+            # Resolve pending middleware.next responses targeting this task
+            next_responses.extend(self._finalise_pending_next(payload, node_state, status=status))
 
             record.refresh_rollup()
             new_status = record.status
@@ -1416,6 +1584,14 @@ class RunRegistry:
                 complete=status in FINAL_STATUSES,
             ),
         ]
+        if host_snapshot:
+            tasks.append(
+                self._publish_node_snapshot(
+                    record_snapshot,
+                    host_snapshot,
+                    complete=status in FINAL_STATUSES,
+                )
+            )
         if container_snapshot:
             tasks.extend(
                 [
@@ -1431,7 +1607,7 @@ class RunRegistry:
             tasks.append(self._publish_run_state(record_snapshot))
         tasks.append(self._publish_run_snapshot(record_snapshot))
         await asyncio.gather(*tasks)
-        return record_snapshot, ready
+        return record_snapshot, ready, next_responses
 
     async def record_feedback(
         self,
@@ -1588,6 +1764,117 @@ class RunRegistry:
         if tasks:
             await asyncio.gather(*tasks)
 
+    async def handle_next_request(
+        self,
+        payload: NextRequestPayload,
+        *,
+        worker_id: Optional[str],
+    ) -> Tuple[List[DispatchRequest], Optional[str]]:
+        async with self._lock:
+            record = self._runs.get(payload.run_id)
+            if not record or record.status in FINAL_STATUSES:
+                return [], "next_run_finalised"
+            if payload.request_id in self._pending_next_requests:
+                return [], "next_duplicate"
+
+            host_node_id = None
+            chain: Optional[List[str]] = None
+            for node in record.nodes.values():
+                chain_ids = getattr(node, "middlewares", []) or []
+                if payload.middleware_id in chain_ids:
+                    host_node_id = node.node_id
+                    chain = chain_ids
+                    break
+            if not chain:
+                return [], "next_no_chain"
+
+            try:
+                current_index = (
+                    payload.chain_index if payload.chain_index is not None else chain.index(payload.middleware_id)
+                )
+            except ValueError:
+                return [], "next_invalid_chain"
+            target_index = current_index + 1
+            if target_index < len(chain):
+                target_node_id = chain[target_index]
+                target_chain_index = target_index
+            else:
+                target_node_id = host_node_id
+                target_chain_index = None
+
+            node_state, frame_state = self._resolve_node_state(
+                record,
+                node_id=target_node_id,
+                task_id=None,
+            )
+            if not node_state:
+                return [], "next_target_not_ready"
+
+            # Middleware chains may need to re-dispatch nodes that previously finished; reset lightweight state.
+            if self._is_middleware_node(node_state) or self._is_host_with_middleware(node_state):
+                if node_state.status in FINAL_STATUSES or node_state.status == "queued":
+                    node_state.status = "queued"
+                    node_state.enqueued = False
+                    node_state.pending_dependencies = 0
+
+            if node_state.status != "queued" or node_state.enqueued:
+                return [], "next_target_not_ready"
+            if node_state.pending_dependencies != 0:
+                return [], "next_target_not_ready"
+
+            dispatch = self._build_dispatch_request(
+                record,
+                node_state,
+                host_node_id=host_node_id,
+                middleware_chain=chain,
+                chain_index=target_chain_index,
+            )
+            deadline = None
+            if payload.timeout_ms and payload.timeout_ms > 0:
+                deadline = _utc_now() + timedelta(milliseconds=payload.timeout_ms)
+            self._pending_next_requests[payload.request_id] = (
+                record.run_id,
+                worker_id,
+                deadline,
+                payload.node_id,
+                payload.middleware_id,
+                node_state.task_id,
+            )
+            record_snapshot = copy.deepcopy(record)
+            node_snapshot = copy.deepcopy(node_state)
+        await asyncio.gather(
+            self._publish_node_state(record_snapshot, node_snapshot),
+            self._publish_run_snapshot(record_snapshot),
+        )
+        return [dispatch], None
+
+    async def resolve_next_response_worker(self, request_id: str) -> Optional[str]:
+        async with self._lock:
+            entry = self._pending_next_requests.pop(request_id, None)
+            if not entry:
+                return None
+            _, worker_id, deadline, _, _, _ = entry
+            if deadline and _utc_now() > deadline:
+                return None
+            return worker_id
+
+    async def collect_expired_next_requests(self) -> List[Tuple[str, str, str, Optional[str], Optional[str]]]:
+        async with self._lock:
+            now = _utc_now()
+            expired: List[Tuple[str, str, str, Optional[str], Optional[str]]] = []
+            remaining: Dict[str, Tuple[str, Optional[str], Optional[datetime], Optional[str], Optional[str], Optional[str]]] = {}
+            for req_id, (run_id, worker_id, deadline, node_id, middleware_id, target_task_id) in self._pending_next_requests.items():
+                if deadline and now > deadline:
+                    if worker_id:
+                        expired.append((req_id, worker_id, run_id, node_id, middleware_id))
+                else:
+                    remaining[req_id] = (run_id, worker_id, deadline, node_id, middleware_id, target_task_id)
+            self._pending_next_requests = remaining
+            return expired
+
+    def get_next_error_message(self, code: str) -> str:
+        return self._next_error_messages.get(code, "next request rejected")
+
     async def record_command_error(
         self,
         payload: ErrorPayload,
@@ -1694,28 +1981,152 @@ class RunRegistry:
             next_cursor = filtered_list[start_index + len(window) - 1].run_id
         return ListRuns200Response(items=items, nextCursor=next_cursor)
 
+    def _resolve_middleware_chain(
+        self,
+        record: RunRecord,
+        node: NodeState,
+    ) -> Optional[Tuple[str, List[str], int]]:
+        target_id = node.node_id
+
+        def _scan(nodes: Dict[str, NodeState]) -> Optional[Tuple[str, List[str], int]]:
+            for candidate in nodes.values():
+                chain = getattr(candidate, "middlewares", []) or []
+                if target_id in chain:
+                    try:
+                        return candidate.node_id, chain, chain.index(target_id)
+                    except ValueError:
+                        continue
+            return None
+
+        if node.frame_id and node.frame_id in record.active_frames:
+            frame = record.active_frames.get(node.frame_id)
+            if frame:
+                found = _scan(frame.nodes)
+                if found:
+                    return found
+        found = _scan(record.nodes)
+        if found:
+            return found
+        for frame in record.active_frames.values():
+            found = _scan(frame.nodes)
+            if found:
+                return found
+        return None
+
+    def _build_dispatch_request_for_node(self, record: RunRecord, node: NodeState) -> DispatchRequest:
+        host_node_id = None
+        middleware_chain = None
+        chain_index = None
+        chain_info = self._resolve_middleware_chain(record, node)
+        if chain_info:
+            host_node_id, middleware_chain, chain_index = chain_info
+        return self._build_dispatch_request(
+            record,
+            node,
+            host_node_id=host_node_id,
+            middleware_chain=middleware_chain,
+            chain_index=chain_index,
+        )
+
     def _initialise_nodes(self, record: RunRecord) -> None:
         nodes: Dict[str, NodeState] = {}
+        def _add_dependency(source_state: NodeState, target_state: NodeState) -> None:
+            if target_state.node_id not in source_state.dependencies:
+                source_state.dependencies.append(target_state.node_id)
+                source_state.pending_dependencies += 1
+            if source_state.node_id not in target_state.dependents:
+                target_state.dependents.append(source_state.node_id)
+
+        def _propagate_host_dependencies_to_first_middleware() -> None:
+            """Ensure the first middleware in a chain inherits the host's upstream dependencies."""
+            for node in workflow.nodes or []:
+                mw_ids, _ = _extract_middleware_entries(getattr(node, "middlewares", []) or [])
+                if not mw_ids:
+                    continue
+                host_state = nodes.get(str(node.id))
+                first_mw_state = nodes.get(str(mw_ids[0]))
+                if not host_state or not first_mw_state:
+                    continue
+                for dep_id in list(host_state.dependencies):
+                    if dep_id == first_mw_state.node_id:
+                        continue
+                    if dep_id not in first_mw_state.dependencies:
+                        first_mw_state.dependencies.append(dep_id)
+                        first_mw_state.pending_dependencies += 1
+                    dep_state = nodes.get(dep_id)
+                    if dep_state and first_mw_state.node_id not in dep_state.dependents:
+                        dep_state.dependents.append(first_mw_state.node_id)
+
+        def _propagate_host_dependencies_to_first_middleware() -> None:
+            """Ensure the first middleware in a chain inherits the host's upstream dependencies."""
+            for node in record.workflow.nodes or []:
+                mw_ids, _ = _extract_middleware_entries(getattr(node, "middlewares", []) or [])
+                if not mw_ids:
+                    continue
+                host_state = nodes.get(str(node.id))
+                first_mw_state = nodes.get(str(mw_ids[0]))
+                if not host_state or not first_mw_state:
+                    continue
+                for dep_id in list(host_state.dependencies):
+                    if dep_id == first_mw_state.node_id:
+                        continue
+                    if dep_id not in first_mw_state.dependencies:
+                        first_mw_state.dependencies.append(dep_id)
+                        first_mw_state.pending_dependencies += 1
+                    dep_state = nodes.get(dep_id)
+                    if dep_state and first_mw_state.node_id not in dep_state.dependents:
+                        dep_state.dependents.append(first_mw_state.node_id)
+
         for node in record.workflow.nodes or []:
+            node_id = str(node.id)
             package = getattr(node, "package", None)
             package_name = package.name if package else ""
             package_version = package.version if package else ""
             parameters = copy.deepcopy(getattr(node, "parameters", {}) or {})
+            role = getattr(node, "role", None)
+            middleware_ids, middleware_defs = _extract_middleware_entries(getattr(node, "middlewares", []) or [])
             node_state = NodeState(
-                node_id=node.id,
-                task_id=node.id,
+                node_id=node_id,
+                task_id=node_id,
                 node_type=node.type,
                 package_name=package_name,
                 package_version=package_version,
                 parameters=parameters,
-                concurrency_key=f"{record.run_id}:{node.id}",
+                concurrency_key=f"{record.run_id}:{node_id}",
+                middlewares=middleware_ids,
+                middleware_defs=middleware_defs,
             )
-            nodes[node.id] = node_state
+            if role:
+                node_state.metadata = node_state.metadata or {}
+                node_state.metadata["role"] = role
+            nodes[node_id] = node_state
             record.task_index[node_state.task_id] = node_state
+
+            for index, mw_def in enumerate(middleware_defs):
+                mw_id = middleware_ids[index] if index < len(middleware_ids) else mw_def.get("id")
+                if not mw_id or mw_id in nodes:
+                    continue
+                mw_package = mw_def.get("package") if isinstance(mw_def, dict) else {}
+                mw_state = NodeState(
+                    node_id=str(mw_id),
+                    task_id=str(mw_id),
+                    node_type=str(mw_def.get("type", "")) if isinstance(mw_def, dict) else "",
+                    package_name=str(mw_package.get("name", "")) if isinstance(mw_package, dict) else "",
+                    package_version=str(mw_package.get("version", "")) if isinstance(mw_package, dict) else "",
+                    parameters=copy.deepcopy(mw_def.get("parameters", {}) if isinstance(mw_def, dict) else {}),
+                    concurrency_key=f"{record.run_id}:{mw_id}",
+                    middlewares=[],
+                    middleware_defs=[],
+                    metadata={"role": "middleware", "host_node_id": node_id, "chain_index": index},
+                )
+                nodes[mw_state.node_id] = mw_state
+                record.task_index[mw_state.task_id] = mw_state
 
         for edge in record.workflow.edges or []:
             source = getattr(edge.source, "node", None)
             target = getattr(edge.target, "node", None)
+            source = str(source) if source is not None else None
+            target = str(target) if target is not None else None
             if not source or not target:
                 continue
             if target not in nodes or source not in nodes:
@@ -1725,6 +2136,9 @@ class RunRegistry:
             target_state.dependencies.append(source)
             target_state.pending_dependencies += 1
             source_state.dependents.append(target)
+
+        # First middleware waits for the same upstream dependencies as its host
+        _propagate_host_dependencies_to_first_middleware()
 
         record.nodes = nodes
         record.scope_index = WorkflowScopeIndex(record.workflow)
@@ -1737,15 +2151,88 @@ class RunRegistry:
         frames: Dict[str, FrameDefinition] = {}
         frames_by_parent: Dict[Tuple[Optional[str], str], FrameDefinition] = {}
         subgraph_lookup: Dict[str, WorkflowSubgraph] = {
-            subgraph.id: subgraph for subgraph in (workflow.subgraphs or []) if getattr(subgraph, "id", None)
+            str(subgraph.id): subgraph for subgraph in (workflow.subgraphs or []) if getattr(subgraph, "id", None)
         }
 
         def clone_workflow(subgraph: WorkflowSubgraph) -> Optional[StartRunRequestWorkflow]:
-            definition_dict = copy.deepcopy(subgraph.definition or {})
+            def _normalise_ids(definition: Dict[str, Any]) -> Dict[str, Any]:
+                """Ensure workflow/subgraph ids and related fields are plain strings (not UUIDs)."""
+                if "id" in definition and not isinstance(definition["id"], str):
+                    definition["id"] = str(definition["id"])
+                nodes = definition.get("nodes")
+                if isinstance(nodes, list):
+                    cleaned_nodes = []
+                    for node_entry in nodes:
+                        if not isinstance(node_entry, dict):
+                            continue
+                        entry = dict(node_entry)
+                        if "id" in entry and not isinstance(entry["id"], str):
+                            entry["id"] = str(entry["id"])
+                        mws = entry.get("middlewares")
+                        if isinstance(mws, list):
+                            _mw_ids, mw_defs = _extract_middleware_entries(mws)
+                            entry["middlewares"] = mw_defs
+                        entry = _normalise_ids(entry)  # recurse in case nested defs
+                        cleaned_nodes.append(entry)
+                    definition["nodes"] = cleaned_nodes
+                edges = definition.get("edges")
+                if isinstance(edges, list):
+                    cleaned_edges = []
+                    for edge_entry in edges:
+                        if not isinstance(edge_entry, dict):
+                            continue
+                        entry = dict(edge_entry)
+                        src = entry.get("source")
+                        if isinstance(src, dict) and "node" in src and not isinstance(src["node"], str):
+                            src = dict(src)
+                            src["node"] = str(src["node"])
+                            entry["source"] = src
+                        tgt = entry.get("target")
+                        if isinstance(tgt, dict) and "node" in tgt and not isinstance(tgt["node"], str):
+                            tgt = dict(tgt)
+                            tgt["node"] = str(tgt["node"])
+                            entry["target"] = tgt
+                        if "id" in entry and not isinstance(entry["id"], str):
+                            entry["id"] = str(entry["id"])
+                        cleaned_edges.append(entry)
+                    definition["edges"] = cleaned_edges
+                subgraphs = definition.get("subgraphs")
+                if isinstance(subgraphs, list):
+                    cleaned_subgraphs = []
+                    for sub_entry in subgraphs:
+                        if not isinstance(sub_entry, dict):
+                            continue
+                        entry = dict(sub_entry)
+                        if "id" in entry and not isinstance(entry["id"], str):
+                            entry["id"] = str(entry["id"])
+                        sub_def = entry.get("definition")
+                        if isinstance(sub_def, dict):
+                            entry["definition"] = _normalise_ids(dict(sub_def))
+                        cleaned_subgraphs.append(entry)
+                    definition["subgraphs"] = cleaned_subgraphs
+                return definition
+
+            definition = subgraph.definition or {}
+            if hasattr(definition, "to_dict"):
+                definition = definition.to_dict()  # type: ignore[assignment]
+            elif hasattr(definition, "model_dump"):
+                definition = definition.model_dump(by_alias=True, exclude_none=True)  # type: ignore[assignment]
+            definition_dict = copy.deepcopy(definition)
+            if not isinstance(definition_dict, dict):
+                LOGGER.warning("Unexpected subgraph definition type for %s: %s", subgraph.id, type(definition_dict))
+                return None
             if "id" not in definition_dict:
-                definition_dict["id"] = subgraph.id
+                definition_dict["id"] = str(subgraph.id)
             if "schemaVersion" not in definition_dict and workflow.schema_version:
                 definition_dict["schemaVersion"] = workflow.schema_version
+            # normalise metadata UUID-like fields to strings to satisfy request models
+            metadata = definition_dict.get("metadata")
+            if isinstance(metadata, dict):
+                for key in ("originId", "ownerId", "createdBy", "updatedBy"):
+                    if key in metadata and not isinstance(metadata[key], str):
+                        metadata[key] = str(metadata[key])
+                definition_dict["metadata"] = metadata
+            definition_dict = _normalise_ids(definition_dict)
             try:
                 return StartRunRequestWorkflow.from_dict(definition_dict)
             except Exception as exc:  # noqa: BLE001
@@ -1775,13 +2262,13 @@ class RunRegistry:
             for child in frame_workflow.nodes or []:
                 child_subgraph_id = _get_node_subgraph_id(child)
                 if child.type == "workflow.container" and child_subgraph_id:
-                    walk(child.id, child_subgraph_id, frame_alias_chain, frame_id)
+                    walk(str(child.id), str(child_subgraph_id), frame_alias_chain, frame_id)
 
         task_index: Dict[str, NodeState] = {}
         for node in workflow.nodes or []:
             subgraph_id = _get_node_subgraph_id(node)
             if node.type == "workflow.container" and subgraph_id:
-                walk(node.id, subgraph_id, (workflow.id or "root",), None)
+                walk(str(node.id), str(subgraph_id), (str(workflow.id) or "root",), None)
 
         return frames, frames_by_parent
 
@@ -1789,31 +2276,73 @@ class RunRegistry:
         workflow = frame.workflow
         nodes: Dict[str, NodeState] = {}
         task_index: Dict[str, NodeState] = {}
+
+        def _add_dependency(source_state: NodeState, target_state: NodeState) -> None:
+            if target_state.node_id not in source_state.dependencies:
+                source_state.dependencies.append(target_state.node_id)
+                source_state.pending_dependencies += 1
+            if source_state.node_id not in target_state.dependents:
+                target_state.dependents.append(source_state.node_id)
+
         for node in workflow.nodes or []:
+            node_id = str(node.id)
             package = getattr(node, "package", None)
             package_name = package.name if package else ""
             package_version = package.version if package else ""
             parameters = copy.deepcopy(getattr(node, "parameters", {}) or {})
+            role = getattr(node, "role", None)
+            middleware_ids, middleware_defs = _extract_middleware_entries(getattr(node, "middlewares", []) or [])
             task_namespace = frame.frame_id
             node_state = NodeState(
-                node_id=node.id,
-                task_id=f"{task_namespace}::{node.id}",
+                node_id=node_id,
+                task_id=f"{task_namespace}::{node_id}",
                 node_type=node.type,
                 package_name=package_name,
                 package_version=package_version,
                 parameters=parameters,
-                concurrency_key=f"{record.run_id}:{task_namespace}:{node.id}",
+                concurrency_key=f"{record.run_id}:{task_namespace}:{node_id}",
                 frame_id=frame.frame_id,
                 container_node_id=frame.container_node_id,
                 subgraph_id=frame.subgraph_id,
                 frame_alias=frame.alias_chain,
+                middlewares=middleware_ids,
+                middleware_defs=middleware_defs,
             )
-            nodes[node.id] = node_state
+            if role:
+                node_state.metadata = node_state.metadata or {}
+                node_state.metadata["role"] = role
+            nodes[node_id] = node_state
             task_index[node_state.task_id] = node_state
+
+            for index, mw_def in enumerate(middleware_defs):
+                mw_id = middleware_ids[index] if index < len(middleware_ids) else mw_def.get("id")
+                if not mw_id or mw_id in nodes:
+                    continue
+                mw_package = mw_def.get("package") if isinstance(mw_def, dict) else {}
+                mw_state = NodeState(
+                    node_id=str(mw_id),
+                    task_id=f"{task_namespace}::{mw_id}",
+                    node_type=str(mw_def.get("type", "")) if isinstance(mw_def, dict) else "",
+                    package_name=str(mw_package.get("name", "")) if isinstance(mw_package, dict) else "",
+                    package_version=str(mw_package.get("version", "")) if isinstance(mw_package, dict) else "",
+                    parameters=copy.deepcopy(mw_def.get("parameters", {}) if isinstance(mw_def, dict) else {}),
+                    concurrency_key=f"{record.run_id}:{task_namespace}:{mw_id}",
+                    middlewares=[],
+                    middleware_defs=[],
+                    frame_id=frame.frame_id,
+                    container_node_id=frame.container_node_id,
+                    subgraph_id=frame.subgraph_id,
+                    frame_alias=frame.alias_chain,
+                    metadata={"role": "middleware", "host_node_id": node_id, "chain_index": index},
+                )
+                nodes[mw_state.node_id] = mw_state
+                task_index[mw_state.task_id] = mw_state
 
         for edge in workflow.edges or []:
             source = getattr(edge.source, "node", None)
             target = getattr(edge.target, "node", None)
+            source = str(source) if source is not None else None
+            target = str(target) if target is not None else None
             if not source or not target:
                 continue
             if source not in nodes or target not in nodes:
@@ -1823,6 +2352,9 @@ class RunRegistry:
             target_state.dependencies.append(source)
             target_state.pending_dependencies += 1
             source_state.dependents.append(target)
+
+        # First middleware waits for the same upstream dependencies as its host
+        _propagate_host_dependencies_to_first_middleware()
 
         scope_index = WorkflowScopeIndex(workflow)
         edge_bindings = self._build_edge_bindings_for_workflow(workflow, scope_index)
@@ -2019,13 +2551,20 @@ class RunRegistry:
             if dependent.pending_dependencies > 0:
                 dependent.pending_dependencies -= 1
             if dependent.pending_dependencies == 0 and not dependent.enqueued:
-                ready.append(self._build_dispatch_request(record, dependent))
+                if dependent.middlewares:
+                    continue
+                role = dependent.metadata.get("role") if dependent.metadata else None
+                if role == "middleware":
+                    chain_index = dependent.metadata.get("chain_index") if dependent.metadata else None
+                    if chain_index is not None and chain_index > 0:
+                        continue
+                ready.append(self._build_dispatch_request_for_node(record, dependent))
         return ready, container_node
 
     def _collect_ready_for_record(self, record: RunRecord) -> List[DispatchRequest]:
         ready: List[DispatchRequest] = []
         for node in record.nodes.values():
-            if node.status != "queued" or node.pending_dependencies != 0 or node.enqueued:
+            if not self._should_auto_dispatch(node):
                 continue
             if node.node_type == "workflow.container":
                 frame_ready = self._start_container_execution(
@@ -2036,13 +2575,13 @@ class RunRegistry:
                 ready.extend(frame_ready)
                 continue
             else:
-                ready.append(self._build_dispatch_request(record, node))
+                ready.append(self._build_dispatch_request_for_node(record, node))
         return ready
 
     def _collect_ready_for_frame(self, record: RunRecord, frame: FrameRuntimeState) -> List[DispatchRequest]:
         ready: List[DispatchRequest] = []
         for node in frame.nodes.values():
-            if node.status != "queued" or node.pending_dependencies != 0 or node.enqueued:
+            if not self._should_auto_dispatch(node):
                 continue
             if node.node_type == "workflow.container":
                 frame_ready = self._start_container_execution(
@@ -2053,7 +2592,7 @@ class RunRegistry:
                 ready.extend(frame_ready)
                 continue
             else:
-                ready.append(self._build_dispatch_request(record, node))
+                ready.append(self._build_dispatch_request_for_node(record, node))
         return ready
 
     def _start_container_execution(
@@ -2113,7 +2652,15 @@ class RunRegistry:
         frame_state.loop_iteration = iteration
         return self._collect_ready_for_frame(record, frame_state)
 
-    def _build_dispatch_request(self, record: RunRecord, node: NodeState) -> DispatchRequest:
+    def _build_dispatch_request(
+        self,
+        record: RunRecord,
+        node: NodeState,
+        *,
+        host_node_id: Optional[str] = None,
+        middleware_chain: Optional[List[str]] = None,
+        chain_index: Optional[int] = None,
+    ) -> DispatchRequest:
         node.enqueued = True
         resource_refs = copy.deepcopy(node.resource_refs)
         affinity = copy.deepcopy(node.affinity) if node.affinity else None
@@ -2138,9 +2685,12 @@ class RunRegistry:
             parameters=copy.deepcopy(node.parameters),
             resource_refs=resource_refs,
             affinity=affinity,
-            concurrency_key=node.concurrency_key,
+            concurrency_key=node.concurrency_key or f"{record.run_id}:{node.node_id}",
             seq=seq,
             preferred_worker_id=preferred_worker_id,
+            host_node_id=host_node_id,
+            middleware_chain=middleware_chain,
+            chain_index=chain_index,
         )
 
     def _build_edge_bindings(self, record: RunRecord) -> Dict[str, List[EdgeBinding]]:
@@ -2152,37 +2702,101 @@ class RunRegistry:
         scope_index: Optional[WorkflowScopeIndex],
     ) -> Dict[str, List[EdgeBinding]]:
         workflow_nodes = {node.id: node for node in workflow.nodes or []}
+        middleware_defs: Dict[str, Any] = {}
+        for node in workflow.nodes or []:
+            mw_ids, mw_entries = _extract_middleware_entries(getattr(node, "middlewares", []) or [])
+            for idx, mw_id in enumerate(mw_ids):
+                middleware_defs[mw_id] = mw_entries[idx] if idx < len(mw_entries) else None
         bindings: Dict[str, List[EdgeBinding]] = {}
 
-        def _resolve_port_binding(node_id: str, port_key: Optional[str], direction: str) -> Optional[Any]:
+        def _resolve_port_binding(
+            node_id: str, port_key: Optional[str], direction: str
+        ) -> Tuple[Optional[Any], Optional[str]]:
             if not port_key:
-                return None
+                return None, None
             node_def = workflow_nodes.get(node_id)
-            if not node_def or not node_def.ui:
-                return None
+            if not node_def:
+                return None, None
+
+            # middleware port handle: mw:{middlewareId}:{direction}:{portKey}
+            if port_key.startswith("mw:"):
+                try:
+                    _, mw_id, handle_dir, mw_port_key = port_key.split(":", 3)
+                except ValueError:
+                    return None, None
+                if handle_dir != ("output" if direction == "output" else "input"):
+                    return None, None
+                middlewares = getattr(node_def, "middlewares", None) or []
+                for mw in middlewares:
+                    mw_identifier = None
+                    if isinstance(mw, dict):
+                        mw_identifier = mw.get("id") or mw.get("node_id") or mw.get("nodeId")
+                    else:
+                        mw_identifier = getattr(mw, "id", None)
+                    if str(mw_identifier) != mw_id:
+                        continue
+                    ui = mw.get("ui") if isinstance(mw, dict) else getattr(mw, "ui", None)
+                    if not ui:
+                        continue
+                    ports = (
+                        (ui.get("outputPorts") or ui.get("output_ports")) if isinstance(ui, dict) else ui.output_ports
+                    ) if handle_dir == "output" else (
+                        (ui.get("inputPorts") or ui.get("input_ports")) if isinstance(ui, dict) else ui.input_ports
+                    )
+                    if not ports:
+                        continue
+                    for port in ports:
+                        port_key_value = port.get("key") if isinstance(port, dict) else getattr(port, "key", None)
+                        if port_key_value != mw_port_key:
+                            continue
+                        binding = port.get("binding") if isinstance(port, dict) else getattr(port, "binding", None)
+                        return binding, mw_id
+                return None, None
+
+            if not node_def.ui:
+                return None, None
             ports = node_def.ui.output_ports if direction == "output" else node_def.ui.input_ports
             if not ports:
-                return None
+                return None, None
             for port in ports:
                 if port.key == port_key:
-                    return getattr(port, "binding", None)
-            return None
+                    return getattr(port, "binding", None), node_id
+            return None, None
 
         for edge in workflow.edges or []:
             source_node = getattr(edge.source, "node", None)
             target_node = getattr(edge.target, "node", None)
             if not source_node or not target_node:
                 continue
-            if source_node not in workflow_nodes or target_node not in workflow_nodes:
+
+            source_binding_model, source_binding_node = _resolve_port_binding(
+                source_node, getattr(edge.source, "port", None), "output"
+            )
+            target_binding_model, target_binding_node = _resolve_port_binding(
+                target_node, getattr(edge.target, "port", None), "input"
+            )
+            if not source_binding_model or not target_binding_model:
                 continue
 
-            source_binding_model = _resolve_port_binding(source_node, getattr(edge.source, "port", None), "output")
-            target_binding_model = _resolve_port_binding(target_node, getattr(edge.target, "port", None), "input")
-            source_binding = _resolve_binding_reference(source_binding_model, source_node, scope_index)
-            target_binding = _resolve_binding_reference(target_binding_model, target_node, scope_index)
-            if not source_binding or not target_binding:
+            def _binding_node_exists(node_id: Optional[str]) -> bool:
+                if node_id is None:
+                    return False
+                return node_id in workflow_nodes or node_id in middleware_defs
+
+            if not _binding_node_exists(source_binding_node) or not _binding_node_exists(target_binding_node):
                 continue
-            if source_binding.node_id != source_node or target_binding.node_id != target_node:
+
+            source_binding = _resolve_binding_reference(
+                source_binding_model,
+                source_binding_node,
+                scope_index if source_binding_node in workflow_nodes else None,
+            )
+            target_binding = _resolve_binding_reference(
+                target_binding_model,
+                target_binding_node,
+                scope_index if target_binding_node in workflow_nodes else None,
+            )
+            if not source_binding or not target_binding:
                 continue
 
             source_root, source_path = source_binding.root, source_binding.path
@@ -2194,11 +2808,11 @@ class RunRegistry:
             entry = EdgeBinding(
                 source_root=source_root,
                 source_path=source_path,
-                target_node=target_node,
+                target_node=target_binding.node_id,
                 target_root=target_root,
                 target_path=target_path,
             )
-            bindings.setdefault(source_node, []).append(entry)
+            bindings.setdefault(source_binding.node_id, []).append(entry)
 
         return bindings
 
@@ -2210,6 +2824,66 @@ class RunRegistry:
             record.edge_bindings,
             record.nodes,
         )
+
+    def _apply_middleware_output_bindings(
+        self,
+        host_state: NodeState,
+        middleware_state: NodeState,
+    ) -> None:
+        """Project middleware output bindings onto the host node so downstream edges see emitted values."""
+        middleware_defs = getattr(host_state, "middleware_defs", None) or []
+        target_def: Optional[Dict[str, Any]] = None
+        for candidate in middleware_defs:
+            try:
+                candidate_id = str(
+                    candidate.get("id") if isinstance(candidate, dict) else getattr(candidate, "id", None)
+                )
+            except Exception:
+                candidate_id = None
+            if candidate_id and candidate_id == middleware_state.node_id:
+                target_def = candidate if isinstance(candidate, dict) else None
+                break
+        if not target_def:
+            return
+
+        ui = target_def.get("ui") if isinstance(target_def, dict) else None
+        if not ui or not isinstance(ui, dict):
+            return
+        ports = ui.get("outputPorts") or ui.get("output_ports") or []
+        if not ports:
+            return
+
+        for port in ports:
+            if not isinstance(port, dict):
+                continue
+            binding = port.get("binding")
+            raw_path = None
+            if isinstance(binding, dict):
+                raw_path = binding.get("path")
+            elif isinstance(binding, str):
+                raw_path = binding
+            if not raw_path or not isinstance(raw_path, str):
+                continue
+            parsed = _parse_binding_path(raw_path)
+            if not parsed:
+                continue
+            root, path = parsed
+            source_container = middleware_state.parameters if root == "parameters" else middleware_state.result
+            if not isinstance(source_container, dict):
+                continue
+            value = _get_nested_value(source_container, path)
+            if value is _MISSING:
+                continue
+
+            if root == "parameters":
+                if not isinstance(host_state.parameters, dict):
+                    host_state.parameters = {}
+                target_container = host_state.parameters
+            else:
+                if not isinstance(host_state.result, dict):
+                    host_state.result = {}
+                target_container = host_state.result
+            _set_nested_value(target_container, path, value)
 
     def _apply_frame_edge_bindings(self, frame: FrameRuntimeState, node: NodeState) -> None:
         if not frame.edge_bindings:
@@ -2258,3 +2932,37 @@ class RunRegistry:
 
 
 run_registry = RunRegistry()
+def _extract_middleware_entries(raw: Optional[Any]) -> Tuple[List[str], List[Dict[str, Any]]]:
+    ids: List[str] = []
+    defs: List[Dict[str, Any]] = []
+    if not raw:
+        return ids, defs
+    if not isinstance(raw, list):
+        return ids, defs
+    for entry in raw:
+        if entry is None:
+            continue
+        if isinstance(entry, dict):
+            mw_id = entry.get("id") or entry.get("node_id") or entry.get("nodeId")
+            if isinstance(mw_id, (UUID, str)) and mw_id:
+                ids.append(str(mw_id))
+            defs.append(entry)
+            continue
+        # Pydantic models / objects with id attributes
+        candidate_id = getattr(entry, "id", None) or getattr(entry, "node_id", None) or getattr(entry, "nodeId", None)
+        if candidate_id:
+            mw_id = str(candidate_id)
+            ids.append(mw_id)
+            if hasattr(entry, "model_dump"):
+                try:
+                    defs.append(entry.model_dump(by_alias=True, exclude_none=True))
+                except Exception:
+                    defs.append({"id": mw_id})
+            else:
+                defs.append({"id": mw_id})
+            continue
+        mw_id = str(entry)
+        if mw_id:
+            ids.append(mw_id)
+            defs.append({"id": mw_id})
+    return ids, defs

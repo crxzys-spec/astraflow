@@ -5,11 +5,11 @@ from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
-from scheduler_api.models.auth_login401_response import AuthLogin401Response
+from scheduler_api.models.command_ref import CommandRef
+from scheduler_api.models.error import Error
 from scheduler_api.models.list_workers200_response import ListWorkers200Response
-from scheduler_api.models.list_workers200_response_items_inner import ListWorkers200ResponseItemsInner
-from scheduler_api.models.send_worker_command202_response import SendWorkerCommand202Response
-from scheduler_api.models.send_worker_command_request import SendWorkerCommandRequest
+from scheduler_api.models.worker import Worker
+from scheduler_api.models.worker_command import WorkerCommand
 from scheduler_api.security_api import get_token_bearerAuth
 
 class BaseWorkersApi:
@@ -30,14 +30,14 @@ class BaseWorkersApi:
     async def get_worker(
         self,
         workerId: StrictStr,
-    ) -> ListWorkers200ResponseItemsInner:
+    ) -> Worker:
         ...
 
 
     async def send_worker_command(
         self,
         workerId: StrictStr,
-        send_worker_command_request: SendWorkerCommandRequest,
+        worker_command: WorkerCommand,
         idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")],
-    ) -> SendWorkerCommand202Response:
+    ) -> CommandRef:
         ...

@@ -1,5 +1,3 @@
-import { nanoid } from "nanoid";
-
 import type { EdgeEndpoint } from "../../../api/models/edgeEndpoint";
 
 import type { Workflow as WorkflowDefinition } from "../../../api/models/workflow";
@@ -7,6 +5,7 @@ import type { Workflow as WorkflowDefinition } from "../../../api/models/workflo
 import type { WorkflowEdge } from "../../../api/models/workflowEdge";
 
 import type { WorkflowNode } from "../../../api/models/workflowNode";
+import type { WorkflowMiddleware } from "../../../api/models/workflowMiddleware";
 
 import { WorkflowNodeStatus } from "../../../api/models/workflowNodeStatus";
 
@@ -42,6 +41,7 @@ import type {
 
   WorkflowEdgeEndpointDraft,
 
+  WorkflowMiddlewareDraft,
   WorkflowNodeDraft,
 
   WorkflowPaletteNode,
@@ -50,6 +50,7 @@ import type {
 } from "../types.ts";
 import type { ContainerSettings } from "../types.ts";
 import { CONTAINER_PARAM_KEY } from "../constants.ts";
+import { generateId, isValidUuid } from "./id.ts";
 import { buildDefaultsFromSchema } from "./schemaDefaults.ts";
 
 import type { JsonSchema } from "./schemaDefaults.ts";
@@ -309,6 +310,38 @@ const sanitizeMetadata = (
 
 };
 
+const ensureInputGeneratorUi = (nodeType: string | undefined, ui?: NodeUI | null): NodeUI | undefined => {
+  const sanitized = sanitizeNodeUi(ui);
+  if (nodeType !== "system.input_generator") {
+    return sanitized;
+  }
+  const outputPorts = sanitized?.outputPorts ? [...sanitized.outputPorts] : [];
+  const existingKeys = new Set(outputPorts.map((port) => port.key));
+  const ensurePort = (key: string, label: string, path: string) => {
+    if (existingKeys.has(key)) {
+      return;
+    }
+    outputPorts.push({
+      key,
+      label,
+      binding: {
+        path,
+        mode: UIBindingMode.read,
+      },
+    });
+  };
+  ensurePort("value", "Value", "/results/value");
+  ensurePort("raw", "Raw", "/results/raw");
+  ensurePort("type", "Type", "/results/type");
+  if (!sanitized && outputPorts.length === 0) {
+    return undefined;
+  }
+  return {
+    ...(sanitized ?? {}),
+    outputPorts,
+  };
+};
+
 
 
 const coerceBinding = (binding?: ManifestBinding): UIBinding => {
@@ -444,6 +477,84 @@ export const nodeDefaultsFromSchema = (
 };
 
 
+const normalizeMiddlewareId = (id: string | undefined): string => {
+  if (isValidUuid(id)) {
+    return id as string;
+  }
+  return generateId();
+};
+
+const middlewareToDraft = (middleware: WorkflowMiddleware): WorkflowMiddlewareDraft => {
+  const { parameters: defaultParams, results: defaultResults } = nodeDefaultsFromSchema(middleware.schema);
+  const mwId = normalizeMiddlewareId(middleware.id as string | undefined);
+  const draft: WorkflowMiddlewareDraft = {
+    id: mwId,
+    label: middleware.label,
+    role: "middleware",
+    nodeKind: middleware.type,
+    status: middleware.status ?? WorkflowNodeStatus.draft,
+    category: middleware.category ?? "uncategorised",
+    description: coerceOptional(middleware.description),
+    tags: sanitizeTags(middleware.tags),
+    packageName: middleware.package?.name,
+    packageVersion: middleware.package?.version,
+    adapter: (middleware as { adapter?: string }).adapter,
+    handler: (middleware as { handler?: string }).handler,
+    parameters: clone(middleware.parameters ?? defaultParams),
+    results: clone(middleware.results ?? defaultResults),
+    schema: middleware.schema ?? undefined,
+    ui: sanitizeNodeUi(middleware.ui),
+    resources: [],
+    affinity: undefined,
+    concurrencyKey: undefined,
+    metadata: undefined,
+    state: middleware.state ? (clone(middleware.state) as WorkflowNodeState) : undefined,
+    runtimeArtifacts: undefined,
+    runtimeSummary: undefined,
+  };
+  if (!draft.parameters) {
+    draft.parameters = {};
+  }
+  if (!draft.results) {
+    draft.results = {};
+  }
+  return draft;
+};
+
+const middlewareDraftToDefinition = (middleware: WorkflowMiddlewareDraft): WorkflowMiddleware => {
+  const mwId = normalizeMiddlewareId(middleware.id);
+  const payload: WorkflowMiddleware = {
+    id: mwId,
+    type: middleware.nodeKind,
+    package: {
+      name: middleware.packageName ?? "",
+      version: middleware.packageVersion ?? "",
+    },
+    status: (middleware.status ?? WorkflowNodeStatus.draft) as WorkflowNodeStatus,
+    category: middleware.category ?? "uncategorised",
+    label: middleware.label,
+    parameters: clone(middleware.parameters),
+    results: clone(middleware.results),
+    ui: sanitizeNodeUi(middleware.ui),
+  };
+  const description = coerceOptional(middleware.description);
+  if (description !== undefined) {
+    payload.description = description;
+  }
+  const tags = sanitizeTags(middleware.tags);
+  if (tags !== undefined) {
+    payload.tags = tags;
+  }
+  const schema = coerceOptional(middleware.schema);
+  if (schema !== undefined) {
+    payload.schema = schema;
+  }
+  if (middleware.state) {
+    payload.state = clone(middleware.state) as WorkflowNodeState;
+  }
+  return payload;
+};
+
 
 const mapEndpoint = (endpoint: EdgeEndpoint): WorkflowEdgeEndpointDraft => ({
 
@@ -457,7 +568,7 @@ const mapEndpoint = (endpoint: EdgeEndpoint): WorkflowEdgeEndpointDraft => ({
 
 const mapEdgeToDraft = (edge: WorkflowEdge): WorkflowEdgeDraft => ({
 
-  id: edge.id ?? nanoid(),
+  id: edge.id ?? generateId(),
 
   source: mapEndpoint(edge.source),
 
@@ -475,46 +586,36 @@ export const workflowDefinitionToDraft = (
 
   const nodes: Record<string, WorkflowNodeDraft> = {};
 
-  definition.nodes.forEach((node: WorkflowNode) => {
+  definition.nodes
+    .filter((node) => (node as { role?: string }).role !== "middleware")
+    .forEach((node: WorkflowNode) => {
     const { parameters: defaultParams, results: defaultResults } =
       nodeDefaultsFromSchema(node.schema);
     const draft: WorkflowNodeDraft = {
-
       id: node.id,
-
-      label: node.label,
-
-      nodeKind: node.type,
-
-      status: node.status ?? WorkflowNodeStatus.draft,
-
-      category: node.category ?? "uncategorised",
-
-      description: coerceOptional(node.description),
-
-      tags: sanitizeTags(node.tags),
-
-      packageName: node.package?.name,
-
-      packageVersion: node.package?.version,
-
-      parameters: clone(node.parameters ?? defaultParams),
-
-      results: clone(node.results ?? defaultResults),
-
-      schema: node.schema ?? undefined,
-
-      ui: sanitizeNodeUi(node.ui),
-
+    label: node.label,
+    role: (node as { role?: string }).role as WorkflowNodeDraft["role"],
+    nodeKind: node.type,
+    status: node.status ?? WorkflowNodeStatus.draft,
+    category: node.category ?? "uncategorised",
+    description: coerceOptional(node.description),
+    tags: sanitizeTags(node.tags),
+    packageName: node.package?.name,
+    packageVersion: node.package?.version,
+    adapter: (node as { adapter?: string }).adapter,
+    handler: (node as { handler?: string }).handler,
+    parameters: clone(node.parameters ?? defaultParams),
+    results: clone(node.results ?? defaultResults),
+    schema: node.schema ?? undefined,
+      ui: ensureInputGeneratorUi(node.type, node.ui),
       position: {
-
         x: node.position?.x ?? 0,
-
         y: node.position?.y ?? 0,
-
       },
-
       dependencies: [],
+      middlewares: Array.isArray(node.middlewares)
+        ? node.middlewares.map((middleware) => middlewareToDraft(middleware))
+        : [],
       resources: [],
       state: node.state ? (clone(node.state) as WorkflowNodeState) : undefined,
     };
@@ -585,11 +686,15 @@ export const workflowDraftToDefinition = (
 
 ): WorkflowDefinition => {
 
-  const nodes: WorkflowNode[] = Object.values(draft.nodes).map((node) => {
+  const nodes: WorkflowNode[] = Object.values(draft.nodes)
+    .filter((node) => node.role !== "middleware")
+    .map((node) => {
 
     const workflowNode: WorkflowNode = {
 
       id: node.id,
+
+      role: node.role,
 
       type: node.nodeKind,
 
@@ -613,7 +718,12 @@ export const workflowDraftToDefinition = (
 
       results: clone(node.results),
 
-      ui: sanitizeNodeUi(node.ui),
+      ui: ensureInputGeneratorUi(node.nodeKind, node.ui),
+
+      middlewares:
+        node.middlewares && node.middlewares.length
+          ? node.middlewares.map((middleware) => middlewareDraftToDefinition(middleware))
+          : undefined,
 
     };
 
@@ -704,7 +814,7 @@ export const createNodeDraftFromTemplate = (
 
 ): WorkflowNodeDraft => {
 
-  const nodeId = nanoid();
+  const nodeId = generateId();
 
   const { template: manifestNode } = template;
 
@@ -719,6 +829,7 @@ export const createNodeDraftFromTemplate = (
     id: nodeId,
 
     label: manifestNode.label,
+    role: (manifestNode as { role?: "node" | "container" | "middleware" }).role,
 
     nodeKind: manifestNode.type,
 
@@ -734,6 +845,10 @@ export const createNodeDraftFromTemplate = (
 
     packageVersion: template.packageVersion,
 
+    adapter: (manifestNode as { adapter?: string }).adapter,
+
+    handler: (manifestNode as { handler?: string }).handler,
+
     parameters,
 
     results,
@@ -745,6 +860,7 @@ export const createNodeDraftFromTemplate = (
     position,
 
     dependencies: [],
+    middlewares: [],
 
     resources: [],
 
@@ -766,11 +882,11 @@ export const ensureUniqueNodeId = (
 
   if (!baseId || existing[baseId]) {
 
-    let candidate = nanoid();
+    let candidate = generateId();
 
     while (existing[candidate]) {
 
-      candidate = nanoid();
+      candidate = generateId();
 
     }
 

@@ -8,7 +8,7 @@ import type { UIBindingMode } from './uIBindingMode';
 import type { BindingScope } from './bindingScope';
 
 export interface UIBinding {
-  /** e.g. */
+  /** e.g. parameters.url / results.status */
   path: string;
   mode: UIBindingMode;
   /** Optional textual prefix (e.g. '@welcomeJourney.stage2.#notifyCustomer') that scopes the binding before the JSON pointer root. */

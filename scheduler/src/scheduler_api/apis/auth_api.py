@@ -23,9 +23,9 @@ from fastapi import (  # noqa: F401
 )
 
 from scheduler_api.models.extra_models import TokenModel  # noqa: F401
-from scheduler_api.models.auth_login200_response import AuthLogin200Response
-from scheduler_api.models.auth_login401_response import AuthLogin401Response
 from scheduler_api.models.auth_login_request import AuthLoginRequest
+from scheduler_api.models.auth_login_response1 import AuthLoginResponse1
+from scheduler_api.models.error import Error
 
 
 router = APIRouter()
@@ -38,8 +38,8 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 @router.post(
     "/api/v1/auth/login",
     responses={
-        200: {"model": AuthLogin200Response, "description": "Authenticated"},
-        401: {"model": AuthLogin401Response, "description": "Authentication required or credentials invalid"},
+        200: {"model": AuthLoginResponse1, "description": "Authenticated"},
+        401: {"model": Error, "description": "Authentication required or credentials invalid"},
     },
     tags=["Auth"],
     summary="Exchange username/password for a JWT",
@@ -47,7 +47,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 )
 async def auth_login(
     auth_login_request: AuthLoginRequest = Body(None, description=""),
-) -> AuthLogin200Response:
+) -> AuthLoginResponse1:
     if not BaseAuthApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseAuthApi.subclasses[0]().auth_login(auth_login_request)

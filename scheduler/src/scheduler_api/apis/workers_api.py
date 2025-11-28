@@ -26,11 +26,11 @@ from scheduler_api.models.extra_models import TokenModel  # noqa: F401
 from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
-from scheduler_api.models.auth_login401_response import AuthLogin401Response
+from scheduler_api.models.command_ref import CommandRef
+from scheduler_api.models.error import Error
 from scheduler_api.models.list_workers200_response import ListWorkers200Response
-from scheduler_api.models.list_workers200_response_items_inner import ListWorkers200ResponseItemsInner
-from scheduler_api.models.send_worker_command202_response import SendWorkerCommand202Response
-from scheduler_api.models.send_worker_command_request import SendWorkerCommandRequest
+from scheduler_api.models.worker import Worker
+from scheduler_api.models.worker_command import WorkerCommand
 from scheduler_api.security_api import get_token_bearerAuth
 
 router = APIRouter()
@@ -65,8 +65,8 @@ async def list_workers(
 @router.get(
     "/api/v1/workers/{workerId}",
     responses={
-        200: {"model": ListWorkers200ResponseItemsInner, "description": "OK"},
-        404: {"model": AuthLogin401Response, "description": "Resource not found"},
+        200: {"model": Worker, "description": "OK"},
+        404: {"model": Error, "description": "Resource not found"},
     },
     tags=["Workers"],
     summary="Get worker snapshot",
@@ -77,7 +77,7 @@ async def get_worker(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> ListWorkers200ResponseItemsInner:
+) -> Worker:
     if not BaseWorkersApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseWorkersApi.subclasses[0]().get_worker(workerId)
@@ -86,9 +86,9 @@ async def get_worker(
 @router.post(
     "/api/v1/workers/{workerId}/commands",
     responses={
-        202: {"model": SendWorkerCommand202Response, "description": "Accepted"},
-        400: {"model": AuthLogin401Response, "description": "Invalid input"},
-        404: {"model": AuthLogin401Response, "description": "Resource not found"},
+        202: {"model": CommandRef, "description": "Accepted"},
+        400: {"model": Error, "description": "Invalid input"},
+        404: {"model": Error, "description": "Resource not found"},
     },
     tags=["Workers"],
     summary="Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)",
@@ -96,12 +96,12 @@ async def get_worker(
 )
 async def send_worker_command(
     workerId: StrictStr = Path(..., description=""),
-    send_worker_command_request: SendWorkerCommandRequest = Body(None, description=""),
+    worker_command: WorkerCommand = Body(None, description=""),
     idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")] = Header(None, description="Optional idempotency key for safe retries; if reused with a different body, return 409", max_length=64),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> SendWorkerCommand202Response:
+) -> CommandRef:
     if not BaseWorkersApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseWorkersApi.subclasses[0]().send_worker_command(workerId, send_worker_command_request, idempotency_key)
+    return await BaseWorkersApi.subclasses[0]().send_worker_command(workerId, worker_command, idempotency_key)

@@ -66,8 +66,9 @@ class Workflow(BaseModel):
 
     def to_json(self) -> str:
         """Returns the JSON representation of the model using alias"""
+        # Use default=str so UUID and other non-JSON-native types serialize cleanly
         # TODO: pydantic v2: use .model_dump_json(by_alias=True, exclude_unset=True) instead
-        return json.dumps(self.to_dict())
+        return json.dumps(self.to_dict(), default=str)
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
@@ -145,4 +146,3 @@ class Workflow(BaseModel):
 from scheduler_api.models.workflow_subgraph import WorkflowSubgraph
 # TODO: Rewrite to not use raise_errors
 Workflow.model_rebuild(raise_errors=False)
-

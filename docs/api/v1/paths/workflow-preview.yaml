@@ -1,0 +1,36 @@
+get:
+  tags: [Workflows]
+  summary: Get workflow canvas preview
+  operationId: getWorkflowPreview
+  parameters:
+    - $ref: '../components/parameters.yaml#/WorkflowId'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/WorkflowPreview'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'
+put:
+  tags: [Workflows]
+  summary: Set or clear workflow canvas preview
+  operationId: setWorkflowPreview
+  parameters:
+    - $ref: '../components/parameters.yaml#/WorkflowId'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/WorkflowPreview'
+  responses:
+    '200':
+      description: Updated
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/WorkflowPreview'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

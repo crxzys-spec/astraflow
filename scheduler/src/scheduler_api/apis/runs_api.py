@@ -27,12 +27,12 @@ from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
-from scheduler_api.models.run1 import Run1
-from scheduler_api.models.run_list1 import RunList1
-from scheduler_api.models.run_ref1 import RunRef1
-from scheduler_api.models.run_start_request1 import RunStartRequest1
+from scheduler_api.models.run import Run
+from scheduler_api.models.run_list import RunList
+from scheduler_api.models.run_ref import RunRef
+from scheduler_api.models.run_start_request import RunStartRequest
 from scheduler_api.models.run_status import RunStatus
-from scheduler_api.models.workflow1 import Workflow1
+from scheduler_api.models.workflow import Workflow
 from scheduler_api.security_api import get_token_bearerAuth
 
 router = APIRouter()
@@ -45,7 +45,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 @router.get(
     "/api/v1/runs",
     responses={
-        200: {"model": RunList1, "description": "OK"},
+        200: {"model": RunList, "description": "OK"},
     },
     tags=["Runs"],
     summary="List runs (paginated)",
@@ -59,7 +59,7 @@ async def list_runs(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> RunList1:
+) -> RunList:
     if not BaseRunsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseRunsApi.subclasses[0]().list_runs(limit, cursor, status, client_id)
@@ -68,7 +68,7 @@ async def list_runs(
 @router.post(
     "/api/v1/runs",
     responses={
-        202: {"model": RunRef1, "description": "Accepted"},
+        202: {"model": RunRef, "description": "Accepted"},
         400: {"model": Error, "description": "Invalid input"},
         409: {"model": Error, "description": "Conflict (e.g., idempotency-key reuse with different body)"},
     },
@@ -77,21 +77,21 @@ async def list_runs(
     response_model_by_alias=True,
 )
 async def start_run(
-    run_start_request1: RunStartRequest1 = Body(None, description=""),
+    run_start_request: RunStartRequest = Body(None, description=""),
     idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")] = Header(None, description="Optional idempotency key for safe retries; if reused with a different body, return 409", max_length=64),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> RunRef1:
+) -> RunRef:
     if not BaseRunsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseRunsApi.subclasses[0]().start_run(run_start_request1, idempotency_key)
+    return await BaseRunsApi.subclasses[0]().start_run(run_start_request, idempotency_key)
 
 
 @router.get(
     "/api/v1/runs/{runId}",
     responses={
-        200: {"model": Run1, "description": "OK"},
+        200: {"model": Run, "description": "OK"},
         404: {"model": Error, "description": "Resource not found"},
     },
     tags=["Runs"],
@@ -103,7 +103,7 @@ async def get_run(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> Run1:
+) -> Run:
     if not BaseRunsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseRunsApi.subclasses[0]().get_run(runId)
@@ -112,7 +112,7 @@ async def get_run(
 @router.post(
     "/api/v1/runs/{runId}/cancel",
     responses={
-        202: {"model": RunRef1, "description": "Accepted"},
+        202: {"model": RunRef, "description": "Accepted"},
         404: {"model": Error, "description": "Resource not found"},
     },
     tags=["Runs"],
@@ -124,7 +124,7 @@ async def cancel_run(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> RunRef1:
+) -> RunRef:
     if not BaseRunsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseRunsApi.subclasses[0]().cancel_run(runId)
@@ -133,7 +133,7 @@ async def cancel_run(
 @router.get(
     "/api/v1/runs/{runId}/definition",
     responses={
-        200: {"model": Workflow1, "description": "OK"},
+        200: {"model": Workflow, "description": "OK"},
         404: {"model": Error, "description": "Resource not found"},
     },
     tags=["Runs"],
@@ -145,7 +145,7 @@ async def get_run_definition(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> Workflow1:
+) -> Workflow:
     if not BaseRunsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseRunsApi.subclasses[0]().get_run_definition(runId)

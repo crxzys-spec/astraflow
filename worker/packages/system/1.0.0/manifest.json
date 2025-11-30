@@ -24,7 +24,7 @@
       "status": "published",
       "category": "System",
       "label": "Workflow Container",
-      "description": "Executes a nested workflow subgraph with optional loop policies.",
+      "description": "Executes a nested workflow subgraph.",
       "adapter": "scheduler",
       "handler": "container",
       "config": {},
@@ -38,18 +38,6 @@
                 "subgraphId": {
                   "type": "string",
                   "description": "Identifier of the subgraph definition to run."
-                },
-                "loop": {
-                  "type": "object",
-                  "properties": {
-                    "enabled": { "type": "boolean", "default": false },
-                    "maxIterations": { "type": "integer", "minimum": 1 },
-                    "condition": {
-                      "type": "string",
-                      "description": "Exit expression evaluated against container parameters/results."
-                    }
-                  },
-                  "additionalProperties": true
                 },
                 "timeoutSeconds": {
                   "type": "integer",
@@ -96,40 +84,6 @@
             }
           },
           {
-            "key": "loopEnabled",
-            "label": "Loop Enabled",
-            "component": "checkbox",
-            "binding": {
-              "path": "/parameters/__container/loop/enabled",
-              "mode": "two_way"
-            }
-          },
-          {
-            "key": "loopIterations",
-            "label": "Max Iterations",
-            "component": "number",
-            "binding": {
-              "path": "/parameters/__container/loop/maxIterations",
-              "mode": "two_way"
-            },
-            "options": {
-              "min": 1,
-              "placeholder": "Unlimited"
-            }
-          },
-          {
-            "key": "loopCondition",
-            "label": "Exit Condition",
-            "component": "text",
-            "binding": {
-              "path": "/parameters/__container/loop/condition",
-              "mode": "two_way"
-            },
-            "options": {
-              "placeholder": "responses.length >= 3"
-            }
-          },
-          {
             "key": "timeoutSeconds",
             "label": "Timeout (s)",
             "component": "number",
@@ -139,18 +93,6 @@
             },
             "options": {
               "min": 1
-            }
-          },
-          {
-            "key": "loopIteration",
-            "label": "Loop Iteration",
-            "component": "number",
-            "binding": {
-              "path": "/results/loopIteration",
-              "mode": "read"
-            },
-            "options": {
-              "readOnly": true
             }
           }
         ]

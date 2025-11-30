@@ -914,9 +914,6 @@
       "parameters": {
         "__container": {
           "subgraphId": "40000000-0000-0000-0000-000000000001",
-          "loop": {
-            "enabled": false
-          },
           "timeoutSeconds": 120
         },
         "payload": {
@@ -981,52 +978,6 @@
             },
             "options": {
               "buttonLabel": "Jump to subgraph"
-            }
-          },
-          {
-            "key": "loopEnabled",
-            "label": "Loop Enabled",
-            "component": "checkbox",
-            "binding": {
-              "path": "/parameters/__container/loop/enabled",
-              "mode": "two_way"
-            }
-          },
-          {
-            "key": "loopIterations",
-            "label": "Max Iterations",
-            "component": "number",
-            "binding": {
-              "path": "/parameters/__container/loop/maxIterations",
-              "mode": "two_way"
-            },
-            "options": {
-              "min": 1,
-              "placeholder": "Unlimited"
-            }
-          },
-          {
-            "key": "loopCondition",
-            "label": "Exit Condition",
-            "component": "text",
-            "binding": {
-              "path": "/parameters/__container/loop/condition",
-              "mode": "two_way"
-            },
-            "options": {
-              "placeholder": "responses.length >= 3"
-            }
-          },
-          {
-            "key": "loopIteration",
-            "label": "Loop Iteration",
-            "component": "number",
-            "binding": {
-              "path": "/results/loopIteration",
-              "mode": "read"
-            },
-            "options": {
-              "readOnly": true
             }
           },
           {

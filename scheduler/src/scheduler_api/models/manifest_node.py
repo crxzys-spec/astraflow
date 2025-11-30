@@ -156,3 +156,4 @@ class ManifestNode(BaseModel):
         })
         return _obj
 
+

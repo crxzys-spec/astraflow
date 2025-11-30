@@ -12,8 +12,8 @@ from scheduler_api.catalog import (
 )
 from scheduler_api.models.list_packages200_response import ListPackages200Response
 from scheduler_api.models.list_packages200_response_items_inner import ListPackages200ResponseItemsInner
-from scheduler_api.models.package_detail1 import PackageDetail1
-from scheduler_api.models.package_manifest1 import PackageManifest1
+from scheduler_api.models.package_detail import PackageDetail
+from scheduler_api.models.package_manifest import PackageManifest
 
 
 class PackagesApiImpl(BasePackagesApi):
@@ -36,7 +36,7 @@ class PackagesApiImpl(BasePackagesApi):
         self,
         packageName: str,
         version: str | None,
-    ) -> PackageDetail1:
+    ) -> PackageDetail:
         require_roles(*WORKFLOW_VIEW_ROLES)
         try:
             detail = catalog.get_package_detail(packageName, version)
@@ -62,9 +62,9 @@ class PackagesApiImpl(BasePackagesApi):
                 cleaned_nodes.append(node_copy)
             manifest_dict["nodes"] = cleaned_nodes
 
-        manifest_model = PackageManifest1.from_dict(manifest_dict)
+        manifest_model = PackageManifest.from_dict(manifest_dict)
 
-        return PackageDetail1(
+        return PackageDetail(
             name=detail["name"],
             version=detail["version"],
             availableVersions=detail.get("availableVersions"),

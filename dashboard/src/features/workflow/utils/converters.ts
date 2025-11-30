@@ -133,7 +133,11 @@ const readContainerParameters = (
   if (!payload || typeof payload !== "object") {
     return undefined;
   }
-  return payload as ContainerSettings;
+  const sanitized = { ...(payload as Record<string, unknown>) };
+  delete (sanitized as Record<string, unknown>).loop;
+  delete (sanitized as Record<string, unknown>).retry;
+  delete (sanitized as Record<string, unknown>).loopIteration;
+  return sanitized as ContainerSettings;
 };
 
 const writeContainerParameters = (
@@ -144,7 +148,11 @@ const writeContainerParameters = (
     return parameters;
   }
   const next = parameters ? { ...parameters } : {};
-  next[CONTAINER_PARAM_KEY] = clone(config) as ContainerSettings;
+  const sanitized = { ...(clone(config) as Record<string, unknown>) };
+  delete (sanitized as Record<string, unknown>).loop;
+  delete (sanitized as Record<string, unknown>).retry;
+  delete (sanitized as Record<string, unknown>).loopIteration;
+  next[CONTAINER_PARAM_KEY] = sanitized as ContainerSettings;
   return next;
 };
 

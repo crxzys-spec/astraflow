@@ -556,15 +556,15 @@ export const WorkflowPalette = ({
                   draggable
                   onDragStart={(event) => {
                     event.dataTransfer.effectAllowed = "copy";
-                    event.dataTransfer.setData(
-                      WORKFLOW_NODE_DRAG_FORMAT,
-                      JSON.stringify({
-                        [WORKFLOW_NODE_DRAG_TYPE_KEY]: node.type,
-                        [WORKFLOW_NODE_DRAG_PACKAGE_KEY]: selectedPackageName,
-                        [WORKFLOW_NODE_DRAG_ROLE_KEY]: node.role,
-                        [WORKFLOW_NODE_DRAG_VERSION_KEY]: selectedVersion
-                      })
-                    );
+                    const payload = JSON.stringify({
+                      [WORKFLOW_NODE_DRAG_TYPE_KEY]: node.type,
+                      [WORKFLOW_NODE_DRAG_PACKAGE_KEY]: selectedPackageName,
+                      [WORKFLOW_NODE_DRAG_ROLE_KEY]: node.role,
+                      [WORKFLOW_NODE_DRAG_VERSION_KEY]: selectedVersion
+                    });
+                    event.dataTransfer.setData(WORKFLOW_NODE_DRAG_FORMAT, payload);
+                    event.dataTransfer.setData("application/reactflow", payload);
+                    event.dataTransfer.setData("text/plain", payload);
                   }}
                 >
                   <span className="palette__item-label">{node.label}</span>

@@ -848,42 +848,47 @@ export const NodeInspector = () => {
         ) : (
           <div className="inspector__section">
             {node?.middlewares && node.middlewares.length ? (
-              <ul className="inspector__list">
-                {node.middlewares.map((middleware) => {
+              <ul className="inspector__middleware-list">
+                {node.middlewares.map((middleware, idx) => {
                   const label = middleware.label || middleware.id;
                   return (
-                    <li key={middleware.id} className="inspector__list-item">
-                      <div className="inspector__list-text">
+                    <li key={middleware.id} className="inspector__middleware-item">
+                      <div className="inspector__middleware-meta">
+                        <span className="inspector__pill inspector__pill--solid">#{idx + 1}</span>
                         <span className="inspector__pill">{label}</span>
-                        <span className="inspector__field-value inspector__field-value--mono">{middleware.id}</span>
+                        <span className="inspector__field-value inspector__field-value--mono">
+                          {middleware.id}
+                        </span>
                       </div>
-                      <div className="inspector__list-actions">
+                      <div className="inspector__middleware-actions">
                         <button
                           type="button"
-                          className="button button--ghost"
+                          className="inspector__icon-button"
                           onClick={() => moveMiddleware(middleware.id, -1)}
                           title="Move up"
                           aria-label="Move middleware up"
+                          disabled={idx === 0}
                         >
-                          Up
+                          ▲
                         </button>
                         <button
                           type="button"
-                          className="button button--ghost"
+                          className="inspector__icon-button"
                           onClick={() => moveMiddleware(middleware.id, 1)}
                           title="Move down"
                           aria-label="Move middleware down"
+                          disabled={idx === node.middlewares!.length - 1}
                         >
-                          Down
+                          ▼
                         </button>
                         <button
                           type="button"
-                          className="button button--ghost"
+                          className="inspector__icon-button inspector__icon-button--danger"
                           onClick={() => removeMiddleware(middleware.id)}
                           title="Remove middleware"
                           aria-label="Remove middleware"
                         >
-                          Remove
+                          ✕
                         </button>
                       </div>
                     </li>

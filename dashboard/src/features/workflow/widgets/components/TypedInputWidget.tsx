@@ -45,7 +45,7 @@ export const TypedInputWidget = ({ widget, node, value, onChange, readOnly }: Wi
       return (
         <textarea
           id={`${widget.key}-value`}
-          className={clsx("widget__textarea", { "widget__textarea--readonly": readOnly })}
+          className={clsx("wf-widget__textarea", { "wf-widget__textarea--readonly": readOnly })}
           value={typeof value === "string" ? value : value ?? ""}
           onChange={handleValueChange}
           readOnly={readOnly}
@@ -58,7 +58,7 @@ export const TypedInputWidget = ({ widget, node, value, onChange, readOnly }: Wi
     return (
       <input
         id={`${widget.key}-value`}
-        className={clsx("widget__input", { "widget__input--readonly": readOnly })}
+        className={clsx("wf-widget__input", { "wf-widget__input--readonly": readOnly })}
         type={inputType}
         step={isFloat ? "any" : undefined}
         value={value ?? ""}
@@ -69,26 +69,26 @@ export const TypedInputWidget = ({ widget, node, value, onChange, readOnly }: Wi
   };
 
   return (
-    <div className="widget widget--typed-input">
-      <label className="widget__label" htmlFor={`${widget.key}-type`}>
+    <div className="wf-widget wf-widget--typed-input">
+      <label className="wf-widget__label" htmlFor={`${widget.key}-type`}>
         {widget.label ?? "Input"}
+        <div className="wf-widget__typed">
+          <select
+            id={`${widget.key}-type`}
+            className={clsx("wf-widget__select", { "wf-widget__select--readonly": readOnly })}
+            value={currentType}
+            onChange={handleTypeChange}
+            disabled={readOnly}
+          >
+            {choiceList.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
+          </select>
+          {renderInput()}
+        </div>
       </label>
-      <div className="widget__typed-input">
-        <select
-          id={`${widget.key}-type`}
-          className={clsx("widget__select", { "widget__select--readonly": readOnly })}
-          value={currentType}
-          onChange={handleTypeChange}
-          disabled={readOnly}
-        >
-          {choiceList.map((choice) => (
-            <option key={choice.value} value={choice.value}>
-              {choice.label}
-            </option>
-          ))}
-        </select>
-        {renderInput()}
-      </div>
     </div>
   );
 };

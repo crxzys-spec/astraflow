@@ -19,8 +19,9 @@ from scheduler_api.models.list_workflows200_response_items_inner import (
 )
 from scheduler_api.models.persist_workflow201_response import PersistWorkflow201Response
 from scheduler_api.models.start_run400_response import StartRun400Response
-from scheduler_api.models.workflow1 import Workflow1
-from scheduler_api.models.workflow_list1 import WorkflowList1
+from scheduler_api.models.workflow import Workflow
+from scheduler_api.models.workflow_list import WorkflowList
+from scheduler_api.models.workflow_preview import WorkflowPreview
 
 
 class WorkflowsApiImpl(BaseWorkflowsApi):
@@ -28,7 +29,7 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
         self,
         limit: Optional[int],
         cursor: Optional[str],
-    ) -> WorkflowList1:
+    ) -> WorkflowList:
         del cursor  # pagination cursor reserved for future implementation
         token = require_roles(*WORKFLOW_VIEW_ROLES)
         page_size = limit or 50
@@ -58,12 +59,12 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
         for row in rows:
             try:
                 payload = self._hydrate_payload(row)
-                definition = Workflow1.from_dict(payload)
+                definition = Workflow.from_dict(payload)
             except (json.JSONDecodeError, ValueError, ValidationError):  # pragma: no cover - defensive
                 continue
             items.append(definition)
 
-        return WorkflowList1(items=items, next_cursor=None)
+        return WorkflowList(items=items, next_cursor=None)
 
     async def persist_workflow(
         self,
@@ -80,10 +81,10 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
                 ).model_dump(by_alias=True),
             )
 
-        workflow_json = list_workflows200_response_items_inner.to_json()
-        workflow_id = list_workflows200_response_items_inner.id
+        payload = list_workflows200_response_items_inner.model_dump(by_alias=True, exclude_none=True)
+        workflow_id = payload.get("id") or list_workflows200_response_items_inner.id
         workflow_id_str = str(workflow_id)
-        metadata = list_workflows200_response_items_inner.metadata
+        metadata = payload.get("metadata") or list_workflows200_response_items_inner.metadata
         if metadata is None:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
@@ -92,15 +93,14 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
                     message="Workflow metadata is required.",
                 ).model_dump(by_alias=True),
             )
-        workflow_name = metadata.name
+        metadata_dict = metadata if isinstance(metadata, dict) else metadata.model_dump(by_alias=True, exclude_none=True)
+        workflow_name = metadata_dict.get("name")
         token = require_roles(*WORKFLOW_EDIT_ROLES)
-        owner_id = token.sub if token else metadata.owner_id
+        owner_id = token.sub if token else metadata_dict.get("ownerId")
 
-        payload = json.loads(workflow_json)
-        preview_image = payload.get("previewImage")
         structure = self._strip_metadata(payload)
         # Preserve metadata fields that are not stored column-by-column so we can roundtrip them
-        metadata_snapshot = payload.get("metadata") or {}
+        metadata_snapshot = metadata_dict or {}
         extra_metadata = {
             key: value
             for key, value in metadata_snapshot.items()
@@ -113,21 +113,21 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
             record = session.get(WorkflowRecord, workflow_id_str)
             if record is None:
                 created = True
-                origin_id = metadata.origin_id or workflow_id_str
+                origin_id = metadata_dict.get("originId") or workflow_id_str
                 origin_id_str = str(origin_id) if origin_id is not None else None
                 record = WorkflowRecord(
                     id=workflow_id_str,
                     name=workflow_name,
-                    definition=json.dumps(structure, ensure_ascii=False),
+                    definition=json.dumps(structure, ensure_ascii=False, default=str),
                     schema_version=payload.get("schemaVersion") or "2025-10",
-                    namespace=metadata.namespace or "default",
+                    namespace=metadata_dict.get("namespace") or "default",
                     origin_id=origin_id_str,
-                    description=metadata.description,
-                    environment=metadata.environment,
-                    tags=json.dumps(metadata.tags) if metadata.tags else None,
+                    description=metadata_dict.get("description"),
+                    environment=metadata_dict.get("environment"),
+                    tags=json.dumps(metadata_dict.get("tags")) if metadata_dict.get("tags") else None,
                     owner_id=owner_id,
                     created_by=token.sub if token else None,
-                    preview_image=preview_image,
+                    preview_image=None,
                     updated_by=token.sub if token else None,
                 )
                 session.add(record)
@@ -144,16 +144,17 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
                         ).model_dump(by_alias=True),
                     )
                 record.name = workflow_name
-                record.definition = json.dumps(structure, ensure_ascii=False)
+                record.definition = json.dumps(structure, ensure_ascii=False, default=str)
                 record.schema_version = payload.get("schemaVersion") or record.schema_version
-                record.namespace = metadata.namespace or record.namespace or "default"
-                origin_id = metadata.origin_id or record.origin_id or workflow_id_str
+                record.namespace = metadata_dict.get("namespace") or record.namespace or "default"
+                origin_id = metadata_dict.get("originId") or record.origin_id or workflow_id_str
                 record.origin_id = str(origin_id) if origin_id is not None else None
-                record.description = metadata.description
-                record.environment = metadata.environment
-                record.tags = json.dumps(metadata.tags) if metadata.tags else None
-                if "previewImage" in payload:
-                    record.preview_image = preview_image
+                record.description = metadata_dict.get("description")
+                record.environment = metadata_dict.get("environment")
+                record.tags = (
+                    json.dumps(metadata_dict.get("tags")) if metadata_dict.get("tags") else None
+                )
+                # preview image is managed via a dedicated endpoint; keep existing value
                 if owner_id:
                     record.owner_id = owner_id
                 if token:
@@ -165,7 +166,7 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
             action="workflow.create" if created else "workflow.update",
             target_type="workflow",
             target_id=workflow_id_str,
-            metadata={"name": workflow_name, "namespace": metadata.namespace or "default"},
+            metadata={"name": workflow_name, "namespace": metadata_dict.get("namespace") or "default"},
         )
 
         return PersistWorkflow201Response(workflow_id=workflow_id_str)
@@ -200,7 +201,7 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
 
         try:
             payload = self._hydrate_payload(record)
-            return Workflow1.from_dict(payload)
+            return Workflow.from_dict(payload)
         except (json.JSONDecodeError, ValueError, ValidationError) as exc:  # pragma: no cover - defensive
             raise HTTPException(
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -291,8 +292,6 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
             "metadata": metadata,
         }
         payload = WorkflowsApiImpl._ensure_uuid_fields(payload)
-        if record.preview_image:
-            payload["previewImage"] = record.preview_image
         return payload
 
     @staticmethod
@@ -395,3 +394,32 @@ class WorkflowsApiImpl(BaseWorkflowsApi):
         return (record.owner_id == owner_id) or (
             record.owner_id is None and record.created_by == owner_id
         )
+
+    async def get_workflow_preview(self, workflowId: str) -> WorkflowPreview:
+        require_roles(*WORKFLOW_VIEW_ROLES)
+        with SessionLocal() as session:
+            record = session.get(WorkflowRecord, workflowId)
+            if record is None or record.deleted_at is not None:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND,
+                    detail="Workflow not found",
+                )
+            return WorkflowPreview(preview_image=record.preview_image)
+
+    async def set_workflow_preview(self, workflowId: str, payload: WorkflowPreview) -> WorkflowPreview:
+        token = require_roles(*WORKFLOW_EDIT_ROLES)
+        with SessionLocal() as session:
+            record = session.get(WorkflowRecord, workflowId)
+            if record is None or record.deleted_at is not None:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND,
+                    detail="Workflow not found",
+                )
+            preview_value = None
+            if payload and isinstance(payload.preview_image, str):
+                preview_value = payload.preview_image
+            record.preview_image = preview_value
+            if token:
+                record.updated_by = token.sub
+            session.commit()
+            return WorkflowPreview(preview_image=record.preview_image)

@@ -178,12 +178,6 @@ export type WorkflowGraphScope =
 
 export interface ContainerSettings {
   subgraphId?: string;
-  loop?: {
-    enabled?: boolean;
-    maxIterations?: number;
-    condition?: string | null;
-  };
-  retry?: Record<string, unknown> | null;
   timeoutSeconds?: number | null;
   notes?: string | null;
 }

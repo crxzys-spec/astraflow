@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import type { DragEvent } from "react";
 import type { NodeProps } from "reactflow";
@@ -163,6 +163,7 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
   const { resolve } = useWidgetRegistry();
   const queryClient = useQueryClient();
   const setSelectedNode = useWorkflowStore((state) => state.setSelectedNode);
+  const middlewareDragRef = useRef<string | null>(null);
 
   const displayLabel = workflowNode?.label ?? data?.label ?? nodeId;
   const status = workflowNode?.status ?? data?.status;
@@ -196,9 +197,41 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
   const widgets = workflowNode?.ui?.widgets ?? data?.widgets ?? [];
   const [connectedWidgetExpansion, setConnectedWidgetExpansion] = useState<Record<string, boolean>>({});
   const [middlewareWidgetExpansion, setMiddlewareWidgetExpansion] = useState<Record<string, boolean>>({});
+  const [draggingMiddlewareId, setDraggingMiddlewareId] = useState<string | null>(null);
+  const [hoverMiddlewareId, setHoverMiddlewareId] = useState<string | null>(null);
   const isMiddlewareNode = (workflowNode?.role ?? data?.role) === "middleware";
   const attachedMiddlewares =
     (!isMiddlewareNode ? data?.attachedMiddlewares ?? [] : []) ?? [];
+
+  const reorderMiddleware = useCallback(
+    (hostId: string, sourceId: string, targetId: string) => {
+      if (!hostId || sourceId === targetId) {
+        return;
+      }
+      updateNode(hostId, (current) => {
+        const list = current.middlewares ? [...current.middlewares] : [];
+        const from = list.findIndex((mw) => mw.id === sourceId);
+        const to = list.findIndex((mw) => mw.id === targetId);
+        if (from === -1 || to === -1 || from === to) {
+          return current;
+        }
+        const [item] = list.splice(from, 1);
+        list.splice(to, 0, item);
+        return { ...current, middlewares: list };
+      });
+    },
+    [updateNode]
+  );
+
+  const removeMiddleware = useCallback(
+    (hostId: string, middlewareId: string) => {
+      updateNode(hostId, (current) => {
+        const next = (current.middlewares ?? []).filter((mw) => mw.id !== middlewareId);
+        return { ...current, middlewares: next };
+      });
+    },
+    [updateNode]
+  );
 
   const middlewareInputPorts = useMemo(() => {
     if (isMiddlewareNode) {
@@ -680,48 +713,125 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
                 const mwPackage = formatPackage(mw.node);
                 const buildHandleId = (dir: "input" | "output", key: string) =>
                   `mw:${mw.id}:${dir === "input" ? "in" : "out"}:${key}`;
+                const hostId = workflowNode?.id ?? nodeId;
+                const isDropTarget =
+                  draggingMiddlewareId != null && middlewareDragRef.current !== mw.id;
+                const onDragStart = (event: DragEvent) => {
+                  event.stopPropagation();
+                  middlewareDragRef.current = mw.id;
+                  setDraggingMiddlewareId(mw.id);
+                  event.dataTransfer.effectAllowed = "move";
+                  try {
+                    event.dataTransfer.setData("application/x-middleware", mw.id);
+                  } catch {
+                    // ignore when not supported
+                  }
+                };
+                const onDragOver = (event: DragEvent) => {
+                  if (!draggingMiddlewareId) {
+                    return; // allow external drops (e.g., palette) to bubble to outer handler
+                  }
+                  event.preventDefault();
+                  event.stopPropagation();
+                  event.dataTransfer.dropEffect = "move";
+                  if (draggingMiddlewareId !== mw.id) {
+                    setHoverMiddlewareId(mw.id);
+                  }
+                };
+                const onDrop = (event: DragEvent) => {
+                  if (!draggingMiddlewareId) {
+                    return; // let outer drop handler attach new middleware
+                  }
+                  event.preventDefault();
+                  event.stopPropagation();
+                  const sourceId =
+                    middlewareDragRef.current ||
+                    event.dataTransfer.getData("application/x-middleware");
+                  middlewareDragRef.current = null;
+                  setHoverMiddlewareId(null);
+                  setDraggingMiddlewareId(null);
+                  if (!sourceId || !hostId || sourceId === mw.id) {
+                    return;
+                  }
+                  reorderMiddleware(hostId, sourceId, mw.id);
+                };
+                const onDragEnd = () => {
+                  middlewareDragRef.current = null;
+                  setDraggingMiddlewareId(null);
+                  setHoverMiddlewareId(null);
+                };
+                const isDragSource = draggingMiddlewareId === mw.id;
+                const showDropSlot =
+                  hoverMiddlewareId === mw.id && draggingMiddlewareId != null && draggingMiddlewareId !== mw.id;
                 return (
-                  <div key={mw.id} className="workflow-node__middleware-card" role="button" tabIndex={0}>
-                    <header className="workflow-node__middleware-card__header">
-                      <div className="workflow-node__middleware-card__title">
-                        <span className="workflow-node__middleware-index">#{mw.index + 1}</span>
-                        <span>{mw.label}</span>
-                      </div>
-                      <div className="workflow-node__header-badges">
-                        {mwStage && (
-                          <span
-                            className={clsx(
-                              "workflow-node__stage",
-                              mwStageClass ? `workflow-node__stage--${mwStageClass}` : undefined,
-                            )}
-                          >
-                            {formatStage(mwStage)}
-                            {typeof mwProgressDisplay === "number" && (
-                              <span className="workflow-node__stage-progress">
-                                (
-                                <span className="workflow-node__stage-progress-value">
-                                  {mwProgressDisplay.toString().padStart(3, "\u00a0")}
-                                </span>
-                                %)
-                              </span>
-                            )}
-                          </span>
-                        )}
-                        {mwStatus && <span className="workflow-node__status">{mwStatus}</span>}
-                      </div>
-                    </header>
-                    <div className="workflow-node__middleware-card__body">
-                      <div className="workflow-node__badges">
-                        <span className="workflow-node__package">{mwPackage}</span>
-                      </div>
-                      {mwWidgets.length ? (
-                        <div
-                          className="workflow-node__middleware-widgets workflow-node__widgets nodrag"
-                          onPointerDown={(event) => event.stopPropagation()}
-                        >
-                          {mwWidgets}
+                  <div key={mw.id}>
+                    {showDropSlot && <div className="workflow-node__middleware-drop-slot" />}
+                    <div
+                      className={clsx("workflow-node__middleware-card", "nodrag", {
+                        "workflow-node__middleware-card--dragging": isDragSource,
+                        "workflow-node__middleware-card--drop-target": isDropTarget,
+                      })}
+                      role="button"
+                      tabIndex={0}
+                      draggable
+                      onDragStart={onDragStart}
+                      onDragOver={onDragOver}
+                      onDrop={onDrop}
+                      onDragEnd={onDragEnd}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      <header className="workflow-node__middleware-card__header">
+                        <div className="workflow-node__middleware-card__title">
+                          <span className="workflow-node__middleware-index">#{mw.index + 1}</span>
+                          <span>{mw.label}</span>
                         </div>
-                      ) : null}
+                        <div className="workflow-node__header-badges">
+                          {mwStage && (
+                            <span
+                              className={clsx(
+                                "workflow-node__stage",
+                                mwStageClass ? `workflow-node__stage--${mwStageClass}` : undefined,
+                              )}
+                            >
+                              {formatStage(mwStage)}
+                              {typeof mwProgressDisplay === "number" && (
+                                <span className="workflow-node__stage-progress">
+                                  (
+                                  <span className="workflow-node__stage-progress-value">
+                                    {mwProgressDisplay.toString().padStart(3, "\u00a0")}
+                                  </span>
+                                  %)
+                                </span>
+                              )}
+                            </span>
+                          )}
+                          {mwStatus && <span className="workflow-node__status">{mwStatus}</span>}
+                          <button
+                            type="button"
+                            className="workflow-node__middleware-remove"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeMiddleware(hostId ?? nodeId, mw.id);
+                            }}
+                            title="Remove middleware"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </header>
+                      <div className="workflow-node__middleware-card__body">
+                        <div className="workflow-node__badges">
+                          <span className="workflow-node__package">{mwPackage}</span>
+                        </div>
+                        {mwWidgets.length ? (
+                          <div
+                            className="workflow-node__middleware-widgets workflow-node__widgets nodrag"
+                            onPointerDown={(event) => event.stopPropagation()}
+                          >
+                            {mwWidgets}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 );

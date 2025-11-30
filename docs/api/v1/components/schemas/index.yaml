@@ -593,6 +593,10 @@ ManifestNodeUI:
       type: array
       items:
         $ref: '#/ManifestPort'
+    outputPorts:
+      type: array
+      items:
+        $ref: '#/ManifestPort'
     widgets:
       type: array
       items:
@@ -2011,4 +2015,13 @@ WorkflowPublishResponse:
       type: string
     version:
       type: string
+
+WorkflowPreview:
+  type: object
+  additionalProperties: false
+  properties:
+    previewImage:
+      type: string
+      description: Base64-encoded preview of the workflow canvas.
+      nullable: true
 

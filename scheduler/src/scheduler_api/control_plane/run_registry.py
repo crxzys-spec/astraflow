@@ -123,57 +123,6 @@ def _get_node_subgraph_id(node: Any) -> Optional[str]:
     return None
 
 
-def _get_container_loop(node: NodeState) -> Dict[str, Any]:
-    params = getattr(node, "parameters", None)
-    if not isinstance(params, dict):
-        return {}
-    container = params.get(CONTAINER_PARAMS_KEY) or {}
-    if not isinstance(container, dict):
-        return {}
-    loop_cfg = container.get("loop") or {}
-    return loop_cfg if isinstance(loop_cfg, dict) else {}
-
-
-def _should_continue_loop(
-    loop_cfg: Dict[str, Any],
-    *,
-    iteration: int,
-    container_node: NodeState,
-    frame: FrameRuntimeState,
-) -> bool:
-    enabled = bool(loop_cfg.get("enabled"))
-    if not enabled:
-        return False
-
-    max_iterations = loop_cfg.get("maxIterations")
-    if isinstance(max_iterations, int) and max_iterations > 0 and iteration >= max_iterations:
-        return False
-
-    condition = loop_cfg.get("condition")
-    if not condition:
-        if max_iterations is None:
-            return False
-        return iteration < max_iterations
-
-    context = {
-        "parameters": container_node.parameters or {},
-        "results": container_node.result or {},
-        "iteration": iteration,
-        "frame": frame.definition.frame_id,
-    }
-    try:
-        should_exit = bool(eval(condition, {"__builtins__": {}}, context))
-    except Exception as exc:  # noqa: BLE001
-        LOGGER.warning(
-            "Loop condition evaluation failed for container %s (iteration=%s): %s",
-            container_node.node_id,
-            iteration,
-            exc,
-        )
-        should_exit = False
-    return not should_exit
-
-
 _MISSING = object()
 
 
@@ -490,6 +439,7 @@ class NodeState:
     frame_alias: Tuple[str, ...] = field(default_factory=tuple)
     middlewares: List[str] = field(default_factory=list)
     middleware_defs: List[Dict[str, Any]] = field(default_factory=list)
+    chain_blocked: bool = False
 
 
 @dataclass
@@ -509,8 +459,6 @@ class FrameRuntimeState:
     task_index: Dict[str, NodeState]
     scope_index: WorkflowScopeIndex
     edge_bindings: Dict[str, List[EdgeBinding]]
-    loop_config: Dict[str, Any] = field(default_factory=dict)
-    loop_iteration: int = 1
     status: str = "idle"
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
@@ -863,6 +811,21 @@ class RunRegistry:
     def _is_host_with_middleware(self, node: NodeState) -> bool:
         return bool(node.middlewares) and not self._is_middleware_node(node)
 
+    def _is_container_node(self, node: NodeState) -> bool:
+        if node.node_type == "workflow.container":
+            return True
+        return bool(node.metadata and node.metadata.get("role") == "container")
+
+    def _is_container_ready(self, node: NodeState) -> bool:
+        if not self._is_container_node(node):
+            return False
+        if node.middlewares:
+            # Containers with middleware still follow the middleware chain rules.
+            return False
+        if getattr(node, "chain_blocked", False):
+            return False
+        return node.status == "queued" and node.pending_dependencies == 0 and not node.enqueued
+
     def _is_first_middleware(self, node: NodeState) -> bool:
         if not self._is_middleware_node(node):
             return False
@@ -872,9 +835,9 @@ class RunRegistry:
     def _should_auto_dispatch(self, node: NodeState) -> bool:
         if node.status != "queued" or node.pending_dependencies != 0 or node.enqueued:
             return False
-        if self._is_host_with_middleware(node):
+        if getattr(node, "chain_blocked", False):
             return False
-        if self._is_middleware_node(node) and not self._is_first_middleware(node):
+        if self._is_host_with_middleware(node):
             return False
         return True
 
@@ -893,16 +856,24 @@ class RunRegistry:
                 continue
             if dependent.pending_dependencies > 0:
                 dependent.pending_dependencies -= 1
+            if getattr(dependent, "chain_blocked", False):
+                continue
+            if self._is_container_node(dependent):
+                if dependent.pending_dependencies > 0 or dependent.enqueued:
+                    continue
+                parent_frame_id = frame_state.frame_id if frame_state else None
+                frame_ready = self._start_container_execution(
+                    record,
+                    dependent,
+                    parent_frame_id=parent_frame_id,
+                )
+                ready.extend(frame_ready)
+                continue
+            if self._is_host_with_middleware(dependent):
+                if dependent.pending_dependencies == 0 and not dependent.enqueued:
+                    ready.append(self._build_dispatch_request_for_node(record, dependent))
+                continue
             if self._should_auto_dispatch(dependent):
-                if dependent.node_type == "workflow.container":
-                    parent_frame_id = frame_state.frame_id if frame_state else None
-                    frame_ready = self._start_container_execution(
-                        record,
-                        dependent,
-                        parent_frame_id=parent_frame_id,
-                    )
-                    ready.extend(frame_ready)
-                    break
                 ready.append(self._build_dispatch_request_for_node(record, dependent))
 
     def _finalise_pending_next(
@@ -1524,6 +1495,7 @@ class RunRegistry:
                 node_state.status = "queued"
                 node_state.enqueued = False
                 node_state.pending_dependencies = 0
+                node_state.chain_blocked = True
 
             # Middleware completion finalises the host and releases its dependents.
             host_snapshot: Optional[NodeState] = None
@@ -1533,6 +1505,7 @@ class RunRegistry:
                     node_state.status = "queued"
                     node_state.enqueued = False
                     node_state.pending_dependencies = 0
+                node_state.chain_blocked = True
 
                 host_id = node_state.metadata.get("host_node_id") if node_state.metadata else None
                 if host_id:
@@ -1564,8 +1537,9 @@ class RunRegistry:
 
             container_snapshot: Optional[NodeState] = None
             if frame_state:
-                frame_ready, container_node = self._complete_frame_if_needed(record, frame_state)
+                frame_ready, container_node, frame_next_responses = self._complete_frame_if_needed(record, frame_state)
                 ready.extend(frame_ready)
+                next_responses.extend(frame_next_responses)
                 if container_node and frame_state.parent_frame_id is None:
                     container_snapshot = copy.deepcopy(container_node)
 
@@ -1812,15 +1786,35 @@ class RunRegistry:
 
             # Middleware chains may need to re-dispatch nodes that previously finished; reset lightweight state.
             if self._is_middleware_node(node_state) or self._is_host_with_middleware(node_state):
-                if node_state.status in FINAL_STATUSES or node_state.status == "queued":
+                if node_state.status in FINAL_STATUSES:
                     node_state.status = "queued"
-                    node_state.enqueued = False
-                    node_state.pending_dependencies = 0
+            node_state.enqueued = False
 
             if node_state.status != "queued" or node_state.enqueued:
                 return [], "next_target_not_ready"
             if node_state.pending_dependencies != 0:
                 return [], "next_target_not_ready"
+            node_state.chain_blocked = False
+
+            parent_frame_id = frame_state.frame_id if frame_state else None
+            if self._is_container_node(node_state):
+                frame_ready = self._start_container_execution(
+                    record,
+                    node_state,
+                    parent_frame_id=parent_frame_id,
+                )
+                deadline = None
+                if payload.timeout_ms and payload.timeout_ms > 0:
+                    deadline = _utc_now() + timedelta(milliseconds=payload.timeout_ms)
+                self._pending_next_requests[payload.request_id] = (
+                    record.run_id,
+                    worker_id,
+                    deadline,
+                    payload.node_id,
+                    payload.middleware_id,
+                    node_state.task_id,
+                )
+                return frame_ready, None
 
             dispatch = self._build_dispatch_request(
                 record,
@@ -1931,7 +1925,7 @@ class RunRegistry:
                 node_state.ack_deadline = None
                 node_state.worker_id = None
                 if frame_state:
-                    frame_ready, container_node = self._complete_frame_if_needed(record, frame_state)
+                    frame_ready, container_node, _ = self._complete_frame_if_needed(record, frame_state)
                     ready.extend(frame_ready)
                     if container_node and frame_state.parent_frame_id is None:
                         container_snapshot = copy.deepcopy(container_node)
@@ -2039,26 +2033,6 @@ class RunRegistry:
 
         def _propagate_host_dependencies_to_first_middleware() -> None:
             """Ensure the first middleware in a chain inherits the host's upstream dependencies."""
-            for node in workflow.nodes or []:
-                mw_ids, _ = _extract_middleware_entries(getattr(node, "middlewares", []) or [])
-                if not mw_ids:
-                    continue
-                host_state = nodes.get(str(node.id))
-                first_mw_state = nodes.get(str(mw_ids[0]))
-                if not host_state or not first_mw_state:
-                    continue
-                for dep_id in list(host_state.dependencies):
-                    if dep_id == first_mw_state.node_id:
-                        continue
-                    if dep_id not in first_mw_state.dependencies:
-                        first_mw_state.dependencies.append(dep_id)
-                        first_mw_state.pending_dependencies += 1
-                    dep_state = nodes.get(dep_id)
-                    if dep_state and first_mw_state.node_id not in dep_state.dependents:
-                        dep_state.dependents.append(first_mw_state.node_id)
-
-        def _propagate_host_dependencies_to_first_middleware() -> None:
-            """Ensure the first middleware in a chain inherits the host's upstream dependencies."""
             for node in record.workflow.nodes or []:
                 mw_ids, _ = _extract_middleware_entries(getattr(node, "middlewares", []) or [])
                 if not mw_ids:
@@ -2076,6 +2050,11 @@ class RunRegistry:
                     dep_state = nodes.get(dep_id)
                     if dep_state and first_mw_state.node_id not in dep_state.dependents:
                         dep_state.dependents.append(first_mw_state.node_id)
+
+        def _wire_middleware_chain_dependencies() -> None:
+            """Order middleware chain execution and gate the host until the chain completes."""
+            # Execution order is driven by middleware.next; dependencies are not used to sequence the chain.
+            return
 
         for node in record.workflow.nodes or []:
             node_id = str(node.id)
@@ -2095,6 +2074,7 @@ class RunRegistry:
                 concurrency_key=f"{record.run_id}:{node_id}",
                 middlewares=middleware_ids,
                 middleware_defs=middleware_defs,
+                chain_blocked=bool(middleware_ids),
             )
             if role:
                 node_state.metadata = node_state.metadata or {}
@@ -2118,6 +2098,7 @@ class RunRegistry:
                     middlewares=[],
                     middleware_defs=[],
                     metadata={"role": "middleware", "host_node_id": node_id, "chain_index": index},
+                    chain_blocked=index > 0,
                 )
                 nodes[mw_state.node_id] = mw_state
                 record.task_index[mw_state.task_id] = mw_state
@@ -2139,6 +2120,7 @@ class RunRegistry:
 
         # First middleware waits for the same upstream dependencies as its host
         _propagate_host_dependencies_to_first_middleware()
+        _wire_middleware_chain_dependencies()
 
         record.nodes = nodes
         record.scope_index = WorkflowScopeIndex(record.workflow)
@@ -2284,6 +2266,31 @@ class RunRegistry:
             if source_state.node_id not in target_state.dependents:
                 target_state.dependents.append(source_state.node_id)
 
+        def _propagate_host_dependencies_to_first_middleware() -> None:
+            """Ensure the first middleware in a chain inherits the host's upstream deps."""
+            for node in workflow.nodes or []:
+                mw_ids, _ = _extract_middleware_entries(getattr(node, "middlewares", []) or [])
+                if not mw_ids:
+                    continue
+                host_state = nodes.get(str(node.id))
+                first_mw_state = nodes.get(str(mw_ids[0]))
+                if not host_state or not first_mw_state:
+                    continue
+                for dep_id in list(host_state.dependencies):
+                    if dep_id == first_mw_state.node_id:
+                        continue
+                    if dep_id not in first_mw_state.dependencies:
+                        first_mw_state.dependencies.append(dep_id)
+                        first_mw_state.pending_dependencies += 1
+                    dep_state = nodes.get(dep_id)
+                    if dep_state and first_mw_state.node_id not in dep_state.dependents:
+                        dep_state.dependents.append(first_mw_state.node_id)
+
+        def _wire_middleware_chain_dependencies() -> None:
+            """Order middleware chain execution and gate the host until the chain completes."""
+            # Execution order is driven by middleware.next; dependencies are not used to sequence the chain.
+            return
+
         for node in workflow.nodes or []:
             node_id = str(node.id)
             package = getattr(node, "package", None)
@@ -2307,6 +2314,7 @@ class RunRegistry:
                 frame_alias=frame.alias_chain,
                 middlewares=middleware_ids,
                 middleware_defs=middleware_defs,
+                chain_blocked=bool(middleware_ids),
             )
             if role:
                 node_state.metadata = node_state.metadata or {}
@@ -2334,6 +2342,7 @@ class RunRegistry:
                     subgraph_id=frame.subgraph_id,
                     frame_alias=frame.alias_chain,
                     metadata={"role": "middleware", "host_node_id": node_id, "chain_index": index},
+                    chain_blocked=index > 0,
                 )
                 nodes[mw_state.node_id] = mw_state
                 task_index[mw_state.task_id] = mw_state
@@ -2355,6 +2364,7 @@ class RunRegistry:
 
         # First middleware waits for the same upstream dependencies as its host
         _propagate_host_dependencies_to_first_middleware()
+        _wire_middleware_chain_dependencies()
 
         scope_index = WorkflowScopeIndex(workflow)
         edge_bindings = self._build_edge_bindings_for_workflow(workflow, scope_index)
@@ -2468,12 +2478,12 @@ class RunRegistry:
         self,
         record: RunRecord,
         frame: FrameRuntimeState,
-    ) -> Tuple[List[DispatchRequest], Optional[NodeState]]:
+    ) -> Tuple[List[DispatchRequest], Optional[NodeState], List[Tuple[Optional[str], NextResponsePayload]]]:
         nodes = list(frame.nodes.values())
         failed = any(node.status == "failed" for node in nodes)
         terminal = all(node.status in FINAL_STATUSES for node in nodes)
         if not failed and not terminal:
-            return [], None
+            return [], None, []
 
         if failed:
             for node in nodes:
@@ -2506,50 +2516,48 @@ class RunRegistry:
         else:
             container_node.status = "succeeded"
 
-        loop_cfg = frame.loop_config if hasattr(frame, "loop_config") else {}
-        should_repeat = False
-        if not failed and loop_cfg:
-            should_repeat = _should_continue_loop(
-                loop_cfg,
-                iteration=frame.loop_iteration,
-                container_node=container_node,
-                frame=frame,
-            )
-
-        if should_repeat:
-            next_iteration = frame.loop_iteration + 1
-            container_node.metadata = container_node.metadata or {}
-            container_node.metadata["loopIteration"] = next_iteration
-            container_node.status = "running"
-            container_node.finished_at = None
-            if container_node.result is None or not isinstance(container_node.result, dict):
-                container_node.result = {}
-            container_node.result["loopIteration"] = next_iteration
-            frame_definition = frame.definition
-            new_state = self._initialise_frame_runtime(record, frame_definition)
-            new_state.loop_config = loop_cfg
-            new_state.loop_iteration = next_iteration
-            record.active_frames[frame.frame_id] = new_state
-            if frame.frame_id not in record.frame_stack:
-                record.frame_stack.append(frame.frame_id)
-            container_snapshot = copy.deepcopy(container_node)
-            return self._collect_ready_for_frame(record, new_state), container_snapshot
-
         if container_node.result is None or not isinstance(container_node.result, dict):
             container_node.result = {}
-        container_node.result["loopIteration"] = frame.loop_iteration
 
         record.completed_frames[frame.frame_id] = {
             node_id: copy.deepcopy(node_state) for node_id, node_state in frame.nodes.items()
         }
         self._pop_frame(record, frame.frame_id)
         ready: List[DispatchRequest] = []
+        next_responses: List[Tuple[Optional[str], NextResponsePayload]] = []
+        pending_next_to_clear = [
+            (req_id, worker_id, run_id, node_id, middleware_id)
+            for req_id, (run_id, worker_id, deadline, node_id, middleware_id, target_task_id)
+            in self._pending_next_requests.items()
+            if target_task_id == container_node.task_id
+        ]
+        for req_id, worker_id, run_id, node_id, middleware_id in pending_next_to_clear:
+            self._pending_next_requests.pop(req_id, None)
+            err_body = None
+            if container_node.error:
+                err_body = {"code": container_node.error.code, "message": container_node.error.message}
+            elif failed:
+                err_body = {"code": "next_failed", "message": f"target {container_node.node_id} status failed"}
+            resp = NextResponsePayload(
+                requestId=req_id,
+                runId=run_id,
+                nodeId=node_id or "",
+                middlewareId=middleware_id or "",
+                result=container_node.result,
+                error=err_body,
+            )
+            next_responses.append((worker_id, resp))
+        # When the container has middlewares, the execution unit isn't finished yet; let the outermost middleware finalise and release dependents.
+        if self._is_host_with_middleware(container_node):
+            return ready, container_node, next_responses
         for dependent_id in container_node.dependents:
             dependent = parent_nodes.get(dependent_id)
             if not dependent or dependent.status != "queued":
                 continue
             if dependent.pending_dependencies > 0:
                 dependent.pending_dependencies -= 1
+            if getattr(dependent, "chain_blocked", False):
+                continue
             if dependent.pending_dependencies == 0 and not dependent.enqueued:
                 if dependent.middlewares:
                     continue
@@ -2559,14 +2567,14 @@ class RunRegistry:
                     if chain_index is not None and chain_index > 0:
                         continue
                 ready.append(self._build_dispatch_request_for_node(record, dependent))
-        return ready, container_node
+        return ready, container_node, next_responses
 
     def _collect_ready_for_record(self, record: RunRecord) -> List[DispatchRequest]:
         ready: List[DispatchRequest] = []
         for node in record.nodes.values():
-            if not self._should_auto_dispatch(node):
-                continue
-            if node.node_type == "workflow.container":
+            if self._is_container_node(node):
+                if not self._is_container_ready(node):
+                    continue
                 frame_ready = self._start_container_execution(
                     record,
                     node,
@@ -2574,16 +2582,17 @@ class RunRegistry:
                 )
                 ready.extend(frame_ready)
                 continue
-            else:
-                ready.append(self._build_dispatch_request_for_node(record, node))
+            if not self._should_auto_dispatch(node):
+                continue
+            ready.append(self._build_dispatch_request_for_node(record, node))
         return ready
 
     def _collect_ready_for_frame(self, record: RunRecord, frame: FrameRuntimeState) -> List[DispatchRequest]:
         ready: List[DispatchRequest] = []
         for node in frame.nodes.values():
-            if not self._should_auto_dispatch(node):
-                continue
-            if node.node_type == "workflow.container":
+            if self._is_container_node(node):
+                if not self._is_container_ready(node):
+                    continue
                 frame_ready = self._start_container_execution(
                     record,
                     node,
@@ -2591,8 +2600,9 @@ class RunRegistry:
                 )
                 ready.extend(frame_ready)
                 continue
-            else:
-                ready.append(self._build_dispatch_request_for_node(record, node))
+            if not self._should_auto_dispatch(node):
+                continue
+            ready.append(self._build_dispatch_request_for_node(record, node))
         return ready
 
     def _start_container_execution(
@@ -2634,22 +2644,7 @@ class RunRegistry:
         container_node.metadata = container_node.metadata or {}
         container_node.metadata["frameId"] = frame_definition.frame_id
 
-        loop_cfg = _get_container_loop(container_node)
-        iteration = 1
-        try:
-            iteration = int(container_node.metadata.get("loopIteration", 1)) if container_node.metadata else 1
-        except Exception:  # noqa: BLE001
-            iteration = 1
-        container_node.metadata["loopIteration"] = iteration
-        if loop_cfg:
-            container_node.metadata["loopConfig"] = loop_cfg
-        if container_node.result is None or not isinstance(container_node.result, dict):
-            container_node.result = {}
-        container_node.result["loopIteration"] = iteration
-
         frame_state = self._activate_frame(record, frame_definition)
-        frame_state.loop_config = loop_cfg
-        frame_state.loop_iteration = iteration
         return self._collect_ready_for_frame(record, frame_state)
 
     def _build_dispatch_request(

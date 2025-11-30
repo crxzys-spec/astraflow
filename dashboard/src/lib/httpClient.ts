@@ -1,7 +1,10 @@
 ﻿import axios from 'axios';
 import type { AxiosRequestConfig } from 'axios';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL ?? 'https://scheduler.example.com';
+const baseURL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (typeof window !== 'undefined' ? window.location.origin : undefined) ||
+  'http://127.0.0.1:8080';
 
 const httpClient = axios.create({
   baseURL,

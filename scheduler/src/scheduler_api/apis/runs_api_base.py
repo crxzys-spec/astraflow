@@ -6,12 +6,12 @@ from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
-from scheduler_api.models.run1 import Run1
-from scheduler_api.models.run_list1 import RunList1
-from scheduler_api.models.run_ref1 import RunRef1
-from scheduler_api.models.run_start_request1 import RunStartRequest1
+from scheduler_api.models.run import Run
+from scheduler_api.models.run_list import RunList
+from scheduler_api.models.run_ref import RunRef
+from scheduler_api.models.run_start_request import RunStartRequest
 from scheduler_api.models.run_status import RunStatus
-from scheduler_api.models.workflow1 import Workflow1
+from scheduler_api.models.workflow import Workflow
 from scheduler_api.security_api import get_token_bearerAuth
 
 class BaseRunsApi:
@@ -26,34 +26,34 @@ class BaseRunsApi:
         cursor: Optional[StrictStr],
         status: Optional[RunStatus],
         client_id: Optional[StrictStr],
-    ) -> RunList1:
+    ) -> RunList:
         ...
 
 
     async def start_run(
         self,
-        run_start_request1: RunStartRequest1,
+        run_start_request: RunStartRequest,
         idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")],
-    ) -> RunRef1:
+    ) -> RunRef:
         ...
 
 
     async def get_run(
         self,
         runId: StrictStr,
-    ) -> Run1:
+    ) -> Run:
         ...
 
 
     async def cancel_run(
         self,
         runId: StrictStr,
-    ) -> RunRef1:
+    ) -> RunRef:
         ...
 
 
     async def get_run_definition(
         self,
         runId: StrictStr,
-    ) -> Workflow1:
+    ) -> Workflow:
         ...

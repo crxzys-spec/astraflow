@@ -18,53 +18,688 @@ tags:
 - name: Users
 paths:
   /api/v1/auth/login:
-    $ref: ./paths/auth-login.yaml
+    post:
+      tags:
+      - Auth
+      summary: Exchange username/password for a JWT
+      operationId: authLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthLoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthLoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /api/v1/runs:
-    $ref: ./paths/runs.yaml
+    get:
+      tags:
+      - Runs
+      summary: List runs (paginated)
+      operationId: listRuns
+      parameters:
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/PageCursor'
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/RunStatus'
+      - name: clientId
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunList'
+    post:
+      tags:
+      - Runs
+      summary: Start a run using the in-memory workflow snapshot
+      operationId: startRun
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunStartRequest'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunRef'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/v1/runs/{runId}:
-    $ref: ./paths/run-by-id.yaml
+    get:
+      tags:
+      - Runs
+      summary: Get run summary
+      operationId: getRun
+      parameters:
+      - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/runs/{runId}/cancel:
-    $ref: ./paths/run-cancel.yaml
+    post:
+      tags:
+      - Runs
+      summary: Cancel a run
+      operationId: cancelRun
+      parameters:
+      - $ref: '#/components/parameters/RunId'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunRef'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/runs/{runId}/definition:
-    $ref: ./paths/run-definition.yaml
+    get:
+      tags:
+      - Runs
+      summary: Get the immutable workflow snapshot used by this run
+      operationId: getRunDefinition
+      parameters:
+      - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag:
+              description: Weak ETag based on definitionHash
+              schema:
+                type: string
+                example: W/"sha256:9e22a4..."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/workflows:
-    $ref: ./paths/workflows.yaml
+    get:
+      tags:
+      - Workflows
+      summary: List stored workflows (paginated)
+      operationId: listWorkflows
+      parameters:
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowList'
+    post:
+      tags:
+      - Workflows
+      summary: Persist a workflow for editor storage (no versioning)
+      operationId: persistWorkflow
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Workflow'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRef'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/v1/workflows/{workflowId}:
-    $ref: ./paths/workflow-by-id.yaml
+    get:
+      tags:
+      - Workflows
+      summary: Read stored workflow (latest)
+      operationId: getWorkflow
+      parameters:
+      - $ref: '#/components/parameters/WorkflowId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+      - Workflows
+      summary: Soft delete workflow
+      description: Marks the workflow record as deleted so it is hidden from listings
+        and future reads.
+      operationId: deleteWorkflow
+      parameters:
+      - $ref: '#/components/parameters/WorkflowId'
+      responses:
+        '204':
+          description: Workflow deleted
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/workflows/{workflowId}/preview:
+    get:
+      tags:
+      - Workflows
+      summary: Get workflow canvas preview
+      operationId: getWorkflowPreview
+      parameters:
+      - $ref: '#/components/parameters/WorkflowId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPreview'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - Workflows
+      summary: Set or clear workflow canvas preview
+      operationId: setWorkflowPreview
+      parameters:
+      - $ref: '#/components/parameters/WorkflowId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowPreview'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPreview'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/workflow-packages:
-    $ref: ./paths/workflow-packages.yaml
+    get:
+      tags:
+      - WorkflowPackages
+      summary: List published workflow packages
+      operationId: listWorkflowPackages
+      parameters:
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/PageCursor'
+      - name: owner
+        in: query
+        description: Filter by owner id; use `me` for the caller's id.
+        schema:
+          type: string
+      - name: visibility
+        in: query
+        description: Filter by visibility (private, internal, public).
+        schema:
+          type: string
+      - name: search
+        in: query
+        description: Full-text search across slug, display name, and summary.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPackageList'
   /api/v1/workflow-packages/{packageId}:
-    $ref: ./paths/workflow-package-by-id.yaml
+    get:
+      tags:
+      - WorkflowPackages
+      summary: Get a workflow package detail
+      operationId: getWorkflowPackage
+      parameters:
+      - name: packageId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPackageDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+      - WorkflowPackages
+      summary: Delete a workflow package
+      operationId: deleteWorkflowPackage
+      parameters:
+      - name: packageId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/workflow-packages/{packageId}/versions:
-    $ref: ./paths/workflow-package-versions.yaml
+    get:
+      tags:
+      - WorkflowPackages
+      summary: List versions for a workflow package
+      operationId: listWorkflowPackageVersions
+      parameters:
+      - name: packageId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPackageVersionList'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/workflow-packages/{packageId}/clone:
-    $ref: ./paths/workflow-package-clone.yaml
+    post:
+      tags:
+      - WorkflowPackages
+      summary: Clone a workflow package version into the caller's workspace
+      operationId: cloneWorkflowPackage
+      parameters:
+      - name: packageId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowPackageCloneRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRef'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/workflows/{workflowId}/publish:
-    $ref: ./paths/workflow-publish.yaml
+    post:
+      tags:
+      - WorkflowPackages
+      summary: Publish a workflow draft to the Store
+      operationId: publishWorkflow
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowPublishRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPublishResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /api/v1/packages:
-    $ref: ./paths/packages.yaml
+    get:
+      tags:
+      - Packages
+      summary: List available packages
+      operationId: listPackages
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageList'
   /api/v1/packages/{packageName}:
-    $ref: ./paths/package-by-name.yaml
+    get:
+      tags:
+      - Packages
+      summary: Get package detail
+      operationId: getPackage
+      parameters:
+      - name: packageName
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: version
+        in: query
+        required: false
+        description: Specific package version to retrieve. Defaults to the latest
+          available version.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/workers:
-    $ref: ./paths/workers.yaml
+    get:
+      tags:
+      - Workers
+      summary: List workers (scheduler view)
+      operationId: listWorkers
+      parameters:
+      - name: queue
+        in: query
+        required: false
+        schema:
+          type: string
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/PageCursor'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Worker'
+                  nextCursor:
+                    type: string
+                    nullable: true
   /api/v1/workers/{workerId}:
-    $ref: ./paths/worker-by-id.yaml
+    get:
+      tags:
+      - Workers
+      summary: Get worker snapshot
+      operationId: getWorker
+      parameters:
+      - $ref: '#/components/parameters/WorkerId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Worker'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/workers/{workerId}/commands:
-    $ref: ./paths/worker-commands.yaml
+    post:
+      tags:
+      - Workers
+      summary: Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)
+      operationId: sendWorkerCommand
+      parameters:
+      - $ref: '#/components/parameters/WorkerId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerCommand'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandRef'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/events:
-    $ref: ./paths/events.yaml
+    get:
+      tags:
+      - Events
+      summary: Global Server-Sent Events stream (firehose; no query parameters)
+      operationId: sseGlobalEvents
+      parameters:
+      - $ref: '#/components/parameters/LastEventID'
+      - $ref: '#/components/parameters/ClientSessionId'
+      responses:
+        '200':
+          description: text/event-stream
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                example: text/event-stream; charset=utf-8
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: 'Stream of SSE frames. Each `data:` line contains a JSON
+                  payload that conforms to `UiEventEnvelope`.
+
+                  '
   /api/v1/users:
-    $ref: ./paths/users.yaml
+    get:
+      tags:
+      - Users
+      summary: List users and their roles
+      operationId: listUsers
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserList'
+    post:
+      tags:
+      - Users
+      summary: Create a new user
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
   /api/v1/users/{userId}/password:
-    $ref: ./paths/user-password.yaml
+    post:
+      tags:
+      - Users
+      summary: Reset user password
+      operationId: resetUserPassword
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetUserPasswordRequest'
+      responses:
+        '204':
+          description: Password updated
   /api/v1/users/{userId}/roles:
-    $ref: ./paths/user-roles.yaml
+    post:
+      tags:
+      - Users
+      summary: Assign role to user
+      operationId: addUserRole
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleRequest'
+      responses:
+        '204':
+          description: Role assigned
   /api/v1/users/{userId}/roles/{role}:
-    $ref: ./paths/user-role-by-name.yaml
+    delete:
+      tags:
+      - Users
+      summary: Remove role from user
+      operationId: removeUserRole
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: role
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Role removed
   /api/v1/users/{userId}/status:
-    $ref: ./paths/user-status.yaml
+    patch:
+      tags:
+      - Users
+      summary: Toggle user active state
+      operationId: updateUserStatus
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserStatusRequest'
+      responses:
+        '204':
+          description: Status updated
   /api/v1/audit-events:
-    $ref: ./paths/audit-events.yaml
+    get:
+      tags:
+      - Audit
+      summary: List audit events
+      operationId: listAuditEvents
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        schema:
+          type: string
+        description: Reserved for future pagination
+      - name: action
+        in: query
+        schema:
+          type: string
+        description: Filter by action name
+      - name: actorId
+        in: query
+        schema:
+          type: string
+        description: Filter by actor id
+      - name: targetType
+        in: query
+        schema:
+          type: string
+        description: Filter by target type
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventList'
 components:
   securitySchemes:
     bearerAuth:
@@ -2161,3 +2796,11 @@ components:
           type: string
         version:
           type: string
+    WorkflowPreview:
+      type: object
+      additionalProperties: false
+      properties:
+        previewImage:
+          type: string
+          description: Base64-encoded preview of the workflow canvas.
+          nullable: true

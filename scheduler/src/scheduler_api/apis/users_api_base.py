@@ -7,7 +7,7 @@ from typing import Any
 from scheduler_api.models.create_user_request import CreateUserRequest
 from scheduler_api.models.reset_user_password_request import ResetUserPasswordRequest
 from scheduler_api.models.update_user_status_request import UpdateUserStatusRequest
-from scheduler_api.models.user_list1 import UserList1
+from scheduler_api.models.user_list import UserList
 from scheduler_api.models.user_role_request import UserRoleRequest
 from scheduler_api.models.user_summary import UserSummary
 from scheduler_api.security_api import get_token_bearerAuth
@@ -20,7 +20,7 @@ class BaseUsersApi:
         BaseUsersApi.subclasses = BaseUsersApi.subclasses + (cls,)
     async def list_users(
         self,
-    ) -> UserList1:
+    ) -> UserList:
         ...
 
 

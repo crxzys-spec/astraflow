@@ -28,9 +28,9 @@ from typing import Any, Optional
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
 from scheduler_api.models.workflow_package_clone_request import WorkflowPackageCloneRequest
-from scheduler_api.models.workflow_package_detail1 import WorkflowPackageDetail1
-from scheduler_api.models.workflow_package_list1 import WorkflowPackageList1
-from scheduler_api.models.workflow_package_version_list1 import WorkflowPackageVersionList1
+from scheduler_api.models.workflow_package_detail import WorkflowPackageDetail
+from scheduler_api.models.workflow_package_list import WorkflowPackageList
+from scheduler_api.models.workflow_package_version_list import WorkflowPackageVersionList
 from scheduler_api.models.workflow_publish_request import WorkflowPublishRequest
 from scheduler_api.models.workflow_publish_response import WorkflowPublishResponse
 from scheduler_api.models.workflow_ref import WorkflowRef
@@ -46,7 +46,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 @router.get(
     "/api/v1/workflow-packages",
     responses={
-        200: {"model": WorkflowPackageList1, "description": "OK"},
+        200: {"model": WorkflowPackageList, "description": "OK"},
     },
     tags=["WorkflowPackages"],
     summary="List published workflow packages",
@@ -61,7 +61,7 @@ async def list_workflow_packages(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> WorkflowPackageList1:
+) -> WorkflowPackageList:
     if not BaseWorkflowPackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseWorkflowPackagesApi.subclasses[0]().list_workflow_packages(limit, cursor, owner, visibility, search)
@@ -70,7 +70,7 @@ async def list_workflow_packages(
 @router.get(
     "/api/v1/workflow-packages/{packageId}",
     responses={
-        200: {"model": WorkflowPackageDetail1, "description": "OK"},
+        200: {"model": WorkflowPackageDetail, "description": "OK"},
         404: {"model": Error, "description": "Resource not found"},
     },
     tags=["WorkflowPackages"],
@@ -82,7 +82,7 @@ async def get_workflow_package(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> WorkflowPackageDetail1:
+) -> WorkflowPackageDetail:
     if not BaseWorkflowPackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseWorkflowPackagesApi.subclasses[0]().get_workflow_package(packageId)
@@ -112,7 +112,7 @@ async def delete_workflow_package(
 @router.get(
     "/api/v1/workflow-packages/{packageId}/versions",
     responses={
-        200: {"model": WorkflowPackageVersionList1, "description": "OK"},
+        200: {"model": WorkflowPackageVersionList, "description": "OK"},
         404: {"model": Error, "description": "Resource not found"},
     },
     tags=["WorkflowPackages"],
@@ -124,7 +124,7 @@ async def list_workflow_package_versions(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> WorkflowPackageVersionList1:
+) -> WorkflowPackageVersionList:
     if not BaseWorkflowPackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseWorkflowPackagesApi.subclasses[0]().list_workflow_package_versions(packageId)

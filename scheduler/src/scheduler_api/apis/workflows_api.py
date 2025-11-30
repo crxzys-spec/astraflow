@@ -27,8 +27,9 @@ from pydantic import Field, StrictStr
 from typing import Any, Optional
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
-from scheduler_api.models.workflow1 import Workflow1
-from scheduler_api.models.workflow_list1 import WorkflowList1
+from scheduler_api.models.workflow import Workflow
+from scheduler_api.models.workflow_list import WorkflowList
+from scheduler_api.models.workflow_preview import WorkflowPreview
 from scheduler_api.models.workflow_ref import WorkflowRef
 from scheduler_api.security_api import get_token_bearerAuth
 
@@ -42,7 +43,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 @router.get(
     "/api/v1/workflows",
     responses={
-        200: {"model": WorkflowList1, "description": "OK"},
+        200: {"model": WorkflowList, "description": "OK"},
     },
     tags=["Workflows"],
     summary="List stored workflows (paginated)",
@@ -54,7 +55,7 @@ async def list_workflows(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> WorkflowList1:
+) -> WorkflowList:
     if not BaseWorkflowsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseWorkflowsApi.subclasses[0]().list_workflows(limit, cursor)
@@ -72,7 +73,7 @@ async def list_workflows(
     response_model_by_alias=True,
 )
 async def persist_workflow(
-    workflow1: Workflow1 = Body(None, description=""),
+    workflow: Workflow = Body(None, description=""),
     idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")] = Header(None, description="Optional idempotency key for safe retries; if reused with a different body, return 409", max_length=64),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -80,13 +81,13 @@ async def persist_workflow(
 ) -> WorkflowRef:
     if not BaseWorkflowsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseWorkflowsApi.subclasses[0]().persist_workflow(workflow1, idempotency_key)
+    return await BaseWorkflowsApi.subclasses[0]().persist_workflow(workflow, idempotency_key)
 
 
 @router.get(
     "/api/v1/workflows/{workflowId}",
     responses={
-        200: {"model": Workflow1, "description": "OK"},
+        200: {"model": Workflow, "description": "OK"},
         404: {"model": Error, "description": "Resource not found"},
     },
     tags=["Workflows"],
@@ -98,7 +99,7 @@ async def get_workflow(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> Workflow1:
+) -> Workflow:
     if not BaseWorkflowsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseWorkflowsApi.subclasses[0]().get_workflow(workflowId)
@@ -125,3 +126,46 @@ async def delete_workflow(
     if not BaseWorkflowsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseWorkflowsApi.subclasses[0]().delete_workflow(workflowId)
+
+
+@router.get(
+    "/api/v1/workflows/{workflowId}/preview",
+    responses={
+        200: {"model": WorkflowPreview, "description": "OK"},
+        404: {"model": Error, "description": "Resource not found"},
+    },
+    tags=["Workflows"],
+    summary="Get workflow canvas preview",
+    response_model_by_alias=True,
+)
+async def get_workflow_preview(
+    workflowId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> WorkflowPreview:
+    if not BaseWorkflowsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseWorkflowsApi.subclasses[0]().get_workflow_preview(workflowId)
+
+
+@router.put(
+    "/api/v1/workflows/{workflowId}/preview",
+    responses={
+        200: {"model": WorkflowPreview, "description": "Updated"},
+        404: {"model": Error, "description": "Resource not found"},
+    },
+    tags=["Workflows"],
+    summary="Set or clear workflow canvas preview",
+    response_model_by_alias=True,
+)
+async def set_workflow_preview(
+    workflowId: StrictStr = Path(..., description=""),
+    workflow_preview: WorkflowPreview = Body(None, description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> WorkflowPreview:
+    if not BaseWorkflowsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseWorkflowsApi.subclasses[0]().set_workflow_preview(workflowId, workflow_preview)

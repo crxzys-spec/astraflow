@@ -7,9 +7,9 @@ from typing import Any, Optional
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
 from scheduler_api.models.workflow_package_clone_request import WorkflowPackageCloneRequest
-from scheduler_api.models.workflow_package_detail1 import WorkflowPackageDetail1
-from scheduler_api.models.workflow_package_list1 import WorkflowPackageList1
-from scheduler_api.models.workflow_package_version_list1 import WorkflowPackageVersionList1
+from scheduler_api.models.workflow_package_detail import WorkflowPackageDetail
+from scheduler_api.models.workflow_package_list import WorkflowPackageList
+from scheduler_api.models.workflow_package_version_list import WorkflowPackageVersionList
 from scheduler_api.models.workflow_publish_request import WorkflowPublishRequest
 from scheduler_api.models.workflow_publish_response import WorkflowPublishResponse
 from scheduler_api.models.workflow_ref import WorkflowRef
@@ -28,14 +28,14 @@ class BaseWorkflowPackagesApi:
         owner: Annotated[Optional[StrictStr], Field(description="Filter by owner id; use `me` for the caller's id.")],
         visibility: Annotated[Optional[StrictStr], Field(description="Filter by visibility (private, internal, public).")],
         search: Annotated[Optional[StrictStr], Field(description="Full-text search across slug, display name, and summary.")],
-    ) -> WorkflowPackageList1:
+    ) -> WorkflowPackageList:
         ...
 
 
     async def get_workflow_package(
         self,
         packageId: StrictStr,
-    ) -> WorkflowPackageDetail1:
+    ) -> WorkflowPackageDetail:
         ...
 
 
@@ -49,7 +49,7 @@ class BaseWorkflowPackagesApi:
     async def list_workflow_package_versions(
         self,
         packageId: StrictStr,
-    ) -> WorkflowPackageVersionList1:
+    ) -> WorkflowPackageVersionList:
         ...
 
 

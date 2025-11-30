@@ -61,6 +61,7 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
 
   const pendingPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   const rafRef = useRef<number>();
+  const lastFlushRef = useRef<number>(0);
 
   useEffect(
     () => () => {
@@ -88,7 +89,13 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
       });
 
       if (hasPositionUpdate && rafRef.current === undefined) {
-        rafRef.current = requestAnimationFrame(() => {
+        const flush = (ts: number) => {
+          const elapsed = ts - lastFlushRef.current;
+          // throttle to ~60fps (16ms)
+          if (lastFlushRef.current !== 0 && elapsed < 16) {
+            rafRef.current = requestAnimationFrame(flush);
+            return;
+          }
           pendingPositionsRef.current.forEach((position, nodeId) => {
             updateNode(nodeId, (node) => ({
               ...node,
@@ -96,8 +103,10 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
             }));
           });
           pendingPositionsRef.current.clear();
+          lastFlushRef.current = ts;
           rafRef.current = undefined;
-        });
+        };
+        rafRef.current = requestAnimationFrame(flush);
       }
     },
     [removeNode, updateNode]
@@ -159,43 +168,66 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   }, [setSelectedNode, setSelectedEdgeId]);
 
   const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
-    if (event.dataTransfer.types.includes(WORKFLOW_NODE_DRAG_FORMAT)) {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "copy";
-    }
+    // Always allow drop so Chrome/Edge can populate the payload on drop.
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
   }, []);
 
   const handleDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
       if (!onNodeDrop) {
         return;
       }
-      const raw = event.dataTransfer.getData(WORKFLOW_NODE_DRAG_FORMAT);
-      if (!raw) {
+      const tryProcessPayload = (raw: string | null | undefined) => {
+        if (!raw) {
+          return false;
+        }
+        try {
+          const payload = JSON.parse(raw) as Record<string, unknown>;
+          const nodeType = payload[WORKFLOW_NODE_DRAG_TYPE_KEY];
+          if (typeof nodeType !== "string") {
+            return false;
+          }
+          const packageNameValue = payload[WORKFLOW_NODE_DRAG_PACKAGE_KEY];
+          const packageVersionValue = payload[WORKFLOW_NODE_DRAG_VERSION_KEY];
+          const position = screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY
+          });
+          onNodeDrop(
+            {
+              type: nodeType,
+              packageName: typeof packageNameValue === "string" ? packageNameValue : undefined,
+              packageVersion: typeof packageVersionValue === "string" ? packageVersionValue : undefined
+            },
+            position
+          );
+          return true;
+        } catch (error) {
+          console.error("Failed to parse dropped node payload", error);
+          return false;
+        }
+      };
+
+      const raw =
+        event.dataTransfer.getData(WORKFLOW_NODE_DRAG_FORMAT) ||
+        event.dataTransfer.getData("application/reactflow") ||
+        event.dataTransfer.getData("text/plain");
+
+      if (tryProcessPayload(raw)) {
         return;
       }
-      try {
-        const payload = JSON.parse(raw) as Record<string, unknown>;
-        const nodeType = payload[WORKFLOW_NODE_DRAG_TYPE_KEY];
-        if (typeof nodeType !== "string") {
-          return;
-        }
-        const packageNameValue = payload[WORKFLOW_NODE_DRAG_PACKAGE_KEY];
-        const packageVersionValue = payload[WORKFLOW_NODE_DRAG_VERSION_KEY];
-        const position = screenToFlowPosition({
-          x: event.clientX,
-          y: event.clientY
+
+      const items = Array.from(event.dataTransfer.items || []);
+      const candidate = items.find((item) =>
+        [WORKFLOW_NODE_DRAG_FORMAT, "application/reactflow", "text/plain"].includes(item.type)
+      );
+      if (candidate && typeof candidate.getAsString === "function") {
+        candidate.getAsString((text) => {
+          tryProcessPayload(text);
         });
-        onNodeDrop(
-          {
-            type: nodeType,
-            packageName: typeof packageNameValue === "string" ? packageNameValue : undefined,
-            packageVersion: typeof packageVersionValue === "string" ? packageVersionValue : undefined
-          },
-          position
-        );
-      } catch (error) {
-        console.error("Failed to parse dropped node payload", error);
       }
     },
     [onNodeDrop, screenToFlowPosition]
@@ -258,7 +290,7 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   }
 
   return (
-    <div className="workflow-canvas">
+    <div className="workflow-canvas" onDrop={handleDrop} onDragOver={handleDragOver}>
       <ReactFlow
         key={activeGraph.type === "subgraph" ? `subgraph-${activeGraph.subgraphId}` : "root"}
         nodes={nodes}
@@ -280,7 +312,9 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
         <WorkflowControls />
       </ReactFlow>
       {!nodes.length && (
-        <div className="workflow-canvas__overlay">No nodes yet. Drag components from the palette.</div>
+        <div className="workflow-canvas__overlay" style={{ pointerEvents: "none" }}>
+          No nodes yet. Drag components from the palette.
+        </div>
       )}
     </div>
   );

@@ -3,7 +3,7 @@
 from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 
 from scheduler_api.models.auth_login_request import AuthLoginRequest
-from scheduler_api.models.auth_login_response1 import AuthLoginResponse1
+from scheduler_api.models.auth_login_response import AuthLoginResponse
 from scheduler_api.models.error import Error
 
 
@@ -16,5 +16,5 @@ class BaseAuthApi:
     async def auth_login(
         self,
         auth_login_request: AuthLoginRequest,
-    ) -> AuthLoginResponse1:
+    ) -> AuthLoginResponse:
         ...

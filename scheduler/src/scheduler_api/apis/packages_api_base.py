@@ -6,8 +6,8 @@ from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
-from scheduler_api.models.package_detail1 import PackageDetail1
-from scheduler_api.models.package_list1 import PackageList1
+from scheduler_api.models.package_detail import PackageDetail
+from scheduler_api.models.package_list import PackageList
 from scheduler_api.security_api import get_token_bearerAuth
 
 class BasePackagesApi:
@@ -18,7 +18,7 @@ class BasePackagesApi:
         BasePackagesApi.subclasses = BasePackagesApi.subclasses + (cls,)
     async def list_packages(
         self,
-    ) -> PackageList1:
+    ) -> PackageList:
         ...
 
 
@@ -26,5 +26,5 @@ class BasePackagesApi:
         self,
         packageName: StrictStr,
         version: Annotated[Optional[StrictStr], Field(description="Specific package version to retrieve. Defaults to the latest available version.")],
-    ) -> PackageDetail1:
+    ) -> PackageDetail:
         ...

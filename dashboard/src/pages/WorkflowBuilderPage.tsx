@@ -36,6 +36,7 @@ import NodeInspector from "../features/workflow/components/NodeInspector";
 import RunDetailPage from "./RunDetailPage";
 import StatusBadge from "../components/StatusBadge";
 import { getClientSessionId } from "../lib/clientSession";
+import { client } from "../lib/httpClient";
 import { UiEventType } from "../api/models/uiEventType";
 import type { UiEventEnvelope } from "../api/models/uiEventEnvelope";
 import type { RunStatusEvent } from "../api/models/runStatusEvent";
@@ -630,6 +631,19 @@ const WorkflowBuilderPage = () => {
     }
   }, []);
 
+  const sendWorkflowPreview = useCallback(async (workflowId: string, preview?: string | null) => {
+    if (!preview) return;
+    try {
+      await client({
+        method: "PUT",
+        url: `/api/v1/workflows/${workflowId}/preview`,
+        data: { previewImage: preview }
+      });
+    } catch (error) {
+      console.warn("Failed to upload workflow preview", error);
+    }
+  }, []);
+
   const packageSummaries = packagesQuery.data?.data?.items ?? [];
   const ownedWorkflowPackages = workflowPackagesQuery.data?.data?.items ?? [];
   const canTargetExistingPackage = ownedWorkflowPackages.length > 0;
@@ -722,7 +736,6 @@ const WorkflowBuilderPage = () => {
     const previewImage =
       (await captureCanvasPreview()) ?? workflow.previewImage ?? undefined;
     if (previewImage) {
-      payload.previewImage = previewImage;
       setPreviewImage(previewImage);
     }
 
@@ -732,12 +745,13 @@ const WorkflowBuilderPage = () => {
         data: payload
       },
       {
-        onSuccess: (response) => {
+        onSuccess: async (response) => {
           const versionLabel = response.data?.version ?? publishForm.version.trim();
           setPublishMessage({
             type: "success",
             text: `Workflow published as version ${versionLabel}.`
           });
+          await sendWorkflowPreview(workflow.id, previewImage);
           setPublishModalOpen(false);
         },
         onError: (error) => {
@@ -863,15 +877,15 @@ const WorkflowBuilderPage = () => {
       (await captureCanvasPreview()) ?? workflow.previewImage ?? undefined;
     if (previewImage) {
       setPreviewImage(previewImage);
-      workflowForPersist.previewImage = previewImage;
     }
     const definition = toWorkflowDefinition(workflowForPersist);
     persistWorkflowMutation.mutate(
       { data: definition },
       {
-        onSuccess: (response) => {
+        onSuccess: async (response) => {
           const workflowIdResponse = response.data?.workflowId ?? workflowForPersist.id;
           setSaveMessage({ type: "success", text: "Workflow saved successfully." });
+          await sendWorkflowPreview(workflowIdResponse, previewImage);
           if (!workflowKey || workflowKey !== workflowIdResponse) {
             navigate(`/workflows/${workflowIdResponse}`, { replace: true });
           } else {

@@ -52,66 +52,13 @@ def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmpdir:
         spec_dir = Path(tmpdir) / "api"
-        shutil.copytree(OPENAPI_SPEC.parent, spec_dir, dirs_exist_ok=True)
+        spec_dir.mkdir(parents=True, exist_ok=True)
+
+        spec = build_resolved_spec(OPENAPI_SPEC)
         spec_path = spec_dir / "openapi.yaml"
-        spec = yaml.safe_load(spec_path.read_text(encoding="utf-8"))
-
-        components = spec.setdefault("components", {})
-        merge_sources = {
-            "parameters": spec_dir / "components" / "parameters.yaml",
-            "responses": spec_dir / "components" / "responses.yaml",
-            "schemas": spec_dir / "components" / "schemas" / "index.yaml",
-        }
-        for key, path in merge_sources.items():
-            data = yaml.safe_load(path.read_text(encoding="utf-8"))
-            if isinstance(data, dict) and key in data:
-                components[key] = data[key]
-            else:
-                components[key] = data if isinstance(data, dict) else {}
-
-        def transform_refs(node):
-            if isinstance(node, dict):
-                return {k: transform_refs(v) for k, v in node.items()}
-            if isinstance(node, list):
-                return [transform_refs(v) for v in node]
-            if isinstance(node, str):
-                replacements = {
-                    "../components/parameters.yaml#/parameters/": "#/components/parameters/",
-                    "../components/responses.yaml#/responses/": "#/components/responses/",
-                    "../components/schemas/index.yaml#/schemas/": "#/components/schemas/",
-                    "./components/schemas/index.yaml#/schemas/": "#/components/schemas/",
-                    "./schemas/index.yaml#/schemas/": "#/components/schemas/",
-                    "./schemas/index.yaml#/": "#/components/schemas/",
-                }
-                for old, new in replacements.items():
-                    node = node.replace(old, new)
-                if node.startswith("#/") and not node.startswith("#/components/"):
-                    node = node.replace("#/", "#/components/schemas/", 1)
-                if node.startswith("#/schemas/"):
-                    node = node.replace("#/schemas/", "#/components/schemas/")
-                if node.startswith("#/parameters/"):
-                    node = node.replace("#/parameters/", "#/components/parameters/")
-                if node.startswith("#/responses/"):
-                    node = node.replace("#/responses/", "#/components/responses/")
-                return node
-            return node
-
-        spec = transform_refs(spec)
-
-        def strip_const(node):
-            if isinstance(node, dict):
-                node.pop("const", None)
-                for k, v in list(node.items()):
-                    node[k] = strip_const(v)
-            elif isinstance(node, list):
-                return [strip_const(v) for v in node]
-            return node
-
-        spec = strip_const(spec)
-        # Downgrade to 3.0.3 for generator compatibility
-        spec["openapi"] = "3.0.3"
         spec_yaml = yaml.safe_dump(spec, sort_keys=False)
         spec_path.write_text(spec_yaml, encoding="utf-8")
+
         resolved_copy = OUTPUT_DIR / "openapi.resolved.yaml"
         resolved_copy.write_text(spec_yaml, encoding="utf-8")
 
@@ -146,6 +93,79 @@ def main() -> None:
     ensure_token_model(api_src / "models" / "extra_models.py")
     ensure_security_api(api_src / "security_api.py")
     relax_field_strictness(api_src / "apis")
+    # Preserve the clean, resolved spec as the checked-in OpenAPI document
+    (OUTPUT_DIR / "openapi.yaml").write_text(spec_yaml, encoding="utf-8")
+
+
+def build_resolved_spec(openapi_path: Path) -> dict:
+    """Load docs OpenAPI and inline all refs/components for generator stability."""
+
+    src_root = openapi_path.parent
+    spec = yaml.safe_load(openapi_path.read_text(encoding="utf-8"))
+    components = spec.setdefault("components", {})
+
+    merge_sources = {
+        "parameters": src_root / "components" / "parameters.yaml",
+        "responses": src_root / "components" / "responses.yaml",
+        "schemas": src_root / "components" / "schemas" / "index.yaml",
+    }
+    for key, path in merge_sources.items():
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and key in data:
+            components[key] = data[key]
+        else:
+            components[key] = data if isinstance(data, dict) else {}
+
+    paths = spec.get("paths", {})
+    for route, body in list(paths.items()):
+        if isinstance(body, dict) and "$ref" in body:
+            ref_path = (src_root / Path(body["$ref"])).resolve()
+            paths[route] = yaml.safe_load(ref_path.read_text(encoding="utf-8"))
+
+    def transform_refs(node):
+        if isinstance(node, dict):
+            return {k: transform_refs(v) for k, v in node.items()}
+        if isinstance(node, list):
+            return [transform_refs(v) for v in node]
+        if isinstance(node, str):
+            replacements = {
+                "../components/parameters.yaml#/parameters/": "#/components/parameters/",
+                "../components/parameters.yaml#/": "#/components/parameters/",
+                "../components/responses.yaml#/responses/": "#/components/responses/",
+                "../components/responses.yaml#/": "#/components/responses/",
+                "../components/schemas/index.yaml#/schemas/": "#/components/schemas/",
+                "../components/schemas/index.yaml#/": "#/components/schemas/",
+                "./components/schemas/index.yaml#/schemas/": "#/components/schemas/",
+                "./schemas/index.yaml#/schemas/": "#/components/schemas/",
+                "./schemas/index.yaml#/": "#/components/schemas/",
+            }
+            for old, new in replacements.items():
+                node = node.replace(old, new)
+            if node.startswith("#/") and not node.startswith("#/components/"):
+                node = node.replace("#/", "#/components/schemas/", 1)
+            if node.startswith("#/schemas/"):
+                node = node.replace("#/schemas/", "#/components/schemas/")
+            if node.startswith("#/parameters/"):
+                node = node.replace("#/parameters/", "#/components/parameters/")
+            if node.startswith("#/responses/"):
+                node = node.replace("#/responses/", "#/components/responses/")
+            return node
+        return node
+
+    spec = transform_refs(spec)
+
+    def strip_const(node):
+        if isinstance(node, dict):
+            node.pop("const", None)
+            for k, v in list(node.items()):
+                node[k] = strip_const(v)
+        elif isinstance(node, list):
+            return [strip_const(v) for v in node]
+        return node
+
+    spec = strip_const(spec)
+    spec["openapi"] = "3.0.3"
+    return spec
 
 
 def postprocess_generated_models(models_root: Path) -> None:

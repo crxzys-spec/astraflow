@@ -27,8 +27,8 @@ from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
-from scheduler_api.models.package_detail1 import PackageDetail1
-from scheduler_api.models.package_list1 import PackageList1
+from scheduler_api.models.package_detail import PackageDetail
+from scheduler_api.models.package_list import PackageList
 from scheduler_api.security_api import get_token_bearerAuth
 
 router = APIRouter()
@@ -41,7 +41,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 @router.get(
     "/api/v1/packages",
     responses={
-        200: {"model": PackageList1, "description": "OK"},
+        200: {"model": PackageList, "description": "OK"},
     },
     tags=["Packages"],
     summary="List available packages",
@@ -51,7 +51,7 @@ async def list_packages(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> PackageList1:
+) -> PackageList:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BasePackagesApi.subclasses[0]().list_packages()
@@ -60,7 +60,7 @@ async def list_packages(
 @router.get(
     "/api/v1/packages/{packageName}",
     responses={
-        200: {"model": PackageDetail1, "description": "OK"},
+        200: {"model": PackageDetail, "description": "OK"},
         404: {"model": Error, "description": "Resource not found"},
     },
     tags=["Packages"],
@@ -73,7 +73,7 @@ async def get_package(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> PackageDetail1:
+) -> PackageDetail:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BasePackagesApi.subclasses[0]().get_package(packageName, version)

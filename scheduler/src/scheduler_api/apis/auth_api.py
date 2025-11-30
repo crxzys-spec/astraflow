@@ -24,7 +24,7 @@ from fastapi import (  # noqa: F401
 
 from scheduler_api.models.extra_models import TokenModel  # noqa: F401
 from scheduler_api.models.auth_login_request import AuthLoginRequest
-from scheduler_api.models.auth_login_response1 import AuthLoginResponse1
+from scheduler_api.models.auth_login_response import AuthLoginResponse
 from scheduler_api.models.error import Error
 
 
@@ -38,7 +38,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 @router.post(
     "/api/v1/auth/login",
     responses={
-        200: {"model": AuthLoginResponse1, "description": "Authenticated"},
+        200: {"model": AuthLoginResponse, "description": "Authenticated"},
         401: {"model": Error, "description": "Authentication required or credentials invalid"},
     },
     tags=["Auth"],
@@ -47,7 +47,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 )
 async def auth_login(
     auth_login_request: AuthLoginRequest = Body(None, description=""),
-) -> AuthLoginResponse1:
+) -> AuthLoginResponse:
     if not BaseAuthApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseAuthApi.subclasses[0]().auth_login(auth_login_request)

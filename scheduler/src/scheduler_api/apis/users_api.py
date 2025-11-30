@@ -28,7 +28,7 @@ from typing import Any
 from scheduler_api.models.create_user_request import CreateUserRequest
 from scheduler_api.models.reset_user_password_request import ResetUserPasswordRequest
 from scheduler_api.models.update_user_status_request import UpdateUserStatusRequest
-from scheduler_api.models.user_list1 import UserList1
+from scheduler_api.models.user_list import UserList
 from scheduler_api.models.user_role_request import UserRoleRequest
 from scheduler_api.models.user_summary import UserSummary
 from scheduler_api.security_api import get_token_bearerAuth
@@ -43,7 +43,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 @router.get(
     "/api/v1/users",
     responses={
-        200: {"model": UserList1, "description": "OK"},
+        200: {"model": UserList, "description": "OK"},
     },
     tags=["Users"],
     summary="List users and their roles",
@@ -53,7 +53,7 @@ async def list_users(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> UserList1:
+) -> UserList:
     if not BaseUsersApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseUsersApi.subclasses[0]().list_users()

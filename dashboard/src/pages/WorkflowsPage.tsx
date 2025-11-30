@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import { Link } from "react-router-dom";
 import { useDeleteWorkflow, useListWorkflows } from "../api/endpoints";
 import { useAuthStore } from "../features/auth/store";
@@ -13,6 +14,7 @@ const WorkflowsPage = () => {
   const canCreateWorkflow = useAuthStore((state) => state.hasRole(["admin", "workflow.editor"]));
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingWorkflowId, setDeletingWorkflowId] = useState<string | null>(null);
+  const [previewMap, setPreviewMap] = useState<Record<string, string | null>>({});
   const deleteWorkflowMutation = useDeleteWorkflow();
 
   const workflows = workflowsQuery.data?.data?.items ?? [];
@@ -48,6 +50,31 @@ const WorkflowsPage = () => {
     setToolbar(toolbarContent);
     return () => setToolbar(null);
   }, [toolbarContent, setToolbar]);
+
+  useEffect(() => {
+    const idsNeedingPreview = workflows
+      .map((w) => w.id)
+      .filter((id) => previewMap[id] === undefined);
+    if (!idsNeedingPreview.length) {
+      return;
+    }
+    let cancelled = false;
+    idsNeedingPreview.forEach((id) => {
+      axios
+        .get<{ previewImage?: string | null }>(`/api/v1/workflows/${id}/preview`)
+        .then((res) => {
+          if (cancelled) return;
+          setPreviewMap((prev) => ({ ...prev, [id]: res.data?.previewImage ?? null }));
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setPreviewMap((prev) => ({ ...prev, [id]: null }));
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [workflows, previewMap]);
 
   const handleDelete = async (workflowId: string, workflowName: string) => {
     if (!window.confirm(`Delete workflow "${workflowName}"? This action can be undone by re-saving.`)) {
@@ -115,7 +142,7 @@ const WorkflowsPage = () => {
             const description = metadata.description ?? "No description provided.";
             const ownerDisplay = metadata.ownerName ?? metadata.ownerId ?? "Unassigned";
             const environment = metadata.environment ?? "default";
-            const previewImage = workflow.previewImage ?? null;
+            const previewImage = previewMap[workflow.id] ?? workflow.previewImage ?? null;
             return (
               <article key={workflow.id} className="card card--surface workflow-card workflow-card--accent">
                 <div className="workflow-card__media">

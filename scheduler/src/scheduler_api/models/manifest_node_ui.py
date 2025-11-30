@@ -29,11 +29,10 @@ try:
 except ImportError:
     from typing_extensions import Self
 
-
 class ManifestNodeUI(BaseModel):
     """
     ManifestNodeUI
-    """  # noqa: E501
+    """ # noqa: E501
     input_ports: Optional[List[ManifestPort]] = Field(default=None, alias="inputPorts")
     output_ports: Optional[List[ManifestPort]] = Field(default=None, alias="outputPorts")
     widgets: Optional[List[ManifestWidget]] = None
@@ -82,21 +81,21 @@ class ManifestNodeUI(BaseModel):
             for _item in self.input_ports:
                 if _item:
                     _items.append(_item.to_dict())
-            _dict["inputPorts"] = _items
+            _dict['inputPorts'] = _items
         # override the default output from pydantic by calling `to_dict()` of each item in output_ports (list)
         _items = []
         if self.output_ports:
             for _item in self.output_ports:
                 if _item:
                     _items.append(_item.to_dict())
-            _dict["outputPorts"] = _items
+            _dict['outputPorts'] = _items
         # override the default output from pydantic by calling `to_dict()` of each item in widgets (list)
         _items = []
         if self.widgets:
             for _item in self.widgets:
                 if _item:
                     _items.append(_item.to_dict())
-            _dict["widgets"] = _items
+            _dict['widgets'] = _items
         return _dict
 
     @classmethod
@@ -114,4 +113,5 @@ class ManifestNodeUI(BaseModel):
             "widgets": [ManifestWidget.from_dict(_item) for _item in obj.get("widgets")] if obj.get("widgets") is not None else None
         })
         return _obj
+
 

@@ -26,7 +26,7 @@ from scheduler_api.models.extra_models import TokenModel  # noqa: F401
 from pydantic import Field, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
-from scheduler_api.models.audit_event_list1 import AuditEventList1
+from scheduler_api.models.audit_event_list import AuditEventList
 from scheduler_api.security_api import get_token_bearerAuth
 
 router = APIRouter()
@@ -39,7 +39,7 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 @router.get(
     "/api/v1/audit-events",
     responses={
-        200: {"model": AuditEventList1, "description": "OK"},
+        200: {"model": AuditEventList, "description": "OK"},
     },
     tags=["Audit"],
     summary="List audit events",
@@ -54,7 +54,7 @@ async def list_audit_events(
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
-) -> AuditEventList1:
+) -> AuditEventList:
     if not BaseAuditApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseAuditApi.subclasses[0]().list_audit_events(limit, cursor, action, actor_id, target_type)

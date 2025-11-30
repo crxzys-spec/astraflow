@@ -31,6 +31,8 @@ paths:
     $ref: ./paths/workflows.yaml
   /api/v1/workflows/{workflowId}:
     $ref: ./paths/workflow-by-id.yaml
+  /api/v1/workflows/{workflowId}/preview:
+    $ref: ./paths/workflow-preview.yaml
   /api/v1/workflow-packages:
     $ref: ./paths/workflow-packages.yaml
   /api/v1/workflow-packages/{packageId}:

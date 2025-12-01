@@ -59,7 +59,7 @@ def _normalise_status(value: str) -> str:
     mapping = {
         "succeeded": "succeeded",
         "failed": "failed",
-        "skipped": "succeeded",
+        "skipped": "skipped",
         "cancelled": "cancelled",
         "queued": "queued",
         "running": "running",
@@ -106,7 +106,7 @@ def _merge_result_updates(
     return deltas
 
 
-FINAL_STATUSES = {"succeeded", "failed", "cancelled"}
+FINAL_STATUSES = {"succeeded", "failed", "cancelled", "skipped"}
 CONTAINER_PARAMS_KEY = "__container"
 
 
@@ -1484,7 +1484,7 @@ class RunRegistry:
             next_responses: List[Tuple[Optional[str], NextResponsePayload]] = []
             # Host nodes with middleware chains keep looping; do not release dependents or finalize yet.
             if not self._is_host_with_middleware(node_state):
-                if status == "succeeded":
+                if status in {"succeeded", "skipped"}:
                     if frame_state:
                         self._apply_frame_edge_bindings(frame_state, node_state)
                     else:
@@ -1492,9 +1492,14 @@ class RunRegistry:
                     self._release_dependents(record, node_state, frame_state, ready)
             else:
                 # Allow the host to be dispatched again by middleware.next()
-                node_state.status = "queued"
-                node_state.enqueued = False
-                node_state.pending_dependencies = 0
+                if status == "skipped":
+                    node_state.status = "skipped"
+                    node_state.enqueued = False
+                    node_state.pending_dependencies = 0
+                else:
+                    node_state.status = "queued"
+                    node_state.enqueued = False
+                    node_state.pending_dependencies = 0
                 node_state.chain_blocked = True
 
             # Middleware completion finalises the host and releases its dependents.
@@ -1503,6 +1508,10 @@ class RunRegistry:
                 # Keep middleware reusable for subsequent next() invocations if it succeeded.
                 if status == "succeeded":
                     node_state.status = "queued"
+                    node_state.enqueued = False
+                    node_state.pending_dependencies = 0
+                elif status == "skipped":
+                    node_state.status = "skipped"
                     node_state.enqueued = False
                     node_state.pending_dependencies = 0
                 node_state.chain_blocked = True
@@ -1515,9 +1524,10 @@ class RunRegistry:
                         self._apply_middleware_output_bindings(host_state, node_state)
                         chain_index = node_state.metadata.get("chain_index") if node_state.metadata else None
                         chain_len = len(host_state.middlewares) if host_state.middlewares else 0
-                        # Only the outermost (first) middleware closes the U-shape and finalises the host.
+                        # Finalise host when chain ends (outermost) or when skipping.
                         is_outermost = chain_index is None or chain_index == 0
-                        if is_outermost:
+                        should_finalise_host = status == "skipped" or is_outermost
+                        if should_finalise_host and host_state.status not in FINAL_STATUSES:
                             host_state.status = status
                             host_state.finished_at = timestamp
                             # Keep host data isolated; middleware data remains on the middleware node
@@ -1527,7 +1537,8 @@ class RunRegistry:
                             host_state.error = host_state.error
                             host_state.enqueued = False
                             host_state.pending_dependencies = 0
-                            if status == "succeeded":
+                            host_state.chain_blocked = False
+                            if status in {"succeeded", "skipped"}:
                                 if host_frame:
                                     self._apply_frame_edge_bindings(host_frame, host_state)
                                 else:
@@ -2514,7 +2525,14 @@ class RunRegistry:
             failing_error = next((node.error for node in nodes if node.error), None)
             container_node.error = failing_error
         else:
-            container_node.status = "succeeded"
+            if self._is_host_with_middleware(container_node):
+                # Container host still has middleware chain to complete; keep it queued/blocked until middleware finalises.
+                container_node.status = "queued"
+                container_node.finished_at = None
+                container_node.chain_blocked = True
+                container_node.pending_dependencies = 0
+            else:
+                container_node.status = "succeeded"
 
         if container_node.result is None or not isinstance(container_node.result, dict):
             container_node.result = {}

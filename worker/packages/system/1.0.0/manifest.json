@@ -10,6 +10,7 @@
       "capabilities": [
         "workflow.container",
         "system.loop_middleware",
+        "system.case_middleware",
         "system.input_generator"
       ]
     }
@@ -275,6 +276,100 @@
             "component": "number",
             "binding": {
               "path": "/results/iterations",
+              "mode": "read"
+            },
+            "options": {
+              "readOnly": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "system.case_middleware",
+      "role": "middleware",
+      "status": "published",
+      "category": "System",
+      "label": "Case Middleware",
+      "description": "Conditionally short-circuits the middleware chain/host when disabled.",
+      "adapter": "scheduler",
+      "handler": "case_middleware",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "When false, the middleware chain stops and host completes."
+            }
+          },
+          "required": [
+            "enabled"
+          ],
+          "additionalProperties": true
+        },
+        "results": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Evaluated flag."
+            },
+            "skipped": {
+              "type": "boolean",
+              "description": "True when the chain was short-circuited (disabled)."
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "enabled",
+            "label": "Enabled",
+            "binding": {
+              "path": "/parameters/enabled",
+              "mode": "write"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "enabled",
+            "label": "Enabled",
+            "binding": {
+              "path": "/results/enabled",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "skipped",
+            "label": "Skipped",
+            "binding": {
+              "path": "/results/skipped",
+              "mode": "read"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "enabled",
+            "label": "Enabled",
+            "component": "checkbox",
+            "binding": {
+              "path": "/parameters/enabled",
+              "mode": "two_way"
+            }
+          },
+          {
+            "key": "skipped",
+            "label": "Short-circuited",
+            "component": "checkbox",
+            "binding": {
+              "path": "/results/skipped",
               "mode": "read"
             },
             "options": {

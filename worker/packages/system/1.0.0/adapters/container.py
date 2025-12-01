@@ -118,3 +118,20 @@ async def input_generator(context: ExecutionContext) -> Dict[str, Any]:
         "raw": raw_value,
         "value": parsed,
     }
+
+
+async def case_middleware(context: ExecutionContext) -> Dict[str, Any]:
+    """Short-circuit middleware chain when disabled."""
+
+    params = context.params or {}
+    enabled = bool(params.get("enabled", True))
+    if not enabled:
+        return {"status": "skipped", "enabled": False, "skipped": True, "metadata": {"stage": "skipped"}}
+
+    next_result = await context.next()
+    payload: Dict[str, Any] = {"status": "succeeded", "enabled": True, "skipped": False}
+    if isinstance(next_result, dict):
+        payload.update(next_result)
+    else:
+        payload["result"] = next_result
+    return payload

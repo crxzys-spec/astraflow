@@ -49,8 +49,8 @@ class ListRuns200ResponseItemsInner(BaseModel):
     @field_validator('status')
     def status_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in ('queued', 'running', 'succeeded', 'failed', 'cancelled',):
-            raise ValueError("must be one of enum values ('queued', 'running', 'succeeded', 'failed', 'cancelled')")
+        if value not in ('queued', 'running', 'succeeded', 'failed', 'cancelled', 'skipped'):
+            raise ValueError("must be one of enum values ('queued', 'running', 'succeeded', 'failed', 'cancelled', 'skipped')")
         return value
 
     model_config = {
@@ -130,5 +130,4 @@ class ListRuns200ResponseItemsInner(BaseModel):
             "nodes": [ListRuns200ResponseItemsInnerNodesInner.from_dict(_item) for _item in obj.get("nodes")] if obj.get("nodes") is not None else None
         })
         return _obj
-
 

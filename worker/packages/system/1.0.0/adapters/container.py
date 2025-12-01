@@ -109,6 +109,11 @@ async def input_generator(context: ExecutionContext) -> Dict[str, Any]:
             parsed = float(raw_value)
         except Exception:
             parsed = None
+    elif kind == "boolean":
+        if isinstance(raw_value, bool):
+            parsed = raw_value
+        else:
+            parsed = str(raw_value).strip().lower() in {"true", "1", "yes", "on"}
     elif kind in {"string", "text", "textarea"}:
         parsed = "" if raw_value is None else str(raw_value)
 

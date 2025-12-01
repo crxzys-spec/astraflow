@@ -382,7 +382,7 @@
           "properties": {
             "type": {
               "type": "string",
-              "enum": ["number", "float", "string", "text", "textarea"],
+              "enum": ["number", "float", "string", "text", "textarea", "boolean"],
               "default": "string",
               "description": "Output type to emit."
             },
@@ -466,7 +466,7 @@
             },
             "options": {
               "typePath": "/parameters/type",
-              "options": ["number", "float", "string", "text", "textarea"]
+              "options": ["number", "float", "string", "text", "textarea", "boolean"]
             }
           }
         ]

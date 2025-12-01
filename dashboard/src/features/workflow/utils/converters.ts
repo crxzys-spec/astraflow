@@ -531,6 +531,9 @@ const middlewareToDraft = (middleware: WorkflowMiddleware): WorkflowMiddlewareDr
 
 const middlewareDraftToDefinition = (middleware: WorkflowMiddlewareDraft): WorkflowMiddleware => {
   const mwId = normalizeMiddlewareId(middleware.id);
+  const { parameters: defaultParams, results: defaultResults } = nodeDefaultsFromSchema(middleware.schema);
+  const params = middleware.parameters ?? defaultParams;
+  const results = middleware.results ?? defaultResults;
   const payload: WorkflowMiddleware = {
     id: mwId,
     type: middleware.nodeKind,
@@ -541,8 +544,8 @@ const middlewareDraftToDefinition = (middleware: WorkflowMiddlewareDraft): Workf
     status: (middleware.status ?? WorkflowNodeStatus.draft) as WorkflowNodeStatus,
     category: middleware.category ?? "uncategorised",
     label: middleware.label,
-    parameters: clone(middleware.parameters),
-    results: clone(middleware.results),
+    parameters: clone(params ?? defaultParams),
+    results: clone(results ?? defaultResults),
     ui: sanitizeNodeUi(middleware.ui),
   };
   const description = coerceOptional(middleware.description);

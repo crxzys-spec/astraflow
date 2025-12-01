@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, CSSProperties } from "react";
 import { useWorkflowStore } from "../../store";
 import { getBindingValue, resolveBindingPath, setBindingValue } from "../../utils/binding";
 import type { WidgetRendererProps } from "../registry";
@@ -40,7 +40,78 @@ export const TypedInputWidget = ({ widget, node, value, onChange, readOnly }: Wi
     onChange(event.target.value);
   };
 
+  const handleBooleanChange = (event: ChangeEvent<HTMLInputElement>) => {
+    onChange(event.target.checked);
+  };
+
   const renderInput = () => {
+    if (currentType === "boolean") {
+      const checked =
+        typeof value === "boolean"
+          ? value
+          : typeof value === "string"
+            ? value.trim().toLowerCase() === "true"
+            : Boolean(value);
+      const toggleWidth = 42;
+      const toggleHeight = 22;
+      const containerStyle: CSSProperties = {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 8,
+        position: "relative",
+        userSelect: "none",
+        minHeight: toggleHeight,
+        width: "100%",
+      };
+      const trackStyle: CSSProperties = {
+        width: toggleWidth,
+        height: toggleHeight,
+        borderRadius: toggleHeight,
+        background: checked ? "rgba(59,130,246,0.6)" : "rgba(148,163,184,0.35)",
+        position: "relative",
+        transition: "background 0.2s ease",
+        opacity: readOnly ? 0.6 : 1,
+        boxSizing: "border-box",
+      };
+      const thumbStyle: CSSProperties = {
+        position: "absolute",
+        top: 3,
+        left: checked ? toggleWidth - toggleHeight + 2 : 2,
+        width: toggleHeight - 6,
+        height: toggleHeight - 6,
+        borderRadius: "50%",
+        background: "#0f172a",
+        boxShadow: "0 4px 8px rgba(15,23,42,0.45)",
+        transition: "left 0.2s ease",
+      };
+      return (
+        <label style={containerStyle} aria-disabled={readOnly}>
+          <span style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.8)" }}>
+            {checked ? "True" : "False"}
+          </span>
+          <span aria-hidden="true" style={trackStyle}>
+            <span style={thumbStyle} />
+          </span>
+          <input
+            id={`${widget.key}-value`}
+            className={clsx("wf-widget__input", { "wf-widget__input--readonly": readOnly })}
+            type="checkbox"
+            checked={checked}
+            onChange={handleBooleanChange}
+            disabled={readOnly}
+            style={{
+              position: "absolute",
+              inset: 0,
+              opacity: 0,
+              width: "100%",
+              height: "100%",
+              cursor: readOnly ? "not-allowed" : "pointer",
+            }}
+          />
+        </label>
+      );
+    }
     if (currentType === "textarea" || currentType === "text") {
       return (
         <textarea

@@ -1571,6 +1571,12 @@ class RunRegistry:
         ]
         if host_snapshot:
             tasks.append(
+                self._publish_node_state(
+                    record_snapshot,
+                    host_snapshot,
+                )
+            )
+            tasks.append(
                 self._publish_node_snapshot(
                     record_snapshot,
                     host_snapshot,

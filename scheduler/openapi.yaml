@@ -868,6 +868,7 @@ components:
       - succeeded
       - failed
       - cancelled
+      - skipped
     RunList:
       type: object
       required:

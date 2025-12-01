@@ -363,18 +363,6 @@
               "path": "/parameters/enabled",
               "mode": "two_way"
             }
-          },
-          {
-            "key": "skipped",
-            "label": "Short-circuited",
-            "component": "checkbox",
-            "binding": {
-              "path": "/results/skipped",
-              "mode": "read"
-            },
-            "options": {
-              "readOnly": true
-            }
           }
         ]
       }

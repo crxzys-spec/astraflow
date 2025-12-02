@@ -119,6 +119,7 @@ export type WorkflowNodeStore = Record<string, WorkflowNodeDraft>;
 export interface WorkflowStoreState {
   workflow?: WorkflowDraft;
   selectedNodeId?: string;
+  selectedNodeIds: string[];
   subgraphDrafts: WorkflowSubgraphDraftEntry[];
   activeGraph: WorkflowGraphScope;
   history: {
@@ -161,6 +162,8 @@ export interface WorkflowStoreActions {
   ) => void;
   resetRunState: () => void;
   setActiveGraph: (scope: WorkflowGraphScope) => void;
+  setSelectedNodes: (nodeIds: string[]) => void;
+  toggleSelectedNode: (nodeId: string) => void;
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
@@ -194,9 +197,9 @@ export interface WorkflowHistoryEntry {
   workflow?: WorkflowDraft;
   subgraphDrafts: WorkflowSubgraphDraftEntry[];
   selectedNodeId?: string;
+  selectedNodeIds: string[];
   activeGraph: WorkflowGraphScope;
 }
-
 
 
 

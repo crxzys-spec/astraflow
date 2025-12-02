@@ -27,6 +27,7 @@ type HistoryEntry = {
   workflow?: WorkflowDraft;
   subgraphDrafts: WorkflowSubgraphDraftEntry[];
   selectedNodeId?: string;
+  selectedNodeIds: string[];
   activeGraph: WorkflowGraphScope;
 };
 
@@ -37,6 +38,7 @@ const captureHistoryEntry = (state: WorkflowStoreState): HistoryEntry => ({
   workflow: cloneDraft(state.workflow),
   subgraphDrafts: cloneDraft(state.subgraphDrafts),
   selectedNodeId: state.selectedNodeId,
+  selectedNodeIds: [...state.selectedNodeIds],
   activeGraph: state.activeGraph,
 });
 
@@ -44,6 +46,7 @@ const applyHistoryEntry = (state: WorkflowStoreState, entry: HistoryEntry) => {
   state.workflow = cloneDraft(entry.workflow);
   state.subgraphDrafts = cloneDraft(entry.subgraphDrafts);
   state.selectedNodeId = entry.selectedNodeId;
+  state.selectedNodeIds = [...entry.selectedNodeIds];
   state.activeGraph = entry.activeGraph;
 };
 
@@ -115,6 +118,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
   immer((set, get) => ({
     workflow: undefined,
     selectedNodeId: undefined,
+    selectedNodeIds: [],
     subgraphDrafts: [],
     activeGraph: defaultGraphScope,
     history: {
@@ -133,6 +137,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
           })) ?? [];
         state.subgraphDrafts = subgraphDrafts;
         state.selectedNodeId = undefined;
+        state.selectedNodeIds = [];
         state.activeGraph = defaultGraphScope;
         state.history = { past: [], future: [] };
       });
@@ -142,6 +147,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
       set((state) => {
         state.workflow = undefined;
         state.selectedNodeId = undefined;
+        state.selectedNodeIds = [];
         state.subgraphDrafts = [];
         state.activeGraph = defaultGraphScope;
         state.history = { past: [], future: [] };
@@ -173,6 +179,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
         workflow.nodes[nodeDraft.id] = nodeDraft;
         workflow.dirty = true;
         state.selectedNodeId = nodeDraft.id;
+        state.selectedNodeIds = [nodeDraft.id];
         addedNode = workflow.nodes[nodeDraft.id];
       });
       return addedNode ?? nodeDraft;
@@ -206,15 +213,39 @@ export const useWorkflowStore = create<WorkflowStore>()(
         if (state.selectedNodeId === nodeId) {
           state.selectedNodeId = undefined;
         }
+        if (state.selectedNodeIds.length) {
+          state.selectedNodeIds = state.selectedNodeIds.filter((id) => id !== nodeId);
+        }
         workflow.dirty = true;
       });
     },
 
     setSelectedNode: (nodeId) => {
       set((state) => {
-        if (state.selectedNodeId === nodeId) {
+        state.selectedNodeId = nodeId;
+        state.selectedNodeIds = nodeId ? [nodeId] : [];
+      });
+    },
+
+    setSelectedNodes: (nodeIds) => {
+      set((state) => {
+        const uniqueIds = Array.from(new Set(nodeIds));
+        state.selectedNodeIds = uniqueIds;
+        state.selectedNodeId = uniqueIds[0];
+      });
+    },
+
+    toggleSelectedNode: (nodeId) => {
+      set((state) => {
+        const exists = state.selectedNodeIds.includes(nodeId);
+        if (exists) {
+          state.selectedNodeIds = state.selectedNodeIds.filter((id) => id !== nodeId);
+          if (state.selectedNodeId === nodeId) {
+            state.selectedNodeId = state.selectedNodeIds[0];
+          }
           return;
         }
+        state.selectedNodeIds = [...state.selectedNodeIds, nodeId];
         state.selectedNodeId = nodeId;
       });
     },
@@ -370,6 +401,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
           state.activeGraph = scope;
         }
         state.selectedNodeId = undefined;
+        state.selectedNodeIds = [];
       });
     },
     undo: () => {

@@ -1,7 +1,7 @@
 import type { Edge, Node } from "reactflow";
 import type { WorkflowDraft, WorkflowMiddlewareDraft, WorkflowNodeDraft } from "../types.ts";
 
-export const buildFlowNodes = (workflow: WorkflowDraft, selectedNodeId?: string): Node[] => {
+export const buildFlowNodes = (workflow: WorkflowDraft, selectedNodeIds: string[] = []): Node[] => {
   const fallbackInputPorts: Record<string, Set<string>> = {};
   const fallbackOutputPorts: Record<string, Set<string>> = {};
   const attachedByHost: Record<
@@ -48,7 +48,7 @@ export const buildFlowNodes = (workflow: WorkflowDraft, selectedNodeId?: string)
       type: "workflow",
       position: basePos,
       draggable: true,
-      selected: node.id === selectedNodeId,
+      selected: selectedNodeIds.includes(node.id),
       data: {
         nodeId: node.id,
         label: node.label,

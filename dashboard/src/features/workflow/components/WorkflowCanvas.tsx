@@ -45,17 +45,20 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   });
   const activeGraph = useWorkflowStore((state) => state.activeGraph);
   const selectedNodeId = useWorkflowStore((state) => state.selectedNodeId);
+  const selectedNodeIds = useWorkflowStore((state) => state.selectedNodeIds);
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const removeNode = useWorkflowStore((state) => state.removeNode);
   const setSelectedNode = useWorkflowStore((state) => state.setSelectedNode);
+  const setSelectedNodes = useWorkflowStore((state) => state.setSelectedNodes);
+  const toggleSelectedNode = useWorkflowStore((state) => state.toggleSelectedNode);
   const addEdge = useWorkflowStore((state) => state.addEdge);
   const removeEdge = useWorkflowStore((state) => state.removeEdge);
   const { screenToFlowPosition, getEdges } = useReactFlow();
   const [selectedEdgeId, setSelectedEdgeId] = useState<string>();
 
   const nodes: Node[] = useMemo(
-    () => (workflow ? buildFlowNodes(workflow, selectedNodeId) : []),
-    [workflow, selectedNodeId]
+    () => (workflow ? buildFlowNodes(workflow, selectedNodeIds) : []),
+    [workflow, selectedNodeIds]
   );
   const edges: Edge[] = useMemo(() => (workflow ? buildFlowEdges(workflow) : []), [workflow]);
 
@@ -142,30 +145,34 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   );
 
   const onNodeClick = useCallback(
-    (_: MouseEvent, node: Node) => {
-      setSelectedNode(node.id);
+    (event: MouseEvent, node: Node) => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey) {
+        toggleSelectedNode(node.id);
+      } else {
+        setSelectedNodes([node.id]);
+      }
       setSelectedEdgeId(undefined);
     },
-    [setSelectedEdgeId, setSelectedNode]
+    [setSelectedEdgeId, setSelectedNodes, toggleSelectedNode]
   );
 
   const onSelectionChange = useCallback(
     ({ nodes, edges }: { nodes: Node[]; edges: Edge[] }) => {
       if (nodes.length) {
-        setSelectedNode(nodes[0].id);
+        setSelectedNodes(nodes.map((node) => node.id));
         setSelectedEdgeId(undefined);
         return;
       }
-      setSelectedNode(undefined);
+      setSelectedNodes([]);
       setSelectedEdgeId(edges.length ? edges[0].id : undefined);
     },
-    [setSelectedNode, setSelectedEdgeId]
+    [setSelectedEdgeId, setSelectedNodes]
   );
 
   const handlePaneClick = useCallback(() => {
-    setSelectedNode(undefined);
+    setSelectedNodes([]);
     setSelectedEdgeId(undefined);
-  }, [setSelectedNode, setSelectedEdgeId]);
+  }, [setSelectedEdgeId, setSelectedNodes]);
 
   const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     // Always allow drop so Chrome/Edge can populate the payload on drop.
@@ -261,9 +268,9 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
       if (isEditableTarget(activeElement) || isEditableTarget(event.target)) {
         return;
       }
-      if (selectedNodeId) {
+      if (selectedNodeIds.length) {
         event.preventDefault();
-        removeNode(selectedNodeId);
+        selectedNodeIds.forEach((id) => removeNode(id));
         return;
       }
       const selectedEdges = getEdges().filter((edge) => edge.selected);
@@ -283,7 +290,7 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [getEdges, removeEdge, removeNode, selectedEdgeId, selectedNodeId, setSelectedEdgeId]);
+  }, [getEdges, removeEdge, removeNode, selectedEdgeId, selectedNodeIds, setSelectedEdgeId]);
 
   if (!workflow) {
     return <div className="workflow-canvas__empty">Select a workflow to start.</div>;
@@ -305,6 +312,7 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
         onPaneClick={handlePaneClick}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
+        selectionOnDrag
         fitView
         className="workflow-canvas__flow"
       >

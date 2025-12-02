@@ -56,6 +56,21 @@ import {
 import { useAuthStore } from "../features/auth/store";
 import { useToolbarStore } from "../features/workflow/hooks/useToolbar";
 
+const isEditableTarget = (target: EventTarget | null): boolean => {
+  const element = target as HTMLElement | null;
+  if (!element) {
+    return false;
+  }
+  const tag = element.tagName?.toLowerCase();
+  if (["input", "textarea", "select", "option"].includes(tag)) {
+    return true;
+  }
+  if (element.isContentEditable) {
+    return true;
+  }
+  return false;
+};
+
 const IconSave = () => (
   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
     <path d="M5 3h8l3 3v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
@@ -461,6 +476,10 @@ const WorkflowBuilderPage = () => {
   const activeGraph = useWorkflowStore((state) => state.activeGraph);
   const setActiveGraph = useWorkflowStore((state) => state.setActiveGraph);
   const addNodeFromTemplate = useWorkflowStore((state) => state.addNodeFromTemplate);
+  const undo = useWorkflowStore((state) => state.undo);
+  const redo = useWorkflowStore((state) => state.redo);
+  const canUndo = useWorkflowStore((state) => state.canUndo);
+  const canRedo = useWorkflowStore((state) => state.canRedo);
   const toWorkflowDefinition = useCallback(
     (draft: WorkflowDraft) => composeWorkflowDefinition(draft, subgraphDrafts),
     [subgraphDrafts]
@@ -497,6 +516,31 @@ const WorkflowBuilderPage = () => {
   const [activeInspectorTab, setActiveInspectorTab] = useState<"inspector" | "runs">("inspector");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [activeRunStatus, setActiveRunStatus] = useState<RunStatus | undefined>();
+
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
+      const isMetaPressed = isMac ? event.metaKey : event.ctrlKey;
+      if (!isMetaPressed || isEditableTarget(event.target)) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === "z" && !event.shiftKey) {
+        if (canUndo()) {
+          event.preventDefault();
+          undo();
+        }
+      } else if (key === "y" || (key === "z" && event.shiftKey)) {
+        if (canRedo()) {
+          event.preventDefault();
+          redo();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, [canRedo, canUndo, redo, undo]);
+
   const readStoredPanelWidth = (key: "paletteWidth" | "inspectorWidth", fallback: number) => {
     if (typeof window === "undefined") {
       return fallback;

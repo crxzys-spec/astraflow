@@ -21,6 +21,45 @@ import {
 } from './utils/converters.ts';
 import { generateId } from './utils/id.ts';
 
+const HISTORY_LIMIT = 100;
+
+type HistoryEntry = {
+  workflow?: WorkflowDraft;
+  subgraphDrafts: WorkflowSubgraphDraftEntry[];
+  selectedNodeId?: string;
+  activeGraph: WorkflowGraphScope;
+};
+
+const cloneDraft = <T>(value: T): T =>
+  value === undefined ? value : (JSON.parse(JSON.stringify(value)) as T);
+
+const captureHistoryEntry = (state: WorkflowStoreState): HistoryEntry => ({
+  workflow: cloneDraft(state.workflow),
+  subgraphDrafts: cloneDraft(state.subgraphDrafts),
+  selectedNodeId: state.selectedNodeId,
+  activeGraph: state.activeGraph,
+});
+
+const applyHistoryEntry = (state: WorkflowStoreState, entry: HistoryEntry) => {
+  state.workflow = cloneDraft(entry.workflow);
+  state.subgraphDrafts = cloneDraft(entry.subgraphDrafts);
+  state.selectedNodeId = entry.selectedNodeId;
+  state.activeGraph = entry.activeGraph;
+};
+
+const recordHistory = (state: WorkflowStoreState) => {
+  // Only record when a workflow is loaded; runtime overlays should not be captured.
+  if (!state.workflow) {
+    return;
+  }
+  const snapshot = captureHistoryEntry(state);
+  state.history.past.push(snapshot);
+  if (state.history.past.length > HISTORY_LIMIT) {
+    state.history.past.shift();
+  }
+  state.history.future = [];
+};
+
 const requireWorkflow = (state: WorkflowStoreState): WorkflowDraft => {
   if (!state.workflow) {
     throw new Error('Workflow not loaded');
@@ -78,6 +117,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
     selectedNodeId: undefined,
     subgraphDrafts: [],
     activeGraph: defaultGraphScope,
+    history: {
+      past: [],
+      future: [],
+    },
 
     loadWorkflow: (definition: WorkflowDefinition) => {
       set((state) => {
@@ -91,6 +134,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
         state.subgraphDrafts = subgraphDrafts;
         state.selectedNodeId = undefined;
         state.activeGraph = defaultGraphScope;
+        state.history = { past: [], future: [] };
       });
     },
 
@@ -100,10 +144,12 @@ export const useWorkflowStore = create<WorkflowStore>()(
         state.selectedNodeId = undefined;
         state.subgraphDrafts = [];
         state.activeGraph = defaultGraphScope;
+        state.history = { past: [], future: [] };
       });
     },
     setPreviewImage: (preview) => {
       set((state) => {
+        recordHistory(state);
         if (state.workflow) {
           state.workflow.previewImage = preview ?? undefined;
         }
@@ -114,6 +160,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
       const nodeDraft = createNodeDraftFromTemplate(template, position);
       let addedNode: WorkflowNodeDraft | undefined;
       set((state) => {
+        recordHistory(state);
         const workflow = requireActiveGraph(state);
         // guarantee unique id
         let nodeId = nodeDraft.id;
@@ -133,6 +180,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     updateNode: (nodeId, updater) => {
       set((state) => {
+        recordHistory(state);
         const workflow = requireActiveGraph(state);
         const node = workflow.nodes[nodeId];
         if (!node) {
@@ -145,6 +193,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     removeNode: (nodeId) => {
       set((state) => {
+        recordHistory(state);
         const workflow = requireActiveGraph(state);
         if (!workflow.nodes[nodeId]) {
           return;
@@ -172,6 +221,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     addEdge: (edge) => {
       set((state) => {
+        recordHistory(state);
         const workflow = requireActiveGraph(state);
         const edgeId = edge.id ?? generateId();
         const existingIndex = workflow.edges.findIndex((e) => e.id === edgeId);
@@ -191,6 +241,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     updateEdge: (edgeId, updater) => {
       set((state) => {
+        recordHistory(state);
         const workflow = requireActiveGraph(state);
         const index = workflow.edges.findIndex((edge) => edge.id === edgeId);
         if (index === -1) {
@@ -208,6 +259,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     removeEdge: (edgeId) => {
       set((state) => {
+        recordHistory(state);
         const workflow = requireActiveGraph(state);
         const edge = workflow.edges.find((item) => item.id === edgeId);
         workflow.edges = workflow.edges.filter((item) => item.id !== edgeId);
@@ -221,6 +273,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     markDirty: () => {
       set((state) => {
+        recordHistory(state);
         const workflow = requireActiveGraph(state);
         workflow.dirty = true;
       });
@@ -309,6 +362,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     setActiveGraph: (scope) => {
       set((state) => {
+        recordHistory(state);
         if (scope.type === 'subgraph') {
           const exists = state.subgraphDrafts.some((entry) => entry.id === scope.subgraphId);
           state.activeGraph = exists ? scope : defaultGraphScope;
@@ -318,8 +372,37 @@ export const useWorkflowStore = create<WorkflowStore>()(
         state.selectedNodeId = undefined;
       });
     },
+    undo: () => {
+      set((state) => {
+        const previous = state.history.past.pop();
+        if (!previous) {
+          return;
+        }
+        const currentSnapshot = captureHistoryEntry(state);
+        state.history.future.push(currentSnapshot);
+        applyHistoryEntry(state, previous);
+      });
+    },
+    redo: () => {
+      set((state) => {
+        const next = state.history.future.pop();
+        if (!next) {
+          return;
+        }
+        const currentSnapshot = captureHistoryEntry(state);
+        state.history.past.push(currentSnapshot);
+        applyHistoryEntry(state, next);
+      });
+    },
+    canUndo: () => {
+      const { past } = get().history;
+      return past.length > 0;
+    },
+    canRedo: () => {
+      const { future } = get().history;
+      return future.length > 0;
+    },
   }))
 );
 
 export const selectWorkflow = () => useWorkflowStore.getState().workflow;
-

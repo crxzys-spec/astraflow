@@ -121,6 +121,10 @@ export interface WorkflowStoreState {
   selectedNodeId?: string;
   subgraphDrafts: WorkflowSubgraphDraftEntry[];
   activeGraph: WorkflowGraphScope;
+  history: {
+    past: WorkflowHistoryEntry[];
+    future: WorkflowHistoryEntry[];
+  };
 }
 
 export type WorkflowNodeStateUpdateMap = Record<string, WorkflowNodeState | null | undefined>;
@@ -157,6 +161,10 @@ export interface WorkflowStoreActions {
   ) => void;
   resetRunState: () => void;
   setActiveGraph: (scope: WorkflowGraphScope) => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
 }
 
 export type WorkflowStore = WorkflowStoreState & WorkflowStoreActions;
@@ -181,9 +189,15 @@ export interface ContainerSettings {
   timeoutSeconds?: number | null;
   notes?: string | null;
 }
-
-
-
-
-
-
+
+export interface WorkflowHistoryEntry {
+  workflow?: WorkflowDraft;
+  subgraphDrafts: WorkflowSubgraphDraftEntry[];
+  selectedNodeId?: string;
+  activeGraph: WorkflowGraphScope;
+}
+
+
+
+
+

@@ -140,18 +140,35 @@ interface GraphSwitcherProps {
   workflowName?: string;
   workflowId?: string;
   onSelect: (scope: WorkflowGraphScope) => void;
+  onInline?: (subgraphId: string) => void;
+  inlineMessage?: { subgraphId: string; type: "success" | "error"; text: string } | null;
 }
 
-const GraphSwitcher = ({ activeGraph, subgraphs, workflowName, workflowId, onSelect }: GraphSwitcherProps) => {
+const GraphSwitcher = ({
+  activeGraph,
+  subgraphs,
+  workflowName,
+  workflowId,
+  onSelect,
+  onInline,
+  inlineMessage,
+}: GraphSwitcherProps) => {
   const mainActive = activeGraph.type === "root";
   return (
     <div className="graph-switcher">
       <div className="graph-switcher__section">
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           className={`graph-switcher__option ${mainActive ? "is-active" : ""}`}
           aria-pressed={mainActive}
           onClick={() => onSelect({ type: "root" })}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onSelect({ type: "root" });
+            }
+          }}
         >
           <div className="graph-switcher__option-primary">
             <span className="graph-switcher__eyebrow">Primary workflow</span>
@@ -161,7 +178,7 @@ const GraphSwitcher = ({ activeGraph, subgraphs, workflowName, workflowId, onSel
           <div className="graph-switcher__meta">
             <code>{workflowId}</code>
           </div>
-        </button>
+        </div>
       </div>
       <div className="graph-switcher__section">
         <div className="graph-switcher__section-heading">
@@ -176,23 +193,54 @@ const GraphSwitcher = ({ activeGraph, subgraphs, workflowName, workflowId, onSel
               const description = entry.metadata?.description ?? entry.definition.metadata?.description;
               const nodeCount = Object.keys(entry.definition.nodes).length;
               return (
-                <button
+                <div
                   key={entry.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   className={`graph-switcher__option ${isActive ? "is-active" : ""}`}
                   aria-pressed={isActive}
                   onClick={() => onSelect({ type: "subgraph", subgraphId: entry.id })}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onSelect({ type: "subgraph", subgraphId: entry.id });
+                    }
+                  }}
                 >
                   <div className="graph-switcher__option-primary">
                     <span className="graph-switcher__eyebrow">Container target</span>
                     <strong>{label}</strong>
                     {description && <p>{description}</p>}
+                    {typeof onInline === "function" && (
+                      <div className="graph-switcher__actions">
+                        <button
+                          type="button"
+                          className="btn btn--ghost"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onInline(entry.id);
+                          }}
+                          title="Inline this subgraph into the current graph."
+                        >
+                          Dissolve subgraph
+                        </button>
+                        {inlineMessage && inlineMessage.subgraphId === entry.id && (
+                          <small
+                            className={
+                              inlineMessage.type === "error" ? "error" : "text-subtle"
+                            }
+                          >
+                            {inlineMessage.text}
+                          </small>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="graph-switcher__meta">
                     <code>{entry.id}</code>
                     <span>{nodeCount} nodes</span>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -476,6 +524,8 @@ const WorkflowBuilderPage = () => {
   const activeGraph = useWorkflowStore((state) => state.activeGraph);
   const setActiveGraph = useWorkflowStore((state) => state.setActiveGraph);
   const addNodeFromTemplate = useWorkflowStore((state) => state.addNodeFromTemplate);
+  const selectedNodeId = useWorkflowStore((state) => state.selectedNodeId);
+  const inlineSubgraph = useWorkflowStore((state) => state.inlineSubgraphIntoActiveGraph);
   const undo = useWorkflowStore((state) => state.undo);
   const redo = useWorkflowStore((state) => state.redo);
   const canUndo = useWorkflowStore((state) => state.canUndo);
@@ -486,6 +536,7 @@ const WorkflowBuilderPage = () => {
   );
   const updateNodeStates = useWorkflowStore((state) => state.updateNodeStates);
   const hasHydrated = useRef(false);
+  const lastHydrateAt = useRef<number>(0);
 
   const canEditWorkflow = useAuthStore((state) => state.hasRole(["admin", "workflow.editor"]));
 
@@ -516,6 +567,29 @@ const WorkflowBuilderPage = () => {
   const [activeInspectorTab, setActiveInspectorTab] = useState<"inspector" | "runs">("inspector");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [activeRunStatus, setActiveRunStatus] = useState<RunStatus | undefined>();
+  const [inlineMessage, setInlineMessage] = useState<{ subgraphId: string; type: "success" | "error"; text: string } | null>(null);
+  const toolbarRef = useRef<React.ReactNode | null>(null);
+
+  const handleInlineFromSwitcher = useCallback(
+    (subgraphId: string) => {
+      const runInline = () => {
+        const result = inlineSubgraph(undefined, subgraphId);
+        setInlineMessage({
+          subgraphId,
+          type: result.ok ? "success" : "error",
+          text: result.ok ? "Inlined into the current graph." : result.error ?? "Unable to inline.",
+        });
+      };
+      if (activeGraph.type === "subgraph") {
+        setActiveGraph({ type: "root" }, { recordHistory: false });
+        // Defer to next tick so UI有机会切回主视图后再执行。
+        setTimeout(runInline, 0);
+        return;
+      }
+      runInline();
+    },
+    [activeGraph.type, inlineSubgraph, setActiveGraph]
+  );
 
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
@@ -984,22 +1058,45 @@ const WorkflowBuilderPage = () => {
       return;
     }
 
+    const updatedAt = workflowQuery.dataUpdatedAt ?? 0;
+    if (hasHydrated.current && lastHydrateAt.current === updatedAt) {
+      return;
+    }
+    lastHydrateAt.current = updatedAt;
+
     if (!hasHydrated.current || !workflow || workflow.id !== definition.id) {
       loadWorkflow(definition);
       hasHydrated.current = true;
       return;
     }
 
+    // Avoid re-applying identical runtime states that would retrigger renders.
+    const currentStateById = new Map<string, unknown>();
+    if (workflow?.nodes) {
+      Object.values(workflow.nodes).forEach((node) => currentStateById.set(node.id, node.state));
+    }
+    subgraphDrafts.forEach((entry) => {
+      Object.values(entry.definition.nodes).forEach((node) => currentStateById.set(node.id, node.state));
+    });
+
+    const statesEqual = (left: unknown, right: unknown) =>
+      JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+
     const updates: WorkflowNodeStateUpdateMap = {};
     (definition.nodes ?? []).forEach((node) => {
-      if (node.state != null) {
+      if (node.state == null) {
+        return;
+      }
+      const existing = currentStateById.get(node.id);
+      if (!statesEqual(existing, node.state)) {
         updates[node.id] = node.state;
       }
     });
+
     if (Object.keys(updates).length > 0) {
       updateNodeStates(updates);
     }
-  }, [workflowQuery.data, workflow, loadWorkflow, updateNodeStates]);
+  }, [workflowQuery.data, workflowQuery.dataUpdatedAt, workflow, subgraphDrafts, loadWorkflow, updateNodeStates]);
 
   const queryError = workflowQuery.error as AxiosError | undefined;
   const notFound =
@@ -1440,9 +1537,19 @@ const WorkflowBuilderPage = () => {
   ]);
 
   useEffect(() => {
-    setToolbar(builderToolbar);
-    return () => setToolbar(null);
+    if (builderToolbar !== toolbarRef.current) {
+      setToolbar(builderToolbar);
+      toolbarRef.current = builderToolbar;
+    }
   }, [builderToolbar, setToolbar]);
+
+  useEffect(
+    () => () => {
+      setToolbar(null);
+      toolbarRef.current = null;
+    },
+    [setToolbar]
+  );
 
   if (!workflow) {
     return <div className="card">Initializing builder...</div>;
@@ -1551,6 +1658,8 @@ const WorkflowBuilderPage = () => {
                     workflowName={workflow.metadata?.name}
                     workflowId={workflow.id}
                     onSelect={setActiveGraph}
+                    onInline={handleInlineFromSwitcher}
+                    inlineMessage={inlineMessage}
                   />
                 )}
               </div>

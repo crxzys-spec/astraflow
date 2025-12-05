@@ -140,6 +140,8 @@ export const NodeInspector = () => {
   const activeGraph = useWorkflowStore((state) => state.activeGraph);
   const subgraphDrafts = useWorkflowStore((state) => state.subgraphDrafts);
   const updateNode = useWorkflowStore((state) => state.updateNode);
+  const setActiveGraph = useWorkflowStore((state) => state.setActiveGraph);
+  const inlineSubgraph = useWorkflowStore((state) => state.inlineSubgraphIntoActiveGraph);
   const workflow: WorkflowDraft | undefined = useMemo(() => {
     if (!rootWorkflow) {
       return undefined;
@@ -174,6 +176,12 @@ export const NodeInspector = () => {
     });
     return Array.from(ids);
   }, [workflow?.nodes, node?.ui?.widgets]);
+
+  const [inlineStatus, setInlineStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  useEffect(() => {
+    setInlineStatus(null);
+  }, [node?.id]);
 
   const ports = useMemo(() => {
     if (!node) {
@@ -492,6 +500,48 @@ export const NodeInspector = () => {
     });
   };
 
+  const containerConfig = useMemo(() => {
+    if (!node || node.nodeKind !== "workflow.container") {
+      return undefined;
+    }
+    const raw = node.parameters?.__container;
+    if (!raw || typeof raw !== "object") {
+      return undefined;
+    }
+    const subgraphId = typeof raw.subgraphId === "string" ? raw.subgraphId : undefined;
+    return {
+      subgraphId,
+    };
+  }, [node]);
+
+  const containerSubgraphTarget = useMemo(() => {
+    if (!containerConfig?.subgraphId) {
+      return undefined;
+    }
+    return subgraphDrafts.find((entry) => entry.id === containerConfig.subgraphId);
+  }, [containerConfig?.subgraphId, subgraphDrafts]);
+
+  const handleInlineSubgraph = () => {
+    if (!node) {
+      return;
+    }
+    const runInline = () => {
+      const result = inlineSubgraph(node.id);
+      if (result.ok) {
+        setInlineStatus({ type: "success", message: "Subgraph nodes have been copied into this graph and the container was removed." });
+      } else {
+        setInlineStatus({ type: "error", message: result.error ?? "Unable to inline the subgraph." });
+      }
+    };
+    if (activeGraph.type === "subgraph") {
+      // Always operate from the root workflow view to avoid view/state churn when dissolving.
+      setActiveGraph({ type: "root" }, { recordHistory: false });
+      setTimeout(runInline, 0);
+      return;
+    }
+    runInline();
+  };
+
   if (!node) {
     return (
       <div className="card inspector inspector--empty">
@@ -516,6 +566,37 @@ export const NodeInspector = () => {
   return (
     <aside className="inspector">
       <NodeMeta node={node} onLabelChange={updateNodeLabel} />
+      {node.nodeKind === "workflow.container" && (
+        <div className="card inspector__panel">
+          <header className="card__header">
+            <h3>Container</h3>
+          </header>
+          <div className="inspector__section">
+            <p className="text-subtle">
+              Inline the referenced subgraph into this graph to replace the container node with the actual nodes. A new copy will
+              appear near the container&apos;s position so you can wire it manually.
+            </p>
+            {containerSubgraphTarget && (
+              <p className="text-subtle">
+                Target: <strong>{containerSubgraphTarget.definition.metadata?.name ?? containerSubgraphTarget.definition.id}</strong>
+              </p>
+            )}
+            {inlineStatus && (
+              <p className={inlineStatus.type === "error" ? "error" : "text-subtle"}>
+                {inlineStatus.message}
+              </p>
+            )}
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={handleInlineSubgraph}
+              disabled={!containerConfig?.subgraphId}
+            >
+              Inline subgraph into current graph
+            </button>
+          </div>
+        </div>
+      )}
       <div className="card inspector__panel">
         <header className="card__header">
           <h3>UI</h3>

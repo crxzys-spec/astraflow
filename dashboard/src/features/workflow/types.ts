@@ -131,7 +131,7 @@ export interface WorkflowStoreState {
 export type WorkflowNodeStateUpdateMap = Record<string, WorkflowNodeState | null | undefined>;
 
 export interface WorkflowStoreActions {
-  loadWorkflow: (definition: WorkflowDefinition) => void;
+  loadWorkflow: (definition: WorkflowDefinition) => void;
   resetWorkflow: () => void;
   setPreviewImage: (preview?: string | null) => void;
   addNodeFromTemplate: (
@@ -161,13 +161,18 @@ export interface WorkflowStoreActions {
     }
   ) => void;
   resetRunState: () => void;
-  setActiveGraph: (scope: WorkflowGraphScope) => void;
+  setActiveGraph: (scope: WorkflowGraphScope, options?: { recordHistory?: boolean }) => void;
   setSelectedNodes: (nodeIds: string[]) => void;
   toggleSelectedNode: (nodeId: string) => void;
+  setNodePosition: (nodeId: string, position: XYPosition, options?: { record?: boolean }) => void;
+  setNodePositions: (positions: Record<string, XYPosition>, options?: { record?: boolean }) => void;
+  captureHistory: () => void;
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
+  inlineSubgraphIntoActiveGraph: (containerNodeId?: string, subgraphId?: string) => InlineSubgraphResult;
+  convertSelectionToSubgraph: (containerTemplate?: WorkflowPaletteNode) => ConvertSelectionResult;
 }
 
 export type WorkflowStore = WorkflowStoreState & WorkflowStoreActions;
@@ -201,6 +206,14 @@ export interface WorkflowHistoryEntry {
   activeGraph: WorkflowGraphScope;
 }
 
+export interface InlineSubgraphResult {
+  ok: boolean;
+  error?: string;
+}
 
-
-
+export interface ConvertSelectionResult {
+  ok: boolean;
+  error?: string;
+  subgraphId?: string;
+  containerId?: string;
+}

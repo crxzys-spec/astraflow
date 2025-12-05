@@ -2,8 +2,10 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { WorkflowNodeState } from '../../api/models/workflowNodeState';
 import type {
+  InlineSubgraphResult,
   WorkflowDraft,
   WorkflowEdgeDraft,
+  WorkflowMiddlewareDraft,
   WorkflowNodeDraft,
   WorkflowNodeStateUpdateMap,
   WorkflowPaletteNode,
@@ -12,7 +14,10 @@ import type {
   WorkflowDefinition,
   WorkflowSubgraphDraftEntry,
   WorkflowGraphScope,
-  XYPosition
+  XYPosition,
+  ConvertSelectionResult,
+  NodePortDefinition,
+  WorkflowPaletteNode
 } from './types.ts';
 import {
   createNodeDraftFromTemplate,
@@ -20,6 +25,7 @@ import {
   workflowDefinitionToDraft
 } from './utils/converters.ts';
 import { generateId } from './utils/id.ts';
+import { CONTAINER_PARAM_KEY } from './constants.ts';
 
 const HISTORY_LIMIT = 100;
 
@@ -113,6 +119,140 @@ const cloneState = (value: WorkflowNodeState | null | undefined): WorkflowNodeSt
 
 const statesEqual = (left: WorkflowNodeState | undefined, right: WorkflowNodeState | undefined): boolean =>
   JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+
+const getContainerConfig = (
+  node: WorkflowNodeDraft | undefined
+): { subgraphId?: string } | undefined => {
+  if (!node?.parameters) {
+    return undefined;
+  }
+  const config = node.parameters[CONTAINER_PARAM_KEY];
+  if (!config || typeof config !== "object") {
+    return undefined;
+  }
+  return config as { subgraphId?: string };
+};
+
+const computeNodeClusterCenter = (nodes: WorkflowNodeDraft[], fallback: XYPosition): XYPosition => {
+  if (!nodes.length) {
+    return fallback;
+  }
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  nodes.forEach((node) => {
+    const position = node.position ?? fallback;
+    minX = Math.min(minX, position.x);
+    maxX = Math.max(maxX, position.x);
+    minY = Math.min(minY, position.y);
+    maxY = Math.max(maxY, position.y);
+  });
+  if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+    return fallback;
+  }
+  return {
+    x: (minX + maxX) / 2,
+    y: (minY + maxY) / 2,
+  };
+};
+
+const rewriteBindingPrefixValue = (
+  prefix: string | undefined,
+  targetSubgraphId: string,
+  nodeIdMap: Map<string, string>
+): string | undefined => {
+  if (!prefix || !prefix.startsWith("@")) {
+    return prefix;
+  }
+  const body = prefix.slice(1);
+  if (!body.length) {
+    return prefix;
+  }
+  const segments = body.split(".");
+  if (!segments.length) {
+    return prefix;
+  }
+  if (segments[0] !== targetSubgraphId) {
+    return prefix;
+  }
+  const nodeTokenIndex = segments.findIndex((segment) => segment.startsWith("#"));
+  const aliasSegments = nodeTokenIndex === -1 ? segments : segments.slice(0, nodeTokenIndex);
+  const remainingAliases = aliasSegments.slice(1);
+  const tailSegments = nodeTokenIndex === -1 ? [] : segments.slice(nodeTokenIndex);
+  if (tailSegments.length && tailSegments[0].startsWith("#")) {
+    const currentNodeId = tailSegments[0].slice(1);
+    const mappedId = nodeIdMap.get(currentNodeId) ?? currentNodeId;
+    tailSegments[0] = `#${mappedId}`;
+  }
+  if (remainingAliases.length) {
+    const aliasPrefix = `@${remainingAliases.join(".")}`;
+    if (!tailSegments.length) {
+      return aliasPrefix;
+    }
+    return `${aliasPrefix}.${tailSegments.join(".")}`;
+  }
+  if (!tailSegments.length) {
+    return undefined;
+  }
+  return tailSegments.join(".");
+};
+
+const rewriteBindingsInNode = (
+  node: WorkflowNodeDraft | WorkflowMiddlewareDraft | undefined,
+  targetSubgraphId: string,
+  nodeIdMap: Map<string, string>
+) => {
+  if (!node?.ui) {
+    return;
+  }
+  const applyBindingRewrite = (binding?: { prefix?: string }) => {
+    if (!binding) {
+      return;
+    }
+    const nextPrefix = rewriteBindingPrefixValue(binding.prefix, targetSubgraphId, nodeIdMap);
+    if (nextPrefix !== binding.prefix) {
+      binding.prefix = nextPrefix;
+    }
+  };
+  const rewritePorts = (ports?: NodePortDefinition[]) => {
+    ports?.forEach((port) => {
+      applyBindingRewrite(port.binding);
+    });
+  };
+  rewritePorts(node.ui.inputPorts);
+  rewritePorts(node.ui.outputPorts);
+  node.ui.widgets?.forEach((widget) => {
+    applyBindingRewrite(widget.binding);
+  });
+};
+
+const rewriteBindingsInWorkflow = (
+  draft: WorkflowDraft | undefined,
+  targetSubgraphId: string,
+  nodeIdMap: Map<string, string>
+) => {
+  if (!draft) {
+    return;
+  }
+  Object.values(draft.nodes).forEach((node) => {
+    rewriteBindingsInNode(node, targetSubgraphId, nodeIdMap);
+    node.middlewares?.forEach((middleware) => {
+      rewriteBindingsInNode(middleware, targetSubgraphId, nodeIdMap);
+    });
+  });
+};
+
+const rewriteBindingsAcrossStore = (
+  state: WorkflowStoreState,
+  targetSubgraphId: string,
+  nodeIdMap: Map<string, string>
+) => {
+  rewriteBindingsInWorkflow(state.workflow, targetSubgraphId, nodeIdMap);
+  state.subgraphDrafts.forEach((entry) => {
+    rewriteBindingsInWorkflow(entry.definition, targetSubgraphId, nodeIdMap);
+  });
+};
 
 export const useWorkflowStore = create<WorkflowStore>()(
   immer((set, get) => ({
@@ -247,6 +387,61 @@ export const useWorkflowStore = create<WorkflowStore>()(
         }
         state.selectedNodeIds = [...state.selectedNodeIds, nodeId];
         state.selectedNodeId = nodeId;
+      });
+    },
+    setNodePosition: (nodeId, position, options) => {
+      set((state) => {
+        const workflow = requireActiveGraph(state);
+        const node = workflow.nodes[nodeId];
+        if (!node) {
+          return;
+        }
+        const prev = node.position;
+        if (prev && prev.x === position.x && prev.y === position.y) {
+          return;
+        }
+        if (options?.record !== false) {
+          recordHistory(state);
+        }
+        node.position = { ...position };
+        workflow.dirty = true;
+      });
+    },
+    setNodePositions: (positions, options) => {
+      set((state) => {
+        const workflow = requireActiveGraph(state);
+        const entries = Object.entries(positions);
+        const updates: [string, XYPosition][] = entries
+          .map(([nodeId, position]) => {
+            const node = workflow.nodes[nodeId];
+            if (!node) {
+              return undefined;
+            }
+            const prev = node.position;
+            if (prev && prev.x === position.x && prev.y === position.y) {
+              return undefined;
+            }
+            return [nodeId, position] as [string, XYPosition];
+          })
+          .filter((item): item is [string, XYPosition] => Boolean(item));
+        if (!updates.length) {
+          return;
+        }
+        if (options?.record !== false) {
+          recordHistory(state);
+        }
+        updates.forEach(([nodeId, position]) => {
+          const node = workflow.nodes[nodeId];
+          if (node) {
+            node.position = { ...position };
+          }
+        });
+        workflow.dirty = true;
+      });
+    },
+    captureHistory: () => {
+      set((state) => {
+        recordHistory(state);
       });
     },
 
@@ -391,9 +586,12 @@ export const useWorkflowStore = create<WorkflowStore>()(
       });
     },
 
-    setActiveGraph: (scope) => {
+    setActiveGraph: (scope, options) => {
       set((state) => {
-        recordHistory(state);
+        const shouldRecord = options?.recordHistory ?? true;
+        if (shouldRecord) {
+          recordHistory(state);
+        }
         if (scope.type === 'subgraph') {
           const exists = state.subgraphDrafts.some((entry) => entry.id === scope.subgraphId);
           state.activeGraph = exists ? scope : defaultGraphScope;
@@ -433,6 +631,342 @@ export const useWorkflowStore = create<WorkflowStore>()(
     canRedo: () => {
       const { future } = get().history;
       return future.length > 0;
+    },
+    inlineSubgraphIntoActiveGraph: (containerNodeId, subgraphIdOverride) => {
+      const outcome: InlineSubgraphResult = { ok: false };
+      set((state) => {
+        let rootWorkflow: WorkflowDraft;
+        try {
+          rootWorkflow = requireWorkflow(state);
+        } catch (error) {
+          outcome.error = error instanceof Error ? error.message : 'Workflow not loaded';
+          return;
+        }
+        // default to current graph when a concrete container is provided (so subgraph edits work),
+        // otherwise operate on the root workflow when resolving by subgraph id.
+        const targetWorkflow =
+          containerNodeId && state.activeGraph.type === 'subgraph'
+            ? requireActiveGraph(state)
+            : rootWorkflow;
+        let targetContainerId = containerNodeId;
+        if (!targetContainerId && subgraphIdOverride && state.workflow) {
+          const matchingContainers = Object.values(rootWorkflow.nodes).filter(
+            (node) =>
+              node.nodeKind === 'workflow.container' &&
+              getContainerConfig(node)?.subgraphId === subgraphIdOverride
+          );
+          if (matchingContainers.length === 1) {
+            targetContainerId = matchingContainers[0].id;
+          } else if (matchingContainers.length === 0) {
+            outcome.error = 'No container references this subgraph in the current workflow.';
+            return;
+          } else {
+            outcome.error = 'Multiple containers reference this subgraph; select one in the canvas and try again.';
+            return;
+          }
+        }
+        const containerNode =
+          targetContainerId
+            ? targetWorkflow.nodes[targetContainerId] ?? rootWorkflow.nodes[targetContainerId]
+            : undefined;
+        if (!containerNode) {
+          outcome.error = 'Select a container node or provide a valid reference.';
+          return;
+        }
+        if (containerNode.nodeKind !== 'workflow.container') {
+          outcome.error = 'Only container nodes support subgraph inlining.';
+          return;
+        }
+        const containerConfig = getContainerConfig(containerNode);
+        const subgraphId = subgraphIdOverride ?? containerConfig?.subgraphId;
+        if (!subgraphId) {
+          outcome.error = 'Container is missing a subgraph reference.';
+          return;
+        }
+        const subgraphEntry = state.subgraphDrafts.find((entry) => entry.id === subgraphId);
+        if (!subgraphEntry) {
+          outcome.error = 'Referenced subgraph is not loaded.';
+          return;
+        }
+        recordHistory(state);
+        const subgraphClone = cloneDraft(subgraphEntry.definition);
+        const sourceNodes = Object.values(subgraphClone.nodes ?? {});
+        const nodeIdMap = new Map<string, string>();
+        const reservedIds = new Set(Object.keys(targetWorkflow.nodes));
+        sourceNodes.forEach((node) => {
+          let nextId = node.id;
+          while (reservedIds.has(nextId)) {
+            nextId = generateId();
+          }
+          nodeIdMap.set(node.id, nextId);
+          reservedIds.add(nextId);
+        });
+        let serialized = JSON.stringify(subgraphClone);
+        nodeIdMap.forEach((nextId, originalId) => {
+          if (nextId !== originalId) {
+            serialized = serialized.split(originalId).join(nextId);
+          }
+        });
+        const normalizedSubgraph = JSON.parse(serialized) as WorkflowDraft;
+        const nodesToInsert = Object.values(normalizedSubgraph.nodes ?? {});
+        const anchorPosition = containerNode.position ?? { x: 0, y: 0 };
+        const clusterCenter = computeNodeClusterCenter(nodesToInsert, anchorPosition);
+        const insertedNodeIds: string[] = [];
+        nodesToInsert.forEach((node) => {
+          const position = node.position ?? anchorPosition;
+          node.position = {
+            x: position.x - clusterCenter.x + anchorPosition.x,
+            y: position.y - clusterCenter.y + anchorPosition.y,
+          };
+          node.dependencies = node.dependencies.filter((id) => id !== containerNodeId);
+          targetWorkflow.nodes[node.id] = node;
+          insertedNodeIds.push(node.id);
+        });
+        const additionalEdges: WorkflowEdgeDraft[] = (normalizedSubgraph.edges ?? []).map((edge) => ({
+          id: generateId(),
+          source: { ...edge.source },
+          target: { ...edge.target },
+        }));
+        targetWorkflow.edges = targetWorkflow.edges.filter(
+          (edge) => edge.source.nodeId !== containerNodeId && edge.target.nodeId !== containerNodeId
+        );
+        targetWorkflow.edges.push(...additionalEdges);
+        additionalEdges.forEach((edge) => {
+          const targetNode = targetWorkflow.nodes[edge.target.nodeId];
+          if (targetNode) {
+            ensureDependency(targetNode, edge.source.nodeId);
+          }
+        });
+        Object.values(targetWorkflow.nodes).forEach((node) => {
+          node.dependencies = node.dependencies.filter((dep) => dep !== containerNodeId);
+        });
+        delete targetWorkflow.nodes[containerNodeId];
+        targetWorkflow.dirty = true;
+        rootWorkflow.dirty = true;
+        rewriteBindingsAcrossStore(state, subgraphId, nodeIdMap);
+        // remove subgraph entry after dissolving
+        state.subgraphDrafts = state.subgraphDrafts.filter((entry) => entry.id !== subgraphId);
+        if (state.workflow?.subgraphs) {
+          state.workflow.subgraphs = state.workflow.subgraphs.filter((entry) => entry.id !== subgraphId);
+        }
+        if (state.activeGraph.type === 'subgraph' && state.activeGraph.subgraphId === subgraphId) {
+          state.activeGraph = defaultGraphScope;
+        }
+        if (insertedNodeIds.length) {
+          state.selectedNodeId = insertedNodeIds[0];
+          state.selectedNodeIds = insertedNodeIds;
+        } else {
+          state.selectedNodeId = undefined;
+          state.selectedNodeIds = [];
+        }
+        outcome.ok = true;
+      });
+      return outcome;
+    },
+    convertSelectionToSubgraph: (containerTemplate?: WorkflowPaletteNode) => {
+      const outcome: ConvertSelectionResult = { ok: false };
+      set((state) => {
+        const selection = state.selectedNodeIds;
+        if (!selection.length) {
+          outcome.error = 'Select at least one node to convert.';
+          return;
+        }
+        let targetWorkflow: WorkflowDraft;
+        try {
+          targetWorkflow = requireActiveGraph(state);
+        } catch (error) {
+          outcome.error = error instanceof Error ? error.message : 'Workflow not loaded';
+          return;
+        }
+        const selectionSet = new Set(selection);
+        const selectedNodes = selection
+          .map((id) => targetWorkflow.nodes[id])
+          .filter((node): node is WorkflowNodeDraft => Boolean(node));
+        if (!selectedNodes.length) {
+          outcome.error = 'Selected nodes are missing from the current graph.';
+          return;
+        }
+        recordHistory(state);
+        const subgraphId = generateId();
+        const subgraphDefinitionId = subgraphId;
+        const subgraphMetadata = { name: `Subgraph ${subgraphId.slice(0, 6)}` };
+        const internalEdges = targetWorkflow.edges.filter(
+          (edge) => selectionSet.has(edge.source.nodeId) && selectionSet.has(edge.target.nodeId)
+        );
+        const incomingEdges = targetWorkflow.edges.filter(
+          (edge) => !selectionSet.has(edge.source.nodeId) && selectionSet.has(edge.target.nodeId)
+        );
+        const outgoingEdges = targetWorkflow.edges.filter(
+          (edge) => selectionSet.has(edge.source.nodeId) && !selectionSet.has(edge.target.nodeId)
+        );
+        const subgraphDraft: WorkflowDraft = {
+          id: subgraphDefinitionId,
+          schemaVersion: targetWorkflow.schemaVersion ?? '1.0.0',
+          metadata: subgraphMetadata,
+          nodes: selectedNodes.reduce<Record<string, WorkflowNodeDraft>>((acc, node) => {
+            acc[node.id] = cloneDraft(node);
+            return acc;
+          }, {}),
+          edges: internalEdges.map((edge) => cloneDraft(edge)),
+          subgraphs: [],
+          dirty: false,
+        };
+        state.subgraphDrafts.push({
+          id: subgraphId,
+          definition: subgraphDraft,
+          metadata: subgraphMetadata,
+        });
+        if (state.workflow) {
+          if (!state.workflow.subgraphs) {
+            state.workflow.subgraphs = [];
+          }
+          const existingIndex = state.workflow.subgraphs.findIndex((entry) => entry.id === subgraphId);
+          const subgraphEntry = {
+            id: subgraphId,
+            metadata: subgraphMetadata,
+            definition: subgraphDraft,
+          };
+          if (existingIndex >= 0) {
+            state.workflow.subgraphs[existingIndex] = subgraphEntry;
+          } else {
+            state.workflow.subgraphs.push(subgraphEntry);
+          }
+        }
+
+        // remove selected nodes and related edges
+        targetWorkflow.edges = targetWorkflow.edges.filter(
+          (edge) => !selectionSet.has(edge.source.nodeId) && !selectionSet.has(edge.target.nodeId)
+        );
+        Object.values(targetWorkflow.nodes).forEach((node) => {
+          node.dependencies = node.dependencies.filter((dep) => !selectionSet.has(dep));
+        });
+        selection.forEach((id) => {
+          delete targetWorkflow.nodes[id];
+        });
+
+        const anchor = computeNodeClusterCenter(selectedNodes, { x: 0, y: 0 });
+        const containerId = generateId();
+        const baseContainer: WorkflowNodeDraft | undefined = containerTemplate
+          ? createNodeDraftFromTemplate(containerTemplate, anchor)
+          : undefined;
+        const inputPorts: NodePortDefinition[] = baseContainer?.ui?.inputPorts
+          ? baseContainer.ui.inputPorts.map((port) => ({ ...port }))
+          : [];
+        const outputPorts: NodePortDefinition[] = baseContainer?.ui?.outputPorts
+          ? baseContainer.ui.outputPorts.map((port) => ({ ...port }))
+          : [];
+        const containerDependencies = new Set<string>();
+        const inputPortKeyMap = new Map<string, string>();
+        const outputPortKeyMap = new Map<string, string>();
+        const reservePortKey = (base: string, existing: NodePortDefinition[]) => {
+          let key = base;
+          let counter = 1;
+          const keys = new Set(existing.map((port) => port.key));
+          while (keys.has(key)) {
+            key = `${base}-${counter}`;
+            counter += 1;
+          }
+          return key;
+        };
+
+        incomingEdges.forEach((edge) => {
+          const targetPortKey = edge.target.portId || edge.target.nodeId;
+          if (!inputPortKeyMap.has(targetPortKey)) {
+            const portKey = reservePortKey(`in-${targetPortKey}`, inputPorts);
+            inputPortKeyMap.set(targetPortKey, portKey);
+            inputPorts.push({
+              key: portKey,
+              label: portKey,
+              binding: { path: '', mode: 'write' },
+            });
+          }
+          const mappedPort = inputPortKeyMap.get(targetPortKey) as string;
+          const newEdge: WorkflowEdgeDraft = {
+            id: generateId(),
+            source: { ...edge.source },
+            target: { nodeId: containerId, portId: mappedPort },
+          };
+          targetWorkflow.edges.push(newEdge);
+          containerDependencies.add(edge.source.nodeId);
+        });
+
+        outgoingEdges.forEach((edge) => {
+          const sourcePortKey = edge.source.portId || edge.source.nodeId;
+          if (!outputPortKeyMap.has(sourcePortKey)) {
+            const portKey = reservePortKey(`out-${sourcePortKey}`, outputPorts);
+            outputPortKeyMap.set(sourcePortKey, portKey);
+            outputPorts.push({
+              key: portKey,
+              label: portKey,
+              binding: { path: '/results/', mode: 'read' },
+            });
+          }
+          const mappedPort = outputPortKeyMap.get(sourcePortKey) as string;
+          const newEdge: WorkflowEdgeDraft = {
+            id: generateId(),
+            source: { nodeId: containerId, portId: mappedPort },
+            target: { ...edge.target },
+          };
+          targetWorkflow.edges.push(newEdge);
+          const targetNode = targetWorkflow.nodes[edge.target.nodeId];
+          if (targetNode) {
+            ensureDependency(targetNode, containerId);
+          }
+        });
+
+        const containerNode: WorkflowNodeDraft = {
+          id: containerId,
+          label: subgraphMetadata.name ?? containerId,
+          role: baseContainer?.role ?? 'container',
+          nodeKind: baseContainer?.nodeKind ?? 'workflow.container',
+          status: baseContainer?.status ?? 'draft',
+          category: baseContainer?.category ?? 'container',
+          description: baseContainer?.description,
+          tags: baseContainer?.tags,
+          packageName: baseContainer?.packageName,
+          packageVersion: baseContainer?.packageVersion,
+          adapter: baseContainer?.adapter,
+          handler: baseContainer?.handler,
+          parameters: (() => {
+            const baseParams = baseContainer?.parameters ? cloneDraft(baseContainer.parameters) : {};
+            return {
+              ...baseParams,
+              [CONTAINER_PARAM_KEY]: {
+                ...(baseParams?.[CONTAINER_PARAM_KEY] as Record<string, unknown> | undefined),
+                subgraphId: subgraphDefinitionId,
+              },
+            };
+          })(),
+          results: baseContainer?.results ? cloneDraft(baseContainer.results) : {},
+          schema: baseContainer?.schema,
+          ui: {
+            inputPorts,
+            outputPorts,
+            widgets: baseContainer?.ui?.widgets ? [...baseContainer.ui.widgets] : [],
+          },
+          position: anchor,
+          dependencies: Array.from(new Set([...(baseContainer?.dependencies ?? []), ...containerDependencies])),
+          middlewares: baseContainer?.middlewares ? cloneDraft(baseContainer.middlewares) : [],
+          resources: [],
+          affinity: baseContainer?.affinity,
+          concurrencyKey: baseContainer?.concurrencyKey,
+          metadata: baseContainer?.metadata,
+          state: undefined,
+          runtimeArtifacts: undefined,
+          runtimeSummary: undefined,
+        };
+        targetWorkflow.nodes[containerId] = containerNode;
+        targetWorkflow.dirty = true;
+        if (state.workflow) {
+          state.workflow.dirty = true;
+        }
+        state.selectedNodeId = containerId;
+        state.selectedNodeIds = [containerId];
+        outcome.ok = true;
+        outcome.subgraphId = subgraphId;
+        outcome.containerId = containerId;
+      });
+      return outcome;
     },
   }))
 );

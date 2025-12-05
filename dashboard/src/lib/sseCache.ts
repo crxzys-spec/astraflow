@@ -540,6 +540,17 @@ const getStagePriority = (stage?: string | null): number => {
   return STAGE_PRIORITY[normalised] ?? 0;
 };
 
+const getTimestamp = (value?: string | null): number => {
+  if (!value) {
+    return 0;
+  }
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const isNewerState = (next?: WorkflowNodeState | null, current?: WorkflowNodeState | null): boolean =>
+  getTimestamp(next?.lastUpdatedAt ?? null) > getTimestamp(current?.lastUpdatedAt ?? null);
+
 export const updateRunDefinitionNodeState = (
   queryClient: QueryClient,
   runId: string,
@@ -556,6 +567,12 @@ export const updateRunDefinitionNodeState = (
     if (currentPriority > 0) {
       return;
     }
+    return;
+  }
+  const nextPriority = getStagePriority(state.stage);
+  const currentPriority = getStagePriority(currentState?.stage);
+  const newer = isNewerState(state, currentState);
+  if (currentPriority && nextPriority < currentPriority && !newer) {
     return;
   }
   const updates: WorkflowNodeStateUpdateMap = { [nodeId]: state };
@@ -594,10 +611,11 @@ export const applyRunDefinitionSnapshot = (
       const currentStage = currentState.stage;
       const currentPriority = getStagePriority(currentStage);
       const nextPriority = getStagePriority(nextStage);
-      if (currentPriority > 0 && nextPriority === 0) {
+      const newer = isNewerState(nextState, currentState);
+      if (currentPriority > 0 && nextPriority === 0 && !newer) {
         return;
       }
-      if (nextPriority < currentPriority) {
+      if (nextPriority < currentPriority && !newer) {
         return;
       }
     }

@@ -9,12 +9,13 @@ import logging
 import random
 import re
 import socket
+from collections import deque
 from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from itertools import count
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Deque, Dict, List, Optional, Set
 
 from pydantic import BaseModel, ValidationError
 
@@ -38,6 +39,7 @@ from .config import WorkerSettings
 from .session import SessionState, SessionTracker
 
 LOGGER = logging.getLogger(__name__)
+_ABORTED_NEXT_MAX = 512
 
 
 class TransportNotReady(RuntimeError):
@@ -103,8 +105,11 @@ class ControlPlaneConnection:
     _message_counter: Iterator[int] = field(default_factory=lambda: count())
     _pending_acks: dict[str, "PendingAck"] = field(default_factory=dict)
     _dispatch_tasks: Set[asyncio.Task[None]] = field(default_factory=set)
-    _pending_next: Dict[str, tuple[asyncio.Future, str]] = field(default_factory=dict)
+    # Tracks in-flight middleware.next requests: request_id -> (future, task_id, run_id)
+    _pending_next: Dict[str, tuple[asyncio.Future, str, str]] = field(default_factory=dict)
     _next_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    _aborted_next: Deque[str] = field(default_factory=deque)
+    _aborted_next_index: Set[str] = field(default_factory=set)
 
     async def start(self) -> None:
         """Establish the control-plane connection and kick off heartbeat loop."""
@@ -471,9 +476,27 @@ class ControlPlaneConnection:
                         for resource_id in leased_resources:
                             self.resource_registry.release(resource_id)
         except asyncio.CancelledError:
-            LOGGER.info("Task cancelled run=%s task=%s node=%s", dispatch.run_id, dispatch.task_id, dispatch.node_id)
+            current = asyncio.current_task()
+            LOGGER.warning(
+                "Task cancelled run=%s task=%s node=%s corr=%s seq=%s current_task=%s",
+                dispatch.run_id,
+                dispatch.task_id,
+                dispatch.node_id,
+                corr,
+                seq,
+                getattr(current, "get_name", lambda: None)(),
+            )
+            # Capture a lightweight stack to help identify the canceller
             try:
-                await self._interrupt_pending_next(dispatch.task_id, code="next_cancelled", message="task cancelled")
+                import traceback
+
+                LOGGER.debug("Cancellation stack:\n%s", "".join(traceback.format_stack()))
+            except Exception:  # pragma: no cover - best-effort logging
+                LOGGER.debug("Cancellation stack unavailable")
+            try:
+                await self._interrupt_pending_next(
+                    dispatch.run_id, dispatch.task_id, code="next_cancelled", message="task cancelled"
+                )
                 await self.send_command_error(
                     ErrorPayload(
                         code="E.RUNNER.CANCELLED",
@@ -511,7 +534,7 @@ class ControlPlaneConnection:
                 seq=seq,
             )
         finally:
-            self._cancel_pending_next_for_task(dispatch.task_id)
+            self._cancel_pending_next_for_task(dispatch.run_id, dispatch.task_id)
 
     def _coerce_artifacts(self, artifacts: Optional[List[Any]]) -> Optional[List[Artifact]]:
         if not artifacts:
@@ -699,40 +722,83 @@ class ControlPlaneConnection:
             pending.task.cancel()
         LOGGER.info("Ack received for message %s after %s attempts", message_id, pending.attempts)
 
+    def _track_aborted_next(self, request_id: str) -> None:
+        """Record a locally-cancelled next waiter so late responses can be ignored noiselessly."""
+
+        if request_id in self._aborted_next_index:
+            return
+        self._aborted_next.append(request_id)
+        self._aborted_next_index.add(request_id)
+        if len(self._aborted_next) > _ABORTED_NEXT_MAX:
+            oldest = self._aborted_next.popleft()
+            self._aborted_next_index.discard(oldest)
+
+    def _pop_aborted_next(self, request_id: str) -> bool:
+        if request_id not in self._aborted_next_index:
+            return False
+        self._aborted_next_index.discard(request_id)
+        try:
+            self._aborted_next.remove(request_id)
+        except ValueError:
+            pass
+        return True
+
     def _cancel_pending_acks(self) -> None:
+        if self._pending_acks:
+            LOGGER.debug("Cancelling %s pending ack waiters", len(self._pending_acks))
         for pending in self._pending_acks.values():
             if pending.task:
                 pending.task.cancel()
         self._pending_acks.clear()
 
     def _cancel_pending_next(self) -> None:
-        for fut, _ in self._pending_next.values():
+        if self._pending_next:
+            LOGGER.debug("Cancelling %s pending next requests", len(self._pending_next))
+        for req_id, (fut, _, _) in list(self._pending_next.items()):
             if not fut.done():
                 fut.cancel()
+            self._track_aborted_next(req_id)
         self._pending_next.clear()
 
-    def _cancel_pending_next_for_task(self, task_id: str) -> None:
-        to_cancel = [req_id for req_id, (_, tid) in self._pending_next.items() if tid == task_id]
+    def _cancel_pending_next_for_task(self, run_id: str, task_id: str) -> None:
+        to_cancel = [req_id for req_id, (_, tid, rid) in self._pending_next.items() if tid == task_id and rid == run_id]
+        if to_cancel:
+            LOGGER.debug("Cancelling %s pending next requests for task=%s", len(to_cancel), task_id)
         for req_id in to_cancel:
-            fut, _ = self._pending_next.pop(req_id, (None, task_id))
+            fut, _, _ = self._pending_next.pop(req_id, (None, task_id, run_id))
             if fut and not fut.done():
                 fut.cancel()
+            self._track_aborted_next(req_id)
 
-    async def _interrupt_pending_next(self, task_id: str, *, code: str, message: str) -> None:
+    async def _interrupt_pending_next(self, run_id: str, task_id: str, *, code: str, message: str) -> None:
         """Actively fail pending ctx.next waits for a task with an error."""
 
         async with self._next_lock:
-            targets = [(req_id, fut) for req_id, (fut, tid) in self._pending_next.items() if tid == task_id]
+            targets = [
+                (req_id, fut)
+                for req_id, (fut, tid, rid) in self._pending_next.items()
+                if tid == task_id and rid == run_id
+            ]
+            if targets:
+                LOGGER.debug(
+                    "Interrupting %s pending next requests for task=%s with code=%s message=%s",
+                    len(targets),
+                    task_id,
+                    code,
+                    message,
+                )
             for req_id, fut in targets:
                 self._pending_next.pop(req_id, None)
                 if fut and not fut.done():
                     fut.set_exception(MiddlewareNextError(message, code=code))
+                self._track_aborted_next(req_id)
 
     async def _cancel_dispatch_tasks(self) -> None:
         if not self._dispatch_tasks:
             return
         tasks = list(self._dispatch_tasks)
         self._dispatch_tasks.clear()
+        LOGGER.debug("Cancelling %s dispatch tasks", len(tasks))
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
@@ -793,7 +859,7 @@ class ControlPlaneConnection:
         loop = asyncio.get_running_loop()
         future: asyncio.Future = loop.create_future()
         async with self._next_lock:
-            self._pending_next[request_id] = (future, context.task_id)
+            self._pending_next[request_id] = (future, context.task_id, context.run_id)
         try:
             message = self._build_envelope(
                 "middleware.next_request",
@@ -814,12 +880,14 @@ class ControlPlaneConnection:
             return await future
         except asyncio.TimeoutError as exc:
             future.cancel()
+            self._track_aborted_next(request_id)
             raise MiddlewareNextError(
                 "middleware next timed out locally",
                 code="next_timeout",
             ) from exc
         except asyncio.CancelledError:
             future.cancel()
+            self._track_aborted_next(request_id)
             raise
         finally:
             async with self._next_lock:
@@ -831,13 +899,20 @@ class ControlPlaneConnection:
         async with self._next_lock:
             entry = self._pending_next.pop(request_id, None)
         if not entry:
-            LOGGER.warning(
-                "Received middleware.next_response with no pending waiter req=%s run=%s",
-                request_id,
-                payload.run_id,
-            )
+            if self._pop_aborted_next(request_id):
+                LOGGER.debug(
+                    "Ignored late middleware.next_response for aborted waiter req=%s run=%s",
+                    request_id,
+                    payload.run_id,
+                )
+            else:
+                LOGGER.warning(
+                    "Received middleware.next_response with no pending waiter req=%s run=%s",
+                    request_id,
+                    payload.run_id,
+                )
             return
-        future, _ = entry
+        future, *_ = entry
         if future.done():
             return
         if payload.error:

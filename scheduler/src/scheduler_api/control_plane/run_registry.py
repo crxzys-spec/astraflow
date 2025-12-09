@@ -1849,7 +1849,15 @@ class RunRegistry:
 
             host_node_id = None
             chain: Optional[List[str]] = None
-            for node in record.nodes.values():
+
+            def _iter_all_nodes() -> Iterable[NodeState]:
+                for node in record.nodes.values():
+                    yield node
+                for frame in record.active_frames.values():
+                    for node in frame.nodes.values():
+                        yield node
+
+            for node in _iter_all_nodes():
                 chain_ids = getattr(node, "middlewares", []) or []
                 if payload.middleware_id in chain_ids:
                     host_node_id = node.node_id

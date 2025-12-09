@@ -593,24 +593,24 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
           {contextMenu.type === "node" && (
             <>
               <button type="button" onClick={() => deleteSingleNode(contextMenu.id)}>
-                删除节点
+                Delete node
               </button>
             </>
           )}
           {contextMenu.type === "edge" && (
             <>
               <button type="button" onClick={() => deleteEdgeById(contextMenu.id)}>
-                删除线条
+                Delete edge
               </button>
             </>
           )}
           {contextMenu.type === "selection" && (
             <>
               <button type="button" onClick={convertSelection}>
-                选中转为子图
+                Convert selection to subgraph
               </button>
               <button type="button" onClick={deleteSelectedNodes}>
-                删除所选
+                Delete selection
               </button>
             </>
           )}

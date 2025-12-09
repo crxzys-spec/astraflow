@@ -1321,7 +1321,8 @@ const WorkflowBuilderPage = () => {
       { data: { clientId: clientSessionId, workflow: definition } },
       {
         onSuccess: (result) => {
-          const run = result.data;
+          // `startRun` returns the RunRef payload directly (not Axios-wrapped).
+          const run = (result as any)?.data ?? result;
           const runId = run?.runId;
           if (runId) {
             upsertRunCaches(queryClient, {

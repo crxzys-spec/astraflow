@@ -8,6 +8,7 @@ import type { RunArtifact } from "../api/models/runArtifact";
 import type { RunList } from "../api/models/runList";
 import type { RunNodeStatus } from "../api/models/runNodeStatus";
 import type { RunRef } from "../api/models/runRef";
+import type { NodeResultDeltaEvent } from "../api/models/nodeResultDeltaEvent";
 import { getGetRunDefinitionQueryKey, getGetRunQueryKey } from "../api/endpoints";
 import { useWorkflowStore } from "../features/workflow";
 import type { WorkflowNodeStateUpdateMap } from "../features/workflow";
@@ -188,6 +189,217 @@ const valuesEqual = (left: unknown, right: unknown) => {
   return JSON.stringify(left) === JSON.stringify(right);
 };
 
+const decodePointerSegment = (segment: string) => segment.replace(/~1/g, "/").replace(/~0/g, "~");
+
+const splitJsonPointer = (pointer?: string | null): string[] | null => {
+  if (!pointer || !pointer.startsWith("/")) {
+    return null;
+  }
+  const segments = pointer
+    .split("/")
+    .slice(1)
+    .map((part) => decodePointerSegment(part))
+    .filter((part) => part.length > 0);
+  return segments.length ? segments : null;
+};
+
+const findDraftNode = (
+  nodeId: string,
+  store: ReturnType<typeof useWorkflowStore.getState> | null,
+): any => {
+  if (!store) {
+    return undefined;
+  }
+  const searchWorkflow = (workflow?: { nodes: Record<string, any> }) => {
+    if (!workflow?.nodes) {
+      return undefined;
+    }
+    const direct = workflow.nodes[nodeId];
+    if (direct) {
+      return direct;
+    }
+    for (const candidate of Object.values(workflow.nodes)) {
+      const middleware = (candidate as { middlewares?: { id: string }[] }).middlewares?.find(
+        (mw) => mw.id === nodeId,
+      );
+      if (middleware) {
+        return middleware;
+      }
+    }
+    return undefined;
+  };
+
+  const rootNode = searchWorkflow(store.workflow);
+  if (rootNode) {
+    return rootNode;
+  }
+  for (const entry of store.subgraphDrafts) {
+    const candidate = searchWorkflow(entry.definition);
+    if (candidate) {
+      return candidate;
+    }
+  }
+  return undefined;
+};
+
+type JsonPatchOp = {
+  op?: string;
+  path?: string;
+  from?: string;
+  value?: unknown;
+};
+
+const applyPointerOperation = (
+  target: unknown,
+  segments: string[],
+  op: "append" | "replace" | "remove",
+  value: unknown,
+): { root: unknown; changed: boolean } => {
+  if (!segments.length) {
+    return { root: target, changed: false };
+  }
+  const root = Array.isArray(target)
+    ? [...target]
+    : target && typeof target === "object"
+      ? { ...(target as Record<string, unknown>) }
+      : {};
+  let cursor: any = root;
+  for (let i = 0; i < segments.length - 1; i += 1) {
+    const key = segments[i];
+    const isIndex = /^\d+$/.test(key);
+    if (Array.isArray(cursor)) {
+      const index = isIndex ? Number.parseInt(key, 10) : 0;
+      if (!Number.isFinite(index)) {
+        return { root, changed: false };
+      }
+      if (cursor[index] == null || typeof cursor[index] !== "object") {
+        cursor[index] = {};
+      }
+      cursor = cursor[index];
+    } else {
+      if (!cursor || typeof cursor !== "object") {
+        return { root, changed: false };
+      }
+      if (!(key in cursor) || cursor[key] == null || typeof cursor[key] !== "object") {
+        cursor[key] = {};
+      }
+      cursor = cursor[key];
+    }
+  }
+  const leafKey = segments[segments.length - 1];
+  let changed = false;
+  const isIndex = /^\d+$/.test(leafKey);
+  if (op === "remove") {
+    if (Array.isArray(cursor) && isIndex) {
+      const index = Number.parseInt(leafKey, 10);
+      if (Number.isFinite(index) && index >= 0 && index < cursor.length) {
+        cursor.splice(index, 1);
+        changed = true;
+      }
+    } else if (cursor && typeof cursor === "object" && leafKey in cursor) {
+      delete cursor[leafKey];
+      changed = true;
+    }
+    return { root, changed };
+  }
+
+  if (op === "append") {
+    const slot = cursor && typeof cursor === "object" ? (cursor as Record<string, unknown>)[leafKey] : undefined;
+    const arr = Array.isArray(slot) ? slot.slice() : [];
+    arr.push(value);
+    if (Array.isArray(cursor) && isIndex) {
+      const index = Number.parseInt(leafKey, 10);
+      if (Number.isFinite(index)) {
+        cursor[index] = arr;
+        changed = true;
+      }
+    } else if (cursor && typeof cursor === "object") {
+      if (!valuesEqual(slot, arr)) {
+        (cursor as Record<string, unknown>)[leafKey] = arr;
+        changed = true;
+      }
+    }
+    return { root, changed };
+  }
+
+  if (op === "replace") {
+    if (Array.isArray(cursor) && isIndex) {
+      const index = Number.parseInt(leafKey, 10);
+      if (Number.isFinite(index)) {
+        if (!valuesEqual(cursor[index], value)) {
+          cursor[index] = value;
+          changed = true;
+        }
+      }
+    } else if (cursor && typeof cursor === "object") {
+      if (!valuesEqual((cursor as Record<string, unknown>)[leafKey], value)) {
+        (cursor as Record<string, unknown>)[leafKey] = value;
+        changed = true;
+      }
+    }
+  }
+  return { root, changed };
+};
+
+const applyJsonPatchOperations = (target: unknown, patches: JsonPatchOp[]): { next: unknown; changed: boolean } => {
+  let current = target;
+  let changed = false;
+  patches.forEach((patch) => {
+    const op = (patch.op || "").toLowerCase();
+    const segments = splitJsonPointer(patch.path);
+    if (!segments) {
+      return;
+    }
+    if (op === "add" || op === "replace") {
+      const result = applyPointerOperation(current, segments, "replace", patch.value);
+      current = result.root;
+      changed = changed || result.changed;
+    } else if (op === "remove") {
+      const result = applyPointerOperation(current, segments, "remove", undefined);
+      current = result.root;
+      changed = changed || result.changed;
+    }
+  });
+  return { next: current, changed };
+};
+
+const extractDeltaValue = (payload?: Record<string, unknown> | null): unknown => {
+  if (!payload || typeof payload !== "object") {
+    return undefined;
+  }
+  if ("value" in payload) {
+    return (payload as { value?: unknown }).value;
+  }
+  return payload;
+};
+
+const applyResultDelta = (
+  current: Record<string, unknown> | null | undefined,
+  delta: Pick<NodeResultDeltaEvent, "operation" | "path" | "payload" | "patches">,
+): { next: Record<string, unknown> | null; changed: boolean } => {
+  const base =
+    current && typeof current === "object" && !Array.isArray(current)
+      ? (JSON.parse(JSON.stringify(current)) as Record<string, unknown>)
+      : {};
+
+  if (delta.operation === "patch" && Array.isArray(delta.patches)) {
+    const patched = applyJsonPatchOperations(base, delta.patches as JsonPatchOp[]);
+    return {
+      next: (patched.next as Record<string, unknown>) ?? {},
+      changed: patched.changed,
+    };
+  }
+
+  const segments = splitJsonPointer(delta.path);
+  if (!segments) {
+    return { next: base, changed: false };
+  }
+  const op = (delta.operation as string | undefined) ?? "replace";
+  const value = extractDeltaValue(delta.payload ?? undefined);
+  const result = applyPointerOperation(base, segments, op === "append" ? "append" : op === "remove" ? "remove" : "replace", value);
+  return { next: result.root as Record<string, unknown>, changed: result.changed };
+};
+
 type WorkflowNodeRuntimeUpdate = {
   result?: Record<string, unknown> | null;
   artifacts?: RunArtifact[] | null;
@@ -198,6 +410,7 @@ const updateWorkflowDefinitionNodeStates = (
   queryClient: QueryClient,
   runId: string,
   updates: WorkflowNodeStateUpdateMap,
+  syncToStore = true,
 ) => {
   if (!Object.keys(updates).length) {
     return;
@@ -237,20 +450,23 @@ const updateWorkflowDefinitionNodeStates = (
       },
     };
   });
-  useWorkflowStore.getState().updateNodeStates(updates);
+  if (syncToStore) {
+    useWorkflowStore.getState().updateNodeStates(updates);
+  }
 };
 
 const updateWorkflowDefinitionNodeRuntime = (
   queryClient: QueryClient,
   runId: string,
   updates: Record<string, WorkflowNodeRuntimeUpdate>,
+  syncToStore = true,
 ) => {
   if (!Object.keys(updates).length) {
     return;
   }
   const definitionKey = getGetRunDefinitionQueryKey(runId);
   const effectiveUpdates: Record<string, WorkflowNodeRuntimeUpdate> = {};
-  const storeInstance = useWorkflowStore.getState();
+  const storeInstance = syncToStore ? useWorkflowStore.getState() : null;
 
   const applyMiddlewareRuntimeUpdate = (
     mw: Workflow["nodes"][number]["middlewares"][number],
@@ -437,45 +653,16 @@ const updateWorkflowDefinitionNodeRuntime = (
     };
   });
 
-  const findDraftNode = (nodeId: string) => {
-    const searchWorkflow = (workflow?: { nodes: Record<string, any> }) => {
-      if (!workflow?.nodes) {
-        return undefined;
-      }
-      const direct = workflow.nodes[nodeId];
-      if (direct) {
-        return direct;
-      }
-      for (const candidate of Object.values(workflow.nodes)) {
-        const middleware = (candidate as { middlewares?: { id: string }[] }).middlewares?.find(
-          (mw) => mw.id === nodeId,
-        );
-        if (middleware) {
-          return middleware;
-        }
-      }
-      return undefined;
-    };
-
-    const rootNode = searchWorkflow(storeInstance.workflow);
-    if (rootNode) {
-      return rootNode;
-    }
-    for (const entry of storeInstance.subgraphDrafts) {
-      const candidate = searchWorkflow(entry.definition);
-      if (candidate) {
-        return candidate;
-      }
-    }
-    return undefined;
-  };
+  if (!storeInstance) {
+    return;
+  }
 
   const storePayload: Record<string, WorkflowNodeRuntimeUpdate> = { ...effectiveUpdates };
   Object.entries(updates).forEach(([nodeId, update]) => {
     if (storePayload[nodeId]) {
       return;
     }
-    const node = findDraftNode(nodeId);
+    const node = findDraftNode(nodeId, storeInstance);
     if (!node) {
       return;
     }
@@ -521,6 +708,52 @@ const updateWorkflowDefinitionNodeRuntime = (
   }
 };
 
+export const applyNodeResultDelta = (
+  queryClient: QueryClient,
+  runId: string,
+  nodeId: string,
+  delta: Pick<NodeResultDeltaEvent, "operation" | "path" | "payload" | "patches" | "nodeId">,
+  syncToStore = true,
+) => {
+  const definitionKey = getGetRunDefinitionQueryKey(runId);
+  const storeInstance = syncToStore ? useWorkflowStore.getState() : null;
+
+  const existingNode = findDraftNode(nodeId, storeInstance);
+  const existingStoreResult =
+    (existingNode as { results?: Record<string, unknown> | null } | undefined)?.results;
+
+  const definition = queryClient.getQueryData<AxiosResponse<Workflow>>(definitionKey)?.data;
+  const findResultInWorkflow = (workflow?: Workflow): Record<string, unknown> | null | undefined => {
+    if (!workflow) {
+      return undefined;
+    }
+    const node = workflow.nodes?.find((entry) => entry.id === nodeId);
+    if (node) {
+      return (node as { results?: Record<string, unknown> | null }).results ?? undefined;
+    }
+    for (const subgraph of workflow.subgraphs ?? []) {
+      const nested = findResultInWorkflow(subgraph.definition);
+      if (nested !== undefined) {
+        return nested;
+      }
+    }
+    return undefined;
+  };
+  const existingDefinitionResult = findResultInWorkflow(definition);
+
+  const baseResult = existingStoreResult ?? existingDefinitionResult ?? {};
+  const { next, changed } = applyResultDelta(baseResult, delta);
+  if (!changed) {
+    return;
+  }
+  updateWorkflowDefinitionNodeRuntime(
+    queryClient,
+    runId,
+    { [nodeId]: { result: next ?? {} } },
+    syncToStore,
+  );
+};
+
 const STAGE_PRIORITY: Record<string, number> = {
   queued: 1,
   running: 2,
@@ -551,15 +784,70 @@ const getTimestamp = (value?: string | null): number => {
 const isNewerState = (next?: WorkflowNodeState | null, current?: WorkflowNodeState | null): boolean =>
   getTimestamp(next?.lastUpdatedAt ?? null) > getTimestamp(current?.lastUpdatedAt ?? null);
 
+const withFallbackLastUpdatedAt = <T extends WorkflowNodeState | null | undefined>(
+  state: T,
+  fallback?: string | null
+): T => {
+  if (!state) {
+    return state;
+  }
+  if (state.lastUpdatedAt) {
+    return state;
+  }
+  const fallbackValue = fallback ?? new Date().toISOString();
+  if (!fallbackValue) {
+    return state;
+  }
+  return { ...state, lastUpdatedAt: fallbackValue } as T;
+};
+
+const findCurrentNodeState = (
+  store: ReturnType<typeof useWorkflowStore.getState>,
+  nodeId: string
+): WorkflowNodeState | undefined => {
+  const searchWorkflow = (workflow?: { nodes?: Record<string, unknown> }) => {
+    if (!workflow?.nodes) {
+      return undefined;
+    }
+    const node = (workflow.nodes as Record<string, { id?: string; state?: WorkflowNodeState }>)[nodeId];
+    if (node?.state) {
+      return node.state;
+    }
+    for (const candidate of Object.values(workflow.nodes)) {
+      const middleware = (candidate as { middlewares?: { id: string; state?: WorkflowNodeState }[] })
+        ?.middlewares?.find((mw) => mw.id === nodeId);
+      if (middleware?.state) {
+        return middleware.state;
+      }
+    }
+    return undefined;
+  };
+
+  const rootState = searchWorkflow(store.workflow);
+  if (rootState) {
+    return rootState;
+  }
+  for (const entry of store.subgraphDrafts ?? []) {
+    const candidate = searchWorkflow(entry.definition);
+    if (candidate) {
+      return candidate;
+    }
+  }
+  return undefined;
+};
+
 export const updateRunDefinitionNodeState = (
   queryClient: QueryClient,
   runId: string,
   nodeId: string,
   state: WorkflowNodeState | null | undefined,
+  occurredAt?: string,
+  syncToStore = true,
 ) => {
-  const storeInstance = useWorkflowStore.getState();
-  const currentState = storeInstance.workflow?.nodes[nodeId]?.state;
-  if (state == null) {
+  const storeInstance = syncToStore ? useWorkflowStore.getState() : null;
+  const currentState = storeInstance ? findCurrentNodeState(storeInstance, nodeId) : undefined;
+  const nextState = withFallbackLastUpdatedAt(state, occurredAt);
+  if (nextState == null) {
     if (!currentState) {
       return;
     }
@@ -569,14 +857,15 @@ export const updateRunDefinitionNodeState = (
     }
     return;
   }
-  const nextPriority = getStagePriority(state.stage);
+  const nextPriority = getStagePriority(nextState.stage);
   const currentPriority = getStagePriority(currentState?.stage);
-  const newer = isNewerState(state, currentState);
-  if (currentPriority && nextPriority < currentPriority && !newer) {
+  const newer = isNewerState(nextState, currentState);
+  const stageChanged = normaliseStage(nextState.stage) !== normaliseStage(currentState?.stage);
+  if (currentPriority && nextPriority < currentPriority && !newer && !stageChanged) {
     return;
   }
-  const updates: WorkflowNodeStateUpdateMap = { [nodeId]: state };
-  updateWorkflowDefinitionNodeStates(queryClient, runId, updates);
+  const updates: WorkflowNodeStateUpdateMap = { [nodeId]: nextState };
+  updateWorkflowDefinitionNodeStates(queryClient, runId, updates, syncToStore);
 };
 
 export const updateRunDefinitionNodeRuntime = (
@@ -584,9 +873,77 @@ export const updateRunDefinitionNodeRuntime = (
   runId: string,
   nodeId: string,
   runtime: WorkflowNodeRuntimeUpdate,
+  syncToStore = true,
 ) => {
-  updateWorkflowDefinitionNodeRuntime(queryClient, runId, {
-    [nodeId]: runtime,
+  updateWorkflowDefinitionNodeRuntime(
+    queryClient,
+    runId,
+    {
+      [nodeId]: runtime,
+    },
+    syncToStore,
+  );
+};
+
+export const updateRunNodeResultDelta = (
+  queryClient: QueryClient,
+  runId: string,
+  nodeId: string,
+  delta: Pick<NodeResultDeltaEvent, "operation" | "path" | "payload" | "patches" | "nodeId">,
+) => {
+  const runKey = getGetRunQueryKey(runId);
+  queryClient.setQueryData<AxiosResponse<Run>>(runKey, (existing) => {
+    const run = existing?.data;
+    if (!run?.nodes?.length) {
+      return existing;
+    }
+    let changed = false;
+    const applyToNode = (node: RunNodeStatus) => {
+      const current = (node.result as Record<string, unknown> | null | undefined) ?? {};
+      const result = applyResultDelta(current, delta);
+      if (!result.changed) {
+        return node;
+      }
+      changed = true;
+      return { ...node, result: result.next ?? {} };
+    };
+    const nextNodes = run.nodes.map((node) => {
+      if (node.nodeId === nodeId) {
+        return applyToNode(node);
+      }
+      const middlewares = (node as { middlewares?: { id?: string; result?: unknown }[] }).middlewares;
+      if (!middlewares?.length) {
+        return node;
+      }
+      let mwChanged = false;
+      const nextMws = middlewares.map((mw) => {
+        if (mw.id !== nodeId) {
+          return mw;
+        }
+        const current = (mw.result as Record<string, unknown> | null | undefined) ?? {};
+        const result = applyResultDelta(current, delta);
+        if (!result.changed) {
+          return mw;
+        }
+        mwChanged = true;
+        return { ...mw, result: result.next ?? {} };
+      });
+      if (!mwChanged) {
+        return node;
+      }
+      changed = true;
+      return { ...node, middlewares: nextMws };
+    });
+    if (!changed) {
+      return existing;
+    }
+    return {
+      ...existing,
+      data: {
+        ...run,
+        nodes: nextNodes,
+      },
+    };
   });
 };
 
@@ -594,32 +951,88 @@ export const applyRunDefinitionSnapshot = (
   queryClient: QueryClient,
   runId: string,
   nodes: RunNodeStatus[] | null | undefined,
+  occurredAt?: string,
+  syncToStore = true,
 ) => {
   if (!nodes?.length) {
     return;
   }
-  const storeInstance = useWorkflowStore.getState();
+  const storeInstance = syncToStore ? useWorkflowStore.getState() : null;
+  const currentStateById = new Map<string, WorkflowNodeState | undefined>();
+  const indexStates = (workflow?: { nodes?: Record<string, unknown> }) => {
+    if (!workflow?.nodes) {
+      return;
+    }
+    Object.values(workflow.nodes).forEach((node) => {
+      const castNode = node as { id?: string; state?: WorkflowNodeState; middlewares?: { id: string; state?: WorkflowNodeState }[] };
+      if (castNode.id) {
+        currentStateById.set(castNode.id, castNode.state);
+      }
+      castNode.middlewares?.forEach((mw) => {
+        if (mw.id) {
+          currentStateById.set(mw.id, mw.state);
+        }
+      });
+    });
+  };
+  if (storeInstance) {
+    indexStates(storeInstance.workflow);
+    storeInstance.subgraphDrafts?.forEach((entry) => indexStates(entry.definition));
+  }
+
   const stateUpdates: WorkflowNodeStateUpdateMap = {};
   nodes.forEach((node) => {
-    const nextState = (node.state as WorkflowNodeState | undefined) ?? undefined;
+    const rawNextState = (node.state as WorkflowNodeState | undefined) ?? undefined;
+    const nextState = withFallbackLastUpdatedAt(rawNextState, occurredAt);
     if (!nextState) {
       return;
     }
     const nextStage = nextState.stage;
-    const currentState = storeInstance.workflow?.nodes[node.nodeId]?.state;
+    const currentState = currentStateById.get(node.nodeId);
     if (currentState) {
       const currentStage = currentState.stage;
       const currentPriority = getStagePriority(currentStage);
       const nextPriority = getStagePriority(nextStage);
       const newer = isNewerState(nextState, currentState);
-      if (currentPriority > 0 && nextPriority === 0 && !newer) {
+      const stageChanged = normaliseStage(nextStage) !== normaliseStage(currentStage);
+      if (currentPriority > 0 && nextPriority === 0 && !newer && !stageChanged) {
         return;
       }
-      if (nextPriority < currentPriority && !newer) {
+      if (nextPriority < currentPriority && !newer && !stageChanged) {
         return;
       }
     }
     stateUpdates[node.nodeId] = nextState;
+
+    // Capture middleware states, if present on the runtime payload.
+    const middlewares = (node as { middlewares?: { id?: string; state?: WorkflowNodeState }[] }).middlewares;
+    middlewares?.forEach((mw) => {
+      if (!mw?.id) {
+        return;
+      }
+      const mwNextState = withFallbackLastUpdatedAt(
+        (mw.state as WorkflowNodeState | undefined) ?? undefined,
+        occurredAt,
+      );
+      if (!mwNextState) {
+        return;
+      }
+      const currentMwState = currentStateById.get(mw.id);
+      if (currentMwState) {
+        const currentPriority = getStagePriority(currentMwState.stage);
+        const nextPriority = getStagePriority(mwNextState.stage);
+        const newer = isNewerState(mwNextState, currentMwState);
+        const stageChanged =
+          normaliseStage(mwNextState.stage) !== normaliseStage(currentMwState.stage);
+        if (currentPriority > 0 && nextPriority === 0 && !newer && !stageChanged) {
+          return;
+        }
+        if (nextPriority < currentPriority && !newer && !stageChanged) {
+          return;
+        }
+      }
+      stateUpdates[mw.id] = mwNextState;
+    });
   });
   const runtimeUpdates = nodes.reduce<Record<string, WorkflowNodeRuntimeUpdate>>((acc, node) => {
     const payload: WorkflowNodeRuntimeUpdate = {};
@@ -638,14 +1051,38 @@ export const applyRunDefinitionSnapshot = (
     if (Object.keys(payload).length > 0) {
       acc[node.nodeId] = payload;
     }
+
+    // Middleware runtime updates nested in the node payload.
+    const middlewares = (node as { middlewares?: any[] }).middlewares;
+    middlewares?.forEach((mw) => {
+      const mwId = (mw as { id?: string }).id;
+      if (!mwId) {
+        return;
+      }
+      const mwPayload: WorkflowNodeRuntimeUpdate = {};
+      if ((mw as { result?: unknown }).result !== undefined) {
+        mwPayload.result = ((mw as { result?: unknown }).result as Record<string, unknown> | null) ?? null;
+      }
+      if ((mw as { artifacts?: unknown }).artifacts !== undefined) {
+        mwPayload.artifacts = (mw as { artifacts?: unknown }).artifacts ?? null;
+      }
+      const mwSummary = (mw as { metadata?: { summary?: string | null } }).metadata?.summary;
+      if (mwSummary !== undefined) {
+        mwPayload.summary = mwSummary ?? null;
+      }
+      if (Object.keys(mwPayload).length > 0) {
+        acc[mwId] = mwPayload;
+      }
+    });
+
     return acc;
   }, {});
 
   if (Object.keys(stateUpdates).length) {
-    updateWorkflowDefinitionNodeStates(queryClient, runId, stateUpdates);
+    updateWorkflowDefinitionNodeStates(queryClient, runId, stateUpdates, syncToStore);
   }
   if (Object.keys(runtimeUpdates).length) {
-    updateWorkflowDefinitionNodeRuntime(queryClient, runId, runtimeUpdates);
+    updateWorkflowDefinitionNodeRuntime(queryClient, runId, runtimeUpdates, syncToStore);
   }
 };
 

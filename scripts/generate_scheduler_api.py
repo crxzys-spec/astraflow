@@ -253,6 +253,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from scheduler_api.apis.auth_api import router as AuthApiRouter
 from scheduler_api.apis.events_api import router as EventsApiRouter
+from scheduler_api.apis.catalog_api import router as CatalogApiRouter
 from scheduler_api.apis.packages_api import router as PackagesApiRouter
 from scheduler_api.apis.runs_api import router as RunsApiRouter
 from scheduler_api.apis.workers_api import router as WorkersApiRouter
@@ -283,6 +284,7 @@ app.add_middleware(
 
 app.include_router(AuthApiRouter)
 app.include_router(EventsApiRouter)
+app.include_router(CatalogApiRouter)
 app.include_router(PackagesApiRouter)
 app.include_router(WorkflowPackagesApiRouter)
 app.include_router(RunsApiRouter)

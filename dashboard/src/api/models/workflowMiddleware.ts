@@ -4,13 +4,13 @@
  * Scheduler Public API (v1)
  * OpenAPI spec version: 1.3.0
  */
-import type { WorkflowNodeRole } from './workflowNodeRole';
+import type { WorkflowMiddlewareRole } from './workflowMiddlewareRole';
 import type { NodePackage } from './nodePackage';
-import type { WorkflowNodeStatus } from './workflowNodeStatus';
-import type { WorkflowNodeParameters } from './workflowNodeParameters';
-import type { WorkflowNodeResults } from './workflowNodeResults';
+import type { WorkflowMiddlewareStatus } from './workflowMiddlewareStatus';
+import type { WorkflowMiddlewareParameters } from './workflowMiddlewareParameters';
+import type { WorkflowMiddlewareResults } from './workflowMiddlewareResults';
 import type { WorkflowNodeState } from './workflowNodeState';
-import type { WorkflowNodeSchema } from './workflowNodeSchema';
+import type { WorkflowMiddlewareSchema } from './workflowMiddlewareSchema';
 import type { NodeUI } from './nodeUI';
 
 export interface WorkflowMiddleware {
@@ -19,10 +19,10 @@ export interface WorkflowMiddleware {
   /** e.g. "middleware.loop" */
   type: string;
   /** Execution role of the middleware (always middleware). */
-  role?: WorkflowNodeRole;
+  role?: WorkflowMiddlewareRole;
   package: NodePackage;
   /** Middleware lifecycle state. */
-  status: WorkflowNodeStatus;
+  status: WorkflowMiddlewareStatus;
   /** Group/category shown in the builder palette. */
   category: string;
   label: string;
@@ -31,13 +31,12 @@ export interface WorkflowMiddleware {
   /** Keywords for search/filter. */
   tags?: string[];
   /** Default parameter payload seeded from the manifest schema. */
-  parameters?: WorkflowNodeParameters;
+  parameters?: WorkflowMiddlewareParameters;
   /** Default results payload seeded from the manifest schema. */
-  results?: WorkflowNodeResults;
+  results?: WorkflowMiddlewareResults;
   /** Platform-managed execution hints surfaced in the builder (optional). */
   state?: WorkflowNodeState;
   /** JSON Schemas for parameters/results. */
-  schema?: WorkflowNodeSchema;
+  schema?: WorkflowMiddlewareSchema;
   ui?: NodeUI;
 }
-

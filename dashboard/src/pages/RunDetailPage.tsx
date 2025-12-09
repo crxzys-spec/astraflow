@@ -7,6 +7,7 @@ import type { RunStatusEvent } from "../api/models/runStatusEvent";
 import type { RunSnapshotEvent } from "../api/models/runSnapshotEvent";
 import type { NodeStateEvent } from "../api/models/nodeStateEvent";
 import type { NodeResultSnapshotEvent } from "../api/models/nodeResultSnapshotEvent";
+import type { NodeResultDeltaEvent } from "../api/models/nodeResultDeltaEvent";
 import type { NodeErrorEvent } from "../api/models/nodeErrorEvent";
 import type { RunNodeStatus } from "../api/models/runNodeStatus";
 import type { RunNodeStatusMetadata } from "../api/models/runNodeStatusMetadata";
@@ -17,8 +18,10 @@ import {
   applyRunDefinitionSnapshot,
   replaceRunSnapshot,
   updateRunCaches,
+  applyNodeResultDelta,
   updateRunDefinitionNodeState,
   updateRunNode,
+  updateRunNodeResultDelta,
 } from "../lib/sseCache";
 import StatusBadge from "../components/StatusBadge";
 import { buildMiddlewareTraces } from "../lib/middlewareTrace";
@@ -259,9 +262,11 @@ const [showMiddlewareOnly, setShowMiddlewareOnly] = useState(false);
     },
   });
 
-  const workflowDefinition = definitionQuery.data?.data;
+  // `useGetRunDefinition` returns the definition directly; older Axios-wrapped shapes may carry it under `.data`.
+  const workflowDefinition = (definitionQuery.data as any)?.data ?? definitionQuery.data;
   const workflowLink = workflowDefinition?.id;
-  const runData = runQuery.data?.data;
+  // Likewise, `useGetRun` returns the Run payload; tolerate an extra `.data` wrapper.
+  const runData = runQuery.data;
   const queryClient = useQueryClient();
   const middlewareRelations = useMemo<MiddlewareRelations>(() => {
     const roleByNode: Record<string, string | undefined> = {};
@@ -429,7 +434,7 @@ const [showMiddlewareOnly, setShowMiddlewareOnly] = useState(false);
       ) {
         const snapshot = event.data as RunSnapshotEvent;
         replaceRunSnapshot(queryClient, runId, snapshot.run, snapshot.nodes ?? null);
-        applyRunDefinitionSnapshot(queryClient, runId, snapshot.nodes ?? null);
+        applyRunDefinitionSnapshot(queryClient, runId, snapshot.nodes ?? null, event.occurredAt, false);
       } else if (event.type === UiEventType.nodestate && event.data?.kind === "node.state") {
         const payload = event.data as NodeStateEvent;
         updateRunNode(queryClient, runId, payload.nodeId, (node) => {
@@ -468,7 +473,24 @@ const [showMiddlewareOnly, setShowMiddlewareOnly] = useState(false);
           }
           return next;
         });
-        updateRunDefinitionNodeState(queryClient, runId, payload.nodeId, payload.state ?? undefined);
+        updateRunDefinitionNodeState(
+          queryClient,
+          runId,
+          payload.nodeId,
+          payload.state ?? undefined,
+          event.occurredAt,
+          false
+        );
+      } else if (
+        event.type === UiEventType.noderesultdelta &&
+        event.data?.kind === "node.result.delta"
+      ) {
+        const payload = event.data as NodeResultDeltaEvent;
+        if (payload.runId !== runId) {
+          return;
+        }
+        updateRunNodeResultDelta(queryClient, runId, payload.nodeId, payload);
+        applyNodeResultDelta(queryClient, runId, payload.nodeId, payload, false);
       } else if (
         event.type === UiEventType.noderesultsnapshot &&
         event.data?.kind === "node.result.snapshot"

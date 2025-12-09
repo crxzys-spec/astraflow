@@ -13,7 +13,7 @@ Configuration sources are merged in the following priority order:
 4. values declared in a `.env` file located in the current working directory;
 5. internal defaults defined in `WorkerSettings`.
 
-Paths such as `packages_dir` and `data_dir` are expanded to absolute locations during bootstrap.
+Paths such as `packages_dir` and `data_dir` are expanded to absolute locations during bootstrap; by default `packages_dir` points at `node-packages` (override via `ASTRA_PACKAGES_ROOT` or `ASTRA_WORKER_PACKAGES_DIR`).
 
 Key configuration fields include:
 
@@ -40,8 +40,8 @@ Key configuration fields include:
 - `AdapterRegistry` keeps `(package, version, handler)` mappings and dynamically imports
   handler entrypoints defined in `manifest.json`.
 - `PackageManager` installs archives (download, extract, validate manifest, register handlers)
-  into a package-specific directory inside `packages_dir`, keeping the manifest and adapters
-  colocated for runtime discovery.
+  into a package-specific directory inside `packages_dir` (e.g. `node-packages/<name>/<version>`),
+  keeping the manifest and adapters colocated for runtime discovery.
 - Default package command handler is wired automatically: `package.install` triggers install
   and emits `pkg.event` with status `installed`; failures emit `status=failed` and include details.
   `package.uninstall` removes the specific version and reports completion.

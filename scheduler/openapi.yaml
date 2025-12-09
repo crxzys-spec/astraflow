@@ -16,6 +16,7 @@ tags:
 - name: Events
 - name: Audit
 - name: Users
+- name: Catalog
 paths:
   /api/v1/auth/login:
     post:
@@ -448,6 +449,34 @@ paths:
                 $ref: '#/components/schemas/PackageDetail'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/catalog/nodes/search:
+    get:
+      tags:
+      - Catalog
+      summary: Search catalog nodes (system + worker capabilities)
+      operationId: searchCatalogNodes
+      parameters:
+      - name: q
+        in: query
+        required: true
+        description: Search text applied to node name, type, description, and tags.
+        schema:
+          type: string
+      - name: package
+        in: query
+        required: false
+        description: Optional package filter derived from search results.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogNodeSearchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
   /api/v1/workers:
     get:
       tags:
@@ -868,7 +897,6 @@ components:
       - succeeded
       - failed
       - cancelled
-      - skipped
     RunList:
       type: object
       required:
@@ -2805,3 +2833,60 @@ components:
           type: string
           description: Base64-encoded preview of the workflow canvas.
           nullable: true
+    CatalogNodeVersion:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      properties:
+        version:
+          type: string
+        status:
+          type: string
+          description: Optional status reported by the worker for this version.
+        template:
+          $ref: '#/components/schemas/ManifestNode'
+    CatalogNode:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - label
+      - packageName
+      - versions
+      properties:
+        type:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        role:
+          type: string
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        packageName:
+          type: string
+        defaultVersion:
+          type: string
+        latestVersion:
+          type: string
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogNodeVersion'
+    CatalogNodeSearchResponse:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogNode'

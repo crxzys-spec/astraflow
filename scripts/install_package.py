@@ -1,18 +1,19 @@
 #!/usr/bin/env python
-"""Synchronise packages from node-packages into worker/packages.
+"""Synchronise packages into the shared node-packages repository.
 
 Usage:
     python scripts/install_package.py node-packages/example_pkg/1.0.0 [...]
 
 By default the script assumes it is executed from the repository root and that
 source packages live under ``node-packages`` while installed packages should be
-placed under ``worker/packages``. You can override those roots with the optional
+placed under ``node-packages``. You can override those roots with the optional
 flags if needed.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -32,8 +33,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--dest-root",
-        default="worker/packages",
-        help="Root directory where worker packages live (default: worker/packages).",
+        default=os.getenv("ASTRA_PACKAGES_ROOT", "node-packages"),
+        help="Root directory where node packages live (default: node-packages or ASTRA_PACKAGES_ROOT).",
     )
     parser.add_argument(
         "--dry-run",

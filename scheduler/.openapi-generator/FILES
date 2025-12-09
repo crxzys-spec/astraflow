@@ -12,6 +12,8 @@ src/scheduler_api/apis/audit_api.py
 src/scheduler_api/apis/audit_api_base.py
 src/scheduler_api/apis/auth_api.py
 src/scheduler_api/apis/auth_api_base.py
+src/scheduler_api/apis/catalog_api.py
+src/scheduler_api/apis/catalog_api_base.py
 src/scheduler_api/apis/events_api.py
 src/scheduler_api/apis/events_api_base.py
 src/scheduler_api/apis/packages_api.py
@@ -34,6 +36,9 @@ src/scheduler_api/models/audit_event_list.py
 src/scheduler_api/models/auth_login_request.py
 src/scheduler_api/models/auth_login_response.py
 src/scheduler_api/models/binding_scope.py
+src/scheduler_api/models/catalog_node.py
+src/scheduler_api/models/catalog_node_search_response.py
+src/scheduler_api/models/catalog_node_version.py
 src/scheduler_api/models/cmd_dispatch.py
 src/scheduler_api/models/command_ack.py
 src/scheduler_api/models/command_ack_event.py

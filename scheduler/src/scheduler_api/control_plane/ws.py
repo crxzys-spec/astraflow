@@ -186,6 +186,7 @@ async def worker_control_endpoint(websocket: WebSocket) -> None:
                     session.worker_id,
                     capabilities=register.capabilities,
                     packages=register.packages,
+                    manifests=getattr(register, "manifests", None),
                 )
                 logger.info("Worker %s registered %d packages", session.worker_id, len(register.packages))
                 await _maybe_ack(envelope, websocket, force=True)
@@ -301,17 +302,42 @@ async def worker_control_endpoint(websocket: WebSocket) -> None:
                 run_id = None
                 if details:
                     run_id = details.get("run_id") or details.get("runId") or details.get("run")
-                record, _ = await run_registry.record_command_error(
-                    payload=error_payload,
-                    run_id=run_id,
-                    task_id=envelope.corr,
-                )
-                logger.warning(
-                    "Worker command error corr=%s code=%s message=%s",
-                    envelope.corr,
-                    error_payload.code,
-                    error_payload.message,
-                )
+                if error_payload.code == "E.CMD.CONCURRENCY_VIOLATION":
+                    logger.info(
+                        "Worker reported concurrency violation corr=%s run=%s node=%s; keeping existing task in-flight",
+                        envelope.corr,
+                        run_id,
+                        details.get("node_id") if isinstance(details, dict) else None,
+                    )
+                elif error_payload.code == "E.RUNNER.CANCELLED":
+                    node_id = details.get("node_id") if isinstance(details, dict) else None
+                    record = await run_registry.reset_after_worker_cancel(
+                        run_id,
+                        node_id=node_id,
+                        task_id=envelope.corr,
+                    )
+                    if record:
+                        ready = await run_registry.collect_ready_nodes(record.run_id)
+                        if ready:
+                            await run_orchestrator.enqueue(ready)
+                    logger.info(
+                        "Worker reported cancellation corr=%s run=%s node=%s; node reset for retry",
+                        envelope.corr,
+                        run_id,
+                        node_id,
+                    )
+                else:
+                    record, _ = await run_registry.record_command_error(
+                        payload=error_payload,
+                        run_id=run_id,
+                        task_id=envelope.corr,
+                    )
+                    logger.warning(
+                        "Worker command error corr=%s code=%s message=%s",
+                        envelope.corr,
+                        error_payload.code,
+                        error_payload.message,
+                    )
                 await _maybe_ack(envelope, websocket)
 
             elif message_type == "pkg.event":

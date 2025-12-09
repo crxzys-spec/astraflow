@@ -13,7 +13,6 @@ import uvicorn
 import socket
 import logging
 
-
 DEFAULT_HOST: Final[str] = "127.0.0.1"
 DEFAULT_PORT: Final[int] = 8080
 PORT_IN_USE_MESSAGE: Final[str] = (

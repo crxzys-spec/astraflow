@@ -37,7 +37,6 @@ def _as_float(value: Any, default: float) -> float:
 
 async def loop_middleware(context: ExecutionContext) -> Dict[str, Any]:
     """Middleware that invokes the next handler multiple times."""
-
     params = context.params or {}
     times = max(1, _as_int(params.get("times", 1), 1))
     delay_ms = max(0.0, _as_float(params.get("delayMs", 0), 0.0))
@@ -48,6 +47,7 @@ async def loop_middleware(context: ExecutionContext) -> Dict[str, Any]:
     iterations = 0
 
     for idx in range(times):
+        
         iterations += 1
         iteration_ctx = {"iteration": iterations}
         try:
@@ -67,6 +67,16 @@ async def loop_middleware(context: ExecutionContext) -> Dict[str, Any]:
             failures.append({"iteration": iterations, "error": str(exc)})
             if stop_on_error:
                 break
+        # Emit lightweight feedback so UI can display current iteration
+        try:
+            if context.feedback:
+                progress = iterations / times if times > 0 else None
+                await context.feedback.send(
+                    progress=progress,
+                    metadata={"results": {"iterations": iterations}},
+                )
+        except Exception:  # noqa: BLE001
+            LOGGER.debug("loop middleware feedback send failed run=%s node=%s", context.run_id, context.node_id)
         if delay_ms > 0 and idx < times - 1:
             await asyncio.sleep(delay_ms / 1000.0)
 
@@ -99,6 +109,11 @@ async def input_generator(context: ExecutionContext) -> Dict[str, Any]:
             parsed = float(raw_value)
         except Exception:
             parsed = None
+    elif kind == "boolean":
+        if isinstance(raw_value, bool):
+            parsed = raw_value
+        else:
+            parsed = str(raw_value).strip().lower() in {"true", "1", "yes", "on"}
     elif kind in {"string", "text", "textarea"}:
         parsed = "" if raw_value is None else str(raw_value)
 
@@ -108,3 +123,20 @@ async def input_generator(context: ExecutionContext) -> Dict[str, Any]:
         "raw": raw_value,
         "value": parsed,
     }
+
+
+async def case_middleware(context: ExecutionContext) -> Dict[str, Any]:
+    """Short-circuit middleware chain when disabled."""
+
+    params = context.params or {}
+    enabled = bool(params.get("enabled", True))
+    if not enabled:
+        return {"status": "skipped", "enabled": False, "skipped": True, "metadata": {"stage": "skipped"}}
+
+    next_result = await context.next()
+    payload: Dict[str, Any] = {"status": "succeeded", "enabled": True, "skipped": False}
+    if isinstance(next_result, dict):
+        payload.update(next_result)
+    else:
+        payload["result"] = next_result
+    return payload

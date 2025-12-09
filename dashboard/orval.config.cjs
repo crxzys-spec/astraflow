@@ -5,13 +5,12 @@
       target: 'src/api/endpoints.ts',
       schemas: 'src/api/models',
       client: 'react-query',
-      httpClient: 'axios',
-      clean: true
-    },
-    override: {
-      mutator: {
-        path: 'src/lib/httpClient.ts',
-        name: 'client'
+      clean: false,
+      override: {
+        mutator: {
+          path: './src/lib/httpClient.ts',
+          name: 'client'
+        }
       }
     },
     hooks: {

@@ -211,6 +211,42 @@ def _build_container_with_middleware_workflow() -> StartRunRequestWorkflow:
     )
 
 
+def _build_single_middleware_workflow() -> StartRunRequestWorkflow:
+    return StartRunRequestWorkflow.from_dict(
+        {
+            "id": "wf-rollup",
+            "schemaVersion": "2025-10",
+            "metadata": {
+                "name": "middleware-rollup",
+                "namespace": "default",
+                "originId": "wf-rollup",
+            },
+            "nodes": [
+                {
+                    "id": "host-single",
+                    "type": "example.pkg.host",
+                    "package": {"name": "example.pkg", "version": "1.0.0"},
+                    "status": "published",
+                    "category": "test",
+                    "label": "Host",
+                    "position": {"x": 0, "y": 0},
+                    "middlewares": [
+                        {
+                            "id": "mw-single",
+                            "type": "system.loop_middleware",
+                            "package": {"name": "system", "version": "1.0.0"},
+                            "status": "published",
+                            "category": "system",
+                            "label": "Loop",
+                        }
+                    ],
+                }
+            ],
+            "edges": [],
+        }
+    )
+
+
 @pytest.mark.asyncio
 async def test_middleware_chain_requires_next_to_progress():
     workflow = _build_two_middleware_workflow()
@@ -300,3 +336,196 @@ async def test_container_next_response_emitted_on_frame_completion():
     assert worker_id == "worker-1"
     assert response.request_id == "req-container"
     assert response.middleware_id == "mw-c"
+
+
+@pytest.mark.asyncio
+async def test_middleware_completion_finalises_rollup():
+    workflow = _build_single_middleware_workflow()
+    registry = RunRegistry()
+    request = StartRunRequest(workflow=workflow, client_id="client")
+    await registry.create_run(run_id="run-finish", request=request, tenant="t")
+
+    ready = await registry.collect_ready_nodes("run-finish")
+    assert [req.node_id for req in ready] == ["mw-single"]
+
+    next_req = NextRequestPayload(
+        requestId="req-finish",
+        runId="run-finish",
+        nodeId="host-single",
+        middlewareId="mw-single",
+        chainIndex=0,
+    )
+    host_ready, error = await registry.handle_next_request(next_req, worker_id="worker-1")
+    assert error is None
+    assert [req.node_id for req in host_ready] == ["host-single"]
+    host_dispatch = host_ready[0]
+
+    host_payload = ws_result.ResultPayload(
+        run_id="run-finish",
+        task_id=host_dispatch.task_id,
+        status=ws_result.Status.SUCCEEDED,
+        result={"ok": True},
+        metadata=None,
+        artifacts=None,
+        duration_ms=None,
+        error=None,
+    )
+    await registry.record_result("run-finish", host_payload)
+
+    mw_payload = ws_result.ResultPayload(
+        run_id="run-finish",
+        task_id="mw-single",
+        status=ws_result.Status.SUCCEEDED,
+        result={"done": True},
+        metadata=None,
+        artifacts=None,
+        duration_ms=None,
+        error=None,
+    )
+    await registry.record_result("run-finish", mw_payload)
+
+    snapshot = await registry.get("run-finish")
+    assert snapshot is not None
+    assert snapshot.status == "succeeded"
+    assert snapshot.nodes["mw-single"].status == "succeeded"
+    assert snapshot.nodes["host-single"].status == "succeeded"
+
+
+@pytest.mark.asyncio
+async def test_next_rejected_while_container_frame_active():
+    workflow = _build_container_with_middleware_workflow()
+    registry = RunRegistry()
+    request = StartRunRequest(workflow=workflow, client_id="client")
+    await registry.create_run(run_id="run-busy", request=request, tenant="t")
+
+    ready = await registry.collect_ready_nodes("run-busy")
+    mw_dispatch = ready[0]
+    await registry.mark_dispatched(
+        "run-busy",
+        worker_id="worker-1",
+        task_id=mw_dispatch.task_id,
+        node_id=mw_dispatch.node_id,
+        node_type=mw_dispatch.node_type,
+        package_name=mw_dispatch.package_name,
+        package_version=mw_dispatch.package_version,
+        seq_used=mw_dispatch.seq,
+    )
+
+    next_req = NextRequestPayload(
+        requestId="req-start",
+        runId="run-busy",
+        nodeId="container",
+        middlewareId="mw-c",
+        chainIndex=0,
+    )
+    frame_ready, error = await registry.handle_next_request(next_req, worker_id="worker-1")
+    assert error is None
+    assert frame_ready
+    inner_dispatch = frame_ready[0]
+    await registry.mark_dispatched(
+        inner_dispatch.run_id,
+        worker_id="worker-1",
+        task_id=inner_dispatch.task_id,
+        node_id=inner_dispatch.node_id,
+        node_type=inner_dispatch.node_type,
+        package_name=inner_dispatch.package_name,
+        package_version=inner_dispatch.package_version,
+        seq_used=inner_dispatch.seq,
+    )
+
+    next_req_again = NextRequestPayload(
+        requestId="req-again",
+        runId="run-busy",
+        nodeId="container",
+        middlewareId="mw-c",
+        chainIndex=0,
+    )
+    frame_ready_again, error_again = await registry.handle_next_request(next_req_again, worker_id="worker-1")
+    assert error_again == "next_target_not_ready"
+    assert frame_ready_again == []
+
+
+@pytest.mark.asyncio
+async def test_next_request_recovers_stale_running_target():
+    workflow = _build_single_middleware_workflow()
+    registry = RunRegistry()
+    request = StartRunRequest(workflow=workflow, client_id="client")
+    await registry.create_run(run_id="run-stale", request=request, tenant="t")
+
+    ready = await registry.collect_ready_nodes("run-stale")
+    mw_dispatch = ready[0]
+    await registry.mark_dispatched(
+        "run-stale",
+        worker_id="worker-1",
+        task_id=mw_dispatch.task_id,
+        node_id=mw_dispatch.node_id,
+        node_type=mw_dispatch.node_type,
+        package_name=mw_dispatch.package_name,
+        package_version=mw_dispatch.package_version,
+        seq_used=mw_dispatch.seq,
+    )
+
+    # Simulate a stale host state where it is marked running without an active worker.
+    async with registry._lock:  # noqa: SLF001
+        host_state = registry._runs["run-stale"].nodes["host-single"]  # noqa: SLF001
+        host_state.status = "running"
+        host_state.worker_id = None
+        host_state.pending_ack = False
+        host_state.enqueued = False
+        host_state.pending_dependencies = 0
+
+    next_req = NextRequestPayload(
+        requestId="req-stale",
+        runId="run-stale",
+        nodeId="host-single",
+        middlewareId="mw-single",
+        chainIndex=0,
+    )
+    host_ready, error = await registry.handle_next_request(next_req, worker_id="worker-1")
+    assert error is None
+    assert [req.node_id for req in host_ready] == ["host-single"]
+
+
+@pytest.mark.asyncio
+async def test_next_request_fails_when_target_not_ready():
+    workflow = _build_single_middleware_workflow()
+    registry = RunRegistry()
+    request = StartRunRequest(workflow=workflow, client_id="client")
+    await registry.create_run(run_id="run-fail", request=request, tenant="t")
+
+    ready = await registry.collect_ready_nodes("run-fail")
+    mw_dispatch = ready[0]
+    await registry.mark_dispatched(
+        "run-fail",
+        worker_id="worker-1",
+        task_id=mw_dispatch.task_id,
+        node_id=mw_dispatch.node_id,
+        node_type=mw_dispatch.node_type,
+        package_name=mw_dispatch.package_name,
+        package_version=mw_dispatch.package_version,
+        seq_used=mw_dispatch.seq,
+    )
+
+    # Simulate target host still marked running and enqueued so it is not ready.
+    async with registry._lock:  # noqa: SLF001
+        host_state = registry._runs["run-fail"].nodes["host-single"]  # noqa: SLF001
+        host_state.status = "running"
+        host_state.enqueued = True
+        host_state.pending_dependencies = 1
+        host_state.chain_blocked = True
+
+    next_req = NextRequestPayload(
+        requestId="req-fail",
+        runId="run-fail",
+        nodeId="host-single",
+        middlewareId="mw-single",
+        chainIndex=0,
+    )
+    host_ready, error = await registry.handle_next_request(next_req, worker_id="worker-1")
+    assert host_ready == []
+    assert error == "next_target_not_ready"
+
+    snapshot = await registry.get("run-fail")
+    assert snapshot is not None
+    assert snapshot.status == "failed"
+    assert snapshot.nodes["host-single"].status == "failed"

@@ -1,24 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { nanoid } from "nanoid";
 import { toPng } from "html-to-image";
-import type { FormEvent } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ReactFlowProvider } from "reactflow";
 import {
-  getGetPackageQueryOptions,
-  useGetPackage,
   useGetWorkflow,
-  useListPackages,
   useListRuns,
   useListWorkflowPackages,
   usePersistWorkflow,
   usePublishWorkflow,
   useStartRun,
-  useCancelRun
+  useCancelRun,
+  useSetWorkflowPreview
 } from "../api/endpoints";
 import type { StartRunMutationError } from "../api/endpoints";
 import type { AxiosError } from "axios";
+import { useSearchCatalogNodes } from "../api/endpoints";
+import type { CatalogNode } from "../api/models/catalogNode";
 import { WidgetRegistryProvider, useWorkflowStore } from "../features/workflow";
 import type { WorkflowNodeStateUpdateMap } from "../features/workflow";
 import { workflowDraftToDefinition } from "../features/workflow/utils/converters";
@@ -28,6 +27,7 @@ import type {
   WorkflowGraphScope,
   WorkflowPaletteNode,
   WorkflowSubgraphDraftEntry,
+  WorkflowMetadata,
   XYPosition
 } from "../features/workflow";
 import WorkflowCanvas from "../features/workflow/components/WorkflowCanvas";
@@ -36,13 +36,13 @@ import NodeInspector from "../features/workflow/components/NodeInspector";
 import RunDetailPage from "./RunDetailPage";
 import StatusBadge from "../components/StatusBadge";
 import { getClientSessionId } from "../lib/clientSession";
-import { client } from "../lib/httpClient";
 import { UiEventType } from "../api/models/uiEventType";
 import type { UiEventEnvelope } from "../api/models/uiEventEnvelope";
 import type { RunStatusEvent } from "../api/models/runStatusEvent";
 import type { RunSnapshotEvent } from "../api/models/runSnapshotEvent";
 import type { NodeStateEvent } from "../api/models/nodeStateEvent";
 import type { NodeResultSnapshotEvent } from "../api/models/nodeResultSnapshotEvent";
+import type { NodeResultDeltaEvent } from "../api/models/nodeResultDeltaEvent";
 import type { RunStatus } from "../api/models/runStatus";
 import { sseClient } from "../lib/sseClient";
 import {
@@ -50,11 +50,14 @@ import {
   applyRunDefinitionSnapshot,
   replaceRunSnapshot,
   updateRunCaches,
+  applyNodeResultDelta,
   updateRunDefinitionNodeRuntime,
   updateRunDefinitionNodeState,
+  updateRunNodeResultDelta,
 } from "../lib/sseCache";
 import { useAuthStore } from "../features/auth/store";
 import { useToolbarStore } from "../features/workflow/hooks/useToolbar";
+import { generateId, isValidUuid } from "../features/workflow/utils/id";
 
 const isEditableTarget = (target: EventTarget | null): boolean => {
   const element = target as HTMLElement | null;
@@ -139,9 +142,13 @@ interface GraphSwitcherProps {
   subgraphs: WorkflowSubgraphDraftEntry[];
   workflowName?: string;
   workflowId?: string;
+  canEdit?: boolean;
   onSelect: (scope: WorkflowGraphScope) => void;
   onInline?: (subgraphId: string) => void;
   inlineMessage?: { subgraphId: string; type: "success" | "error"; text: string } | null;
+  workflowMetadata?: WorkflowMetadata;
+  onUpdateMetadata?: (changes: Partial<WorkflowMetadata>) => void;
+  onEditMetadata?: () => void;
 }
 
 const GraphSwitcher = ({
@@ -149,11 +156,22 @@ const GraphSwitcher = ({
   subgraphs,
   workflowName,
   workflowId,
+  canEdit,
   onSelect,
   onInline,
   inlineMessage,
+  workflowMetadata,
+  onUpdateMetadata,
+  onEditMetadata,
 }: GraphSwitcherProps) => {
   const mainActive = activeGraph.type === "root";
+  const metadata = workflowMetadata ?? {};
+  const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
+    onUpdateMetadata?.({ name: event.target.value });
+  };
+  const handleDescriptionChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+    onUpdateMetadata?.({ description: event.target.value });
+  };
   return (
     <div className="graph-switcher">
       <div className="graph-switcher__section">
@@ -171,8 +189,33 @@ const GraphSwitcher = ({
           }}
         >
           <div className="graph-switcher__option-primary">
-            <span className="graph-switcher__eyebrow">Primary workflow</span>
-            <strong>{workflowName ?? "Untitled workflow"}</strong>
+            <div className="graph-switcher__option-head">
+              <div>
+                <span className="graph-switcher__eyebrow">PRIMARY WORKFLOW</span>
+                <strong>{workflowName ?? "Untitled workflow"}</strong>
+              </div>
+              {canEdit && (
+                <button
+                  type="button"
+                  className="icon-button icon-button--tip"
+                  title="Edit workflow info"
+                  aria-label="Edit workflow info"
+                  data-label="Edit info"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onEditMetadata?.();
+                  }}
+                >
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 13.5v2.5h2.5L15 7.5 12.5 5z" />
+                    <path d="m11 6.5 2.5 2.5" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            <p className="graph-switcher__helper">
+              {metadata.description || "Add a short summary to describe this workflow."}
+            </p>
             <p className="graph-switcher__helper">Drag nodes from the catalog to build the main flow.</p>
           </div>
           <div className="graph-switcher__meta">
@@ -208,37 +251,53 @@ const GraphSwitcher = ({
                   }}
                 >
                   <div className="graph-switcher__option-primary">
-                    <span className="graph-switcher__eyebrow">Container target</span>
-                    <strong>{label}</strong>
-                    {description && <p>{description}</p>}
-                    {typeof onInline === "function" && (
-                      <div className="graph-switcher__actions">
+                    <div className="graph-switcher__option-head">
+                      <div>
+                        <span className="graph-switcher__eyebrow">CONTAINER TARGET</span>
+                        <strong>{label}</strong>
+                      </div>
+                      {typeof onInline === "function" && (
                         <button
                           type="button"
-                          className="btn btn--ghost"
+                          className="icon-button icon-button--tip"
                           onClick={(event) => {
                             event.stopPropagation();
                             onInline(entry.id);
                           }}
-                          title="Inline this subgraph into the current graph."
+                          title="Dissolve this subgraph"
+                          aria-label="Dissolve subgraph"
+                          data-label="Dissolve"
                         >
-                          Dissolve subgraph
+                          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m6 6 8 8" />
+                            <path d="m14 6-8 8" />
+                          </svg>
                         </button>
-                        {inlineMessage && inlineMessage.subgraphId === entry.id && (
-                          <small
-                            className={
-                              inlineMessage.type === "error" ? "error" : "text-subtle"
-                            }
-                          >
-                            {inlineMessage.text}
-                          </small>
-                        )}
-                      </div>
+                      )}
+                    </div>
+                    {description && <p className="graph-switcher__helper">{description}</p>}
+                    {inlineMessage && inlineMessage.subgraphId === entry.id && (
+                      <small
+                        className={
+                          inlineMessage.type === "error" ? "error" : "text-subtle"
+                        }
+                      >
+                        {inlineMessage.text}
+                      </small>
                     )}
                   </div>
-                  <div className="graph-switcher__meta">
-                    <code>{entry.id}</code>
-                    <span>{nodeCount} nodes</span>
+                  <div className="graph-switcher__meta graph-switcher__meta--subgraph">
+                    <div className="graph-switcher__meta-id">
+                      <code>{entry.id}</code>
+                    </div>
+                  </div>
+                  <div className="graph-switcher__meta graph-switcher__meta--subgraph">
+                    <div className="graph-switcher__meta-stack">
+                      <span className="graph-switcher__pill graph-switcher__pill--nodes">
+                        <span className="graph-switcher__pill-dot" aria-hidden="true"></span>
+                        {nodeCount} nodes
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
@@ -279,9 +338,13 @@ const RunsInspectorPanel = ({ onSelectRun }: RunsInspectorPanelProps) => {
     queryClient
   );
   const { data, isLoading, isError, error, refetch } = useListRuns(undefined, {
-    query: { enabled: canViewRuns }
+    query: {
+      enabled: canViewRuns,
+      refetchInterval: false,
+    }
   });
-  const runs = data?.data.items ?? [];
+  // `useListRuns` returns a RunList payload, but some builds may still wrap it in AxiosResponse; support both.
+  const runs = (data as any)?.items ?? (data as any)?.data?.items ?? [];
 
   useEffect(() => {
     if (!canViewRuns) {
@@ -476,6 +539,21 @@ const createEmptyWorkflow = (id: string, name: string): WorkflowDefinition => ({
   edges: [],
 });
 
+const ensurePersistableIds = (draft: WorkflowDraft, workflowKey?: string): WorkflowDraft => {
+  const needsNewId = !workflowKey || workflowKey === "new" || !isValidUuid(draft.id);
+  const id = needsNewId ? generateId() : draft.id;
+  const originId = isValidUuid(draft.metadata?.originId) ? draft.metadata?.originId : id;
+
+  return {
+    ...draft,
+    id,
+    metadata: {
+      ...(draft.metadata ?? {}),
+      originId,
+    },
+  };
+};
+
 const extractRunId = (event: UiEventEnvelope): string | undefined => {
   const scopeRunId = event.scope?.runId;
   const data = event.data as Record<string, unknown> | undefined;
@@ -519,6 +597,7 @@ const WorkflowBuilderPage = () => {
   const loadWorkflow = useWorkflowStore((state) => state.loadWorkflow);
   const resetWorkflow = useWorkflowStore((state) => state.resetWorkflow);
   const setPreviewImage = useWorkflowStore((state) => state.setPreviewImage);
+  const updateWorkflowMetadata = useWorkflowStore((state) => state.updateWorkflowMetadata);
   const workflow = useWorkflowStore((state) => state.workflow);
   const subgraphDrafts = useWorkflowStore((state) => state.subgraphDrafts);
   const activeGraph = useWorkflowStore((state) => state.activeGraph);
@@ -540,11 +619,12 @@ const WorkflowBuilderPage = () => {
 
   const canEditWorkflow = useAuthStore((state) => state.hasRole(["admin", "workflow.editor"]));
 
+  const [catalogQuery, setCatalogQuery] = useState("");
   const [selectedPackageName, setSelectedPackageName] = useState<string>();
-  const [selectedVersion, setSelectedVersion] = useState<string>();
   const [runMessage, setRunMessage] = useState<RunMessage | null>(null);
   const [activeRunId, setActiveRunId] = useState<string | undefined>();
   const activeRunRef = useRef<string | undefined>();
+  const activeRunStatusRef = useRef<RunStatus | undefined>();
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [publishMessage, setPublishMessage] = useState<PublishMessage | null>(null);
   const [isPublishModalOpen, setPublishModalOpen] = useState(false);
@@ -568,6 +648,11 @@ const WorkflowBuilderPage = () => {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [activeRunStatus, setActiveRunStatus] = useState<RunStatus | undefined>();
   const [inlineMessage, setInlineMessage] = useState<{ subgraphId: string; type: "success" | "error"; text: string } | null>(null);
+  const [isMetadataModalOpen, setMetadataModalOpen] = useState(false);
+  const [metadataForm, setMetadataForm] = useState<{ name: string; description: string }>({
+    name: "",
+    description: ""
+  });
   const toolbarRef = useRef<React.ReactNode | null>(null);
 
   const handleInlineFromSwitcher = useCallback(
@@ -709,13 +794,40 @@ const WorkflowBuilderPage = () => {
   const isNewSession = !workflowId || workflowId === "new";
   const workflowKey = !isNewSession ? workflowId : undefined;
 
+  const openMetadataModal = () => {
+    if (!workflow) return;
+    setMetadataForm({
+      name: workflow.metadata?.name ?? "",
+      description: workflow.metadata?.description ?? "",
+    });
+    setMetadataModalOpen(true);
+  };
+
+  const closeMetadataModal = () => setMetadataModalOpen(false);
+
+  const handleMetadataSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!workflow) {
+      return;
+    }
+    updateWorkflowMetadata({
+      name: metadataForm.name.trim() || undefined,
+      description: metadataForm.description.trim() || undefined,
+    });
+    setMetadataModalOpen(false);
+  };
+
   const workflowQuery = useGetWorkflow(workflowKey ?? "", {
     query: { enabled: Boolean(workflowKey) }
   });
 
-  const packagesQuery = useListPackages({
-    query: { staleTime: STALE_TIME_MS }
-  });
+  const catalogSearchQuery = useSearchCatalogNodes(
+    {
+      q: catalogQuery.trim() || "*",
+      package: selectedPackageName || undefined
+    },
+    { query: { staleTime: STALE_TIME_MS } }
+  );
   const workflowPackagesQuery = useListWorkflowPackages(
     canEditWorkflow ? { owner: "me", limit: 200 } : undefined,
     {
@@ -728,6 +840,7 @@ const WorkflowBuilderPage = () => {
   const setToolbar = useToolbarStore((state) => state.setContent);
   const publishWorkflowMutation = usePublishWorkflow(undefined, queryClient);
   const persistWorkflowMutation = usePersistWorkflow(undefined, queryClient);
+  const setWorkflowPreviewMutation = useSetWorkflowPreview(undefined, queryClient);
 
   const captureCanvasPreview = useCallback(async () => {
     if (typeof window === "undefined") {
@@ -752,18 +865,26 @@ const WorkflowBuilderPage = () => {
   const sendWorkflowPreview = useCallback(async (workflowId: string, preview?: string | null) => {
     if (!preview) return;
     try {
-      await client({
-        method: "PUT",
-        url: `/api/v1/workflows/${workflowId}/preview`,
+      await setWorkflowPreviewMutation.mutateAsync({
+        workflowId,
         data: { previewImage: preview }
       });
     } catch (error) {
       console.warn("Failed to upload workflow preview", error);
     }
-  }, []);
+  }, [setWorkflowPreviewMutation]);
 
-  const packageSummaries = packagesQuery.data?.data?.items ?? [];
-  const ownedWorkflowPackages = workflowPackagesQuery.data?.data?.items ?? [];
+  const catalogNodes = catalogSearchQuery.data?.items ?? [];
+  const availableCatalogPackages = useMemo(
+    () => Array.from(new Set(catalogNodes.map((node) => node.packageName))).sort(),
+    [catalogNodes]
+  );
+  const catalogError = catalogSearchQuery.isError
+    ? (catalogSearchQuery.error as Error)
+    : undefined;
+  const catalogIsLoading =
+    catalogSearchQuery.isLoading || (catalogSearchQuery.isFetching && !catalogSearchQuery.data);
+  const ownedWorkflowPackages = workflowPackagesQuery.data?.items ?? [];
   const canTargetExistingPackage = ownedWorkflowPackages.length > 0;
   const workflowPackagesErrorMessage = workflowPackagesQuery.isError
     ? getErrorMessage(workflowPackagesQuery.error)
@@ -838,6 +959,7 @@ const WorkflowBuilderPage = () => {
       changelog?: string;
       packageId?: string;
       slug?: string;
+      previewImage?: string | null;
     };
     if (publishForm.mode === "existing") {
       payload.packageId = publishForm.packageId;
@@ -856,6 +978,7 @@ const WorkflowBuilderPage = () => {
     if (previewImage) {
       setPreviewImage(previewImage);
     }
+    payload.previewImage = previewImage ?? null;
 
     publishWorkflowMutation.mutate(
       {
@@ -978,19 +1101,7 @@ const WorkflowBuilderPage = () => {
       setSaveMessage({ type: "error", text: "Workflow is not loaded." });
       return;
     }
-    const shouldAssignId =
-      !workflowKey || workflowKey === "new" || workflow.id === "wf-local";
-    const nextId = shouldAssignId
-      ? (crypto.randomUUID ? crypto.randomUUID() : nanoid())
-      : workflow.id;
-    const workflowForPersist = {
-      ...workflow,
-      id: nextId,
-      metadata: {
-        ...(workflow.metadata ?? {}),
-        originId: workflow.metadata?.originId ?? nextId,
-      },
-    };
+    const workflowForPersist = ensurePersistableIds(workflow, workflowKey);
     const previewImage =
       (await captureCanvasPreview()) ?? workflow.previewImage ?? undefined;
     if (previewImage) {
@@ -1017,19 +1128,8 @@ const WorkflowBuilderPage = () => {
     );
   };
 
-  const handleSelectPackage = useCallback(
-    (packageName: string) => {
-      setSelectedPackageName(packageName);
-      const summary = packageSummaries.find((item) => item.name === packageName);
-      const preferredVersion =
-        summary?.defaultVersion ?? summary?.latestVersion ?? summary?.versions?.[0];
-      setSelectedVersion(preferredVersion);
-    },
-    [packageSummaries]
-  );
-
-  const handleSelectVersion = useCallback((version: string) => {
-    setSelectedVersion(version || undefined);
+  const handleSelectPackage = useCallback((packageName?: string) => {
+    setSelectedPackageName(packageName || undefined);
   }, []);
 
   useEffect(() => {
@@ -1053,7 +1153,7 @@ const WorkflowBuilderPage = () => {
   }, [isNewSession, workflow, workflowId, loadWorkflow]);
 
   useEffect(() => {
-    const definition = workflowQuery.data?.data;
+    const definition = workflowQuery.data;
     if (!definition) {
       return;
     }
@@ -1116,57 +1216,46 @@ const WorkflowBuilderPage = () => {
   }, [notFound, resetWorkflow]);
 
   useEffect(() => {
-    if (!packageSummaries.length) {
+    if (!availableCatalogPackages.length) {
+      if (selectedPackageName) {
+        setSelectedPackageName(undefined);
+      }
+      return;
+    }
+    if (selectedPackageName && !availableCatalogPackages.includes(selectedPackageName)) {
       setSelectedPackageName(undefined);
-      setSelectedVersion(undefined);
-      return;
     }
-    const currentSummary = selectedPackageName
-      ? packageSummaries.find((item) => item.name === selectedPackageName)
-      : undefined;
-    if (!currentSummary) {
-      const first = packageSummaries[0];
-      setSelectedPackageName(first.name);
-      const preferredVersion =
-        first.defaultVersion ?? first.latestVersion ?? first.versions?.[0];
-      setSelectedVersion(preferredVersion);
-      return;
-    }
-    if (!currentSummary.versions.includes(selectedVersion ?? "")) {
-      const preferredVersion =
-        currentSummary.defaultVersion ??
-        currentSummary.latestVersion ??
-        currentSummary.versions?.[0];
-      setSelectedVersion(preferredVersion);
-    }
-  }, [packageSummaries, selectedPackageName, selectedVersion]);
+  }, [availableCatalogPackages, selectedPackageName]);
 
-  const packageDetailQuery = useGetPackage(
-    selectedPackageName ?? "",
-    selectedPackageName
-      ? selectedVersion
-        ? { version: selectedVersion }
-        : undefined
-      : undefined,
-    {
-      query: { enabled: Boolean(selectedPackageName), staleTime: STALE_TIME_MS }
-    }
-  );
-
-  const manifestNodes = packageDetailQuery.data?.data?.manifest?.nodes ?? [];
+  const catalogNodeIndex = useMemo(() => {
+    const index = new Map<string, CatalogNode>();
+    catalogNodes.forEach((node) => {
+      index.set(`${node.packageName}::${node.type}`, node);
+    });
+    return index;
+  }, [catalogNodes]);
 
   const paletteItems = useMemo<PaletteNode[]>(
     () =>
-      manifestNodes.map((node) => ({
-        type: node.type ?? "",
-        label: node.label ?? node.type ?? "",
-        category: node.category ?? "uncategorised",
-        role: node.role,
-        description: node.description,
-        tags: node.tags,
-        status: node.status
-      })),
-    [manifestNodes]
+      catalogNodes
+        .filter((node) => !selectedPackageName || node.packageName === selectedPackageName)
+        .map((node) => ({
+          type: node.type ?? "",
+          label: node.label ?? node.type ?? "",
+          category: node.category ?? "uncategorised",
+          role: node.role,
+          description: node.description,
+          tags: node.tags,
+          status: node.status,
+          packageName: node.packageName ?? "",
+          defaultVersion: node.defaultVersion ?? node.latestVersion,
+          latestVersion: node.latestVersion,
+          versions: (node.versions ?? []).map((version) => ({
+            version: version.version,
+            status: version.status
+          }))
+        })),
+    [catalogNodes, selectedPackageName]
   );
 
   const handleNodeDrop = useCallback(
@@ -1175,36 +1264,41 @@ const WorkflowBuilderPage = () => {
       position: XYPosition
     ) => {
       try {
-        const packageName = payload.packageName ?? selectedPackageName;
+        const packageName = payload.packageName;
         if (!packageName) {
           throw new Error("Missing package selection for dropped node");
         }
-        const response = await queryClient.ensureQueryData(
-          getGetPackageQueryOptions(
-            packageName,
-            payload.packageVersion ? { version: payload.packageVersion } : undefined,
-            { query: { staleTime: STALE_TIME_MS } }
-          )
-        );
-        const definition = response?.data;
-        if (!definition?.manifest?.nodes?.length) {
-          throw new Error(`Package definition for "${packageName}" is missing nodes`);
+        const catalogNode = catalogNodeIndex.get(`${packageName}::${payload.type}`);
+        if (!catalogNode) {
+          throw new Error(`Catalog entry for "${payload.type}" is missing`);
         }
-        const template = definition.manifest.nodes.find((node) => node.type === payload.type);
-        if (!template) {
-          throw new Error(`Node definition for "${payload.type}" is missing`);
+        const preferredVersion =
+          payload.packageVersion ??
+          catalogNode.defaultVersion ??
+          catalogNode.latestVersion ??
+          catalogNode.versions?.[0]?.version;
+        if (!preferredVersion) {
+          throw new Error(`No version available for node "${payload.type}"`);
+        }
+        const versionMatch =
+          catalogNode.versions?.find((version) => version.version === preferredVersion) ??
+          catalogNode.versions?.[0];
+        if (!versionMatch?.template) {
+          throw new Error(
+            `Node template for "${payload.type}" (version ${preferredVersion}) is missing`
+          );
         }
         const paletteNode: WorkflowPaletteNode = {
-          template,
-          packageName: definition.name,
-          packageVersion: definition.version
+          template: versionMatch.template,
+          packageName: catalogNode.packageName,
+          packageVersion: versionMatch.version
         };
         addNodeFromTemplate(paletteNode, position);
       } catch (error) {
         console.error(`Failed to create node for type ${payload.type}`, error);
       }
     },
-    [addNodeFromTemplate, queryClient, selectedPackageName]
+    [addNodeFromTemplate, catalogNodeIndex]
   );
 
   const handleRunWorkflow = useCallback(() => {
@@ -1218,7 +1312,8 @@ const WorkflowBuilderPage = () => {
       });
       return;
     }
-    const definition = toWorkflowDefinition(workflow);
+    const workflowForRun = ensurePersistableIds(workflow, workflowKey);
+    const definition = toWorkflowDefinition(workflowForRun);
     setRunMessage(null);
 
     const clientSessionId = getClientSessionId();
@@ -1256,7 +1351,7 @@ const WorkflowBuilderPage = () => {
         },
       }
     );
-  }, [startRun, workflow, canEditWorkflow, toWorkflowDefinition]);
+  }, [canEditWorkflow, startRun, toWorkflowDefinition, workflow, workflowKey]);
 
   const handleCancelActiveRun = useCallback(() => {
     if (!activeRunId) {
@@ -1289,30 +1384,47 @@ const WorkflowBuilderPage = () => {
   }, [activeRunId]);
 
   useEffect(() => {
+    activeRunStatusRef.current = activeRunStatus;
+  }, [activeRunStatus]);
+
+  useEffect(() => {
     const unsubscribe = sseClient.subscribe((event) => {
       if (!event?.data || !event.type) {
         return;
       }
       let currentRunId = activeRunRef.current;
       const eventRunId = extractRunId(event);
-      if (!currentRunId) {
-        if (eventRunId && event.replayed !== true) {
-          activeRunRef.current = eventRunId;
-          currentRunId = eventRunId;
-          setActiveRunId(eventRunId);
-        } else {
-          return;
-        }
-      }
-      if (eventRunId && eventRunId !== currentRunId) {
-        return;
-      }
-      if (event.scope?.runId && event.scope.runId !== currentRunId) {
-        return;
-      }
+
       if (event.type === UiEventType.runstatus && event.data?.kind === "run.status") {
         const payload = event.data as RunStatusEvent;
-        if (payload.runId !== currentRunId) {
+        updateRunCaches(queryClient, payload.runId, (run) => {
+          if (run.runId !== payload.runId) {
+            return run;
+          }
+          const next = { ...run, status: payload.status };
+          if (payload.startedAt !== undefined) {
+            next.startedAt = payload.startedAt ?? null;
+          }
+          if (payload.finishedAt !== undefined) {
+            next.finishedAt = payload.finishedAt ?? null;
+          }
+          return next;
+        });
+        const activeStatus = activeRunStatusRef.current;
+        const activeIsFinal =
+          activeStatus === "succeeded" || activeStatus === "failed" || activeStatus === "cancelled";
+        const shouldFollow =
+          payload.runId &&
+          (!currentRunId || payload.runId === currentRunId || activeIsFinal);
+        if (shouldFollow && payload.runId !== currentRunId) {
+          activeRunRef.current = payload.runId;
+          currentRunId = payload.runId;
+          setActiveRunId(payload.runId);
+        }
+        if (!currentRunId || payload.runId !== currentRunId) {
+          return;
+        }
+        if (event.scope?.runId && event.scope.runId !== currentRunId) {
           return;
         }
         const status = payload.status;
@@ -1327,13 +1439,32 @@ const WorkflowBuilderPage = () => {
         });
         return;
       }
+
       if (event.type === UiEventType.runsnapshot && event.data?.kind === "run.snapshot") {
         const payload = event.data as RunSnapshotEvent;
         const snapshotRunId = payload.run?.runId;
-        if (!snapshotRunId || snapshotRunId !== currentRunId) {
+        if (!snapshotRunId) {
           return;
         }
-        applyRunDefinitionSnapshot(queryClient, snapshotRunId, payload.nodes ?? undefined);
+        const combinedRun = {
+          ...payload.run,
+          nodes: payload.nodes ?? payload.run.nodes,
+        };
+        replaceRunSnapshot(queryClient, snapshotRunId, combinedRun);
+        if (!currentRunId || snapshotRunId !== currentRunId) {
+          return;
+        }
+        if (event.scope?.runId && event.scope.runId !== currentRunId) {
+          return;
+        }
+        applyRunDefinitionSnapshot(queryClient, snapshotRunId, payload.nodes ?? undefined, event.occurredAt);
+        return;
+      }
+
+      if (!currentRunId || (eventRunId && eventRunId !== currentRunId)) {
+        return;
+      }
+      if (event.scope?.runId && event.scope.runId !== currentRunId) {
         return;
       }
       if (event.type === UiEventType.nodestate && event.data?.kind === "node.state") {
@@ -1346,7 +1477,20 @@ const WorkflowBuilderPage = () => {
           payload.runId,
           payload.nodeId,
           payload.state ?? null,
+          event.occurredAt
         );
+        return;
+      }
+      if (
+        event.type === UiEventType.noderesultdelta &&
+        event.data?.kind === "node.result.delta"
+      ) {
+        const payload = event.data as NodeResultDeltaEvent;
+        if (payload.runId !== currentRunId) {
+          return;
+        }
+        updateRunNodeResultDelta(queryClient, payload.runId, payload.nodeId, payload);
+        applyNodeResultDelta(queryClient, payload.runId, payload.nodeId, payload);
         return;
       }
       if (
@@ -1401,10 +1545,6 @@ const WorkflowBuilderPage = () => {
     );
   }
 
-  const packagesError = packagesQuery.isError ? (packagesQuery.error as Error) : undefined;
-  const packageDetailError = packageDetailQuery.isError
-    ? (packageDetailQuery.error as Error)
-    : undefined;
   const derivedSlugForValidation =
     publishForm.mode === "new"
       ? slugifyValue(
@@ -1633,18 +1773,15 @@ const WorkflowBuilderPage = () => {
                 {activePaletteTab === "catalog" ? (
                   canEditWorkflow ? (
                     <WorkflowPalette
-                      packages={packageSummaries}
+                      query={catalogQuery}
+                      onQueryChange={setCatalogQuery}
+                      packageOptions={availableCatalogPackages}
                       selectedPackageName={selectedPackageName}
-                      selectedVersion={selectedVersion}
                       onSelectPackage={handleSelectPackage}
-                      onSelectVersion={handleSelectVersion}
                       nodes={paletteItems}
-                      isLoadingPackages={packagesQuery.isLoading}
-                      isLoadingNodes={packageDetailQuery.isLoading}
-                      packagesError={packagesError}
-                      nodesError={packageDetailError}
-                      onRetryPackages={() => packagesQuery.refetch()}
-                      onRetryNodes={selectedPackageName ? () => packageDetailQuery.refetch() : undefined}
+                      isLoading={catalogIsLoading}
+                      error={catalogError}
+                      onRetry={() => catalogSearchQuery.refetch()}
                     />
                   ) : (
                     <div className="palette__viewer-message">
@@ -1657,6 +1794,10 @@ const WorkflowBuilderPage = () => {
                     subgraphs={subgraphDrafts}
                     workflowName={workflow.metadata?.name}
                     workflowId={workflow.id}
+                    canEdit={canEditWorkflow}
+                    workflowMetadata={workflow.metadata}
+                    onUpdateMetadata={updateWorkflowMetadata}
+                    onEditMetadata={openMetadataModal}
                     onSelect={setActiveGraph}
                     onInline={handleInlineFromSwitcher}
                     inlineMessage={inlineMessage}
@@ -1733,6 +1874,56 @@ const WorkflowBuilderPage = () => {
       </section>
       {selectedRunId && (
         <RunDetailPage runIdOverride={selectedRunId} onClose={() => setSelectedRunId(null)} />
+      )}
+      {isMetadataModalOpen && (
+        <div className="modal">
+          <div className="modal__backdrop" onClick={closeMetadataModal} />
+          <form className="modal__panel card publish-modal" onSubmit={handleMetadataSubmit}>
+            <header className="modal__header">
+              <div>
+                <h3>Edit workflow info</h3>
+                <p className="text-subtle">Update the name and description shown across the app.</p>
+              </div>
+              <button className="modal__close" type="button" onClick={closeMetadataModal} aria-label="Close metadata modal">
+                ×
+              </button>
+            </header>
+            <div className="publish-modal__grid">
+              <div className="publish-modal__section publish-modal__field--full">
+                <label className="publish-modal__label">
+                  Name
+                  <input
+                    type="text"
+                    value={metadataForm.name}
+                    onChange={(event) => setMetadataForm((prev) => ({ ...prev, name: event.target.value }))}
+                    placeholder="Untitled workflow"
+                  />
+                </label>
+              </div>
+              <div className="publish-modal__section publish-modal__field--full">
+                <label className="publish-modal__label">
+                  Description
+                  <textarea
+                    value={metadataForm.description}
+                    onChange={(event) =>
+                      setMetadataForm((prev) => ({ ...prev, description: event.target.value }))
+                    }
+                    placeholder="Add a short summary"
+                    rows={4}
+                  />
+                </label>
+              </div>
+            </div>
+            <footer className="modal__footer">
+              <button className="btn btn--ghost" type="button" onClick={closeMetadataModal}>
+                Cancel
+              </button>
+              <button className="btn" type="submit">
+                Save
+              </button>
+            </footer>
+          </form>
+        </div>
       )}
       {isPublishModalOpen && (
         <div className="modal">

@@ -2025,3 +2025,63 @@ WorkflowPreview:
       description: Base64-encoded preview of the workflow canvas.
       nullable: true
 
+CatalogNodeVersion:
+  type: object
+  additionalProperties: false
+  required:
+  - version
+  properties:
+    version:
+      type: string
+    status:
+      type: string
+      description: Optional status reported by the worker for this version.
+    template:
+      $ref: '#/ManifestNode'
+
+CatalogNode:
+  type: object
+  additionalProperties: false
+  required:
+  - type
+  - label
+  - packageName
+  - versions
+  properties:
+    type:
+      type: string
+    label:
+      type: string
+    description:
+      type: string
+    role:
+      type: string
+    category:
+      type: string
+    tags:
+      type: array
+      items:
+        type: string
+    status:
+      type: string
+    packageName:
+      type: string
+    defaultVersion:
+      type: string
+    latestVersion:
+      type: string
+    versions:
+      type: array
+      items:
+        $ref: '#/CatalogNodeVersion'
+
+CatalogNodeSearchResponse:
+  type: object
+  required:
+  - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/CatalogNode'
+

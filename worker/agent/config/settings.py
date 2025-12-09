@@ -21,7 +21,10 @@ DEFAULT_CONFIG_LOCATIONS: tuple[Path, ...] = (
 
 
 def _default_packages_dir() -> Path:
-    return Path(__file__).resolve().parents[3] / "worker" / "packages"
+    env_root = os.getenv("ASTRA_PACKAGES_ROOT")
+    if env_root:
+        return Path(env_root)
+    return Path(__file__).resolve().parents[3] / "node-packages"
 
 
 class WorkerSettings(BaseSettings):

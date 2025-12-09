@@ -22,6 +22,7 @@
   "nodes": [
     {
       "type": "workflow.container",
+      "role": "container",
       "status": "published",
       "category": "System",
       "label": "Workflow Container",

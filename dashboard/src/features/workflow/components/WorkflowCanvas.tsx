@@ -479,7 +479,7 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
       const response = await queryClient.ensureQueryData(
         getGetPackageQueryOptions("system", undefined, { query: { staleTime: 5 * 60 * 1000 } })
       );
-      const definition = response?.data;
+      const definition = response;
       const containerManifest = definition?.manifest?.nodes?.find(
         (node: { type?: string }) => node.type === "workflow.container"
       );

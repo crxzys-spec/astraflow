@@ -531,7 +531,7 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
         if (typeof nodeType !== "string" || typeof packageName !== "string") {
           return;
         }
-        const response = await queryClient.ensureQueryData(
+        const definition = await queryClient.ensureQueryData(
           getGetPackageQueryOptions(
             packageName,
             typeof packageVersion === "string" && packageVersion.length
@@ -540,7 +540,6 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
             { query: { staleTime: 5 * 60 * 1000 } }
           )
         );
-        const definition = response?.data;
         const template = definition?.manifest?.nodes?.find((node) => node.type === nodeType);
         if (!template || template.role !== "middleware") {
           return;

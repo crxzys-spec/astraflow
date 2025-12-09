@@ -1,0 +1,27 @@
+get:
+  tags:
+  - Catalog
+  summary: Search catalog nodes (system + worker capabilities)
+  operationId: searchCatalogNodes
+  parameters:
+  - name: q
+    in: query
+    required: true
+    description: Search text applied to node name, type, description, and tags.
+    schema:
+      type: string
+  - name: package
+    in: query
+    required: false
+    description: Optional package filter derived from search results.
+    schema:
+      type: string
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CatalogNodeSearchResponse'
+    '400':
+      $ref: '#/components/responses/BadRequest'

@@ -17,7 +17,7 @@ import type {
   XYPosition,
   ConvertSelectionResult,
   NodePortDefinition,
-  WorkflowPaletteNode
+  WorkflowMetadata
 } from './types.ts';
 import {
   createNodeDraftFromTemplate,
@@ -291,6 +291,16 @@ export const useWorkflowStore = create<WorkflowStore>()(
         state.subgraphDrafts = [];
         state.activeGraph = defaultGraphScope;
         state.history = { past: [], future: [] };
+      });
+    },
+    updateWorkflowMetadata: (changes: Partial<WorkflowMetadata>) => {
+      set((state) => {
+        recordHistory(state);
+        if (!state.workflow) {
+          return;
+        }
+        state.workflow.metadata = { ...(state.workflow.metadata ?? {}), ...changes };
+        state.workflow.dirty = true;
       });
     },
     setPreviewImage: (preview) => {

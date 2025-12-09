@@ -12,7 +12,7 @@ from fastapi.encoders import jsonable_encoder
 
 from shared.models.ws.cmd.dispatch import CommandDispatchPayload
 from shared.models.ws.envelope import Ack, Role, Sender, WsEnvelope
-from shared.models.ws.register import Capabilities, Package
+from shared.models.ws.register import Capabilities, Package, RegisterManifest
 
 
 @dataclass
@@ -25,6 +25,7 @@ class WorkerSession:
     last_heartbeat: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     capabilities: Optional[Capabilities] = None
     packages: list[Package] = field(default_factory=list)
+    manifests: list[RegisterManifest] = field(default_factory=list)
 
 
 class WorkerControlManager:
@@ -72,12 +73,14 @@ class WorkerControlManager:
         *,
         capabilities: Capabilities,
         packages: list[Package],
+        manifests: Optional[list[RegisterManifest]] = None,
     ) -> None:
         session = self._sessions.get(worker_id)
         if not session:
             return
         session.capabilities = capabilities
         session.packages = packages
+        session.manifests = manifests or []
 
     def mark_heartbeat(self, worker_id: str) -> None:
         session = self._sessions.get(worker_id)

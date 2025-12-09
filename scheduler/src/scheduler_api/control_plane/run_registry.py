@@ -847,6 +847,7 @@ class RunRegistry:
         node_state: NodeState,
         frame_state: Optional[FrameRuntimeState],
         ready: List[DispatchRequest],
+        state_events: Optional[List[Tuple[RunRecord, NodeState]]] = None,
     ) -> None:
         """Release dependents of a completed node into the ready queue."""
         graph_nodes = frame_state.nodes if frame_state else record.nodes
@@ -866,6 +867,7 @@ class RunRegistry:
                     record,
                     dependent,
                     parent_frame_id=parent_frame_id,
+                    state_events=state_events,
                 )
                 ready.extend(frame_ready)
                 continue
@@ -889,7 +891,7 @@ class RunRegistry:
             (req_id, worker_id, run_id, node_id, middleware_id)
             for req_id, (run_id, worker_id, deadline, node_id, middleware_id, target_task_id)
             in self._pending_next_requests.items()
-            if target_task_id == node_state.task_id
+            if target_task_id == node_state.task_id and run_id == payload.run_id
         ]
         for req_id, worker_id, run_id, node_id, middleware_id in pending_next_to_clear:
             self._pending_next_requests.pop(req_id, None)
@@ -1204,6 +1206,7 @@ class RunRegistry:
             return [copy.deepcopy(record) for record in self._runs.values()]
 
     async def collect_ready_nodes(self, run_id: Optional[str] = None) -> List[DispatchRequest]:
+        state_events: List[Tuple[RunRecord, NodeState]] = []
         async with self._lock:
             records: Iterable[RunRecord]
             if run_id:
@@ -1217,10 +1220,17 @@ class RunRegistry:
                     continue
                 active_frame = self._current_frame(record)
                 if active_frame:
-                    requests.extend(self._collect_ready_for_frame(record, active_frame))
+                    requests.extend(self._collect_ready_for_frame(record, active_frame, state_events))
                 else:
-                    requests.extend(self._collect_ready_for_record(record))
-            return requests
+                    requests.extend(self._collect_ready_for_record(record, state_events))
+        # Emit container state updates after releasing the lock.
+        if state_events:
+            tasks = []
+            for record_snapshot, node_snapshot in state_events:
+                tasks.append(self._publish_node_state(record_snapshot, node_snapshot))
+                tasks.append(self._publish_run_snapshot(record_snapshot))
+            await asyncio.gather(*tasks)
+        return requests
 
     async def mark_dispatched(
         self,
@@ -1430,6 +1440,68 @@ class RunRegistry:
         await asyncio.gather(*tasks)
         return record_snapshot
 
+    async def reset_after_worker_cancel(
+        self,
+        run_id: Optional[str],
+        *,
+        node_id: Optional[str],
+        task_id: Optional[str],
+    ) -> Optional[RunRecord]:
+        """Reset a node after a worker-side cancellation so it can be retried."""
+
+        async with self._lock:
+            record = self._runs.get(run_id) if run_id else None
+            if not record and task_id:
+                record = next(
+                    (candidate for candidate in self._runs.values() if candidate.task_id == task_id),
+                    None,
+                )
+            if not record:
+                return None
+            if record.status in FINAL_STATUSES:
+                return copy.deepcopy(record)
+
+            node_state, frame_state = self._resolve_node_state(
+                record,
+                node_id=node_id,
+                task_id=task_id,
+            )
+            if not node_state:
+                return copy.deepcopy(record)
+
+            previous_status = record.status
+            node_state.status = "queued"
+            node_state.worker_id = None
+            node_state.started_at = None
+            node_state.finished_at = None
+            node_state.seq = None
+            node_state.pending_ack = False
+            node_state.dispatch_id = None
+            node_state.ack_deadline = None
+            node_state.enqueued = False
+            node_state.error = None
+            # Ensure the node can be re-dispatched immediately.
+            node_state.pending_dependencies = 0
+            node_state.chain_blocked = False
+            # Drop any pending middleware.next waiting on this task
+            self._pending_next_requests = {
+                req_id: entry
+                for req_id, entry in self._pending_next_requests.items()
+                if not (entry[0] == record.run_id and entry[-1] == node_state.task_id)
+            }
+
+            record.refresh_rollup()
+            record_snapshot = copy.deepcopy(record)
+            node_snapshot = copy.deepcopy(node_state)
+        tasks = [
+            self._publish_node_state(record_snapshot, node_snapshot),
+            self._publish_run_snapshot(record_snapshot),
+        ]
+        if record_snapshot.status != previous_status:
+            tasks.append(self._publish_run_state(record_snapshot))
+        await asyncio.gather(*tasks)
+        return record_snapshot
+
     async def record_result(
         self,
         run_id: str,
@@ -1481,6 +1553,7 @@ class RunRegistry:
                 record.error = None
 
             ready: List[DispatchRequest] = []
+            state_events: List[Tuple[RunRecord, NodeState]] = []
             next_responses: List[Tuple[Optional[str], NextResponsePayload]] = []
             # Host nodes with middleware chains keep looping; do not release dependents or finalize yet.
             if not self._is_host_with_middleware(node_state):
@@ -1489,7 +1562,7 @@ class RunRegistry:
                         self._apply_frame_edge_bindings(frame_state, node_state)
                     else:
                         self._apply_edge_bindings(record, node_state)
-                    self._release_dependents(record, node_state, frame_state, ready)
+                    self._release_dependents(record, node_state, frame_state, ready, state_events)
             else:
                 # Allow the host to be dispatched again by middleware.next()
                 if status == "skipped":
@@ -1505,16 +1578,14 @@ class RunRegistry:
             # Middleware completion finalises the host and releases its dependents.
             host_snapshot: Optional[NodeState] = None
             if self._is_middleware_node(node_state):
-                # Keep middleware reusable for subsequent next() invocations if it succeeded.
-                if status == "succeeded":
-                    node_state.status = "queued"
+                if status in {"succeeded", "skipped"}:
+                    # Mark middleware terminal so the rollup can complete; next() can re-queue it when needed.
+                    node_state.status = status
                     node_state.enqueued = False
                     node_state.pending_dependencies = 0
-                elif status == "skipped":
-                    node_state.status = "skipped"
-                    node_state.enqueued = False
-                    node_state.pending_dependencies = 0
-                node_state.chain_blocked = True
+                    node_state.chain_blocked = False
+                else:
+                    node_state.chain_blocked = True
 
                 host_id = node_state.metadata.get("host_node_id") if node_state.metadata else None
                 if host_id:
@@ -1543,7 +1614,7 @@ class RunRegistry:
                                     self._apply_frame_edge_bindings(host_frame, host_state)
                                 else:
                                     self._apply_edge_bindings(record, host_state)
-                                self._release_dependents(record, host_state, host_frame, ready)
+                                self._release_dependents(record, host_state, host_frame, ready, state_events)
                         host_snapshot = copy.deepcopy(host_state)
 
             container_snapshot: Optional[NodeState] = None
@@ -1597,6 +1668,10 @@ class RunRegistry:
         if new_status != previous_status:
             tasks.append(self._publish_run_state(record_snapshot))
         tasks.append(self._publish_run_snapshot(record_snapshot))
+        if state_events:
+            for rec_snap, node_snap in state_events:
+                tasks.append(self._publish_node_state(rec_snap, node_snap))
+                tasks.append(self._publish_run_snapshot(rec_snap))
         await asyncio.gather(*tasks)
         return record_snapshot, ready, next_responses
 
@@ -1761,6 +1836,10 @@ class RunRegistry:
         *,
         worker_id: Optional[str],
     ) -> Tuple[List[DispatchRequest], Optional[str]]:
+        state_events: List[Tuple[RunRecord, NodeState]] = []
+        record_snapshot: Optional[RunRecord] = None
+        node_snapshot: Optional[NodeState] = None
+        ready: List[DispatchRequest] = []
         async with self._lock:
             record = self._runs.get(payload.run_id)
             if not record or record.status in FINAL_STATUSES:
@@ -1801,17 +1880,39 @@ class RunRegistry:
             if not node_state:
                 return [], "next_target_not_ready"
 
-            # Middleware chains may need to re-dispatch nodes that previously finished; reset lightweight state.
-            if self._is_middleware_node(node_state) or self._is_host_with_middleware(node_state):
-                if node_state.status in FINAL_STATUSES:
-                    node_state.status = "queued"
-            node_state.enqueued = False
+            # Prevent re-entering a container while its frame is still active (e.g., repeated middleware.next).
+            if self._is_container_node(node_state):
+                parent_frame_id = frame_state.frame_id if frame_state else None
+                active_for_container = next(
+                    (
+                        frame
+                        for frame in record.active_frames.values()
+                        if frame.definition.container_node_id == node_state.node_id
+                        and frame.definition.parent_frame_id == parent_frame_id
+                        and frame.status not in FINAL_STATUSES
+                    ),
+                    None,
+                )
+                if active_for_container:
+                    return [], "next_target_not_ready"
 
-            if node_state.status != "queued" or node_state.enqueued:
-                return [], "next_target_not_ready"
-            if node_state.pending_dependencies != 0:
-                return [], "next_target_not_ready"
-            node_state.chain_blocked = False
+            is_chain_node = self._is_middleware_node(node_state) or self._is_host_with_middleware(node_state)
+            if is_chain_node:
+                # Allow middleware/host targets to be re-queued after a terminal status or stale running state.
+                if node_state.enqueued or node_state.pending_dependencies != 0:
+                    return [], "next_target_not_ready"
+                if node_state.status in FINAL_STATUSES or node_state.status == "running":
+                    node_state.status = "queued"
+                    node_state.worker_id = None
+                    node_state.pending_ack = False
+                    node_state.dispatch_id = None
+                    node_state.ack_deadline = None
+                    node_state.enqueued = False
+                    node_state.finished_at = None
+                    state_events.append((copy.deepcopy(record), copy.deepcopy(node_state)))
+                node_state.chain_blocked = False
+
+            node_state.enqueued = False
 
             parent_frame_id = frame_state.frame_id if frame_state else None
             if self._is_container_node(node_state):
@@ -1819,6 +1920,7 @@ class RunRegistry:
                     record,
                     node_state,
                     parent_frame_id=parent_frame_id,
+                    state_events=state_events,
                 )
                 deadline = None
                 if payload.timeout_ms and payload.timeout_ms > 0:
@@ -1831,33 +1933,39 @@ class RunRegistry:
                     payload.middleware_id,
                     node_state.task_id,
                 )
-                return frame_ready, None
-
-            dispatch = self._build_dispatch_request(
-                record,
-                node_state,
-                host_node_id=host_node_id,
-                middleware_chain=chain,
-                chain_index=target_chain_index,
-            )
-            deadline = None
-            if payload.timeout_ms and payload.timeout_ms > 0:
-                deadline = _utc_now() + timedelta(milliseconds=payload.timeout_ms)
-            self._pending_next_requests[payload.request_id] = (
-                record.run_id,
-                worker_id,
-                deadline,
-                payload.node_id,
-                payload.middleware_id,
-                node_state.task_id,
-            )
-            record_snapshot = copy.deepcopy(record)
-            node_snapshot = copy.deepcopy(node_state)
-        await asyncio.gather(
-            self._publish_node_state(record_snapshot, node_snapshot),
-            self._publish_run_snapshot(record_snapshot),
-        )
-        return [dispatch], None
+                ready.extend(frame_ready)
+            else:
+                dispatch = self._build_dispatch_request(
+                    record,
+                    node_state,
+                    host_node_id=host_node_id,
+                    middleware_chain=chain,
+                    chain_index=target_chain_index,
+                )
+                deadline = None
+                if payload.timeout_ms and payload.timeout_ms > 0:
+                    deadline = _utc_now() + timedelta(milliseconds=payload.timeout_ms)
+                self._pending_next_requests[payload.request_id] = (
+                    record.run_id,
+                    worker_id,
+                    deadline,
+                    payload.node_id,
+                    payload.middleware_id,
+                    node_state.task_id,
+                )
+                record_snapshot = copy.deepcopy(record)
+                node_snapshot = copy.deepcopy(node_state)
+                ready.append(dispatch)
+        publish_tasks = []
+        for rec_snap, node_snap in state_events:
+            publish_tasks.append(self._publish_node_state(rec_snap, node_snap))
+            publish_tasks.append(self._publish_run_snapshot(rec_snap))
+        if record_snapshot and node_snapshot:
+            publish_tasks.append(self._publish_node_state(record_snapshot, node_snapshot))
+            publish_tasks.append(self._publish_run_snapshot(record_snapshot))
+        if publish_tasks:
+            await asyncio.gather(*publish_tasks)
+        return ready, None
 
     async def resolve_next_response_worker(self, request_id: str) -> Optional[str]:
         async with self._lock:
@@ -2553,7 +2661,7 @@ class RunRegistry:
             (req_id, worker_id, run_id, node_id, middleware_id)
             for req_id, (run_id, worker_id, deadline, node_id, middleware_id, target_task_id)
             in self._pending_next_requests.items()
-            if target_task_id == container_node.task_id
+            if target_task_id == container_node.task_id and run_id == record.run_id
         ]
         for req_id, worker_id, run_id, node_id, middleware_id in pending_next_to_clear:
             self._pending_next_requests.pop(req_id, None)
@@ -2593,7 +2701,11 @@ class RunRegistry:
                 ready.append(self._build_dispatch_request_for_node(record, dependent))
         return ready, container_node, next_responses
 
-    def _collect_ready_for_record(self, record: RunRecord) -> List[DispatchRequest]:
+    def _collect_ready_for_record(
+        self,
+        record: RunRecord,
+        state_events: Optional[List[Tuple[RunRecord, NodeState]]] = None,
+    ) -> List[DispatchRequest]:
         ready: List[DispatchRequest] = []
         for node in record.nodes.values():
             if self._is_container_node(node):
@@ -2603,6 +2715,7 @@ class RunRegistry:
                     record,
                     node,
                     parent_frame_id=None,
+                    state_events=state_events,
                 )
                 ready.extend(frame_ready)
                 continue
@@ -2611,7 +2724,12 @@ class RunRegistry:
             ready.append(self._build_dispatch_request_for_node(record, node))
         return ready
 
-    def _collect_ready_for_frame(self, record: RunRecord, frame: FrameRuntimeState) -> List[DispatchRequest]:
+    def _collect_ready_for_frame(
+        self,
+        record: RunRecord,
+        frame: FrameRuntimeState,
+        state_events: Optional[List[Tuple[RunRecord, NodeState]]] = None,
+    ) -> List[DispatchRequest]:
         ready: List[DispatchRequest] = []
         for node in frame.nodes.values():
             if self._is_container_node(node):
@@ -2621,6 +2739,7 @@ class RunRegistry:
                     record,
                     node,
                     parent_frame_id=frame.frame_id,
+                    state_events=state_events,
                 )
                 ready.extend(frame_ready)
                 continue
@@ -2635,6 +2754,7 @@ class RunRegistry:
         container_node: NodeState,
         *,
         parent_frame_id: Optional[str],
+        state_events: Optional[List[Tuple[RunRecord, NodeState]]] = None,
     ) -> List[DispatchRequest]:
         frame_definition = self._find_frame_for_container(
             record,
@@ -2667,9 +2787,13 @@ class RunRegistry:
         container_node.enqueued = True
         container_node.metadata = container_node.metadata or {}
         container_node.metadata["frameId"] = frame_definition.frame_id
-
         frame_state = self._activate_frame(record, frame_definition)
-        return self._collect_ready_for_frame(record, frame_state)
+        if state_events is not None:
+            # Emit a fresh state event for the container and all subgraph nodes so UIs see them queued again.
+            state_events.append((copy.deepcopy(record), copy.deepcopy(container_node)))
+            for node in frame_state.nodes.values():
+                state_events.append((copy.deepcopy(record), copy.deepcopy(node)))
+        return self._collect_ready_for_frame(record, frame_state, state_events)
 
     def _build_dispatch_request(
         self,

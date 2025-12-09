@@ -17,7 +17,7 @@ const WorkflowsPage = () => {
   const [previewMap, setPreviewMap] = useState<Record<string, string | null>>({});
   const deleteWorkflowMutation = useDeleteWorkflow();
 
-  const workflows = workflowsQuery.data?.data?.items ?? [];
+  const workflows = workflowsQuery.data?.items ?? [];
   const isLoading = workflowsQuery.isLoading;
   const isError = workflowsQuery.isError;
   const errorMessage =

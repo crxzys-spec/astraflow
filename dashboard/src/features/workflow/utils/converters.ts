@@ -105,7 +105,7 @@ const normalizeBinding = (binding?: UIBinding): UIBinding => {
 
     binding.mode === UIBindingMode.read ||
 
-    binding.mode === UIBindingMode.two_way
+      binding.mode === UIBindingMode.two_way
 
       ? binding.mode
 
@@ -600,46 +600,46 @@ export const workflowDefinitionToDraft = (
   definition.nodes
     .filter((node) => (node as { role?: string }).role !== "middleware")
     .forEach((node: WorkflowNode) => {
-    const { parameters: defaultParams, results: defaultResults } =
-      nodeDefaultsFromSchema(node.schema);
-    const draft: WorkflowNodeDraft = {
-      id: node.id,
-    label: node.label,
-    role: (node as { role?: string }).role as WorkflowNodeDraft["role"],
-    nodeKind: node.type,
-    status: node.status ?? WorkflowNodeStatus.draft,
-    category: node.category ?? "uncategorised",
-    description: coerceOptional(node.description),
-    tags: sanitizeTags(node.tags),
-    packageName: node.package?.name,
-    packageVersion: node.package?.version,
-    adapter: (node as { adapter?: string }).adapter,
-    handler: (node as { handler?: string }).handler,
-    parameters: clone(node.parameters ?? defaultParams),
-    results: clone(node.results ?? defaultResults),
-    schema: node.schema ?? undefined,
-      ui: ensureInputGeneratorUi(node.type, node.ui),
-      position: {
-        x: node.position?.x ?? 0,
-        y: node.position?.y ?? 0,
-      },
-      dependencies: [],
-      middlewares: Array.isArray(node.middlewares)
-        ? node.middlewares.map((middleware) => middlewareToDraft(middleware))
-        : [],
-      resources: [],
-      state: node.state ? (clone(node.state) as WorkflowNodeState) : undefined,
-    };
-    if (!draft.parameters) {
-      draft.parameters = {};
-    }
-    const containerConfig = readContainerParameters(node.parameters);
-    if (containerConfig) {
-      draft.parameters = writeContainerParameters(draft.parameters, containerConfig);
-    }
-  nodes[draft.id] = draft;
+      const { parameters: defaultParams, results: defaultResults } =
+        nodeDefaultsFromSchema(node.schema);
+      const draft: WorkflowNodeDraft = {
+        id: node.id,
+        label: node.label,
+        role: (node as { role?: string }).role as WorkflowNodeDraft["role"],
+        nodeKind: node.type,
+        status: node.status ?? WorkflowNodeStatus.draft,
+        category: node.category ?? "uncategorised",
+        description: coerceOptional(node.description),
+        tags: sanitizeTags(node.tags),
+        packageName: node.package?.name,
+        packageVersion: node.package?.version,
+        adapter: (node as { adapter?: string }).adapter,
+        handler: (node as { handler?: string }).handler,
+        parameters: clone(node.parameters ?? defaultParams),
+        results: clone(node.results ?? defaultResults),
+        schema: node.schema ?? undefined,
+        ui: ensureInputGeneratorUi(node.type, node.ui),
+        position: {
+          x: node.position?.x ?? 0,
+          y: node.position?.y ?? 0,
+        },
+        dependencies: [],
+        middlewares: Array.isArray(node.middlewares)
+          ? node.middlewares.map((middleware) => middlewareToDraft(middleware))
+          : [],
+        resources: [],
+        state: node.state ? (clone(node.state) as WorkflowNodeState) : undefined,
+      };
+      if (!draft.parameters) {
+        draft.parameters = {};
+      }
+      const containerConfig = readContainerParameters(node.parameters);
+      if (containerConfig) {
+        draft.parameters = writeContainerParameters(draft.parameters, containerConfig);
+      }
+      nodes[draft.id] = draft;
 
-});
+    });
 
 
 
@@ -701,73 +701,73 @@ export const workflowDraftToDefinition = (
     .filter((node) => node.role !== "middleware")
     .map((node) => {
 
-    const workflowNode: WorkflowNode = {
+      const workflowNode: WorkflowNode = {
 
-      id: node.id,
+        id: node.id,
 
-      role: node.role,
+        role: node.role,
 
-      type: node.nodeKind,
+        type: node.nodeKind,
 
-      package: {
+        package: {
 
-        name: node.packageName ?? "",
+          name: node.packageName ?? "",
 
-        version: node.packageVersion ?? "",
+          version: node.packageVersion ?? "",
 
-      },
+        },
 
-      status: (node.status ?? WorkflowNodeStatus.draft) as WorkflowNodeStatus,
+        status: (node.status ?? WorkflowNodeStatus.draft) as WorkflowNodeStatus,
 
-      category: node.category ?? "uncategorised",
+        category: node.category ?? "uncategorised",
 
-      label: node.label,
+        label: node.label,
 
-      position: { x: node.position.x, y: node.position.y },
+        position: { x: node.position.x, y: node.position.y },
 
-      parameters: clone(node.parameters),
+        parameters: clone(node.parameters),
 
-      results: clone(node.results),
+        results: clone(node.results),
 
-      ui: ensureInputGeneratorUi(node.nodeKind, node.ui),
+        ui: ensureInputGeneratorUi(node.nodeKind, node.ui),
 
-      middlewares:
-        node.middlewares && node.middlewares.length
-          ? node.middlewares.map((middleware) => middlewareDraftToDefinition(middleware))
-          : undefined,
+        middlewares:
+          node.middlewares && node.middlewares.length
+            ? node.middlewares.map((middleware) => middlewareDraftToDefinition(middleware))
+            : undefined,
 
-    };
+      };
 
-    const description = coerceOptional(node.description);
+      const description = coerceOptional(node.description);
 
-    if (description !== undefined) {
+      if (description !== undefined) {
 
-      workflowNode.description = description;
+        workflowNode.description = description;
 
-    }
+      }
 
-    const tags = sanitizeTags(node.tags);
+      const tags = sanitizeTags(node.tags);
 
-    if (tags !== undefined) {
+      if (tags !== undefined) {
 
-      workflowNode.tags = tags;
+        workflowNode.tags = tags;
 
-    }
+      }
 
-    const schema = coerceOptional(node.schema);
-    if (schema !== undefined) {
-      workflowNode.schema = schema;
-    }
-    const containerParameters = readContainerParameters(node.parameters);
-    if (containerParameters) {
-      workflowNode.parameters = writeContainerParameters(
-        workflowNode.parameters as Record<string, unknown>,
-        containerParameters,
-      );
-    }
-    return workflowNode;
+      const schema = coerceOptional(node.schema);
+      if (schema !== undefined) {
+        workflowNode.schema = schema;
+      }
+      const containerParameters = readContainerParameters(node.parameters);
+      if (containerParameters) {
+        workflowNode.parameters = writeContainerParameters(
+          workflowNode.parameters as Record<string, unknown>,
+          containerParameters,
+        );
+      }
+      return workflowNode;
 
-  });
+    });
 
 
 

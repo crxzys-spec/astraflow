@@ -9,5 +9,6 @@ import type { ManifestWidget } from './manifestWidget';
 
 export interface ManifestNodeUI {
   inputPorts?: ManifestPort[];
+  outputPorts?: ManifestPort[];
   widgets?: ManifestWidget[];
 }

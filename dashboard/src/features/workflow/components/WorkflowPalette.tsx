@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import type { PackageSummary } from "../../../api/models/packageSummary";
 import {
   WORKFLOW_NODE_DRAG_FORMAT,
   WORKFLOW_NODE_DRAG_PACKAGE_KEY,
@@ -9,35 +8,35 @@ import {
   WORKFLOW_NODE_DRAG_VERSION_KEY
 } from "../constants";
 
+export interface PaletteNodeVersion {
+  version: string;
+  status?: string;
+}
+
 export interface PaletteNode {
   type: string;
   label: string;
   category: string;
+  packageName: string;
   role?: string;
   description?: string;
   tags?: string[];
   status?: string;
+  defaultVersion?: string;
+  latestVersion?: string;
+  versions: PaletteNodeVersion[];
 }
 
 interface WorkflowPaletteProps {
-  packages: PackageSummary[];
+  query: string;
+  onQueryChange: (value: string) => void;
+  packageOptions: string[];
   selectedPackageName?: string;
-  selectedVersion?: string;
-  onSelectPackage: (packageName: string) => void;
-  onSelectVersion: (version: string) => void;
+  onSelectPackage: (packageName?: string) => void;
   nodes: PaletteNode[];
-  isLoadingPackages: boolean;
-  isLoadingNodes: boolean;
-  packagesError?: Error;
-  nodesError?: Error;
-  onRetryPackages?: () => void;
-  onRetryNodes?: () => void;
-}
-
-interface PaletteSection {
-  id: string;
-  label: string;
-  nodes: PaletteNode[];
+  isLoading: boolean;
+  error?: Error;
+  onRetry?: () => void;
 }
 
 interface PaletteSelectOption {
@@ -363,176 +362,182 @@ const PaletteSelect = ({
   );
 };
 
-const groupByRole = (nodes: PaletteNode[]): PaletteSection[] => {
-  const labelForRole: Record<string, string> = {
-    middleware: "Middlewares",
-    container: "Containers",
-    node: "Nodes"
-  };
-  const grouped = new Map<string, PaletteNode[]>();
-  nodes.forEach((node) => {
-    const role = (node.role ?? "node").toLowerCase();
-    const list = grouped.get(role) ?? [];
-    list.push(node);
-    grouped.set(role, list);
-  });
-  return Array.from(grouped.entries())
-    .map(([id, items]) => ({
-      id,
-      label: labelForRole[id] ?? id.replace(/_/g, " "),
-      nodes: items.sort((a, b) => a.label.localeCompare(b.label))
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+const getPaletteNodeKey = (node: PaletteNode) => `${node.packageName}::${node.type}`;
+
+const getDefaultVersionForNode = (node: PaletteNode): string => {
+  if (node.defaultVersion) {
+    return node.defaultVersion;
+  }
+  if (node.latestVersion) {
+    return node.latestVersion;
+  }
+  return node.versions[0]?.version ?? "";
 };
 
 export const WorkflowPalette = ({
-  packages,
+  query,
+  onQueryChange,
+  packageOptions,
   selectedPackageName,
-  selectedVersion,
   onSelectPackage,
-  onSelectVersion,
   nodes,
-  isLoadingPackages,
-  isLoadingNodes,
-  packagesError,
-  nodesError,
-  onRetryPackages,
-  onRetryNodes
+  isLoading,
+  error,
+  onRetry
 }: WorkflowPaletteProps) => {
-  const selectedPackage = useMemo(
-    () => packages.find((pkg) => pkg.name === selectedPackageName),
-    [packages, selectedPackageName]
-  );
-  const sections = useMemo(() => groupByRole(nodes), [nodes]);
-  const versionOptions = useMemo(() => selectedPackage?.versions ?? [], [selectedPackage]);
-
   const packageLabelId = useId();
-  const versionLabelId = useId();
   const packageControlId = useId();
-  const versionControlId = useId();
+  const filterControlId = useId();
+  const versionControlPrefix = useId();
+  const roleLabelId = useId();
+  const [roleFilter, setRoleFilter] = useState<"all" | "node" | "container" | "middleware">("all");
 
-  const packageOptions = useMemo(
-    () =>
-      packages.map((pkg) => ({
-        value: pkg.name,
-        label: pkg.name
-      })),
-    [packages]
-  );
+  const [versionSelections, setVersionSelections] = useState<Record<string, string>>({});
 
-  const versionSelectOptions = useMemo(
-    () =>
-      versionOptions.map((version) => ({
-        value: version,
-        label: version
-      })),
-    [versionOptions]
-  );
+  const packageSelectOptions = useMemo(() => {
+    const options = packageOptions.map((pkg) => ({ value: pkg, label: pkg }));
+    return [{ value: "", label: "All packages" }, ...options];
+  }, [packageOptions]);
 
-  const packagePlaceholder = useMemo(() => {
-    if (isLoadingPackages) {
-      return "Loading packages…";
+  useEffect(() => {
+    setVersionSelections((previous) => {
+      const next = { ...previous };
+      const keys = new Set<string>();
+      nodes.forEach((node) => {
+        const key = getPaletteNodeKey(node);
+        keys.add(key);
+        if (!next[key]) {
+          next[key] = getDefaultVersionForNode(node);
+        }
+      });
+      Object.keys(next).forEach((key) => {
+        if (!keys.has(key)) {
+          delete next[key];
+        }
+      });
+      return next;
+    });
+  }, [nodes]);
+
+  const filteredNodes = useMemo(() => {
+    if (roleFilter === "all") {
+      return nodes;
     }
-    if (!packages.length) {
-      return "No packages available";
-    }
-    return "Select package";
-  }, [isLoadingPackages, packages.length]);
+    return nodes.filter((node) => (node.role ?? "node").toLowerCase() === roleFilter);
+  }, [nodes, roleFilter]);
 
-  const packageNoOptionsMessage = isLoadingPackages ? "Loading packages…" : "No packages available";
-
-  const versionPlaceholder = useMemo(() => {
-    if (!selectedPackageName) {
-      return "Select a package first";
-    }
-    if (isLoadingNodes) {
-      return "Loading versions…";
-    }
-    if (!versionOptions.length) {
-      return "No versions available";
-    }
-    return "Select version";
-  }, [isLoadingNodes, selectedPackageName, versionOptions.length]);
-
-  const versionNoOptionsMessage = !selectedPackageName ? "Select a package to load versions" : "No versions available";
+  const roleOptions: PaletteSelectOption[] = [
+    { value: "all", label: "All types" },
+    { value: "node", label: "Nodes" },
+    { value: "container", label: "Containers" },
+    { value: "middleware", label: "Middlewares" }
+  ];
 
   const handlePackageChange = useCallback(
     (packageName: string) => {
-      onSelectPackage(packageName);
+      onSelectPackage(packageName || undefined);
     },
     [onSelectPackage]
   );
 
-  const handleVersionChange = useCallback(
-    (version: string) => {
-      onSelectVersion(version);
-    },
-    [onSelectVersion]
-  );
+  const handleVersionChange = useCallback((nodeKey: string, version: string) => {
+    setVersionSelections((previous) => ({
+      ...previous,
+      [nodeKey]: version || previous[nodeKey]
+    }));
+  }, []);
 
-  const handleRetryPackages = useCallback(() => {
-    onRetryPackages?.();
-  }, [onRetryPackages]);
-  const handleRetryNodes = useCallback(() => {
-    onRetryNodes?.();
-  }, [onRetryNodes]);
-
-  const combinedError = packagesError ?? nodesError;
+  const hasResults = filteredNodes.length > 0;
 
   return (
     <aside className="palette">
       <div className="card palette__header">
-        <header className="card__header">
-          <h3>Catalog</h3>
-          {onRetryPackages && (
-            <button
-              className="btn btn--ghost"
-              type="button"
-              onClick={handleRetryPackages}
-              disabled={isLoadingPackages}
-            >
-              Refresh
-            </button>
-          )}
+        <header className="palette__header-row">
+          <div className="palette__filter palette__filter--inline">
+            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="m12.5 12.5 3 3"
+              />
+              <circle
+                cx="9"
+                cy="9"
+                r="4.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+              />
+            </svg>
+            <input
+              id={filterControlId}
+              type="text"
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder="Search nodes (system + workers)"
+              aria-label="Search catalog nodes"
+            />
+            {onRetry && (
+              <button
+                className="palette__filter-action"
+                type="button"
+                onClick={onRetry}
+                disabled={isLoading}
+                title="Refresh catalog"
+                aria-label="Refresh catalog"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M20 4v5h-5" />
+                  <path d="M4 20v-5h5" />
+                  <path d="M5 9a7 7 0 0 1 11.2-2.8L20 9" />
+                  <path d="M19 15a7 7 0 0 1-11.2 2.8L4 15" />
+                </svg>
+              </button>
+            )}
+          </div>
         </header>
-        <div className="palette__controls">
-          <div className="palette__control">
+        <div className="palette__controls palette__controls--grid">
+          <div className="palette__control palette__control--inline">
             <span id={packageLabelId}>Package</span>
             <PaletteSelect
               id={packageControlId}
               ariaLabelledBy={packageLabelId}
               value={selectedPackageName ?? ""}
               onChange={handlePackageChange}
-              options={packageOptions}
-              placeholder={packagePlaceholder}
-              disabled={isLoadingPackages || !packages.length}
-              noOptionsMessage={packageNoOptionsMessage}
+              options={packageSelectOptions}
+              placeholder="All packages"
+              disabled={isLoading || !packageSelectOptions.length}
+              noOptionsMessage="No packages in results"
             />
           </div>
-          <div className="palette__control">
-            <span id={versionLabelId}>Version</span>
+          <div className="palette__control palette__control--inline">
+            <span id={roleLabelId}>Type</span>
             <PaletteSelect
-              id={versionControlId}
-              ariaLabelledBy={versionLabelId}
-              value={selectedVersion ?? ""}
-              onChange={handleVersionChange}
-              options={versionSelectOptions}
-              placeholder={versionPlaceholder}
-              disabled={!selectedPackageName || isLoadingNodes || !versionOptions.length}
-              noOptionsMessage={versionNoOptionsMessage}
+              ariaLabelledBy={roleLabelId}
+              value={roleFilter}
+              onChange={(value) => setRoleFilter((value as typeof roleFilter) ?? "all")}
+              options={roleOptions}
+              placeholder="All types"
             />
           </div>
         </div>
-        {selectedPackage?.description && (
-          <p className="text-subtle palette__description">{selectedPackage.description}</p>
-        )}
-        {isLoadingPackages && <p className="text-subtle">Loading packages...</p>}
-        {!isLoadingPackages && isLoadingNodes && <p className="text-subtle">Loading nodes...</p>}
-        {combinedError && (
+        {isLoading && <p className="text-subtle">Loading catalog...</p>}
+        {error && (
           <p className="error">
-            Failed to load catalog: {combinedError.message}
-            {onRetryNodes && !isLoadingNodes && (
-              <button className="btn btn--link" type="button" onClick={handleRetryNodes}>
+            Failed to load catalog: {error.message}
+            {onRetry && !isLoading && (
+              <button className="btn btn--link" type="button" onClick={onRetry}>
                 Retry
               </button>
             )}
@@ -540,49 +545,92 @@ export const WorkflowPalette = ({
         )}
       </div>
 
-      <div className="palette__sections">
-        {sections.map((section) => (
-          <div key={section.id} className="card palette__section">
-            <header className="palette__section-header">
-              <h4>{section.label}</h4>
-              <span className="palette__count">{section.nodes.length}</span>
-            </header>
-            <div className="palette__items">
-              {section.nodes.map((node) => (
-                <button
-                  key={node.type}
-                  type="button"
-                  className="palette__item"
-                  draggable
-                  onDragStart={(event) => {
-                    event.dataTransfer.effectAllowed = "copy";
-                    const payload = JSON.stringify({
-                      [WORKFLOW_NODE_DRAG_TYPE_KEY]: node.type,
-                      [WORKFLOW_NODE_DRAG_PACKAGE_KEY]: selectedPackageName,
-                      [WORKFLOW_NODE_DRAG_ROLE_KEY]: node.role,
-                      [WORKFLOW_NODE_DRAG_VERSION_KEY]: selectedVersion
-                    });
-                    event.dataTransfer.setData(WORKFLOW_NODE_DRAG_FORMAT, payload);
-                    event.dataTransfer.setData("application/reactflow", payload);
-                    event.dataTransfer.setData("text/plain", payload);
-                  }}
-                >
-                  <span className="palette__item-label">{node.label}</span>
-                  <span className="palette__item-type">{node.type}</span>
-                  {node.description && (
-                    <p className="palette__item-description">{node.description}</p>
-                  )}
-                  {node.status && <span className="palette__item-status">{node.status}</span>}
-                </button>
-              ))}
+      <div className="card palette__section palette__section--flat">
+        <header className="palette__section-header palette__section-header--compact">
+          <div className="palette__section-title">
+            <h4>Catalog</h4>
+            <span className="palette__count">{filteredNodes.length}</span>
+          </div>
+        </header>
+
+        <div className="palette__items palette__items--grid">
+          {filteredNodes.map((node) => {
+            const nodeKey = getPaletteNodeKey(node);
+            const selectedVersion = versionSelections[nodeKey] ?? getDefaultVersionForNode(node);
+            const versionOptions = (node.versions ?? []).map((version) => ({
+              value: version.version,
+              label: version.version
+            }));
+            const roleLabel =
+              (node.role ?? "node").toLowerCase() === "middleware"
+                ? "MIDDLEWARE"
+                : (node.role ?? "node").toLowerCase() === "container"
+                  ? "CONTAINER"
+                  : "NODE";
+            return (
+              <div
+                key={nodeKey}
+                className="palette__item palette__item--compact"
+                draggable
+                role="button"
+                tabIndex={0}
+                onDragStart={(event) => {
+                  event.dataTransfer.effectAllowed = "copy";
+                  const payload = JSON.stringify({
+                    [WORKFLOW_NODE_DRAG_TYPE_KEY]: node.type,
+                    [WORKFLOW_NODE_DRAG_PACKAGE_KEY]: node.packageName,
+                    [WORKFLOW_NODE_DRAG_ROLE_KEY]: node.role,
+                    [WORKFLOW_NODE_DRAG_VERSION_KEY]: selectedVersion
+                  });
+                  event.dataTransfer.setData(WORKFLOW_NODE_DRAG_FORMAT, payload);
+                  event.dataTransfer.setData("application/reactflow", payload);
+                  event.dataTransfer.setData("text/plain", payload);
+                }}
+              >
+                <div className="palette__item-row">
+                  <div className="palette__item-title">
+                    <span className="palette__item-label">{node.label}</span>
+                    <span className="palette__item-type">{node.type}</span>
+                  </div>
+                  <div className="palette__item-badges">
+                    <div className="palette__item-badges-row">
+                      <span className="palette__pill">{roleLabel}</span>
+                    </div>
+                    <div className="palette__item-badges-row palette__item-badges-row--version">
+                      <PaletteSelect
+                        id={`${versionControlPrefix}-${nodeKey}`}
+                        value={selectedVersion}
+                        onChange={(value) => handleVersionChange(nodeKey, value)}
+                        options={versionOptions}
+                        placeholder="Version"
+                        disabled={!versionOptions.length}
+                        noOptionsMessage="No versions"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="palette__item-sub">
+                  <span className="palette__item-package">{node.packageName}</span>
+                  {node.tags?.slice(0, 2).map((tag) => (
+                    <span key={tag} className="palette__tag">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                {node.description && (
+                  <p className="palette__item-description palette__item-description--clamp">
+                    {node.description}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+          {!isLoading && !error && !hasResults && (
+            <div className="palette__empty">
+              <p className="text-subtle">No nodes available. Check workers or adjust search.</p>
             </div>
-          </div>
-        ))}
-        {!isLoadingPackages && !isLoadingNodes && !combinedError && !sections.length && (
-          <div className="card palette__empty">
-            <p className="text-subtle">No nodes available. Check worker packages or refresh.</p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </aside>
   );

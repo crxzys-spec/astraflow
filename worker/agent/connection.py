@@ -218,10 +218,11 @@ class ControlPlaneConnection:
             features=self.settings.feature_flags or [],
         )
         # refresh handler registry before register payload so scheduler sees latest
-        self._collect_package_inventory()
+        packages, manifests = self._collect_package_inventory()
         return RegisterPayload(
             capabilities=capabilities,
-            packages=self._collect_package_inventory(),
+            packages=packages,
+            manifests=manifests,
         )
 
     def _build_heartbeat_payload(self) -> HeartbeatPayload:
@@ -238,10 +239,11 @@ class ControlPlaneConnection:
             metrics=metrics,
         )
 
-    def _collect_package_inventory(self) -> list[Package]:
+    def _collect_package_inventory(self) -> tuple[list[Package], list[dict[str, Any]]]:
         inventory: list[Package] = []
+        manifest_payloads: list[dict[str, Any]] = []
         if not self.package_manager:
-            return inventory
+            return inventory, manifest_payloads
         for package_path in self.package_manager.list_installed():
             package_dir = Path(package_path)
             try:
@@ -262,7 +264,8 @@ class ControlPlaneConnection:
                     status=Status.installed,
                 )
             )
-        return inventory
+            manifest_payloads.append({"name": name, "version": version, "manifest": manifest})
+        return inventory, manifest_payloads
 
     async def _send(self, message: dict[str, Any]) -> None:
         if not self._transport:

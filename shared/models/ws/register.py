@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel, conint, constr
 
@@ -54,3 +54,19 @@ class RegisterPayload(BaseModel):
     channels: Optional[List[constr(min_length=1)]] = Field(
         None, description='Optional execution channels exposed by the worker'
     )
+    manifests: Optional[List["RegisterManifest"]] = Field(
+        default=None,
+        description="Optional manifest payloads so the scheduler can index capabilities without shared storage.",
+    )
+
+
+class RegisterManifest(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: constr(min_length=1)
+    version: constr(min_length=1)
+    manifest: Dict[str, Any]
+
+
+RegisterPayload.model_rebuild()

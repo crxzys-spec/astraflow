@@ -341,7 +341,7 @@ crawlerx_playwright/
 - Scheduler publishes `.cwx` (zip) packages to a repository, recording version and checksum in the database.
 - When required, Scheduler issues `package.install` over WebSocket.
 - Worker `PackageManager`:
-  - Download and verify archive; extract to `/var/crawlerx/packages/<name>/<version>/`.
+  - Download and verify archive; extract to `/var/astraflow/node-packages/<name>/<version>/` (or the configured packages root).
   - Install `python.dependencies` (pip/venv).
   - Run install hooks.
   - Refresh `AdapterRegistry`.
@@ -411,7 +411,7 @@ Workflows can now embed **subgraphs** to encapsulate reusable logic. Subgraphs a
   ]
 }
 ```
-Adapters register handlers once via `adapters[]`, and every catalogued node picks the adapter plus handler combo it needs (`adapter: "browser"`, `handler: "open_page"`). This mirrors the `worker/packages/<package>/<version>/manifest.json` layout so execution routing no longer depends on runtime buckets.
+Adapters register handlers once via `adapters[]`, and every catalogued node picks the adapter plus handler combo it needs (`adapter: "browser"`, `handler: "open_page"`). This mirrors the `node-packages/<package>/<version>/manifest.json` layout so execution routing no longer depends on runtime buckets.
 
 - All subgraphs are ¡°localized¡± when the workflow is saved/published: even external references are stored as a copy of the referenced workflow so Scheduler does not need to fetch anything at runtime.
 - Each container node references one of these subgraphs through a reserved parameter bucket: `parameters.__container.subgraphId`. The node itself keeps the standard schema (`parameters`, `results`, `ui.inputPorts`, `ui.outputPorts`, `ui.widgets`). The `__container` parameter holds the subgraph link and any execution policies:
@@ -916,7 +916,7 @@ This payload is stored alongside the manifest-driven catalog. When a run is trig
 
 ### Package Registry & Adapter Resolution
 
-- Workers install packages into versioned directories (e.g. `/var/worker/packages/<name>/<version>/`) so multiple revisions can coexist.
+- Workers install packages into versioned directories under the shared root (e.g. `/var/astraflow/node-packages/<name>/<version>/` or `./node-packages/<name>/<version>/`) so multiple revisions can coexist.
 - During install, `PackageManager` parses `manifest.json`, validates adapters, and dynamically imports each `entrypoint`. Handlers are registered as `(package_name, package_version, capability|handler_key) -> callable` in the `AdapterRegistry`.
 - `cmd.dispatch` payloads must include `package.name`, `package.version` (or satisfy `minVersion` hints) so the Worker can locate the exact handler for execution. Missing handlers return a `command.error`.
 - Worker heartbeat/registration frames list installed package versions; Scheduler uses this inventory to bind runs to compatible Workers and initiate targeted upgrades/rollbacks.
@@ -982,7 +982,7 @@ This payload is stored alongside the manifest-driven catalog. When a run is trig
    ASTRA_WORKER_RUNTIME_NAMES='["python","playwright"]'
    ASTRA_WORKER_FEATURE_FLAGS='["pkg.install","pkg.uninstall"]'
    ```
-   Package versions reported in the register frame are sourced from the local `packages/<name>/<version>/` directories maintained by the worker `PackageManager`.
+   Package versions reported in the register frame are sourced from the local `node-packages/<name>/<version>/` directories (or the configured packages root) maintained by the worker `PackageManager`.
 4. Trigger a run dispatch via REST:
    ```bash
    curl -X POST http://localhost:8080/api/v1/runs \

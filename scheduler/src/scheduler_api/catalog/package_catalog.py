@@ -24,7 +24,9 @@ class PackageVersionNotFoundError(PackageCatalogError):
 
 def _default_packages_root() -> Path:
     base = Path(__file__).resolve().parents[4]
-    return Path(os.getenv("ASTRAFLOW_PACKAGES_ROOT", base / "node-packages"))
+    env_root = os.getenv("ASTRA_PACKAGES_ROOT")
+    root = Path(env_root) if env_root else base / "node-packages"
+    return root.expanduser().resolve()
 
 
 def _version_key(value: str):

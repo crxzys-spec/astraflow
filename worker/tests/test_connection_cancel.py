@@ -1,10 +1,12 @@
 import asyncio
+import logging
 from datetime import datetime, timezone
 
 import pytest
 
 from shared.models.ws.cmd.dispatch import CommandDispatchPayload, Constraints
 from shared.models.ws.envelope import Role, Sender, WsEnvelope
+from shared.models.ws.next import NextResponsePayload
 from worker.agent.config import WorkerSettings
 from worker.agent.connection import ControlPlaneConnection, DummyTransport
 
@@ -68,3 +70,46 @@ async def test_default_command_handler_reports_cancel(monkeypatch):
 
     assert dispatched_errors, "Cancellation should emit command.error"
     assert dispatched_errors[0].code == "E.RUNNER.CANCELLED"
+
+
+@pytest.mark.asyncio
+async def test_late_next_response_after_local_cancel_is_ignored(caplog):
+    settings = WorkerSettings()
+    transport = DummyTransport(settings)
+    conn = ControlPlaneConnection(
+        settings=settings,
+        transport_factory=lambda _: transport,
+    )
+
+    request_id = "req-cancelled"
+    fut = asyncio.get_running_loop().create_future()
+    async with conn._next_lock:
+        conn._pending_next[request_id] = (fut, "task-cancelled")
+
+    caplog.set_level(logging.DEBUG, logger="worker.agent.connection")
+
+    await conn._interrupt_pending_next("task-cancelled", code="next_cancelled", message="task cancelled")
+
+    payload = NextResponsePayload(
+        requestId=request_id,
+        runId="run-ignored",
+        nodeId="node-1",
+        middlewareId="mw-1",
+        result={"ok": True},
+    )
+    envelope = WsEnvelope(
+        type="middleware.next_response",
+        id="env-next",
+        ts=datetime.now(timezone.utc),
+        corr=request_id,
+        seq=None,
+        tenant=settings.tenant,
+        sender=Sender(role=Role.scheduler, id="scheduler-1"),
+        payload=payload.model_dump(by_alias=True, exclude_none=True),
+    )
+
+    await conn._handle_next_response(envelope)
+
+    warnings = [record for record in caplog.records if record.levelno >= logging.WARNING]
+    assert not warnings, "Late next responses for cancelled waits should be ignored without warnings"
+    assert request_id not in conn._aborted_next_index

@@ -22,6 +22,6 @@ get:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/CatalogNodeSearchResponse'
+            $ref: '../components/schemas/index.yaml#/CatalogNodeSearchResponse'
     '400':
-      $ref: '#/components/responses/BadRequest'
+      $ref: '../components/responses.yaml#/BadRequest'

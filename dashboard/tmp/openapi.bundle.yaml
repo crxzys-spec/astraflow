@@ -457,7 +457,7 @@ paths:
         - name: q
           in: query
           required: true
-          description: Search text applied to node name, type, description, and tags.
+          description: 'Search text applied to node name, type, description, and tags.'
           schema:
             type: string
         - name: package
@@ -1260,63 +1260,6 @@ components:
             type: string
         manifest:
           $ref: '#/components/schemas/PackageManifest'
-    CatalogNodeVersion:
-      type: object
-      additionalProperties: false
-      required:
-        - version
-      properties:
-        version:
-          type: string
-        status:
-          type: string
-          description: Optional status reported by the worker for this version.
-        template:
-          $ref: '#/components/schemas/ManifestNode'
-    CatalogNode:
-      type: object
-      additionalProperties: false
-      required:
-        - type
-        - label
-        - packageName
-        - versions
-      properties:
-        type:
-          type: string
-        label:
-          type: string
-        description:
-          type: string
-        role:
-          type: string
-        category:
-          type: string
-        tags:
-          type: array
-          items:
-            type: string
-        status:
-          type: string
-        packageName:
-          type: string
-        defaultVersion:
-          type: string
-        latestVersion:
-          type: string
-        versions:
-          type: array
-          items:
-            $ref: '#/components/schemas/CatalogNodeVersion'
-    CatalogNodeSearchResponse:
-      type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/CatalogNode'
     PackageManifest:
       type: object
       additionalProperties: false
@@ -2892,3 +2835,60 @@ components:
           type: string
           description: Base64-encoded preview of the workflow canvas.
           nullable: true
+    CatalogNodeVersion:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: string
+        status:
+          type: string
+          description: Optional status reported by the worker for this version.
+        template:
+          $ref: '#/components/schemas/ManifestNode'
+    CatalogNode:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - label
+        - packageName
+        - versions
+      properties:
+        type:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        role:
+          type: string
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        packageName:
+          type: string
+        defaultVersion:
+          type: string
+        latestVersion:
+          type: string
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogNodeVersion'
+    CatalogNodeSearchResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogNode'

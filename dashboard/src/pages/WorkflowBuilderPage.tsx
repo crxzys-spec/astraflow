@@ -367,6 +367,7 @@ const RunsInspectorPanel = ({ onSelectRun }: RunsInspectorPanelProps) => {
           }
           return next;
         });
+        queryClient.invalidateQueries({ queryKey: ["/api/v1/runs"] });
       } else if (
         event.type === UiEventType.runsnapshot &&
         event.data?.kind === "run.snapshot" &&
@@ -379,6 +380,7 @@ const RunsInspectorPanel = ({ onSelectRun }: RunsInspectorPanelProps) => {
           nodes: snapshot.nodes ?? snapshot.run.nodes,
         };
         replaceRunSnapshot(queryClient, runId, combinedRun);
+        queryClient.invalidateQueries({ queryKey: ["/api/v1/runs"] });
       }
     });
     return () => unsubscribe();
@@ -1325,6 +1327,7 @@ const WorkflowBuilderPage = () => {
           const run = (result as any)?.data ?? result;
           const runId = run?.runId;
           if (runId) {
+            queryClient.invalidateQueries({ queryKey: ["/api/v1/runs"] });
             upsertRunCaches(queryClient, {
               runId,
               status: run.status as RunStatus,

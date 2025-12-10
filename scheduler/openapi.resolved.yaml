@@ -735,95 +735,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-  parameters:
-    RunId:
-      name: runId
-      in: path
-      required: true
-      schema:
-        type: string
-    WorkflowId:
-      name: workflowId
-      in: path
-      required: true
-      schema:
-        type: string
-    WorkerId:
-      name: workerId
-      in: path
-      required: true
-      schema:
-        type: string
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      schema:
-        type: string
-        maxLength: 64
-      description: Optional idempotency key for safe retries; if reused with a different
-        body, return 409
-    PageLimit:
-      name: limit
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 200
-        default: 50
-    PageCursor:
-      name: cursor
-      in: query
-      required: false
-      schema:
-        type: string
-    LastEventID:
-      name: Last-Event-ID
-      in: header
-      required: false
-      schema:
-        type: string
-      description: Resume SSE from a specific monotonic event id
-    ClientSessionId:
-      name: clientSessionId
-      in: query
-      required: true
-      schema:
-        type: string
-      description: Frontend-generated session identifier (UUID) used to route SSE
-        events.
-  responses:
-    BadRequest:
-      description: Invalid input
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Conflict:
-      description: Conflict (e.g., idempotency-key reuse with different body)
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Authentication required or credentials invalid
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: Authenticated but lacks required permissions
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
+  x-parameters:
+    $ref: ./components/parameters.yaml
+  x-responses:
+    $ref: ./components/responses.yaml
   schemas:
     RunStartRequest:
       type: object
@@ -2890,3 +2805,92 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CatalogNode'
+  parameters:
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema:
+        type: string
+    WorkflowId:
+      name: workflowId
+      in: path
+      required: true
+      schema:
+        type: string
+    WorkerId:
+      name: workerId
+      in: path
+      required: true
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        maxLength: 64
+      description: Optional idempotency key for safe retries; if reused with a different
+        body, return 409
+    PageLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    PageCursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+    LastEventID:
+      name: Last-Event-ID
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Resume SSE from a specific monotonic event id
+    ClientSessionId:
+      name: clientSessionId
+      in: query
+      required: true
+      schema:
+        type: string
+      description: Frontend-generated session identifier (UUID) used to route SSE
+        events.
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Conflict (e.g., idempotency-key reuse with different body)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required or credentials invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Authenticated but lacks required permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

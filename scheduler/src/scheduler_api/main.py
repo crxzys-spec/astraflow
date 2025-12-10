@@ -13,20 +13,17 @@
 
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
+from scheduler_api.apis.audit_api import router as AuditApiRouter
 from scheduler_api.apis.auth_api import router as AuthApiRouter
-from scheduler_api.apis.events_api import router as EventsApiRouter
 from scheduler_api.apis.catalog_api import router as CatalogApiRouter
+from scheduler_api.apis.events_api import router as EventsApiRouter
 from scheduler_api.apis.packages_api import router as PackagesApiRouter
 from scheduler_api.apis.runs_api import router as RunsApiRouter
+from scheduler_api.apis.users_api import router as UsersApiRouter
 from scheduler_api.apis.workers_api import router as WorkersApiRouter
-from scheduler_api.apis.workflows_api import router as WorkflowsApiRouter
 from scheduler_api.apis.workflow_packages_api import router as WorkflowPackagesApiRouter
-from scheduler_api.catalog import catalog
-from scheduler_api.control_plane import router as ControlPlaneRouter
-from scheduler_api.db.migrations import upgrade_database
-from scheduler_api.db.seed_data import seed_demo_workflow
+from scheduler_api.apis.workflows_api import router as WorkflowsApiRouter
 
 app = FastAPI(
     title="Scheduler Public API (v1)",
@@ -34,31 +31,13 @@ app = FastAPI(
     version="1.3.0",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://10.0.35.8:5173",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+app.include_router(AuditApiRouter)
 app.include_router(AuthApiRouter)
-app.include_router(EventsApiRouter)
 app.include_router(CatalogApiRouter)
+app.include_router(EventsApiRouter)
 app.include_router(PackagesApiRouter)
-app.include_router(WorkflowPackagesApiRouter)
 app.include_router(RunsApiRouter)
+app.include_router(UsersApiRouter)
 app.include_router(WorkersApiRouter)
+app.include_router(WorkflowPackagesApiRouter)
 app.include_router(WorkflowsApiRouter)
-app.include_router(ControlPlaneRouter)
-
-
-@app.on_event("startup")
-def _startup() -> None:
-    upgrade_database()
-    catalog.reload()
-    seed_demo_workflow()

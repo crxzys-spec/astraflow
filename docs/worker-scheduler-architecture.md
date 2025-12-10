@@ -971,7 +971,7 @@ This payload is stored alongside the manifest-driven catalog. When a run is trig
 ## 9. Manual WS Loop Validation
 
 1. Regenerate shared WS models if schemas changed: `python scripts/generate_ws_models.py`.
-2. Launch the scheduler (e.g. `uvicorn scheduler_api.main:app --host 0.0.0.0 --port 8080`) so `/ws/worker` and REST `/api/v1/runs` are reachable.
+2. Launch the scheduler (e.g. `uvicorn scheduler_api.app:app --host 0.0.0.0 --port 8080`) so `/ws/worker` and REST `/api/v1/runs` are reachable.
 3. Start a worker with WebSocket transport enabled (`ASTRA_WORKER_TRANSPORT=websocket` or config file) so it handshakes, registers, and heartbeats against the scheduler. Populate the control-plane metadata via env vars or config, for example:
    ```env
    ASTRA_WORKER_WORKER_VERSION=0.1.0

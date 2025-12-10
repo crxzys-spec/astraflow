@@ -50,7 +50,6 @@ src/scheduler_api/models/edge_endpoint.py
 src/scheduler_api/models/error.py
 src/scheduler_api/models/event_envelope.py
 src/scheduler_api/models/event_type.py
-src/scheduler_api/models/extra_models.py
 src/scheduler_api/models/json_patch_operation.py
 src/scheduler_api/models/list_workers200_response.py
 src/scheduler_api/models/manifest_adapter.py
@@ -137,5 +136,4 @@ src/scheduler_api/models/workflow_ref.py
 src/scheduler_api/models/workflow_subgraph.py
 src/scheduler_api/models/workflow_subgraph_metadata.py
 src/scheduler_api/models/ws_payload.py
-src/scheduler_api/security_api.py
 tests/conftest.py

@@ -76,9 +76,9 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-  parameters:
+  x-parameters:
     $ref: ./components/parameters.yaml
-  responses:
+  x-responses:
     $ref: ./components/responses.yaml
   schemas:
     $ref: ./components/schemas/index.yaml

@@ -117,7 +117,7 @@ def main() -> None:
     ensure_port_available(host, port)
 
     uvicorn.run(
-        "scheduler_api.main:app",
+        "scheduler_api.app:app",
         host=host,
         port=port,
         reload=reload,

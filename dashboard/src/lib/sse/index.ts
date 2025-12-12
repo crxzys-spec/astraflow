@@ -1,16 +1,14 @@
-// Facade for SSE-related cache helpers. Functions are grouped under ./cache to keep
-// responsibilities tidy while preserving the public API.
+export { SseClient, sseClient } from "./client";
 export {
   replaceRunSnapshot,
   updateRunCaches,
   updateRunNode,
   updateRunNodeResultDelta,
   upsertRunCaches,
-} from "./cache/runCache";
-
+} from "../cache/runCache";
 export {
   applyNodeResultDelta,
   applyRunDefinitionSnapshot,
   updateRunDefinitionNodeRuntime,
   updateRunDefinitionNodeState,
-} from "./cache/workflowCache";
+} from "../cache/workflowCache";

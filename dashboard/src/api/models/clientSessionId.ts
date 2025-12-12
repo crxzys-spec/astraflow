@@ -5,7 +5,4 @@
  * OpenAPI spec version: 1.3.0
  */
 
-/**
- * Frontend-generated session identifier (UUID) used to route SSE events.
- */
-export type ClientSessionIdParameter = string;
+export type ClientSessionId = string;

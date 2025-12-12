@@ -39,7 +39,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthLoginResponse'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/x-responses/Unauthorized'
   /api/v1/runs:
     get:
       tags:
@@ -47,8 +47,8 @@ paths:
       summary: List runs (paginated)
       operationId: listRuns
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/x-parameters/PageLimit'
+        - $ref: '#/components/x-parameters/PageCursor'
         - name: status
           in: query
           required: false
@@ -72,7 +72,7 @@ paths:
       summary: Start a run using the in-memory workflow snapshot
       operationId: startRun
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/x-parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -87,9 +87,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/RunRef'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/x-responses/BadRequest'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/x-responses/Conflict'
   '/api/v1/runs/{runId}':
     get:
       tags:
@@ -97,7 +97,7 @@ paths:
       summary: Get run summary
       operationId: getRun
       parameters:
-        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/x-parameters/RunId'
       responses:
         '200':
           description: OK
@@ -106,7 +106,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Run'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
   '/api/v1/runs/{runId}/cancel':
     post:
       tags:
@@ -114,7 +114,7 @@ paths:
       summary: Cancel a run
       operationId: cancelRun
       parameters:
-        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/x-parameters/RunId'
       responses:
         '202':
           description: Accepted
@@ -123,7 +123,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/RunRef'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
   '/api/v1/runs/{runId}/definition':
     get:
       tags:
@@ -131,7 +131,7 @@ paths:
       summary: Get the immutable workflow snapshot used by this run
       operationId: getRunDefinition
       parameters:
-        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/x-parameters/RunId'
       responses:
         '200':
           description: OK
@@ -146,7 +146,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Workflow'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
   /api/v1/workflows:
     get:
       tags:
@@ -154,8 +154,8 @@ paths:
       summary: List stored workflows (paginated)
       operationId: listWorkflows
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/x-parameters/PageLimit'
+        - $ref: '#/components/x-parameters/PageCursor'
       responses:
         '200':
           description: OK
@@ -169,7 +169,7 @@ paths:
       summary: Persist a workflow for editor storage (no versioning)
       operationId: persistWorkflow
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/x-parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -184,9 +184,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkflowRef'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/x-responses/BadRequest'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/x-responses/Conflict'
   '/api/v1/workflows/{workflowId}':
     get:
       tags:
@@ -194,7 +194,7 @@ paths:
       summary: Read stored workflow (latest)
       operationId: getWorkflow
       parameters:
-        - $ref: '#/components/parameters/WorkflowId'
+        - $ref: '#/components/x-parameters/WorkflowId'
       responses:
         '200':
           description: OK
@@ -203,7 +203,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Workflow'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
     delete:
       tags:
         - Workflows
@@ -211,14 +211,14 @@ paths:
       description: Marks the workflow record as deleted so it is hidden from listings and future reads.
       operationId: deleteWorkflow
       parameters:
-        - $ref: '#/components/parameters/WorkflowId'
+        - $ref: '#/components/x-parameters/WorkflowId'
       responses:
         '204':
           description: Workflow deleted
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/x-responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
   '/api/v1/workflows/{workflowId}/preview':
     get:
       tags:
@@ -226,7 +226,7 @@ paths:
       summary: Get workflow canvas preview
       operationId: getWorkflowPreview
       parameters:
-        - $ref: '#/components/parameters/WorkflowId'
+        - $ref: '#/components/x-parameters/WorkflowId'
       responses:
         '200':
           description: OK
@@ -235,14 +235,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkflowPreview'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
     put:
       tags:
         - Workflows
       summary: Set or clear workflow canvas preview
       operationId: setWorkflowPreview
       parameters:
-        - $ref: '#/components/parameters/WorkflowId'
+        - $ref: '#/components/x-parameters/WorkflowId'
       requestBody:
         required: true
         content:
@@ -257,7 +257,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkflowPreview'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
   /api/v1/workflow-packages:
     get:
       tags:
@@ -265,8 +265,8 @@ paths:
       summary: List published workflow packages
       operationId: listWorkflowPackages
       parameters:
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/x-parameters/PageLimit'
+        - $ref: '#/components/x-parameters/PageCursor'
         - name: owner
           in: query
           description: Filter by owner id; use `me` for the caller's id.
@@ -309,7 +309,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkflowPackageDetail'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
     delete:
       tags:
         - WorkflowPackages
@@ -325,7 +325,7 @@ paths:
         '204':
           description: Deleted
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
   '/api/v1/workflow-packages/{packageId}/versions':
     get:
       tags:
@@ -346,7 +346,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkflowPackageVersionList'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
   '/api/v1/workflow-packages/{packageId}/clone':
     post:
       tags:
@@ -373,7 +373,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkflowRef'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
   '/api/v1/workflows/{workflowId}/publish':
     post:
       tags:
@@ -400,13 +400,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/WorkflowPublishResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/x-responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/x-responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/x-responses/Conflict'
   /api/v1/packages:
     get:
       tags:
@@ -446,7 +446,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PackageDetail'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
   /api/v1/catalog/nodes/search:
     get:
       tags:
@@ -474,7 +474,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/CatalogNodeSearchResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/x-responses/BadRequest'
   /api/v1/workers:
     get:
       tags:
@@ -487,8 +487,8 @@ paths:
           required: false
           schema:
             type: string
-        - $ref: '#/components/parameters/PageLimit'
-        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/x-parameters/PageLimit'
+        - $ref: '#/components/x-parameters/PageCursor'
       responses:
         '200':
           description: OK
@@ -511,7 +511,7 @@ paths:
       summary: Get worker snapshot
       operationId: getWorker
       parameters:
-        - $ref: '#/components/parameters/WorkerId'
+        - $ref: '#/components/x-parameters/WorkerId'
       responses:
         '200':
           description: OK
@@ -520,7 +520,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Worker'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
   '/api/v1/workers/{workerId}/commands':
     post:
       tags:
@@ -528,8 +528,8 @@ paths:
       summary: Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)
       operationId: sendWorkerCommand
       parameters:
-        - $ref: '#/components/parameters/WorkerId'
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/x-parameters/WorkerId'
+        - $ref: '#/components/x-parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -544,9 +544,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/CommandRef'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/x-responses/BadRequest'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/x-responses/NotFound'
   /api/v1/events:
     get:
       tags:
@@ -554,8 +554,8 @@ paths:
       summary: Global Server-Sent Events stream (firehose; no query parameters)
       operationId: sseGlobalEvents
       parameters:
-        - $ref: '#/components/parameters/LastEventID'
-        - $ref: '#/components/parameters/ClientSessionId'
+        - $ref: '#/components/x-parameters/LastEventID'
+        - $ref: '#/components/x-parameters/ClientSessionId'
       responses:
         '200':
           description: text/event-stream
@@ -731,7 +731,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-  parameters:
+  x-parameters:
     RunId:
       name: runId
       in: path
@@ -787,7 +787,7 @@ components:
       schema:
         type: string
       description: Frontend-generated session identifier (UUID) used to route SSE events.
-  responses:
+  x-responses:
     BadRequest:
       description: Invalid input
       content:

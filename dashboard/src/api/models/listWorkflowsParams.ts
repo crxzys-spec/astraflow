@@ -4,14 +4,14 @@
  * Scheduler Public API (v1)
  * OpenAPI spec version: 1.3.0
  */
-import type { PageLimitParameter } from './pageLimitParameter';
-import type { PageCursorParameter } from './pageCursorParameter';
+import type { PageLimit } from './pageLimit';
+import type { PageCursor } from './pageCursor';
 
 export type ListWorkflowsParams = {
 /**
  * @minimum 1
  * @maximum 200
  */
-limit?: PageLimitParameter;
-cursor?: PageCursorParameter;
+limit?: PageLimit;
+cursor?: PageCursor;
 };

@@ -11,6 +11,7 @@ import WorkersPage from "./pages/WorkersPage";
 import LoginPage from "./pages/LoginPage";
 import { useAuthStore } from "./features/auth/store";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { RunSseSubscriptions } from "./lib/sse/RunSseSubscriptions";
 
 const NotFound = () => (
   <div className="card">
@@ -244,6 +245,7 @@ const RequireAuth = ({ children }: React.PropsWithChildren) => {
 function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <RunSseSubscriptions />
       <Routes>
         <Route path="/" element={<Navigate to="/workflows" replace />} />
         <Route

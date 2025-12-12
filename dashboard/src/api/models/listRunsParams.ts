@@ -4,8 +4,8 @@
  * Scheduler Public API (v1)
  * OpenAPI spec version: 1.3.0
  */
-import type { PageLimitParameter } from './pageLimitParameter';
-import type { PageCursorParameter } from './pageCursorParameter';
+import type { PageLimit } from './pageLimit';
+import type { PageCursor } from './pageCursor';
 import type { RunStatus } from './runStatus';
 
 export type ListRunsParams = {
@@ -13,8 +13,8 @@ export type ListRunsParams = {
  * @minimum 1
  * @maximum 200
  */
-limit?: PageLimitParameter;
-cursor?: PageCursorParameter;
+limit?: PageLimit;
+cursor?: PageCursor;
 status?: RunStatus;
 clientId?: string;
 };

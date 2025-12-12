@@ -4,11 +4,11 @@
  * Scheduler Public API (v1)
  * OpenAPI spec version: 1.3.0
  */
-import type { ClientSessionIdParameter } from './clientSessionIdParameter';
+import type { ClientSessionId } from './clientSessionId';
 
 export type SseGlobalEventsParams = {
 /**
  * Frontend-generated session identifier (UUID) used to route SSE events.
  */
-clientSessionId: ClientSessionIdParameter;
+clientSessionId: ClientSessionId;
 };

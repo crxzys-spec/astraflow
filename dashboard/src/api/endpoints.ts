@@ -27,12 +27,12 @@ import type {
   AuditEventList,
   AuthLoginRequest,
   AuthLoginResponse,
-  BadRequestResponse,
+  BadRequest,
   CatalogNodeSearchResponse,
   CommandRef,
-  ConflictResponse,
+  Conflict,
   CreateUserRequest,
-  ForbiddenResponse,
+  Forbidden,
   GetPackageParams,
   ListAuditEventsParams,
   ListRunsParams,
@@ -40,7 +40,7 @@ import type {
   ListWorkersParams,
   ListWorkflowPackagesParams,
   ListWorkflowsParams,
-  NotFoundResponse,
+  NotFound,
   PackageDetail,
   PackageList,
   ResetUserPasswordRequest,
@@ -50,7 +50,7 @@ import type {
   RunStartRequest,
   SearchCatalogNodesParams,
   SseGlobalEventsParams,
-  UnauthorizedResponse,
+  Unauthorized,
   UpdateUserStatusRequest,
   UserList,
   UserRoleRequest,
@@ -89,7 +89,7 @@ export const authLogin = (
   
 
 
-export const getAuthLoginMutationOptions = <TError = UnauthorizedResponse,
+export const getAuthLoginMutationOptions = <TError = Unauthorized,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLogin>>, TError,{data: AuthLoginRequest}, TContext>, }
 ): UseMutationOptions<Awaited<ReturnType<typeof authLogin>>, TError,{data: AuthLoginRequest}, TContext> => {
 
@@ -116,12 +116,12 @@ const {mutation: mutationOptions} = options ?
 
     export type AuthLoginMutationResult = NonNullable<Awaited<ReturnType<typeof authLogin>>>
     export type AuthLoginMutationBody = AuthLoginRequest
-    export type AuthLoginMutationError = UnauthorizedResponse
+    export type AuthLoginMutationError = Unauthorized
 
     /**
  * @summary Exchange username/password for a JWT
  */
-export const useAuthLogin = <TError = UnauthorizedResponse,
+export const useAuthLogin = <TError = Unauthorized,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLogin>>, TError,{data: AuthLoginRequest}, TContext>, }
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof authLogin>>,
@@ -247,7 +247,7 @@ export const startRun = (
   
 
 
-export const getStartRunMutationOptions = <TError = BadRequestResponse | ConflictResponse,
+export const getStartRunMutationOptions = <TError = BadRequest | Conflict,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startRun>>, TError,{data: RunStartRequest}, TContext>, }
 ): UseMutationOptions<Awaited<ReturnType<typeof startRun>>, TError,{data: RunStartRequest}, TContext> => {
 
@@ -274,12 +274,12 @@ const {mutation: mutationOptions} = options ?
 
     export type StartRunMutationResult = NonNullable<Awaited<ReturnType<typeof startRun>>>
     export type StartRunMutationBody = RunStartRequest
-    export type StartRunMutationError = BadRequestResponse | ConflictResponse
+    export type StartRunMutationError = BadRequest | Conflict
 
     /**
  * @summary Start a run using the in-memory workflow snapshot
  */
-export const useStartRun = <TError = BadRequestResponse | ConflictResponse,
+export const useStartRun = <TError = BadRequest | Conflict,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startRun>>, TError,{data: RunStartRequest}, TContext>, }
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof startRun>>,
@@ -318,7 +318,7 @@ export const getGetRunQueryKey = (runId?: string,) => {
     }
 
     
-export const getGetRunQueryOptions = <TData = Awaited<ReturnType<typeof getRun>>, TError = NotFoundResponse>(runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRun>>, TError, TData>>, }
+export const getGetRunQueryOptions = <TData = Awaited<ReturnType<typeof getRun>>, TError = NotFound>(runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRun>>, TError, TData>>, }
 ) => {
 
 const {query: queryOptions} = options ?? {};
@@ -337,10 +337,10 @@ const {query: queryOptions} = options ?? {};
 }
 
 export type GetRunQueryResult = NonNullable<Awaited<ReturnType<typeof getRun>>>
-export type GetRunQueryError = NotFoundResponse
+export type GetRunQueryError = NotFound
 
 
-export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = NotFoundResponse>(
+export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = NotFound>(
  runId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRun>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getRun>>,
@@ -350,7 +350,7 @@ export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = N
       >, }
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = NotFoundResponse>(
+export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = NotFound>(
  runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRun>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getRun>>,
@@ -360,7 +360,7 @@ export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = N
       >, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = NotFoundResponse>(
+export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = NotFound>(
  runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRun>>, TError, TData>>, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
@@ -368,7 +368,7 @@ export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = N
  * @summary Get run summary
  */
 
-export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = NotFoundResponse>(
+export function useGetRun<TData = Awaited<ReturnType<typeof getRun>>, TError = NotFound>(
  runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRun>>, TError, TData>>, }
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> } {
@@ -402,7 +402,7 @@ export const cancelRun = (
   
 
 
-export const getCancelRunMutationOptions = <TError = NotFoundResponse,
+export const getCancelRunMutationOptions = <TError = NotFound,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelRun>>, TError,{runId: string}, TContext>, }
 ): UseMutationOptions<Awaited<ReturnType<typeof cancelRun>>, TError,{runId: string}, TContext> => {
 
@@ -429,12 +429,12 @@ const {mutation: mutationOptions} = options ?
 
     export type CancelRunMutationResult = NonNullable<Awaited<ReturnType<typeof cancelRun>>>
     
-    export type CancelRunMutationError = NotFoundResponse
+    export type CancelRunMutationError = NotFound
 
     /**
  * @summary Cancel a run
  */
-export const useCancelRun = <TError = NotFoundResponse,
+export const useCancelRun = <TError = NotFound,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelRun>>, TError,{runId: string}, TContext>, }
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof cancelRun>>,
@@ -473,7 +473,7 @@ export const getGetRunDefinitionQueryKey = (runId?: string,) => {
     }
 
     
-export const getGetRunDefinitionQueryOptions = <TData = Awaited<ReturnType<typeof getRunDefinition>>, TError = NotFoundResponse>(runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRunDefinition>>, TError, TData>>, }
+export const getGetRunDefinitionQueryOptions = <TData = Awaited<ReturnType<typeof getRunDefinition>>, TError = NotFound>(runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRunDefinition>>, TError, TData>>, }
 ) => {
 
 const {query: queryOptions} = options ?? {};
@@ -492,10 +492,10 @@ const {query: queryOptions} = options ?? {};
 }
 
 export type GetRunDefinitionQueryResult = NonNullable<Awaited<ReturnType<typeof getRunDefinition>>>
-export type GetRunDefinitionQueryError = NotFoundResponse
+export type GetRunDefinitionQueryError = NotFound
 
 
-export function useGetRunDefinition<TData = Awaited<ReturnType<typeof getRunDefinition>>, TError = NotFoundResponse>(
+export function useGetRunDefinition<TData = Awaited<ReturnType<typeof getRunDefinition>>, TError = NotFound>(
  runId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRunDefinition>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getRunDefinition>>,
@@ -505,7 +505,7 @@ export function useGetRunDefinition<TData = Awaited<ReturnType<typeof getRunDefi
       >, }
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetRunDefinition<TData = Awaited<ReturnType<typeof getRunDefinition>>, TError = NotFoundResponse>(
+export function useGetRunDefinition<TData = Awaited<ReturnType<typeof getRunDefinition>>, TError = NotFound>(
  runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRunDefinition>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getRunDefinition>>,
@@ -515,7 +515,7 @@ export function useGetRunDefinition<TData = Awaited<ReturnType<typeof getRunDefi
       >, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetRunDefinition<TData = Awaited<ReturnType<typeof getRunDefinition>>, TError = NotFoundResponse>(
+export function useGetRunDefinition<TData = Awaited<ReturnType<typeof getRunDefinition>>, TError = NotFound>(
  runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRunDefinition>>, TError, TData>>, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
@@ -523,7 +523,7 @@ export function useGetRunDefinition<TData = Awaited<ReturnType<typeof getRunDefi
  * @summary Get the immutable workflow snapshot used by this run
  */
 
-export function useGetRunDefinition<TData = Awaited<ReturnType<typeof getRunDefinition>>, TError = NotFoundResponse>(
+export function useGetRunDefinition<TData = Awaited<ReturnType<typeof getRunDefinition>>, TError = NotFound>(
  runId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRunDefinition>>, TError, TData>>, }
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> } {
@@ -652,7 +652,7 @@ export const persistWorkflow = (
   
 
 
-export const getPersistWorkflowMutationOptions = <TError = BadRequestResponse | ConflictResponse,
+export const getPersistWorkflowMutationOptions = <TError = BadRequest | Conflict,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof persistWorkflow>>, TError,{data: Workflow}, TContext>, }
 ): UseMutationOptions<Awaited<ReturnType<typeof persistWorkflow>>, TError,{data: Workflow}, TContext> => {
 
@@ -679,12 +679,12 @@ const {mutation: mutationOptions} = options ?
 
     export type PersistWorkflowMutationResult = NonNullable<Awaited<ReturnType<typeof persistWorkflow>>>
     export type PersistWorkflowMutationBody = Workflow
-    export type PersistWorkflowMutationError = BadRequestResponse | ConflictResponse
+    export type PersistWorkflowMutationError = BadRequest | Conflict
 
     /**
  * @summary Persist a workflow for editor storage (no versioning)
  */
-export const usePersistWorkflow = <TError = BadRequestResponse | ConflictResponse,
+export const usePersistWorkflow = <TError = BadRequest | Conflict,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof persistWorkflow>>, TError,{data: Workflow}, TContext>, }
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof persistWorkflow>>,
@@ -723,7 +723,7 @@ export const getGetWorkflowQueryKey = (workflowId?: string,) => {
     }
 
     
-export const getGetWorkflowQueryOptions = <TData = Awaited<ReturnType<typeof getWorkflow>>, TError = NotFoundResponse>(workflowId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflow>>, TError, TData>>, }
+export const getGetWorkflowQueryOptions = <TData = Awaited<ReturnType<typeof getWorkflow>>, TError = NotFound>(workflowId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflow>>, TError, TData>>, }
 ) => {
 
 const {query: queryOptions} = options ?? {};
@@ -742,10 +742,10 @@ const {query: queryOptions} = options ?? {};
 }
 
 export type GetWorkflowQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkflow>>>
-export type GetWorkflowQueryError = NotFoundResponse
+export type GetWorkflowQueryError = NotFound
 
 
-export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, TError = NotFoundResponse>(
+export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, TError = NotFound>(
  workflowId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflow>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getWorkflow>>,
@@ -755,7 +755,7 @@ export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, 
       >, }
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, TError = NotFoundResponse>(
+export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, TError = NotFound>(
  workflowId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflow>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getWorkflow>>,
@@ -765,7 +765,7 @@ export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, 
       >, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, TError = NotFoundResponse>(
+export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, TError = NotFound>(
  workflowId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflow>>, TError, TData>>, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
@@ -773,7 +773,7 @@ export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, 
  * @summary Read stored workflow (latest)
  */
 
-export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, TError = NotFoundResponse>(
+export function useGetWorkflow<TData = Awaited<ReturnType<typeof getWorkflow>>, TError = NotFound>(
  workflowId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflow>>, TError, TData>>, }
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> } {
@@ -807,7 +807,7 @@ export const deleteWorkflow = (
   
 
 
-export const getDeleteWorkflowMutationOptions = <TError = ForbiddenResponse | NotFoundResponse,
+export const getDeleteWorkflowMutationOptions = <TError = Forbidden | NotFound,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflow>>, TError,{workflowId: string}, TContext>, }
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflow>>, TError,{workflowId: string}, TContext> => {
 
@@ -834,12 +834,12 @@ const {mutation: mutationOptions} = options ?
 
     export type DeleteWorkflowMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWorkflow>>>
     
-    export type DeleteWorkflowMutationError = ForbiddenResponse | NotFoundResponse
+    export type DeleteWorkflowMutationError = Forbidden | NotFound
 
     /**
  * @summary Soft delete workflow
  */
-export const useDeleteWorkflow = <TError = ForbiddenResponse | NotFoundResponse,
+export const useDeleteWorkflow = <TError = Forbidden | NotFound,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflow>>, TError,{workflowId: string}, TContext>, }
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof deleteWorkflow>>,
@@ -878,7 +878,7 @@ export const getGetWorkflowPreviewQueryKey = (workflowId?: string,) => {
     }
 
     
-export const getGetWorkflowPreviewQueryOptions = <TData = Awaited<ReturnType<typeof getWorkflowPreview>>, TError = NotFoundResponse>(workflowId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPreview>>, TError, TData>>, }
+export const getGetWorkflowPreviewQueryOptions = <TData = Awaited<ReturnType<typeof getWorkflowPreview>>, TError = NotFound>(workflowId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPreview>>, TError, TData>>, }
 ) => {
 
 const {query: queryOptions} = options ?? {};
@@ -897,10 +897,10 @@ const {query: queryOptions} = options ?? {};
 }
 
 export type GetWorkflowPreviewQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkflowPreview>>>
-export type GetWorkflowPreviewQueryError = NotFoundResponse
+export type GetWorkflowPreviewQueryError = NotFound
 
 
-export function useGetWorkflowPreview<TData = Awaited<ReturnType<typeof getWorkflowPreview>>, TError = NotFoundResponse>(
+export function useGetWorkflowPreview<TData = Awaited<ReturnType<typeof getWorkflowPreview>>, TError = NotFound>(
  workflowId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPreview>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getWorkflowPreview>>,
@@ -910,7 +910,7 @@ export function useGetWorkflowPreview<TData = Awaited<ReturnType<typeof getWorkf
       >, }
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetWorkflowPreview<TData = Awaited<ReturnType<typeof getWorkflowPreview>>, TError = NotFoundResponse>(
+export function useGetWorkflowPreview<TData = Awaited<ReturnType<typeof getWorkflowPreview>>, TError = NotFound>(
  workflowId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPreview>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getWorkflowPreview>>,
@@ -920,7 +920,7 @@ export function useGetWorkflowPreview<TData = Awaited<ReturnType<typeof getWorkf
       >, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetWorkflowPreview<TData = Awaited<ReturnType<typeof getWorkflowPreview>>, TError = NotFoundResponse>(
+export function useGetWorkflowPreview<TData = Awaited<ReturnType<typeof getWorkflowPreview>>, TError = NotFound>(
  workflowId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPreview>>, TError, TData>>, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
@@ -928,7 +928,7 @@ export function useGetWorkflowPreview<TData = Awaited<ReturnType<typeof getWorkf
  * @summary Get workflow canvas preview
  */
 
-export function useGetWorkflowPreview<TData = Awaited<ReturnType<typeof getWorkflowPreview>>, TError = NotFoundResponse>(
+export function useGetWorkflowPreview<TData = Awaited<ReturnType<typeof getWorkflowPreview>>, TError = NotFound>(
  workflowId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPreview>>, TError, TData>>, }
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> } {
@@ -964,7 +964,7 @@ export const setWorkflowPreview = (
   
 
 
-export const getSetWorkflowPreviewMutationOptions = <TError = NotFoundResponse,
+export const getSetWorkflowPreviewMutationOptions = <TError = NotFound,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWorkflowPreview>>, TError,{workflowId: string;data: WorkflowPreview}, TContext>, }
 ): UseMutationOptions<Awaited<ReturnType<typeof setWorkflowPreview>>, TError,{workflowId: string;data: WorkflowPreview}, TContext> => {
 
@@ -991,12 +991,12 @@ const {mutation: mutationOptions} = options ?
 
     export type SetWorkflowPreviewMutationResult = NonNullable<Awaited<ReturnType<typeof setWorkflowPreview>>>
     export type SetWorkflowPreviewMutationBody = WorkflowPreview
-    export type SetWorkflowPreviewMutationError = NotFoundResponse
+    export type SetWorkflowPreviewMutationError = NotFound
 
     /**
  * @summary Set or clear workflow canvas preview
  */
-export const useSetWorkflowPreview = <TError = NotFoundResponse,
+export const useSetWorkflowPreview = <TError = NotFound,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setWorkflowPreview>>, TError,{workflowId: string;data: WorkflowPreview}, TContext>, }
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof setWorkflowPreview>>,
@@ -1128,7 +1128,7 @@ export const getGetWorkflowPackageQueryKey = (packageId?: string,) => {
     }
 
     
-export const getGetWorkflowPackageQueryOptions = <TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = NotFoundResponse>(packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPackage>>, TError, TData>>, }
+export const getGetWorkflowPackageQueryOptions = <TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = NotFound>(packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPackage>>, TError, TData>>, }
 ) => {
 
 const {query: queryOptions} = options ?? {};
@@ -1147,10 +1147,10 @@ const {query: queryOptions} = options ?? {};
 }
 
 export type GetWorkflowPackageQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkflowPackage>>>
-export type GetWorkflowPackageQueryError = NotFoundResponse
+export type GetWorkflowPackageQueryError = NotFound
 
 
-export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = NotFoundResponse>(
+export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = NotFound>(
  packageId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPackage>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getWorkflowPackage>>,
@@ -1160,7 +1160,7 @@ export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkf
       >, }
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = NotFoundResponse>(
+export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = NotFound>(
  packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPackage>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getWorkflowPackage>>,
@@ -1170,7 +1170,7 @@ export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkf
       >, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = NotFoundResponse>(
+export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = NotFound>(
  packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPackage>>, TError, TData>>, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
@@ -1178,7 +1178,7 @@ export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkf
  * @summary Get a workflow package detail
  */
 
-export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = NotFoundResponse>(
+export function useGetWorkflowPackage<TData = Awaited<ReturnType<typeof getWorkflowPackage>>, TError = NotFound>(
  packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkflowPackage>>, TError, TData>>, }
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> } {
@@ -1211,7 +1211,7 @@ export const deleteWorkflowPackage = (
   
 
 
-export const getDeleteWorkflowPackageMutationOptions = <TError = NotFoundResponse,
+export const getDeleteWorkflowPackageMutationOptions = <TError = NotFound,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflowPackage>>, TError,{packageId: string}, TContext>, }
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflowPackage>>, TError,{packageId: string}, TContext> => {
 
@@ -1238,12 +1238,12 @@ const {mutation: mutationOptions} = options ?
 
     export type DeleteWorkflowPackageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWorkflowPackage>>>
     
-    export type DeleteWorkflowPackageMutationError = NotFoundResponse
+    export type DeleteWorkflowPackageMutationError = NotFound
 
     /**
  * @summary Delete a workflow package
  */
-export const useDeleteWorkflowPackage = <TError = NotFoundResponse,
+export const useDeleteWorkflowPackage = <TError = NotFound,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWorkflowPackage>>, TError,{packageId: string}, TContext>, }
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof deleteWorkflowPackage>>,
@@ -1282,7 +1282,7 @@ export const getListWorkflowPackageVersionsQueryKey = (packageId?: string,) => {
     }
 
     
-export const getListWorkflowPackageVersionsQueryOptions = <TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = NotFoundResponse>(packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError, TData>>, }
+export const getListWorkflowPackageVersionsQueryOptions = <TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = NotFound>(packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError, TData>>, }
 ) => {
 
 const {query: queryOptions} = options ?? {};
@@ -1301,10 +1301,10 @@ const {query: queryOptions} = options ?? {};
 }
 
 export type ListWorkflowPackageVersionsQueryResult = NonNullable<Awaited<ReturnType<typeof listWorkflowPackageVersions>>>
-export type ListWorkflowPackageVersionsQueryError = NotFoundResponse
+export type ListWorkflowPackageVersionsQueryError = NotFound
 
 
-export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = NotFoundResponse>(
+export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = NotFound>(
  packageId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listWorkflowPackageVersions>>,
@@ -1314,7 +1314,7 @@ export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof
       >, }
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = NotFoundResponse>(
+export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = NotFound>(
  packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listWorkflowPackageVersions>>,
@@ -1324,7 +1324,7 @@ export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof
       >, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = NotFoundResponse>(
+export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = NotFound>(
  packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError, TData>>, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
@@ -1332,7 +1332,7 @@ export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof
  * @summary List versions for a workflow package
  */
 
-export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = NotFoundResponse>(
+export function useListWorkflowPackageVersions<TData = Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError = NotFound>(
  packageId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listWorkflowPackageVersions>>, TError, TData>>, }
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> } {
@@ -1369,7 +1369,7 @@ export const cloneWorkflowPackage = (
   
 
 
-export const getCloneWorkflowPackageMutationOptions = <TError = NotFoundResponse,
+export const getCloneWorkflowPackageMutationOptions = <TError = NotFound,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cloneWorkflowPackage>>, TError,{packageId: string;data: WorkflowPackageCloneRequest}, TContext>, }
 ): UseMutationOptions<Awaited<ReturnType<typeof cloneWorkflowPackage>>, TError,{packageId: string;data: WorkflowPackageCloneRequest}, TContext> => {
 
@@ -1396,12 +1396,12 @@ const {mutation: mutationOptions} = options ?
 
     export type CloneWorkflowPackageMutationResult = NonNullable<Awaited<ReturnType<typeof cloneWorkflowPackage>>>
     export type CloneWorkflowPackageMutationBody = WorkflowPackageCloneRequest
-    export type CloneWorkflowPackageMutationError = NotFoundResponse
+    export type CloneWorkflowPackageMutationError = NotFound
 
     /**
  * @summary Clone a workflow package version into the caller's workspace
  */
-export const useCloneWorkflowPackage = <TError = NotFoundResponse,
+export const useCloneWorkflowPackage = <TError = NotFound,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cloneWorkflowPackage>>, TError,{packageId: string;data: WorkflowPackageCloneRequest}, TContext>, }
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof cloneWorkflowPackage>>,
@@ -1435,7 +1435,7 @@ export const publishWorkflow = (
   
 
 
-export const getPublishWorkflowMutationOptions = <TError = BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse,
+export const getPublishWorkflowMutationOptions = <TError = BadRequest | Forbidden | NotFound | Conflict,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishWorkflow>>, TError,{workflowId: string;data: WorkflowPublishRequest}, TContext>, }
 ): UseMutationOptions<Awaited<ReturnType<typeof publishWorkflow>>, TError,{workflowId: string;data: WorkflowPublishRequest}, TContext> => {
 
@@ -1462,12 +1462,12 @@ const {mutation: mutationOptions} = options ?
 
     export type PublishWorkflowMutationResult = NonNullable<Awaited<ReturnType<typeof publishWorkflow>>>
     export type PublishWorkflowMutationBody = WorkflowPublishRequest
-    export type PublishWorkflowMutationError = BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse
+    export type PublishWorkflowMutationError = BadRequest | Forbidden | NotFound | Conflict
 
     /**
  * @summary Publish a workflow draft to the Store
  */
-export const usePublishWorkflow = <TError = BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse,
+export const usePublishWorkflow = <TError = BadRequest | Forbidden | NotFound | Conflict,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishWorkflow>>, TError,{workflowId: string;data: WorkflowPublishRequest}, TContext>, }
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof publishWorkflow>>,
@@ -1601,7 +1601,7 @@ export const getGetPackageQueryKey = (packageName?: string,
     }
 
     
-export const getGetPackageQueryOptions = <TData = Awaited<ReturnType<typeof getPackage>>, TError = NotFoundResponse>(packageName: string,
+export const getGetPackageQueryOptions = <TData = Awaited<ReturnType<typeof getPackage>>, TError = NotFound>(packageName: string,
     params?: GetPackageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPackage>>, TError, TData>>, }
 ) => {
 
@@ -1621,10 +1621,10 @@ const {query: queryOptions} = options ?? {};
 }
 
 export type GetPackageQueryResult = NonNullable<Awaited<ReturnType<typeof getPackage>>>
-export type GetPackageQueryError = NotFoundResponse
+export type GetPackageQueryError = NotFound
 
 
-export function useGetPackage<TData = Awaited<ReturnType<typeof getPackage>>, TError = NotFoundResponse>(
+export function useGetPackage<TData = Awaited<ReturnType<typeof getPackage>>, TError = NotFound>(
  packageName: string,
     params: undefined |  GetPackageParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPackage>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -1635,7 +1635,7 @@ export function useGetPackage<TData = Awaited<ReturnType<typeof getPackage>>, TE
       >, }
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetPackage<TData = Awaited<ReturnType<typeof getPackage>>, TError = NotFoundResponse>(
+export function useGetPackage<TData = Awaited<ReturnType<typeof getPackage>>, TError = NotFound>(
  packageName: string,
     params?: GetPackageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPackage>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -1646,7 +1646,7 @@ export function useGetPackage<TData = Awaited<ReturnType<typeof getPackage>>, TE
       >, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetPackage<TData = Awaited<ReturnType<typeof getPackage>>, TError = NotFoundResponse>(
+export function useGetPackage<TData = Awaited<ReturnType<typeof getPackage>>, TError = NotFound>(
  packageName: string,
     params?: GetPackageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPackage>>, TError, TData>>, }
  , queryClient?: QueryClient
@@ -1655,7 +1655,7 @@ export function useGetPackage<TData = Awaited<ReturnType<typeof getPackage>>, TE
  * @summary Get package detail
  */
 
-export function useGetPackage<TData = Awaited<ReturnType<typeof getPackage>>, TError = NotFoundResponse>(
+export function useGetPackage<TData = Awaited<ReturnType<typeof getPackage>>, TError = NotFound>(
  packageName: string,
     params?: GetPackageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPackage>>, TError, TData>>, }
  , queryClient?: QueryClient 
@@ -1699,7 +1699,7 @@ export const getSearchCatalogNodesQueryKey = (params?: SearchCatalogNodesParams,
     }
 
     
-export const getSearchCatalogNodesQueryOptions = <TData = Awaited<ReturnType<typeof searchCatalogNodes>>, TError = BadRequestResponse>(params: SearchCatalogNodesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCatalogNodes>>, TError, TData>>, }
+export const getSearchCatalogNodesQueryOptions = <TData = Awaited<ReturnType<typeof searchCatalogNodes>>, TError = BadRequest>(params: SearchCatalogNodesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCatalogNodes>>, TError, TData>>, }
 ) => {
 
 const {query: queryOptions} = options ?? {};
@@ -1718,10 +1718,10 @@ const {query: queryOptions} = options ?? {};
 }
 
 export type SearchCatalogNodesQueryResult = NonNullable<Awaited<ReturnType<typeof searchCatalogNodes>>>
-export type SearchCatalogNodesQueryError = BadRequestResponse
+export type SearchCatalogNodesQueryError = BadRequest
 
 
-export function useSearchCatalogNodes<TData = Awaited<ReturnType<typeof searchCatalogNodes>>, TError = BadRequestResponse>(
+export function useSearchCatalogNodes<TData = Awaited<ReturnType<typeof searchCatalogNodes>>, TError = BadRequest>(
  params: SearchCatalogNodesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCatalogNodes>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof searchCatalogNodes>>,
@@ -1731,7 +1731,7 @@ export function useSearchCatalogNodes<TData = Awaited<ReturnType<typeof searchCa
       >, }
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useSearchCatalogNodes<TData = Awaited<ReturnType<typeof searchCatalogNodes>>, TError = BadRequestResponse>(
+export function useSearchCatalogNodes<TData = Awaited<ReturnType<typeof searchCatalogNodes>>, TError = BadRequest>(
  params: SearchCatalogNodesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCatalogNodes>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof searchCatalogNodes>>,
@@ -1741,7 +1741,7 @@ export function useSearchCatalogNodes<TData = Awaited<ReturnType<typeof searchCa
       >, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useSearchCatalogNodes<TData = Awaited<ReturnType<typeof searchCatalogNodes>>, TError = BadRequestResponse>(
+export function useSearchCatalogNodes<TData = Awaited<ReturnType<typeof searchCatalogNodes>>, TError = BadRequest>(
  params: SearchCatalogNodesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCatalogNodes>>, TError, TData>>, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
@@ -1749,7 +1749,7 @@ export function useSearchCatalogNodes<TData = Awaited<ReturnType<typeof searchCa
  * @summary Search catalog nodes (system + worker capabilities)
  */
 
-export function useSearchCatalogNodes<TData = Awaited<ReturnType<typeof searchCatalogNodes>>, TError = BadRequestResponse>(
+export function useSearchCatalogNodes<TData = Awaited<ReturnType<typeof searchCatalogNodes>>, TError = BadRequest>(
  params: SearchCatalogNodesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchCatalogNodes>>, TError, TData>>, }
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> } {
@@ -1884,7 +1884,7 @@ export const getGetWorkerQueryKey = (workerId?: string,) => {
     }
 
     
-export const getGetWorkerQueryOptions = <TData = Awaited<ReturnType<typeof getWorker>>, TError = NotFoundResponse>(workerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorker>>, TError, TData>>, }
+export const getGetWorkerQueryOptions = <TData = Awaited<ReturnType<typeof getWorker>>, TError = NotFound>(workerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorker>>, TError, TData>>, }
 ) => {
 
 const {query: queryOptions} = options ?? {};
@@ -1903,10 +1903,10 @@ const {query: queryOptions} = options ?? {};
 }
 
 export type GetWorkerQueryResult = NonNullable<Awaited<ReturnType<typeof getWorker>>>
-export type GetWorkerQueryError = NotFoundResponse
+export type GetWorkerQueryError = NotFound
 
 
-export function useGetWorker<TData = Awaited<ReturnType<typeof getWorker>>, TError = NotFoundResponse>(
+export function useGetWorker<TData = Awaited<ReturnType<typeof getWorker>>, TError = NotFound>(
  workerId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorker>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getWorker>>,
@@ -1916,7 +1916,7 @@ export function useGetWorker<TData = Awaited<ReturnType<typeof getWorker>>, TErr
       >, }
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetWorker<TData = Awaited<ReturnType<typeof getWorker>>, TError = NotFoundResponse>(
+export function useGetWorker<TData = Awaited<ReturnType<typeof getWorker>>, TError = NotFound>(
  workerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorker>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getWorker>>,
@@ -1926,7 +1926,7 @@ export function useGetWorker<TData = Awaited<ReturnType<typeof getWorker>>, TErr
       >, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
-export function useGetWorker<TData = Awaited<ReturnType<typeof getWorker>>, TError = NotFoundResponse>(
+export function useGetWorker<TData = Awaited<ReturnType<typeof getWorker>>, TError = NotFound>(
  workerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorker>>, TError, TData>>, }
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> }
@@ -1934,7 +1934,7 @@ export function useGetWorker<TData = Awaited<ReturnType<typeof getWorker>>, TErr
  * @summary Get worker snapshot
  */
 
-export function useGetWorker<TData = Awaited<ReturnType<typeof getWorker>>, TError = NotFoundResponse>(
+export function useGetWorker<TData = Awaited<ReturnType<typeof getWorker>>, TError = NotFound>(
  workerId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorker>>, TError, TData>>, }
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData> } {
@@ -1971,7 +1971,7 @@ export const sendWorkerCommand = (
   
 
 
-export const getSendWorkerCommandMutationOptions = <TError = BadRequestResponse | NotFoundResponse,
+export const getSendWorkerCommandMutationOptions = <TError = BadRequest | NotFound,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendWorkerCommand>>, TError,{workerId: string;data: WorkerCommand}, TContext>, }
 ): UseMutationOptions<Awaited<ReturnType<typeof sendWorkerCommand>>, TError,{workerId: string;data: WorkerCommand}, TContext> => {
 
@@ -1998,12 +1998,12 @@ const {mutation: mutationOptions} = options ?
 
     export type SendWorkerCommandMutationResult = NonNullable<Awaited<ReturnType<typeof sendWorkerCommand>>>
     export type SendWorkerCommandMutationBody = WorkerCommand
-    export type SendWorkerCommandMutationError = BadRequestResponse | NotFoundResponse
+    export type SendWorkerCommandMutationError = BadRequest | NotFound
 
     /**
  * @summary Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)
  */
-export const useSendWorkerCommand = <TError = BadRequestResponse | NotFoundResponse,
+export const useSendWorkerCommand = <TError = BadRequest | NotFound,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendWorkerCommand>>, TError,{workerId: string;data: WorkerCommand}, TContext>, }
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof sendWorkerCommand>>,

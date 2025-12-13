@@ -1,12 +1,8 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import {
-  useCloneWorkflowPackage,
-  useDeleteWorkflowPackage,
-  useListWorkflowPackages
-} from "../api/endpoints";
-import type { WorkflowPackageSummary } from "../api/models/workflowPackageSummary";
+import { useWorkflowPackages, useWorkflowPackagesStore } from "../store/workflowPackagesSlice";
+import type { WorkflowPackageSummary } from "../client/models";
 import { useAuthStore } from "../features/auth/store";
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
@@ -34,10 +30,7 @@ const PackageCard = ({
   const previewImage = pkg.previewImage ?? pkg.latestVersion?.previewImage ?? null;
   const visibilityLabel = pkg.visibility.charAt(0).toUpperCase() + pkg.visibility.slice(1);
   const ownerDisplay = pkg.ownerName ?? pkg.ownerId ?? "Unassigned";
-  const latestVersionLabel = latestVersion?.version ?? "—";
-  const publishedAtLabel = latestVersion?.publishedAt
-    ? new Date(latestVersion.publishedAt).toLocaleString()
-    : null;
+  const latestVersionLabel = latestVersion?.version ?? "?";
   const description = pkg.summary ?? "No description provided.";
   return (
     <article className="card card--surface workflow-card workflow-card--accent">
@@ -116,73 +109,46 @@ const StorePage = () => {
   const [deletePackageError, setDeletePackageError] = useState<string | null>(null);
   const [deletingPackageId, setDeletingPackageId] = useState<string | null>(null);
 
-  const publicPackagesQuery = useListWorkflowPackages(
+  const publicPackagesQuery = useWorkflowPackages(
     { visibility: "public" },
-    {
-      query: { staleTime: 30_000 }
-    }
+    { enabled: true },
   );
-  const myPackagesQuery = useListWorkflowPackages(
+  const myPackagesQuery = useWorkflowPackages(
     { owner: "me" },
-    {
-      query: { enabled: canViewOwnPackages, staleTime: 30_000 }
-    }
+    { enabled: canViewOwnPackages },
   );
 
-  const cloneWorkflowMutation = useCloneWorkflowPackage({
-    mutation: {
-      onMutate: ({ packageId }) => {
-        setActiveCloneId(packageId);
-        setCloneError(null);
-      },
-      onSuccess: (response) => {
-        const workflowId = response.data?.workflowId;
-        if (workflowId) {
-          navigate(`/workflows/${workflowId}`);
-        }
-      },
-      onError: (error: unknown) => {
-        if (error && typeof error === "object" && "response" in error) {
-          const err = error as { response?: { data?: { message?: string } } };
-          setCloneError(err.response?.data?.message ?? "Failed to clone workflow.");
-        } else if (error instanceof Error) {
-          setCloneError(error.message);
-        } else {
-          setCloneError("Failed to clone workflow.");
-        }
-      },
-      onSettled: () => {
-        setActiveCloneId(null);
-      }
-    }
-  });
-  const deleteWorkflowPackageMutation = useDeleteWorkflowPackage();
+  const clonePackage = useWorkflowPackagesStore((state) => state.clonePackage);
+  const deletePackage = useWorkflowPackagesStore((state) => state.deletePackage);
 
-  const publicPackages = publicPackagesQuery.data?.data?.items ?? [];
-  const publicErrorMessage =
-    ((publicPackagesQuery.error as { response?: { data?: { message?: string } } } | undefined)
-      ?.response?.data?.message ??
-      (publicPackagesQuery.error as Error | undefined)?.message) ??
-    null;
-  const myPackages = myPackagesQuery.data?.data?.items ?? [];
-  const myErrorMessage =
-    ((myPackagesQuery.error as { response?: { data?: { message?: string } } } | undefined)
-      ?.response?.data?.message ??
-      (myPackagesQuery.error as Error | undefined)?.message) ??
-    null;
+  const publicPackages = publicPackagesQuery.items ?? [];
+  const publicErrorMessage = (publicPackagesQuery.error as { message?: string } | undefined)?.message ?? null;
+  const myPackages = myPackagesQuery.items ?? [];
+  const myErrorMessage = (myPackagesQuery.error as { message?: string } | undefined)?.message ?? null;
 
   const handleClone = (pkg: WorkflowPackageSummary) => {
     if (!canClone) {
       setCloneError("You need workflow.editor access to clone packages.");
       return;
     }
-    const payload = {
-      packageId: pkg.id,
-      data: pkg.latestVersion?.id
-        ? { versionId: pkg.latestVersion.id, workflowName: pkg.displayName }
-        : { workflowName: pkg.displayName }
-    };
-    cloneWorkflowMutation.mutate(payload);
+    const payload = pkg.latestVersion?.id
+      ? { versionId: pkg.latestVersion.id, workflowName: pkg.displayName }
+      : { workflowName: pkg.displayName };
+    setActiveCloneId(pkg.id);
+    setCloneError(null);
+    clonePackage(pkg.id, payload)
+      .then((response) => {
+        const workflowId = response?.workflowId;
+        if (workflowId) {
+          navigate(`/workflows/${workflowId}`);
+        }
+      })
+      .catch((error) => {
+        setCloneError(getErrorMessage(error, "Failed to clone workflow."));
+      })
+      .finally(() => {
+        setActiveCloneId(null);
+      });
   };
 
   const handleDeletePackage = async (pkg: WorkflowPackageSummary) => {
@@ -192,7 +158,7 @@ const StorePage = () => {
     setDeletePackageError(null);
     setDeletingPackageId(pkg.id);
     try {
-      await deleteWorkflowPackageMutation.mutateAsync({ packageId: pkg.id });
+      await deletePackage(pkg.id);
       await Promise.all([myPackagesQuery.refetch(), publicPackagesQuery.refetch()]);
     } catch (error) {
       setDeletePackageError(getErrorMessage(error, "Failed to delete package."));
@@ -248,9 +214,9 @@ const StorePage = () => {
                     className="btn btn--primary"
                     type="button"
                     onClick={() => handleClone(pkg)}
-                    disabled={!canClone || (cloneWorkflowMutation.isPending && activeCloneId === pkg.id)}
+                    disabled={!canClone || activeCloneId === pkg.id}
                   >
-                    {cloneWorkflowMutation.isPending && activeCloneId === pkg.id ? "Cloning..." : "Clone"}
+                    {activeCloneId === pkg.id ? "Cloning..." : "Clone"}
                   </button>
                 }
               />
@@ -307,7 +273,7 @@ const StorePage = () => {
           <div className="workflow-grid">
             {myPackages.map((pkg) => {
               const isDeleting =
-                deleteWorkflowPackageMutation.isPending && deletingPackageId === pkg.id;
+                deletingPackageId === pkg.id;
               return (
                 <PackageCard
                   key={pkg.id}
@@ -317,7 +283,7 @@ const StorePage = () => {
                       className="btn btn--ghost"
                       type="button"
                       onClick={() => handleDeletePackage(pkg)}
-                      disabled={deleteWorkflowPackageMutation.isPending}
+                      disabled={Boolean(deletingPackageId)}
                     >
                       {isDeleting ? "Deleting..." : "Delete"}
                     </button>
@@ -371,3 +337,5 @@ const StorePage = () => {
 };
 
 export default StorePage;
+
+

@@ -1,46 +1,72 @@
-﻿import { useEffect, useMemo, useState } from "react";
-import type { AuditEvent } from "../api/models/auditEvent";
-import type { ListAuditEventsParams } from "../api/models/listAuditEventsParams";
-import { useListAuditEvents } from "../api/endpoints";
+import { useEffect, useMemo, useState } from "react";
+import type { AuditEvent } from "../client/models";
 import { useAuthStore } from "../features/auth/store";
+import { listAuditEvents } from "../services/audit";
+import { toApiError, type ApiError } from "../api/fetcher";
 
 const AuditLogPage = () => {
   const isAdmin = useAuthStore((state) => state.hasRole(["admin"]));
   const [filters, setFilters] = useState({ action: "", actorId: "", targetType: "" });
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [events, setEvents] = useState<AuditEvent[]>([]);
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [error, setError] = useState<ApiError | null>(null);
 
   const queryParams = {
     action: filters.action || undefined,
     actorId: filters.actorId || undefined,
     targetType: filters.targetType || undefined,
     cursor,
-  } satisfies ListAuditEventsParams;
+  };
 
-  const query = useListAuditEvents(queryParams, {
-    query: { enabled: isAdmin, refetchOnWindowFocus: false },
-  });
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
 
-  const { data, isLoading, isError, error, refetch, isFetching } = query;
-  const nextCursor = data?.data.nextCursor ?? null;
+  const fetchAudit = async (reset: boolean) => {
+    if (!isAdmin) {
+      return;
+    }
+    const nextCursorValue = reset ? undefined : cursor;
+    setStatus("loading");
+    setError(null);
+    try {
+      const response = await listAuditEvents({ ...queryParams, cursor: nextCursorValue });
+      setNextCursor(response?.nextCursor ?? null);
+      setEvents((prev) => (reset ? response.items ?? [] : [...prev, ...(response.items ?? [])]));
+      setStatus("success");
+    } catch (err) {
+      setError(toApiError(err));
+      setStatus("error");
+    }
+  };
 
   useEffect(() => {
     if (!isAdmin) {
       setEvents([]);
       setCursor(undefined);
+      setStatus("idle");
+      setError(null);
     }
   }, [isAdmin]);
 
   useEffect(() => {
-    if (!data) {
+    void fetchAudit(true);
+  }, [filters.action, filters.actorId, filters.targetType, isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) {
       return;
     }
-    setEvents((prev) => (cursor ? [...prev, ...data.data.items] : data.data.items));
-  }, [data, cursor]);
+    if (cursor) {
+      void fetchAudit(false);
+    }
+  }, [cursor, isAdmin]);
 
   const rows = useMemo(() => events, [events]);
   const hasFilters =
     Boolean(filters.action.trim()) || Boolean(filters.actorId.trim()) || Boolean(filters.targetType.trim());
+
+  const isLoading = status === "loading";
+  const isError = status === "error";
 
   if (!isAdmin) {
     return (
@@ -63,7 +89,7 @@ const AuditLogPage = () => {
           <h2>Audit Events</h2>
           <p className="text-subtle">Latest privileged operations captured by the scheduler.</p>
         </div>
-        <button className="btn" type="button" onClick={() => { setCursor(undefined); refetch(); }}>
+        <button className="btn" type="button" onClick={() => { setCursor(undefined); void fetchAudit(true); }}>
           Refresh
         </button>
       </header>
@@ -73,7 +99,7 @@ const AuditLogPage = () => {
         onSubmit={(evt) => {
           evt.preventDefault();
           setCursor(undefined);
-          refetch();
+          void fetchAudit(true);
         }}
       >
         <div className="builder-grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}>
@@ -121,8 +147,8 @@ const AuditLogPage = () => {
 
       {isError && (
         <div className="card stack">
-          <p className="error">Unable to load audit events: {(error as Error).message}</p>
-          <button className="btn" type="button" onClick={() => refetch()}>
+          <p className="error">Unable to load audit events: {error?.message ?? "Unknown error"}</p>
+          <button className="btn" type="button" onClick={() => { setCursor(undefined); void fetchAudit(true); }}>
             Retry
           </button>
         </div>
@@ -171,9 +197,9 @@ const AuditLogPage = () => {
                 className="btn"
                 type="button"
                 onClick={() => setCursor(nextCursor)}
-                disabled={isFetching}
+                disabled={isLoading}
               >
-                {isFetching ? "Loading..." : "Load More"}
+                {isLoading ? "Loading..." : "Load More"}
               </button>
             </div>
           )}
@@ -185,6 +211,7 @@ const AuditLogPage = () => {
 };
 
 export default AuditLogPage;
+
 
 
 

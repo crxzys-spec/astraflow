@@ -2,7 +2,8 @@ import axios from "axios";
 import type { AxiosRequestHeaders } from "axios";
 import { AUTH_STORAGE_KEY } from "../features/auth/constants";
 
-const baseURL = import.meta.env.VITE_SCHEDULER_BASE_URL ?? "http://127.0.0.1:8080";
+// Use a relative base during development so Vite's proxy can avoid CORS.
+const baseURL = import.meta.env.VITE_SCHEDULER_BASE_URL ?? "/api";
 axios.defaults.baseURL = baseURL;
 
 let currentToken: string | null = null;

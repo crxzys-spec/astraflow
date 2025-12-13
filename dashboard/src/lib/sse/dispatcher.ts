@@ -1,5 +1,4 @@
-import type { UiEventEnvelope } from "../../api/models/uiEventEnvelope";
-import { UiEventType } from "../../api/models/uiEventType";
+import { UiEventType, type UiEventEnvelope } from "../../client/models";
 import { sseClient } from "./client";
 
 type UiEventHandler = (event: UiEventEnvelope) => void;
@@ -74,3 +73,4 @@ export const registerSseHandler = (type: UiEventType, handler: UiEventHandler): 
     maybeTeardown();
   };
 };
+

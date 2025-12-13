@@ -117,7 +117,7 @@ export const TypedInputWidget = ({ widget, node, value, onChange, readOnly }: Wi
         <textarea
           id={`${widget.key}-value`}
           className={clsx("wf-widget__textarea", { "wf-widget__textarea--readonly": readOnly })}
-          value={typeof value === "string" ? value : value ?? ""}
+          value={typeof value === "string" ? value : ""}
           onChange={handleValueChange}
           readOnly={readOnly}
           rows={3}
@@ -132,7 +132,7 @@ export const TypedInputWidget = ({ widget, node, value, onChange, readOnly }: Wi
         className={clsx("wf-widget__input", { "wf-widget__input--readonly": readOnly })}
         type={inputType}
         step={isFloat ? "any" : undefined}
-        value={value ?? ""}
+        value={typeof value === "number" || typeof value === "string" ? value : ""}
         onChange={handleValueChange}
         readOnly={readOnly}
       />

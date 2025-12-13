@@ -1,0 +1,4363 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Scheduler Public API (v1)",
+    "version": "1.3.0"
+  },
+  "servers": [
+    {
+      "url": "https://scheduler.example.com"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Runs"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Workflows"
+    },
+    {
+      "name": "Packages"
+    },
+    {
+      "name": "WorkflowPackages"
+    },
+    {
+      "name": "Workers"
+    },
+    {
+      "name": "Events"
+    },
+    {
+      "name": "Audit"
+    },
+    {
+      "name": "Users"
+    },
+    {
+      "name": "Catalog"
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Exchange username/password for a JWT",
+        "operationId": "authLogin",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthLoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthLoginResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/runs": {
+      "get": {
+        "tags": [
+          "Runs"
+        ],
+        "summary": "List runs (paginated)",
+        "operationId": "listRuns",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageLimit"
+          },
+          {
+            "$ref": "#/components/parameters/PageCursor"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/RunStatus"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Runs"
+        ],
+        "summary": "Start a run using the in-memory workflow snapshot",
+        "operationId": "startRun",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunStartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRef"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{runId}": {
+      "get": {
+        "tags": [
+          "Runs"
+        ],
+        "summary": "Get run summary",
+        "operationId": "getRun",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RunId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{runId}/cancel": {
+      "post": {
+        "tags": [
+          "Runs"
+        ],
+        "summary": "Cancel a run",
+        "operationId": "cancelRun",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RunId"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRef"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{runId}/definition": {
+      "get": {
+        "tags": [
+          "Runs"
+        ],
+        "summary": "Get the immutable workflow snapshot used by this run",
+        "operationId": "getRunDefinition",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RunId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "description": "Weak ETag based on definitionHash",
+                "schema": {
+                  "type": "string",
+                  "example": "W/\"sha256:9e22a4...\""
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/workflows": {
+      "get": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "List stored workflows (paginated)",
+        "operationId": "listWorkflows",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageLimit"
+          },
+          {
+            "$ref": "#/components/parameters/PageCursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "Persist a workflow for editor storage (no versioning)",
+        "operationId": "persistWorkflow",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Workflow"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowRef"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{workflowId}": {
+      "get": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "Read stored workflow (latest)",
+        "operationId": "getWorkflow",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "Soft delete workflow",
+        "description": "Marks the workflow record as deleted so it is hidden from listings and future reads.",
+        "operationId": "deleteWorkflow",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Workflow deleted"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{workflowId}/preview": {
+      "get": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "Get workflow canvas preview",
+        "operationId": "getWorkflowPreview",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowPreview"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "Set or clear workflow canvas preview",
+        "operationId": "setWorkflowPreview",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkflowId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowPreview"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowPreview"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/workflow-packages": {
+      "get": {
+        "tags": [
+          "WorkflowPackages"
+        ],
+        "summary": "List published workflow packages",
+        "operationId": "listWorkflowPackages",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageLimit"
+          },
+          {
+            "$ref": "#/components/parameters/PageCursor"
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "description": "Filter by owner id; use `me` for the caller's id.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "visibility",
+            "in": "query",
+            "description": "Filter by visibility (private, internal, public).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Full-text search across slug, display name, and summary.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowPackageList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflow-packages/{packageId}": {
+      "get": {
+        "tags": [
+          "WorkflowPackages"
+        ],
+        "summary": "Get a workflow package detail",
+        "operationId": "getWorkflowPackage",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowPackageDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "WorkflowPackages"
+        ],
+        "summary": "Delete a workflow package",
+        "operationId": "deleteWorkflowPackage",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/workflow-packages/{packageId}/versions": {
+      "get": {
+        "tags": [
+          "WorkflowPackages"
+        ],
+        "summary": "List versions for a workflow package",
+        "operationId": "listWorkflowPackageVersions",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowPackageVersionList"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/workflow-packages/{packageId}/clone": {
+      "post": {
+        "tags": [
+          "WorkflowPackages"
+        ],
+        "summary": "Clone a workflow package version into the caller's workspace",
+        "operationId": "cloneWorkflowPackage",
+        "parameters": [
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowPackageCloneRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowRef"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{workflowId}/publish": {
+      "post": {
+        "tags": [
+          "WorkflowPackages"
+        ],
+        "summary": "Publish a workflow draft to the Store",
+        "operationId": "publishWorkflow",
+        "parameters": [
+          {
+            "name": "workflowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowPublishRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowPublishResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/packages": {
+      "get": {
+        "tags": [
+          "Packages"
+        ],
+        "summary": "List available packages",
+        "operationId": "listPackages",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/packages/{packageName}": {
+      "get": {
+        "tags": [
+          "Packages"
+        ],
+        "summary": "Get package detail",
+        "operationId": "getPackage",
+        "parameters": [
+          {
+            "name": "packageName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "description": "Specific package version to retrieve. Defaults to the latest available version.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/nodes/search": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Search catalog nodes (system + worker capabilities)",
+        "operationId": "searchCatalogNodes",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Search text applied to node name, type, description, and tags.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "package",
+            "in": "query",
+            "required": false,
+            "description": "Optional package filter derived from search results.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogNodeSearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/v1/workers": {
+      "get": {
+        "tags": [
+          "Workers"
+        ],
+        "summary": "List workers (scheduler view)",
+        "operationId": "listWorkers",
+        "parameters": [
+          {
+            "name": "queue",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/PageLimit"
+          },
+          {
+            "$ref": "#/components/parameters/PageCursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Worker"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workers/{workerId}": {
+      "get": {
+        "tags": [
+          "Workers"
+        ],
+        "summary": "Get worker snapshot",
+        "operationId": "getWorker",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkerId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Worker"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/workers/{workerId}/commands": {
+      "post": {
+        "tags": [
+          "Workers"
+        ],
+        "summary": "Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)",
+        "operationId": "sendWorkerCommand",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkerId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkerCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandRef"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Global Server-Sent Events stream (firehose; no query parameters)",
+        "operationId": "sseGlobalEvents",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/LastEventID"
+          },
+          {
+            "$ref": "#/components/parameters/ClientSessionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "text/event-stream",
+            "headers": {
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "example": "text/event-stream; charset=utf-8"
+                }
+              }
+            },
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Stream of SSE frames. Each `data:` line contains a JSON payload that conforms to `UiEventEnvelope`.\n"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "List users and their roles",
+        "operationId": "listUsers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Create a new user",
+        "operationId": "createUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{userId}/password": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Reset user password",
+        "operationId": "resetUserPassword",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetUserPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Password updated"
+          }
+        }
+      }
+    },
+    "/api/v1/users/{userId}/roles": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Assign role to user",
+        "operationId": "addUserRole",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Role assigned"
+          }
+        }
+      }
+    },
+    "/api/v1/users/{userId}/roles/{role}": {
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Remove role from user",
+        "operationId": "removeUserRole",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Role removed"
+          }
+        }
+      }
+    },
+    "/api/v1/users/{userId}/status": {
+      "patch": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Toggle user active state",
+        "operationId": "updateUserStatus",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Status updated"
+          }
+        }
+      }
+    },
+    "/api/v1/audit-events": {
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "List audit events",
+        "operationId": "listAuditEvents",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Reserved for future pagination"
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by action name"
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by actor id"
+          },
+          {
+            "name": "targetType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by target type"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEventList"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "RunStartRequest": {
+        "type": "object",
+        "required": [
+          "workflow",
+          "clientId"
+        ],
+        "properties": {
+          "workflow": {
+            "$ref": "#/components/schemas/Workflow"
+          },
+          "clientId": {
+            "type": "string",
+            "description": "Caller-provided client instance id"
+          }
+        }
+      },
+      "RunRef": {
+        "type": "object",
+        "required": [
+          "runId",
+          "status",
+          "definitionHash",
+          "clientId",
+          "createdAt"
+        ],
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "definitionHash": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Run": {
+        "type": "object",
+        "required": [
+          "runId",
+          "status",
+          "definitionHash",
+          "clientId"
+        ],
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "definitionHash": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "error": {
+            "$ref": "#/components/schemas/ResultError",
+            "nullable": true
+          },
+          "artifacts": {
+            "$ref": "#/components/schemas/RunArtifactList",
+            "nullable": true
+          },
+          "nodes": {
+            "$ref": "#/components/schemas/RunNodesList",
+            "nullable": true
+          }
+        }
+      },
+      "RunStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "succeeded",
+          "failed",
+          "cancelled"
+        ]
+      },
+      "RunList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Run"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RunArtifact": {
+        "type": "object",
+        "required": [
+          "resourceId",
+          "workerId",
+          "type"
+        ],
+        "properties": {
+          "resourceId": {
+            "type": "string"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "inline": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          }
+        }
+      },
+      "RunArtifactList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/RunArtifact"
+        }
+      },
+      "RunNodeStatus": {
+        "type": "object",
+        "required": [
+          "nodeId",
+          "taskId",
+          "status"
+        ],
+        "properties": {
+          "nodeId": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "workerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "seq": {
+            "type": "integer",
+            "nullable": true
+          },
+          "pendingAck": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "True when the scheduler has dispatched the node and is waiting for a worker ACK."
+          },
+          "dispatchId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Envelope id of the last cmd.dispatch frame for this node."
+          },
+          "ackDeadline": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Scheduler-side deadline for receiving the ACK for the last dispatch."
+          },
+          "resourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "affinity": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "result": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkflowNodeState",
+            "nullable": true
+          },
+          "error": {
+            "$ref": "#/components/schemas/ResultError",
+            "nullable": true
+          }
+        }
+      },
+      "RunNodesList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/RunNodeStatus"
+        }
+      },
+      "Workflow": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "schemaVersion",
+          "metadata",
+          "nodes",
+          "edges"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Workflow UUID"
+          },
+          "schemaVersion": {
+            "type": "string",
+            "description": "e.g. \"2025-10\"",
+            "pattern": "^[0-9]{4}-[0-9]{2}$"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/WorkflowMetadata"
+          },
+          "nodes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/WorkflowNode"
+            }
+          },
+          "edges": {
+            "type": "array",
+            "minItems": 0,
+            "items": {
+              "$ref": "#/components/schemas/WorkflowEdge"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "description": "Workflow-level tags.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "previewImage": {
+            "type": "string",
+            "description": "Base64-encoded preview of the workflow canvas.",
+            "nullable": true
+          },
+          "subgraphs": {
+            "type": "array",
+            "description": "Reusable workflow fragments (localized snapshots) that container nodes can reference.",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowSubgraph"
+            }
+          }
+        }
+      },
+      "WorkflowRef": {
+        "type": "object",
+        "required": [
+          "workflowId"
+        ],
+        "properties": {
+          "workflowId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "WorkflowSubgraph": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "definition"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable identifier referenced by container nodes."
+          },
+          "definition": {
+            "$ref": "#/components/schemas/Workflow",
+            "description": "Localized workflow snapshot backing this subgraph."
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/WorkflowSubgraphMetadata"
+          }
+        }
+      },
+      "WorkflowSubgraphMetadata": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Optional human-friendly label for the subgraph."
+          },
+          "description": {
+            "type": "string"
+          },
+          "referenceWorkflowId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Original workflow id when this subgraph was created from a reference."
+          },
+          "referenceWorkflowName": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "AuthLoginRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          }
+        }
+      },
+      "AuthLoginResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "accessToken",
+          "tokenType",
+          "expiresIn",
+          "user"
+        ],
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ]
+          },
+          "expiresIn": {
+            "type": "integer",
+            "description": "Seconds until the access token expires."
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserSummary"
+          }
+        }
+      },
+      "UserSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "userId",
+          "username",
+          "displayName",
+          "roles",
+          "isActive"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether the account is enabled."
+          }
+        }
+      },
+      "UserList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserSummary"
+            }
+          }
+        }
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "username",
+          "displayName",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional initial roles to assign to the user."
+          }
+        }
+      },
+      "ResetUserPasswordRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string",
+            "format": "password"
+          }
+        }
+      },
+      "UserRoleRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateUserStatusRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "isActive"
+        ],
+        "properties": {
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WorkflowList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Workflow"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PackageList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PackageSummary"
+            }
+          }
+        }
+      },
+      "PackageSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "versions"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "latestVersion": {
+            "type": "string"
+          },
+          "defaultVersion": {
+            "type": "string"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PackageDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "version",
+          "manifest"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "availableVersions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/PackageManifest"
+          }
+        }
+      },
+      "PackageManifest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "name",
+          "version",
+          "description",
+          "adapters",
+          "python",
+          "nodes"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "description": "Manifest schema version (semver).",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+          },
+          "name": {
+            "type": "string",
+            "description": "Package identifier (lowercase with dots/underscores).",
+            "pattern": "^[a-z0-9]+([._-][a-z0-9]+)*$"
+          },
+          "version": {
+            "type": "string",
+            "description": "Package version in semver format.",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z\\.-]+)?$"
+          },
+          "description": {
+            "type": "string",
+            "description": "Short summary of the package."
+          },
+          "adapters": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/ManifestAdapter"
+            }
+          },
+          "python": {
+            "$ref": "#/components/schemas/ManifestPythonConfig"
+          },
+          "nodes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/ManifestNode"
+            }
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManifestResource"
+            }
+          },
+          "hooks": {
+            "$ref": "#/components/schemas/ManifestHooks"
+          },
+          "signature": {
+            "$ref": "#/components/schemas/ManifestSignature"
+          }
+        }
+      },
+      "ManifestAdapter": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "entrypoint",
+          "capabilities"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "entrypoint": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_.]*(?::[A-Za-z_][A-Za-z0-9_.]*)?$"
+          },
+          "capabilities": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "idempotency": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ManifestPythonConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requires"
+        ],
+        "properties": {
+          "requires": {
+            "type": "string"
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ManifestNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "status",
+          "category",
+          "label",
+          "adapter",
+          "handler",
+          "schema"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$"
+          },
+          "role": {
+            "type": "string",
+            "description": "Execution role of the node.",
+            "enum": [
+              "node",
+              "container",
+              "middleware"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published",
+              "deprecated"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "adapter": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$"
+          },
+          "handler": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "config": {
+            "type": "object",
+            "description": "Optional static configuration forwarded to the handler.",
+            "additionalProperties": true,
+            "default": {}
+          },
+          "schema": {
+            "$ref": "#/components/schemas/ManifestNodeSchema"
+          },
+          "ui": {
+            "$ref": "#/components/schemas/ManifestNodeUI"
+          }
+        }
+      },
+      "ManifestNodeSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "parameters": {
+            "$ref": "#/components/schemas/ManifestJsonSchema"
+          },
+          "results": {
+            "$ref": "#/components/schemas/ManifestJsonSchema"
+          }
+        }
+      },
+      "ManifestNodeUI": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inputPorts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManifestPort"
+            }
+          },
+          "outputPorts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManifestPort"
+            }
+          },
+          "widgets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManifestWidget"
+            }
+          }
+        }
+      },
+      "ManifestPort": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "label",
+          "binding"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/ManifestBinding"
+          }
+        }
+      },
+      "ManifestWidget": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "label",
+          "component",
+          "binding"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "component": {
+            "type": "string"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/ManifestBinding"
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ManifestBinding": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write",
+              "two_way"
+            ]
+          },
+          "prefix": {
+            "type": "string",
+            "description": "Optional textual prefix (e.g. '@workflowA.subgraphB.#nodeY') applied before resolving the JSON pointer."
+          },
+          "scope": {
+            "$ref": "#/components/schemas/BindingScope"
+          }
+        }
+      },
+      "ManifestResource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "type"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          }
+        }
+      },
+      "ManifestHooks": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "install": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "uninstall": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ManifestSignature": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          },
+          "signedAt": {
+            "type": "string"
+          },
+          "signedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "ManifestJsonSchema": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": true
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "WorkflowMetadata": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "environment": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string",
+            "description": "Logical workflow namespace used for indexing/cross-workflow bindings. Defaults to \"default\"."
+          },
+          "originId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier linking versions of the same workflow. By default equals the workflow id."
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "User id that owns the workflow definition."
+          },
+          "ownerName": {
+            "type": "string",
+            "description": "Display name of the owner if available.",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "description": "User id that created the workflow definition."
+          },
+          "updatedBy": {
+            "type": "string",
+            "description": "User id that most recently updated the workflow definition."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "AuditEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "eventId",
+          "createdAt",
+          "action",
+          "targetType"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string",
+            "nullable": true
+          },
+          "action": {
+            "type": "string"
+          },
+          "targetType": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "string",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AuditEventList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEvent"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "WorkflowNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "package",
+          "status",
+          "category",
+          "label",
+          "position"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Node UUID"
+          },
+          "type": {
+            "type": "string",
+            "description": "e.g. \"playwright.open_page\""
+          },
+          "role": {
+            "type": "string",
+            "description": "Execution role of the node.",
+            "enum": [
+              "node",
+              "container",
+              "middleware"
+            ]
+          },
+          "package": {
+            "$ref": "#/components/schemas/NodePackage"
+          },
+          "status": {
+            "type": "string",
+            "description": "Node lifecycle state.",
+            "enum": [
+              "draft",
+              "published",
+              "deprecated"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "description": "Group/category shown in the builder palette."
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "description": "Longer description of the node behaviour."
+          },
+          "tags": {
+            "type": "array",
+            "description": "Keywords for search/filter.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "position": {
+            "type": "object",
+            "required": [
+              "x",
+              "y"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            }
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Default parameter payload seeded from the manifest schema.",
+            "additionalProperties": true
+          },
+          "results": {
+            "type": "object",
+            "description": "Default results payload seeded from the manifest schema.",
+            "additionalProperties": true
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkflowNodeState",
+            "description": "Platform-managed execution hints surfaced in the builder (optional)."
+          },
+          "schema": {
+            "type": "object",
+            "description": "JSON Schemas for parameters/results.",
+            "additionalProperties": false,
+            "properties": {
+              "parameters": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "results": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          },
+          "ui": {
+            "$ref": "#/components/schemas/NodeUI"
+          },
+          "middlewares": {
+            "type": "array",
+            "description": "Ordered list of middleware definitions attached to this node.",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowMiddleware"
+            }
+          }
+        }
+      },
+      "WorkflowMiddleware": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "package",
+          "status",
+          "category",
+          "label"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Middleware UUID"
+          },
+          "type": {
+            "type": "string",
+            "description": "e.g. \"middleware.loop\""
+          },
+          "role": {
+            "type": "string",
+            "description": "Execution role of the middleware (always middleware).",
+            "enum": [
+              "middleware"
+            ]
+          },
+          "package": {
+            "$ref": "#/components/schemas/NodePackage"
+          },
+          "status": {
+            "type": "string",
+            "description": "Middleware lifecycle state.",
+            "enum": [
+              "draft",
+              "published",
+              "deprecated"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "description": "Group/category shown in the builder palette."
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "description": "Longer description of the middleware behaviour."
+          },
+          "tags": {
+            "type": "array",
+            "description": "Keywords for search/filter.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Default parameter payload seeded from the manifest schema.",
+            "additionalProperties": true
+          },
+          "results": {
+            "type": "object",
+            "description": "Default results payload seeded from the manifest schema.",
+            "additionalProperties": true
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkflowNodeState",
+            "description": "Platform-managed execution hints surfaced in the builder (optional)."
+          },
+          "schema": {
+            "type": "object",
+            "description": "JSON Schemas for parameters/results.",
+            "additionalProperties": false,
+            "properties": {
+              "parameters": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "results": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          },
+          "ui": {
+            "$ref": "#/components/schemas/NodeUI"
+          }
+        }
+      },
+      "NodePackage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "version"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "NodeUI": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inputPorts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UIPort"
+            }
+          },
+          "outputPorts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UIPort"
+            }
+          },
+          "widgets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UIWidget"
+            }
+          }
+        }
+      },
+      "UiEventType": {
+        "type": "string",
+        "enum": [
+          "run.status",
+          "run.snapshot",
+          "run.metrics",
+          "node.state",
+          "node.status",
+          "node.result.snapshot",
+          "node.result.delta",
+          "node.error",
+          "artifact.ready",
+          "artifact.removed",
+          "command.ack",
+          "command.error",
+          "worker.heartbeat",
+          "worker.package"
+        ]
+      },
+      "UiEventScope": {
+        "type": "object",
+        "required": [
+          "tenant"
+        ],
+        "properties": {
+          "tenant": {
+            "type": "string"
+          },
+          "runId": {
+            "type": "string",
+            "nullable": true
+          },
+          "workerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientSessionId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientInstanceId": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "UiEventEnvelope": {
+        "type": "object",
+        "required": [
+          "version",
+          "id",
+          "type",
+          "occurredAt",
+          "scope",
+          "data"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "enum": [
+              "v1"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/UiEventType"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/UiEventScope"
+          },
+          "replayed": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "correlationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/UiEventPayload"
+          }
+        }
+      },
+      "UiEventPayload": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RunStatusEvent"
+          },
+          {
+            "$ref": "#/components/schemas/RunSnapshotEvent"
+          },
+          {
+            "$ref": "#/components/schemas/RunMetricsEvent"
+          },
+          {
+            "$ref": "#/components/schemas/NodeStateEvent"
+          },
+          {
+            "$ref": "#/components/schemas/NodeStatusEvent"
+          },
+          {
+            "$ref": "#/components/schemas/NodeResultSnapshotEvent"
+          },
+          {
+            "$ref": "#/components/schemas/NodeResultDeltaEvent"
+          },
+          {
+            "$ref": "#/components/schemas/NodeErrorEvent"
+          },
+          {
+            "$ref": "#/components/schemas/ArtifactEvent"
+          },
+          {
+            "$ref": "#/components/schemas/CommandAckEvent"
+          },
+          {
+            "$ref": "#/components/schemas/CommandErrorEvent"
+          },
+          {
+            "$ref": "#/components/schemas/WorkerHeartbeatEvent"
+          },
+          {
+            "$ref": "#/components/schemas/WorkerPackageSseEvent"
+          }
+        ]
+      },
+      "RunStatusEvent": {
+        "type": "object",
+        "required": [
+          "kind",
+          "runId",
+          "status"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "run.status"
+            ],
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RunSnapshotEvent": {
+        "type": "object",
+        "required": [
+          "kind",
+          "run"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "run.snapshot"
+            ],
+            "type": "string"
+          },
+          "run": {
+            "$ref": "#/components/schemas/Run"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunNodeStatus"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "RunMetricsEvent": {
+        "type": "object",
+        "required": [
+          "kind",
+          "runId",
+          "metric",
+          "value"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "run.metrics"
+            ],
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "metric": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "NodeStateEvent": {
+        "type": "object",
+        "required": [
+          "kind",
+          "runId",
+          "nodeId",
+          "state"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "node.state"
+            ],
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkflowNodeState"
+          }
+        }
+      },
+      "NodeStatusEvent": {
+        "type": "object",
+        "required": [
+          "kind",
+          "runId",
+          "nodeId",
+          "status"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "node.status"
+            ],
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "dispatching",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "workerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "seq": {
+            "type": "integer",
+            "nullable": true
+          },
+          "ackPending": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
+      "NodeResultSnapshotEvent": {
+        "type": "object",
+        "required": [
+          "kind",
+          "runId",
+          "nodeId",
+          "revision",
+          "content"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "node.result.snapshot"
+            ],
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "json",
+              "binary",
+              "text"
+            ],
+            "default": "json"
+          },
+          "content": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunArtifact"
+            },
+            "nullable": true
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "complete": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "NodeResultDeltaEvent": {
+        "type": "object",
+        "required": [
+          "kind",
+          "runId",
+          "nodeId",
+          "revision",
+          "sequence",
+          "operation"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "node.result.delta"
+            ],
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "append",
+              "replace",
+              "patch"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^(/[^/]+)*$",
+            "nullable": true
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "patches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JsonPatchOperation"
+            },
+            "nullable": true
+          },
+          "chunkMeta": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "terminal": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "NodeErrorEvent": {
+        "type": "object",
+        "required": [
+          "kind",
+          "runId",
+          "nodeId",
+          "error"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "node.error"
+            ],
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ResultError"
+          }
+        }
+      },
+      "ArtifactEvent": {
+        "type": "object",
+        "required": [
+          "kind",
+          "runId",
+          "artifactId"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "artifact.ready",
+              "artifact.removed"
+            ]
+          },
+          "runId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "artifactId": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "nullable": true
+          }
+        }
+      },
+      "CommandAckEvent": {
+        "type": "object",
+        "required": [
+          "kind",
+          "commandId",
+          "workerId"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "command.ack"
+            ],
+            "type": "string"
+          },
+          "commandId": {
+            "type": "string"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "CommandErrorEvent": {
+        "type": "object",
+        "required": [
+          "kind",
+          "commandId",
+          "workerId",
+          "error"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "command.error"
+            ],
+            "type": "string"
+          },
+          "commandId": {
+            "type": "string"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ResultError"
+          }
+        }
+      },
+      "WorkerHeartbeatEvent": {
+        "type": "object",
+        "required": [
+          "kind",
+          "workerId",
+          "at"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "worker.heartbeat"
+            ],
+            "type": "string"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "queues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "capacity": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          }
+        }
+      },
+      "WorkerPackageSseEvent": {
+        "type": "object",
+        "required": [
+          "kind",
+          "workerId",
+          "package",
+          "status"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "worker.package"
+            ],
+            "type": "string"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "installing",
+              "installed",
+              "removing",
+              "removed",
+              "failed"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "JsonPatchOperation": {
+        "type": "object",
+        "required": [
+          "op",
+          "path"
+        ],
+        "properties": {
+          "op": {
+            "type": "string",
+            "enum": [
+              "add",
+              "remove",
+              "replace",
+              "copy",
+              "move",
+              "test"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "description": "JSON Pointer path."
+          },
+          "from": {
+            "type": "string",
+            "description": "Source path (for move/copy).",
+            "nullable": true
+          },
+          "value": {
+            "description": "Value payload for add/replace/test.",
+            "nullable": true
+          }
+        }
+      },
+      "WorkflowNodeState": {
+        "type": "object",
+        "description": "Scheduler-owned runtime hints attached to a workflow node during builder playback or run overlays.",
+        "additionalProperties": true,
+        "properties": {
+          "stage": {
+            "type": "string",
+            "description": "Current scheduler-reported stage (e.g. idle, queued, running, completed, failed)."
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "nullable": true,
+            "description": "Optional 0-1 normalized progress indicator."
+          },
+          "lastUpdatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "ISO-8601 timestamp for the last state transition."
+          },
+          "message": {
+            "type": "string",
+            "nullable": true,
+            "description": "Human-friendly hint surfaced to the UI."
+          },
+          "error": {
+            "$ref": "#/components/schemas/ResultError",
+            "nullable": true,
+            "description": "Optional terminal error surfaced when the node fails."
+          }
+        }
+      },
+      "UIPort": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "label",
+          "binding"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/UIBinding"
+          }
+        }
+      },
+      "UIBinding": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "mode"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "e.g. parameters.url / results.status"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write",
+              "two_way"
+            ]
+          },
+          "prefix": {
+            "type": "string",
+            "description": "Optional textual prefix (e.g. '@welcomeJourney.stage2.#notifyCustomer') that scopes the binding before the JSON pointer root."
+          },
+          "scope": {
+            "$ref": "#/components/schemas/BindingScope"
+          }
+        }
+      },
+      "BindingScope": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Canonical representation of a binding prefix used to resolve nodes across workflows or subgraphs.",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "local",
+              "subgraph"
+            ],
+            "description": "local = default workflow, subgraph = inline subgraph alias chain."
+          },
+          "subgraphAliases": {
+            "type": "array",
+            "description": "Ordered list of inline subgraph aliases traversed to reach the node.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "nodeId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Explicit node identifier within the resolved scope (used for '#nodeId' prefixes or workflow-level references)."
+          },
+          "prefix": {
+            "type": "string",
+            "description": "Raw prefix string captured before parsing (mirrors UIBinding.prefix for auditing/backwards compatibility)."
+          }
+        }
+      },
+      "UIWidget": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "label",
+          "component",
+          "binding"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "component": {
+            "type": "string",
+            "description": "string|number|enum|json..."
+          },
+          "binding": {
+            "$ref": "#/components/schemas/UIBinding"
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "WorkflowEdge": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "source",
+          "target"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/EdgeEndpoint"
+          },
+          "target": {
+            "$ref": "#/components/schemas/EdgeEndpoint"
+          }
+        }
+      },
+      "EdgeEndpoint": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "node",
+          "port"
+        ],
+        "properties": {
+          "node": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Node UUID"
+          },
+          "port": {
+            "type": "string",
+            "description": "Port key defined by the node UI"
+          }
+        }
+      },
+      "Worker": {
+        "type": "object",
+        "required": [
+          "id",
+          "lastHeartbeatAt",
+          "queues"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "lastHeartbeatAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "queues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "packages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "installed",
+                    "installing",
+                    "uninstalling",
+                    "removed",
+                    "failed",
+                    "unknown"
+                  ]
+                }
+              }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "WorkerCommand": {
+        "type": "object",
+        "oneOf": [
+          {
+            "properties": {
+              "type": {
+                "enum": [
+                  "drain"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "enum": [
+                  "rebind"
+                ],
+                "type": "string"
+              },
+              "queue": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "queue"
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "enum": [
+                  "pkg.install"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "name"
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "enum": [
+                  "pkg.uninstall"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "name"
+            ]
+          }
+        ],
+        "additionalProperties": false
+      },
+      "CommandRef": {
+        "type": "object",
+        "required": [
+          "commandId",
+          "workerId",
+          "acceptedAt"
+        ],
+        "properties": {
+          "commandId": {
+            "type": "string"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EventType": {
+        "type": "string",
+        "enum": [
+          "worker.heartbeat",
+          "worker.status",
+          "worker.package",
+          "run.dispatch",
+          "run.result",
+          "run.error",
+          "command.ack",
+          "command.error"
+        ]
+      },
+      "EventEnvelope": {
+        "type": "object",
+        "required": [
+          "type",
+          "ts",
+          "id",
+          "payload"
+        ],
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "description": "Monotonic event id for resume"
+          },
+          "tenant": {
+            "type": "string",
+            "nullable": true
+          },
+          "payload": {
+            "$ref": "#/components/schemas/WsPayload"
+          }
+        }
+      },
+      "WsPayload": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CmdDispatch"
+          },
+          {
+            "$ref": "#/components/schemas/NodeResult"
+          },
+          {
+            "$ref": "#/components/schemas/NodeError"
+          },
+          {
+            "$ref": "#/components/schemas/WorkerHeartbeat"
+          },
+          {
+            "$ref": "#/components/schemas/WorkerPackageEvent"
+          },
+          {
+            "$ref": "#/components/schemas/CommandAck"
+          },
+          {
+            "$ref": "#/components/schemas/CommandError"
+          }
+        ]
+      },
+      "CmdDispatch": {
+        "type": "object",
+        "required": [
+          "kind",
+          "runId",
+          "nodeId",
+          "trace",
+          "definitionHash"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "cmd.dispatch"
+            ],
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "definitionHash": {
+            "type": "string"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/TraceContext"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "NodeResult": {
+        "type": "object",
+        "required": [
+          "kind",
+          "runId",
+          "nodeId",
+          "status",
+          "definitionHash"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "result"
+            ],
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed"
+            ]
+          },
+          "definitionHash": {
+            "type": "string"
+          },
+          "outputs": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/ResultError",
+                "nullable": true
+              },
+              "lease": {
+                "type": "object",
+                "additionalProperties": true,
+                "nullable": true
+              },
+              "trace": {
+                "$ref": "#/components/schemas/TraceContext",
+                "nullable": true
+              }
+            }
+          }
+        }
+      },
+      "NodeError": {
+        "type": "object",
+        "required": [
+          "kind",
+          "runId",
+          "nodeId",
+          "error",
+          "definitionHash"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "error"
+            ],
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "definitionHash": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ResultError"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "trace": {
+                "$ref": "#/components/schemas/TraceContext",
+                "nullable": true
+              }
+            }
+          }
+        }
+      },
+      "WorkerHeartbeat": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "enum": [
+              "worker.heartbeat"
+            ],
+            "type": "string"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "queues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "WorkerPackageEvent": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "enum": [
+              "worker.package"
+            ],
+            "type": "string"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "installing",
+              "installed",
+              "uninstalling",
+              "removed",
+              "failed"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CommandAck": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "enum": [
+              "command.ack"
+            ],
+            "type": "string"
+          },
+          "commandId": {
+            "type": "string"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CommandError": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "enum": [
+              "command.error"
+            ],
+            "type": "string"
+          },
+          "commandId": {
+            "type": "string"
+          },
+          "workerId": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ResultError"
+          }
+        }
+      },
+      "TraceContext": {
+        "type": "object",
+        "required": [
+          "traceId",
+          "spanId"
+        ],
+        "properties": {
+          "traceId": {
+            "type": "string"
+          },
+          "spanId": {
+            "type": "string"
+          },
+          "parentSpanId": {
+            "type": "string",
+            "nullable": true
+          },
+          "baggage": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "ResultError": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error",
+          "message"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          }
+        }
+      },
+      "WorkflowPackageVersion": {
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "publishedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "changelog": {
+            "type": "string",
+            "nullable": true
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publisherId": {
+            "type": "string",
+            "nullable": true
+          },
+          "previewImage": {
+            "type": "string",
+            "nullable": true,
+            "description": "Base64-encoded preview of the workflow canvas for this version."
+          }
+        }
+      },
+      "WorkflowPackageVersionList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowPackageVersion"
+            }
+          }
+        }
+      },
+      "WorkflowPackageSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "displayName",
+          "visibility"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "visibility": {
+            "type": "string",
+            "description": "Visibility policy (private/internal/public)."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "ownerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "ownerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "latestVersion": {
+            "$ref": "#/components/schemas/WorkflowPackageVersion"
+          },
+          "previewImage": {
+            "type": "string",
+            "nullable": true,
+            "description": "Base64-encoded preview from the latest version when available."
+          }
+        }
+      },
+      "WorkflowPackageDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/WorkflowPackageSummary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "versions"
+            ],
+            "properties": {
+              "versions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorkflowPackageVersion"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "WorkflowPackageList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowPackageSummary"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "WorkflowPackageCloneRequest": {
+        "type": "object",
+        "properties": {
+          "versionId": {
+            "type": "string",
+            "description": "Explicit version id to clone; defaults to the latest."
+          },
+          "version": {
+            "type": "string",
+            "description": "Version string to clone when versionId is omitted."
+          },
+          "workflowName": {
+            "type": "string",
+            "description": "Optional override for the cloned workflow name."
+          }
+        }
+      },
+      "WorkflowPublishRequest": {
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "packageId": {
+            "type": "string",
+            "description": "Existing package id to append a version to."
+          },
+          "slug": {
+            "type": "string",
+            "description": "Slug used when creating a new package."
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "visibility": {
+            "type": "string",
+            "description": "Desired visibility (private/internal/public)."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "version": {
+            "type": "string",
+            "description": "Semantic version for the published snapshot."
+          },
+          "changelog": {
+            "type": "string",
+            "nullable": true
+          },
+          "previewImage": {
+            "type": "string",
+            "nullable": true,
+            "description": "Base64-encoded preview captured from the workflow canvas."
+          }
+        }
+      },
+      "WorkflowPublishResponse": {
+        "type": "object",
+        "required": [
+          "packageId",
+          "versionId",
+          "version"
+        ],
+        "properties": {
+          "packageId": {
+            "type": "string"
+          },
+          "versionId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "WorkflowPreview": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "previewImage": {
+            "type": "string",
+            "description": "Base64-encoded preview of the workflow canvas.",
+            "nullable": true
+          }
+        }
+      },
+      "CatalogNodeVersion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "Optional status reported by the worker for this version."
+          },
+          "template": {
+            "$ref": "#/components/schemas/ManifestNode"
+          }
+        }
+      },
+      "CatalogNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "label",
+          "packageName",
+          "versions"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string"
+          },
+          "packageName": {
+            "type": "string"
+          },
+          "defaultVersion": {
+            "type": "string"
+          },
+          "latestVersion": {
+            "type": "string"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogNodeVersion"
+            }
+          }
+        }
+      },
+      "CatalogNodeSearchResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogNode"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "RunId": {
+        "name": "runId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "WorkflowId": {
+        "name": "workflowId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "WorkerId": {
+        "name": "workerId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "description": "Optional idempotency key for safe retries; if reused with a different body, return 409"
+      },
+      "PageLimit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 50
+        }
+      },
+      "PageCursor": {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "LastEventID": {
+        "name": "Last-Event-ID",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resume SSE from a specific monotonic event id"
+      },
+      "ClientSessionId": {
+        "name": "clientSessionId",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Frontend-generated session identifier (UUID) used to route SSE events."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid input",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Conflict (e.g., idempotency-key reuse with different body)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Authentication required or credentials invalid",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated but lacks required permissions",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}

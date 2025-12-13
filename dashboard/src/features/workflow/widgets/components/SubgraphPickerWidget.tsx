@@ -31,11 +31,17 @@ export const SubgraphPickerWidget = ({
           disabled={readOnly || subgraphs.length === 0}
         >
           <option value="">{widget.options?.placeholder ?? "Select subgraph"}</option>
-          {subgraphs.map((entry) => (
-            <option key={entry.id} value={entry.id}>
-              {entry.metadata?.name ?? entry.id}
-            </option>
-          ))}
+          {subgraphs.map((entry) => {
+            const label =
+              entry.metadata?.label ??
+              entry.definition.metadata?.name ??
+              entry.id;
+            return (
+              <option key={entry.id} value={entry.id}>
+                {label}
+              </option>
+            );
+          })}
         </select>
       </label>
     </div>

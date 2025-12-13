@@ -1,5 +1,5 @@
 import type { Edge, Node } from "reactflow";
-import type { WorkflowDraft, WorkflowMiddlewareDraft, WorkflowNodeDraft } from "../types.ts";
+import type { WorkflowDraft, WorkflowMiddlewareDraft } from "../types.ts";
 
 export const buildFlowNodes = (workflow: WorkflowDraft, selectedNodeIds: string[] = []): Node[] => {
   const fallbackInputPorts: Record<string, Set<string>> = {};
@@ -8,14 +8,6 @@ export const buildFlowNodes = (workflow: WorkflowDraft, selectedNodeIds: string[
     string,
     { id: string; label: string; node: WorkflowMiddlewareDraft; index: number }[]
   > = {};
-
-  const estimateHeight = (node: WorkflowNodeDraft): number => {
-    const base = 180;
-    const inputs = (node.ui?.inputPorts?.length ?? 0) * 30;
-    const outputs = (node.ui?.outputPorts?.length ?? 0) * 30;
-    const widgets = (node.ui?.widgets?.length ?? 0) * 90;
-    return base + inputs + outputs + widgets;
-  };
 
   workflow.edges.forEach((edge) => {
     if (edge.source.portId) {

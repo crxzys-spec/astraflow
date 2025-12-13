@@ -32,14 +32,16 @@ export const ensurePersistableIds = (draft: WorkflowDraft, workflowKey?: string)
   const needsNewId = !workflowKey || workflowKey === "new" || !isValidUuid(draft.id);
   const id = needsNewId ? generateId() : draft.id;
   const originId = isValidUuid(draft.metadata?.originId) ? draft.metadata?.originId : id;
+  const baseMetadata = draft.metadata ?? { name: draft.id ?? id };
+  const name = baseMetadata.name ?? draft.id ?? id ?? "Untitled workflow";
 
   return {
     ...draft,
     id,
     metadata: {
-      ...(draft.metadata ?? {}),
+      ...baseMetadata,
+      name,
       originId,
     },
   };
 };
-

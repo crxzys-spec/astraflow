@@ -1,24 +1,23 @@
 import { useEffect, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { UiEventType } from "../api/models/uiEventType";
-import type { UiEventEnvelope } from "../api/models/uiEventEnvelope";
-import type { RunStatusEvent } from "../api/models/runStatusEvent";
-import type { RunSnapshotEvent } from "../api/models/runSnapshotEvent";
-import type { NodeStateEvent } from "../api/models/nodeStateEvent";
-import type { NodeResultDeltaEvent } from "../api/models/nodeResultDeltaEvent";
-import type { NodeResultSnapshotEvent } from "../api/models/nodeResultSnapshotEvent";
-import type { NodeErrorEvent } from "../api/models/nodeErrorEvent";
-import type { RunStatus } from "../api/models/runStatus";
+import type { RunStatusModel } from "../services/runs";
 import {
-  applyRunDefinitionSnapshot,
-} from "../lib/sseCache";
+  UiEventType,
+  type UiEventEnvelope,
+  type RunStatusEvent,
+  type RunSnapshotEvent,
+  type NodeStateEvent,
+  type NodeResultDeltaEvent,
+  type NodeResultSnapshotEvent,
+  type NodeErrorEvent,
+} from "../client/models";
 import { registerSseHandler } from "../lib/sse/dispatcher";
 import {
-  handleNodeErrorCacheUpdate,
-  handleNodeResultDeltaCacheUpdate,
-  handleNodeResultSnapshotCacheUpdate,
-  handleNodeStateCacheUpdate,
+  handleNodeErrorStoreUpdate,
+  handleNodeResultDeltaStoreUpdate,
+  handleNodeResultSnapshotStoreUpdate,
+  handleNodeStateStoreUpdate,
 } from "../lib/sse/nodeEventHandlers";
+import { handleRunSnapshotStoreUpdate, handleRunStatusStoreUpdate } from "../lib/sse/runEventHandlers";
 
 type RunMessage =
   | { type: "success"; runId?: string; text: string }
@@ -26,16 +25,16 @@ type RunMessage =
 
 type UseRunSseSyncOptions = {
   activeRunId?: string;
-  activeRunStatus?: RunStatus;
+  activeRunStatus?: RunStatusModel;
   onActiveRunChange?: (runId: string) => void;
-  onRunStatusChange?: (status: RunStatus) => void;
+  onRunStatusChange?: (status: RunStatusModel) => void;
   onRunMessage?: (message: RunMessage) => void;
   enabled?: boolean;
 };
 
 const extractRunId = (event: UiEventEnvelope): string | undefined => {
-  const scopeRunId = event.scope?.runId;
-  const data = event.data as Record<string, unknown> | undefined;
+  const scopeRunId = event.scope?.runId ?? undefined;
+  const data = event.data as any;
   if (!data) {
     return scopeRunId;
   }
@@ -49,7 +48,7 @@ const extractRunId = (event: UiEventEnvelope): string | undefined => {
   return scopeRunId;
 };
 
-const isFinalStatus = (status?: RunStatus) =>
+const isFinalStatus = (status?: RunStatusModel) =>
   status === "succeeded" || status === "failed" || status === "cancelled";
 
 export const useRunSseSync = ({
@@ -60,9 +59,8 @@ export const useRunSseSync = ({
   onRunMessage,
   enabled = true,
 }: UseRunSseSyncOptions) => {
-  const queryClient = useQueryClient();
   const activeRunRef = useRef<string | undefined>(activeRunId);
-  const activeRunStatusRef = useRef<RunStatus | undefined>(activeRunStatus);
+  const activeRunStatusRef = useRef<RunStatusModel | undefined>(activeRunStatus);
 
   useEffect(() => {
     activeRunRef.current = activeRunId;
@@ -114,8 +112,9 @@ export const useRunSseSync = ({
         return;
       }
 
-      const status = payload.status as RunStatus;
+      const status = payload.status as RunStatusModel;
       activeRunStatusRef.current = status;
+      handleRunStatusStoreUpdate(payload, event.occurredAt);
       const readableStatus = status
         .replace(/[_-]+/g, " ")
         .replace(/^\w/, (char) => char.toUpperCase());
@@ -137,7 +136,7 @@ export const useRunSseSync = ({
       if (!matchesActiveRun(event, snapshotRunId)) {
         return;
       }
-      applyRunDefinitionSnapshot(queryClient, snapshotRunId, payload.nodes ?? undefined, event.occurredAt);
+      handleRunSnapshotStoreUpdate(payload);
     };
 
     const handleNodeState = (event: UiEventEnvelope) => {
@@ -145,7 +144,7 @@ export const useRunSseSync = ({
       if (!payload || payload.kind !== "node.state" || !matchesActiveRun(event, payload.runId)) {
         return;
       }
-      handleNodeStateCacheUpdate(queryClient, payload, event.occurredAt);
+      handleNodeStateStoreUpdate(payload);
     };
 
     const handleNodeResultDelta = (event: UiEventEnvelope) => {
@@ -153,7 +152,7 @@ export const useRunSseSync = ({
       if (!payload || payload.kind !== "node.result.delta" || !matchesActiveRun(event, payload.runId)) {
         return;
       }
-      handleNodeResultDeltaCacheUpdate(queryClient, payload);
+      handleNodeResultDeltaStoreUpdate(payload);
     };
 
     const handleNodeResultSnapshot = (event: UiEventEnvelope) => {
@@ -165,7 +164,7 @@ export const useRunSseSync = ({
       ) {
         return;
       }
-      handleNodeResultSnapshotCacheUpdate(queryClient, payload);
+      handleNodeResultSnapshotStoreUpdate(payload);
     };
 
     const handleNodeError = (event: UiEventEnvelope) => {
@@ -173,20 +172,20 @@ export const useRunSseSync = ({
       if (!payload || payload.kind !== "node.error" || !matchesActiveRun(event, payload.runId)) {
         return;
       }
-      handleNodeErrorCacheUpdate(queryClient, payload);
+      handleNodeErrorStoreUpdate(payload);
     };
 
     const unregister = [
-      registerSseHandler(UiEventType.runstatus, handleRunStatus),
-      registerSseHandler(UiEventType.runsnapshot, handleRunSnapshot),
-      registerSseHandler(UiEventType.nodestate, handleNodeState),
-      registerSseHandler(UiEventType.noderesultdelta, handleNodeResultDelta),
-      registerSseHandler(UiEventType.noderesultsnapshot, handleNodeResultSnapshot),
-      registerSseHandler(UiEventType.nodeerror, handleNodeError),
+      registerSseHandler(UiEventType.RunStatus, handleRunStatus),
+      registerSseHandler(UiEventType.RunSnapshot, handleRunSnapshot),
+      registerSseHandler(UiEventType.NodeState, handleNodeState),
+      registerSseHandler(UiEventType.NodeResultDelta, handleNodeResultDelta),
+      registerSseHandler(UiEventType.NodeResultSnapshot, handleNodeResultSnapshot),
+      registerSseHandler(UiEventType.NodeError, handleNodeError),
     ];
 
     return () => {
       unregister.forEach((fn) => fn());
     };
-  }, [enabled, onActiveRunChange, onRunMessage, onRunStatusChange, queryClient]);
+  }, [enabled, onActiveRunChange, onRunMessage, onRunStatusChange]);
 };

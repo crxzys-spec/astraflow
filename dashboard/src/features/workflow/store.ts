@@ -1,6 +1,5 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { WorkflowNodeState } from '../../api/models/workflowNodeState';
 import type {
   InlineSubgraphResult,
   WorkflowDraft,
@@ -17,7 +16,9 @@ import type {
   XYPosition,
   ConvertSelectionResult,
   NodePortDefinition,
-  WorkflowMetadata
+  WorkflowMetadata,
+  WorkflowSubgraphMetadata,
+  WorkflowNodeState,
 } from './types.ts';
 import {
   createNodeDraftFromTemplate,
@@ -110,14 +111,19 @@ const removeDependency = (node: WorkflowNodeDraft | undefined, dependencyId: str
   node.dependencies = node.dependencies.filter((id) => id !== dependencyId);
 };
 
-const cloneState = (value: WorkflowNodeState | null | undefined): WorkflowNodeState | undefined => {
+const cloneState = (
+  value: WorkflowNodeState | null | undefined,
+): WorkflowNodeState | undefined => {
   if (value == null) {
     return undefined;
   }
   return JSON.parse(JSON.stringify(value)) as WorkflowNodeState;
 };
 
-const statesEqual = (left: WorkflowNodeState | undefined, right: WorkflowNodeState | undefined): boolean =>
+const statesEqual = (
+  left: WorkflowNodeState | undefined,
+  right: WorkflowNodeState | undefined,
+): boolean =>
   JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 
 const getContainerConfig = (
@@ -299,7 +305,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
         if (!state.workflow) {
           return;
         }
-        state.workflow.metadata = { ...(state.workflow.metadata ?? {}), ...changes };
+        const current = state.workflow.metadata ?? { name: state.workflow.id ?? 'Untitled workflow' };
+        const nextName = changes.name ?? current.name ?? state.workflow.id ?? 'Untitled workflow';
+        state.workflow.metadata = { ...current, ...changes, name: nextName };
         state.workflow.dirty = true;
       });
     },
@@ -687,6 +695,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
           outcome.error = 'Only container nodes support subgraph inlining.';
           return;
         }
+        const containerId = containerNode.id;
         const containerConfig = getContainerConfig(containerNode);
         const subgraphId = subgraphIdOverride ?? containerConfig?.subgraphId;
         if (!subgraphId) {
@@ -728,7 +737,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
             x: position.x - clusterCenter.x + anchorPosition.x,
             y: position.y - clusterCenter.y + anchorPosition.y,
           };
-          node.dependencies = node.dependencies.filter((id) => id !== containerNodeId);
+          node.dependencies = node.dependencies.filter((id) => id !== containerId);
           targetWorkflow.nodes[node.id] = node;
           insertedNodeIds.push(node.id);
         });
@@ -738,7 +747,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
           target: { ...edge.target },
         }));
         targetWorkflow.edges = targetWorkflow.edges.filter(
-          (edge) => edge.source.nodeId !== containerNodeId && edge.target.nodeId !== containerNodeId
+          (edge) => edge.source.nodeId !== containerId && edge.target.nodeId !== containerId
         );
         targetWorkflow.edges.push(...additionalEdges);
         additionalEdges.forEach((edge) => {
@@ -748,9 +757,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
           }
         });
         Object.values(targetWorkflow.nodes).forEach((node) => {
-          node.dependencies = node.dependencies.filter((dep) => dep !== containerNodeId);
+          node.dependencies = node.dependencies.filter((dep) => dep !== containerId);
         });
-        delete targetWorkflow.nodes[containerNodeId];
+        delete targetWorkflow.nodes[containerId];
         targetWorkflow.dirty = true;
         rootWorkflow.dirty = true;
         rewriteBindingsAcrossStore(state, subgraphId, nodeIdMap);
@@ -799,7 +808,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
         recordHistory(state);
         const subgraphId = generateId();
         const subgraphDefinitionId = subgraphId;
-        const subgraphMetadata = { name: `Subgraph ${subgraphId.slice(0, 6)}` };
+        const subgraphMetadata: WorkflowMetadata = { name: `Subgraph ${subgraphId.slice(0, 6)}` };
+        const subgraphEntryMetadata: WorkflowSubgraphMetadata = { label: subgraphMetadata.name };
         const internalEdges = targetWorkflow.edges.filter(
           (edge) => selectionSet.has(edge.source.nodeId) && selectionSet.has(edge.target.nodeId)
         );
@@ -821,10 +831,14 @@ export const useWorkflowStore = create<WorkflowStore>()(
           subgraphs: [],
           dirty: false,
         };
+        const definitionWithMetadata: WorkflowDraft & { metadata: WorkflowMetadata } = {
+          ...subgraphDraft,
+          metadata: subgraphDraft.metadata ?? subgraphMetadata
+        };
         state.subgraphDrafts.push({
           id: subgraphId,
-          definition: subgraphDraft,
-          metadata: subgraphMetadata,
+          definition: definitionWithMetadata,
+          metadata: subgraphEntryMetadata,
         });
         if (state.workflow) {
           if (!state.workflow.subgraphs) {
@@ -833,8 +847,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
           const existingIndex = state.workflow.subgraphs.findIndex((entry) => entry.id === subgraphId);
           const subgraphEntry = {
             id: subgraphId,
-            metadata: subgraphMetadata,
-            definition: subgraphDraft,
+            metadata: subgraphEntryMetadata,
+            definition: definitionWithMetadata as unknown as WorkflowDefinition,
           };
           if (existingIndex >= 0) {
             state.workflow.subgraphs[existingIndex] = subgraphEntry;
@@ -982,3 +996,5 @@ export const useWorkflowStore = create<WorkflowStore>()(
 );
 
 export const selectWorkflow = () => useWorkflowStore.getState().workflow;
+
+

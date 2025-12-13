@@ -7,7 +7,7 @@ import type {
   NodeGroup,
   NodeWithFrame,
 } from "../hooks/useRunDetailData";
-import type { Run } from "../api/models/run";
+import type { RunModel } from "../services/runs";
 
 const DurationLabel = ({
   startedAt,
@@ -42,7 +42,7 @@ export const RunSummary = ({
   runData,
   workflowLink,
 }: {
-  runData: Run;
+  runData: RunModel;
   workflowLink?: string | null;
 }) => (
   <>
@@ -302,3 +302,4 @@ export const MiddlewareTraceList = ({ traces }: { traces: MiddlewareTrace[] }) =
     </div>
   );
 };
+

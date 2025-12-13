@@ -1,22 +1,11 @@
-import type { QueryClient } from "@tanstack/react-query";
-import type { NodeStateEvent } from "../../api/models/nodeStateEvent";
-import type { NodeResultDeltaEvent } from "../../api/models/nodeResultDeltaEvent";
-import type { NodeResultSnapshotEvent } from "../../api/models/nodeResultSnapshotEvent";
-import type { NodeErrorEvent } from "../../api/models/nodeErrorEvent";
-import {
-  applyNodeResultDelta,
-  updateRunDefinitionNodeRuntime,
-  updateRunDefinitionNodeState,
-  updateRunNode,
-  updateRunNodeResultDelta,
-} from "../sseCache";
+import type { NodeErrorEvent, NodeResultDeltaEvent, NodeResultSnapshotEvent, NodeStateEvent } from "../../client/models";
+import { useRunsStore } from "../../store";
 
-export const handleNodeStateCacheUpdate = (
-  queryClient: QueryClient,
+export const handleNodeStateStoreUpdate = (
   payload: NodeStateEvent,
-  occurredAt?: string,
 ) => {
-  updateRunNode(queryClient, payload.runId, payload.nodeId, (node) => {
+  const store = useRunsStore.getState();
+  store.updateRunNode(payload.runId, payload.nodeId, (node) => {
     const next = { ...node };
     if (payload.state?.stage) {
       next.status = payload.state.stage as typeof node.status;
@@ -52,44 +41,28 @@ export const handleNodeStateCacheUpdate = (
     }
     return next;
   });
-  updateRunDefinitionNodeState(
-    queryClient,
-    payload.runId,
-    payload.nodeId,
-    payload.state ?? null,
-    occurredAt
-  );
 };
 
-export const handleNodeResultDeltaCacheUpdate = (
-  queryClient: QueryClient,
-  payload: NodeResultDeltaEvent,
-) => {
-  updateRunNodeResultDelta(queryClient, payload.runId, payload.nodeId, payload);
-  applyNodeResultDelta(queryClient, payload.runId, payload.nodeId, payload);
+export const handleNodeResultDeltaStoreUpdate = (payload: NodeResultDeltaEvent) => {
+  const store = useRunsStore.getState();
+  store.applyNodeResultDelta(payload.runId, payload.nodeId, payload);
 };
 
-export const handleNodeResultSnapshotCacheUpdate = (
-  queryClient: QueryClient,
-  payload: NodeResultSnapshotEvent,
-) => {
-  updateRunNode(queryClient, payload.runId, payload.nodeId, (node) => ({
+export const handleNodeResultSnapshotStoreUpdate = (payload: NodeResultSnapshotEvent) => {
+  const store = useRunsStore.getState();
+  const normalizedArtifacts = payload.artifacts
+    ? payload.artifacts.map((artifact) => ({ ...(artifact as unknown as Record<string, unknown>) }))
+    : undefined;
+  store.updateRunNode(payload.runId, payload.nodeId, (node) => ({
     ...node,
     result: payload.content ?? null,
-    artifacts: payload.artifacts ?? node.artifacts ?? null,
+    artifacts: normalizedArtifacts ?? node.artifacts,
   }));
-  updateRunDefinitionNodeRuntime(queryClient, payload.runId, payload.nodeId, {
-    result: payload.content ?? null,
-    artifacts: payload.artifacts ?? null,
-    summary: payload.summary ?? null,
-  });
 };
 
-export const handleNodeErrorCacheUpdate = (
-  queryClient: QueryClient,
-  payload: NodeErrorEvent,
-) => {
-  updateRunNode(queryClient, payload.runId, payload.nodeId, (node) => ({
+export const handleNodeErrorStoreUpdate = (payload: NodeErrorEvent) => {
+  const store = useRunsStore.getState();
+  store.updateRunNode(payload.runId, payload.nodeId, (node) => ({
     ...node,
     status: "failed",
     error: payload.error,

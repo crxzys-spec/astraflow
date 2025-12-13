@@ -1,8 +1,7 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { useCancelRun, useListRuns } from "../../../api/endpoints";
-import { updateRunCaches } from "../../../lib/sseCache";
+import { useState } from "react";
 import StatusBadge from "../../../components/StatusBadge";
 import { useAuthStore } from "../../auth/store";
+import { useRuns, useRunsStore } from "../../../store";
 
 interface RunsInspectorPanelProps {
   onSelectRun: (runId: string) => void;
@@ -12,29 +11,11 @@ const RunsInspectorPanel = ({ onSelectRun }: RunsInspectorPanelProps) => {
   const canViewRuns = useAuthStore((state) =>
     state.hasRole(["admin", "run.viewer", "workflow.editor"])
   );
-  const queryClient = useQueryClient();
-  const cancelRun = useCancelRun(
-    {
-      mutation: {
-        onSuccess: (_result, variables) => {
-          const runId = variables?.runId;
-          if (runId) {
-            updateRunCaches(queryClient, runId, (run) =>
-              run.runId === runId ? { ...run, status: "cancelled" } : run
-            );
-          }
-        }
-      }
-    },
-    queryClient
-  );
-  const { data, isLoading, isError, error, refetch } = useListRuns(undefined, {
-    query: {
-      enabled: canViewRuns,
-      refetchInterval: false,
-    }
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const { items: runs, status, error, refetch } = useRuns(undefined, {
+    enabled: canViewRuns,
   });
-  const runs = data?.items ?? [];
+  const cancelRun = useRunsStore((state) => state.cancelRun);
 
   if (!canViewRuns) {
     return (
@@ -44,11 +25,11 @@ const RunsInspectorPanel = ({ onSelectRun }: RunsInspectorPanelProps) => {
     );
   }
 
-  if (isLoading) {
+  if (status === "loading") {
     return <div className="inspector-panel__loading">Loading runs...</div>;
   }
 
-  if (isError) {
+  if (status === "error") {
     return (
       <div className="inspector-panel__empty">
         <p>Failed to load runs: {(error as Error).message}</p>
@@ -84,7 +65,7 @@ const RunsInspectorPanel = ({ onSelectRun }: RunsInspectorPanelProps) => {
       <div className="runs-panel__list">
         {runs.map((run) => {
           const isCancelable = run.status === "running" || run.status === "queued";
-          const isCancelling = cancelRun.isPending && cancelRun.variables?.runId === run.runId;
+          const isCancelling = cancellingId === run.runId;
           return (
             <div
               key={run.runId}
@@ -113,10 +94,10 @@ const RunsInspectorPanel = ({ onSelectRun }: RunsInspectorPanelProps) => {
                   className="btn btn--ghost runs-panel__stop"
                   onClick={(event) => {
                     event.stopPropagation();
-                    cancelRun.mutate(
-                      { runId: run.runId },
-                      { onError: (mutationError) => console.error("Failed to stop run", mutationError) }
-                    );
+                    setCancellingId(run.runId);
+                    cancelRun(run.runId).catch((mutationError) => {
+                      console.error("Failed to stop run", mutationError);
+                    }).finally(() => setCancellingId(null));
                   }}
                   disabled={isCancelling}
                 >

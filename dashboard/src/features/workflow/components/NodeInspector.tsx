@@ -1,8 +1,10 @@
 ﻿import { useEffect, useMemo, useState } from "react";
+import { nanoid } from "nanoid";
 import { useWorkflowStore } from "../store";
 import { formatBindingDisplay, resolveBindingPath } from "../utils/binding";
-import type { NodePortDefinition, WorkflowDraft, WorkflowMiddlewareDraft, WorkflowNodeDraft } from "../types";
+import type { NodePortDefinition, WorkflowDraft, WorkflowNodeDraft } from "../types";
 import { widgetRegistry, registerBuiltinWidgets } from "../widgets";
+import { UIBindingModeEnum, type UIBindingModeEnum as UIBindingMode } from "../../../client/models";
 
 registerBuiltinWidgets();
 
@@ -224,6 +226,17 @@ export const NodeInspector = () => {
     };
   }, [node, workflow]);
 
+  function normalizeMode(mode?: string | UIBindingMode | null): UIBindingMode | undefined {
+    if (!mode) {
+      return undefined;
+    }
+    const lower = mode.toString().toLowerCase();
+    if (lower === "read" || lower === "write" || lower === "two_way") {
+      return lower as UIBindingMode;
+    }
+    return undefined;
+  }
+
   const removeMiddleware = (middlewareId: string) => {
     if (!node) {
       return;
@@ -310,7 +323,7 @@ export const NodeInspector = () => {
       const nextBinding = {
         ...existing.binding,
         path: changes.path !== undefined ? changes.path.trim() : existing.binding.path,
-        mode: changes.mode ?? existing.binding.mode,
+        mode: normalizeMode(changes.mode) ?? existing.binding.mode,
         prefix:
           changes.prefix !== undefined
             ? changes.prefix.trim()
@@ -345,7 +358,7 @@ export const NodeInspector = () => {
         label: `${kind === "input" ? "Input" : "Output"} ${index}`,
         binding: {
           path: kind === "input" ? "/parameters/" : "/results/",
-          mode: kind === "input" ? "write" : "read",
+          mode: kind === "input" ? UIBindingModeEnum.Write : UIBindingModeEnum.Read,
         },
       };
       ports.push(newPort);
@@ -379,36 +392,6 @@ export const NodeInspector = () => {
     });
   };
 
-  const updateWidgetBinding = (widgetKey: string, nextPrefix: string) => {
-    if (!node) {
-      return;
-    }
-    updateNode(node.id, (current) => {
-      const ui = current.ui ?? {};
-      const widgets = [...(ui.widgets ?? [])];
-      const index = widgets.findIndex((entry) => entry.key === widgetKey);
-      if (index === -1) {
-        return current;
-      }
-      const existing = widgets[index];
-      if (!existing.binding) {
-        return current;
-      }
-      const nextBinding = {
-        ...existing.binding,
-        prefix: nextPrefix.trim() ? nextPrefix.trim() : undefined
-      };
-      widgets[index] = { ...existing, binding: nextBinding };
-      return {
-        ...current,
-        ui: {
-          ...ui,
-          widgets
-        }
-      };
-    });
-  };
-
   const updateWidgetFields = (
     widgetKey: string,
     changes: { path?: string; mode?: string; prefix?: string; component?: string; label?: string; key?: string }
@@ -424,19 +407,22 @@ export const NodeInspector = () => {
         return current;
       }
       const existing = widgets[index];
-      const nextBinding = existing.binding
-        ? {
-            ...existing.binding,
-            path: changes.path !== undefined ? changes.path.trim() : existing.binding.path,
-            mode: changes.mode ?? existing.binding.mode,
-            prefix:
-              changes.prefix !== undefined
-                ? changes.prefix.trim()
-                  ? changes.prefix.trim()
-                  : undefined
-                : existing.binding.prefix
-          }
-        : undefined;
+      const baseBinding = existing.binding ?? {
+        path: "",
+        mode: UIBindingModeEnum.Read,
+        prefix: undefined,
+      };
+      const nextBinding = {
+        ...baseBinding,
+        path: changes.path !== undefined ? changes.path.trim() : baseBinding.path,
+        mode: normalizeMode(changes.mode) ?? baseBinding.mode,
+        prefix:
+          changes.prefix !== undefined
+            ? changes.prefix.trim()
+              ? changes.prefix.trim()
+              : undefined
+            : baseBinding.prefix
+      };
       widgets[index] = {
         ...existing,
         key: changes.key ?? existing.key,
@@ -454,7 +440,11 @@ export const NodeInspector = () => {
     });
   };
 
-  const bindingModes = ["read", "write", "two_way"];
+  const bindingModes: UIBindingMode[] = [
+    UIBindingModeEnum.Read,
+    UIBindingModeEnum.Write,
+    UIBindingModeEnum.TwoWay,
+  ];
 
   const addWidget = () => {
     if (!node) {
@@ -469,7 +459,7 @@ export const NodeInspector = () => {
         component: "text",
         binding: {
           path: "/parameters/",
-          mode: "two_way",
+          mode: UIBindingModeEnum.TwoWay,
         },
       };
       widgets.push(newWidget);
@@ -504,7 +494,7 @@ export const NodeInspector = () => {
     if (!node || node.nodeKind !== "workflow.container") {
       return undefined;
     }
-    const raw = node.parameters?.__container;
+    const raw = node.parameters?.__container as { subgraphId?: unknown } | undefined;
     if (!raw || typeof raw !== "object") {
       return undefined;
     }
@@ -1017,6 +1007,7 @@ export const NodeInspector = () => {
 };
 
 export default NodeInspector;
+
 
 
 

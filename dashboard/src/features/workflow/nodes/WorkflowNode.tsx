@@ -4,7 +4,6 @@ import type { ReactElement } from "react";
 import type { DragEvent } from "react";
 import type { NodeProps } from "reactflow";
 import { Handle, Position } from "reactflow";
-import { useQueryClient } from "@tanstack/react-query";
 import type {
   NodePortDefinition,
   NodeWidgetDefinition,
@@ -24,7 +23,7 @@ import {
 import type { BindingResolution } from "../utils/binding.ts";
 import type { JsonSchema } from "../utils/schemaDefaults.ts";
 import { createNodeDraftFromTemplate } from "../utils/converters.ts";
-import { UIBindingMode } from "../../../api/models/uIBindingMode";
+import { UIBindingMode } from "../../../client/model-shims";
 import { useWidgetRegistry, registerBuiltinWidgets } from "../widgets";
 import {
   WORKFLOW_NODE_DRAG_FORMAT,
@@ -33,7 +32,8 @@ import {
   WORKFLOW_NODE_DRAG_TYPE_KEY,
   WORKFLOW_NODE_DRAG_VERSION_KEY
 } from "../constants.ts";
-import { getGetPackageQueryOptions } from "../../../api/endpoints";
+import { PackagesApi } from "../../../client/apis/packages-api";
+import { createApi } from "../../../api/client";
 import type { WorkflowPaletteNode } from "../types.ts";
 
 interface WorkflowNodeData {
@@ -57,8 +57,9 @@ interface WorkflowNodeData {
 }
 
 registerBuiltinWidgets();
+const packagesApi = createApi(PackagesApi);
 
-const formatPackage = (node?: WorkflowNodeData | WorkflowNodeDraft) => {
+const formatPackage = (node?: WorkflowNodeData | WorkflowNodeDraft | WorkflowMiddlewareDraft) => {
   const name = node?.packageName;
   if (!name) {
     return "-";
@@ -161,8 +162,6 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
   const workflowEdges = workflow?.edges ?? [];
   const updateNode = useWorkflowStore((state) => state.updateNode);
   const { resolve } = useWidgetRegistry();
-  const queryClient = useQueryClient();
-  const setSelectedNode = useWorkflowStore((state) => state.setSelectedNode);
   const middlewareDragRef = useRef<string | null>(null);
 
   const displayLabel = workflowNode?.label ?? data?.label ?? nodeId;
@@ -531,15 +530,11 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
         if (typeof nodeType !== "string" || typeof packageName !== "string") {
           return;
         }
-        const definition = await queryClient.ensureQueryData(
-          getGetPackageQueryOptions(
-            packageName,
-            typeof packageVersion === "string" && packageVersion.length
-              ? { version: packageVersion }
-              : undefined,
-            { query: { staleTime: 5 * 60 * 1000 } }
-          )
+        const definitionResponse = await packagesApi.getPackage(
+          packageName,
+          typeof packageVersion === "string" && packageVersion.length ? packageVersion : undefined,
         );
+        const definition = definitionResponse.data;
         const template = definition?.manifest?.nodes?.find((node) => node.type === nodeType);
         if (!template || template.role !== "middleware") {
           return;
@@ -571,7 +566,7 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
         console.error("Failed to attach middleware", error);
       }
     },
-    [canAttachMiddleware, queryClient, updateNode, workflowNode]
+    [canAttachMiddleware, updateNode, workflowNode]
   );
 
   return (
@@ -691,8 +686,6 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
               .map((mw) => {
                 const mwStatus = mw.node.status;
                 const mwWidgets = renderMiddlewareWidgets(mw.node, workflowNode?.id ?? nodeId);
-                const mwInputPorts = mw.node.ui?.inputPorts ?? [];
-                const mwOutputPorts = mw.node.ui?.outputPorts ?? [];
                 const mwRuntimeState = mw.node.state;
                 const mwStage = mwRuntimeState?.stage;
                 const mwProgress =
@@ -710,8 +703,6 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
                     ? mwStage.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
                     : undefined;
                 const mwPackage = formatPackage(mw.node);
-                const buildHandleId = (dir: "input" | "output", key: string) =>
-                  `mw:${mw.id}:${dir === "input" ? "in" : "out"}:${key}`;
                 const hostId = workflowNode?.id ?? nodeId;
                 const isDropTarget =
                   draggingMiddlewareId != null && middlewareDragRef.current !== mw.id;
@@ -845,6 +836,7 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
 WorkflowNode.displayName = "WorkflowNode";
 
 export default WorkflowNode;
+
 
 
 

@@ -1,9 +1,7 @@
 import { useMemo } from "react";
-import type { RunNodeStatus } from "../api/models/runNodeStatus";
-import type { RunNodeStatusMetadata } from "../api/models/runNodeStatusMetadata";
-import type { Run } from "../api/models/run";
-import type { Workflow } from "../api/models/workflow";
-import type { WorkflowMiddleware } from "../api/models/workflowMiddleware";
+import type { RunNodeStatusMetadata } from "../client/model-shims";
+import type { RunModel, RunNodeStatusModel } from "../services/runs";
+import type { Workflow, WorkflowMiddleware } from "../client/models";
 import { buildMiddlewareTraces } from "../lib/middlewareTrace";
 
 export type FrameMetadata = {
@@ -15,7 +13,7 @@ export type FrameMetadata = {
 };
 
 export type NodeWithFrame = {
-  node: RunNodeStatus;
+  node: RunNodeStatusModel;
   frame?: FrameMetadata;
 };
 
@@ -72,7 +70,8 @@ export const deriveMiddlewareRelations = (
   const nodes = workflowDefinition?.nodes ?? [];
   nodes.forEach((definitionNode) => {
     roleByNode[definitionNode.id ?? ""] = (definitionNode as { role?: string }).role;
-    const middlewares = (definitionNode as { middlewares?: WorkflowMiddleware[] }).middlewares ?? [];
+    const middlewares =
+      (definitionNode as { middlewares?: WorkflowMiddleware[] }).middlewares ?? [];
     if (middlewares?.length) {
       chainByHost[definitionNode.id ?? ""] = middlewares;
       middlewares.forEach((mw) => {
@@ -85,7 +84,7 @@ export const deriveMiddlewareRelations = (
   return { roleByNode, chainByHost, hostByMiddleware };
 };
 
-export const mapNodesWithFrame = (nodes?: RunNodeStatus[] | null): NodeWithFrame[] => {
+export const mapNodesWithFrame = (nodes?: RunNodeStatusModel[] | null): NodeWithFrame[] => {
   if (!nodes?.length) {
     return [];
   }
@@ -172,7 +171,7 @@ export const useRunDetailData = ({
   workflowDefinition,
   showMiddlewareOnly,
 }: {
-  runData?: Run | null;
+  runData?: RunModel | null;
   workflowDefinition?: Workflow | null;
   showMiddlewareOnly: boolean;
 }) => {
@@ -205,3 +204,4 @@ export const useRunDetailData = ({
     middlewareTraces,
   };
 };
+

@@ -1,22 +1,18 @@
 import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import { useCancelRun, useListRuns } from "../api/endpoints";
 import StatusBadge from "../components/StatusBadge";
 import { getClientSessionId } from "../lib/clientSession";
-import { useQueryClient } from "@tanstack/react-query";
-import { updateRunCaches } from "../lib/sseCache";
 import { useAuthStore } from "../features/auth/store";
 import { useToolbarStore } from "../features/workflow/hooks/useToolbar";
+import { useRuns, useRunsStore } from "../store";
 
 export const RunsPage = () => {
   const canViewRuns = useAuthStore((state) =>
     state.hasRole(["admin", "run.viewer", "workflow.editor"])
   );
   const [showMiddlewareOnly, setShowMiddlewareOnly] = useState(false);
-  const { data, isLoading, isError, error, refetch } = useListRuns(undefined, {
-    query: { enabled: canViewRuns }
-  });
-  const runs = data?.data.items ?? [];
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const { items: runs, status, error, refetch } = useRuns(undefined, { enabled: canViewRuns });
   const filteredRuns = useMemo(
     () =>
       showMiddlewareOnly
@@ -41,22 +37,7 @@ export const RunsPage = () => {
         : runs,
     [runs, showMiddlewareOnly]
   );
-  const queryClient = useQueryClient();
-  const cancelRun = useCancelRun(
-    {
-      mutation: {
-        onSuccess: (_result, variables) => {
-          const runId = variables?.runId;
-          if (runId) {
-            updateRunCaches(queryClient, runId, (run) =>
-              run.runId === runId ? { ...run, status: "cancelled" } : run
-            );
-          }
-        }
-      }
-    },
-    queryClient
-  );
+  const cancelRun = useRunsStore((state) => state.cancelRun);
   const setToolbar = useToolbarStore((state) => state.setContent);
 
   const toolbarContent = useMemo(() => {
@@ -100,11 +81,11 @@ export const RunsPage = () => {
     );
   }
 
-  if (isLoading) {
+  if (status === "loading") {
     return <p>Loading runs...</p>;
   }
 
-  if (isError) {
+  if (status === "error") {
     return (
       <div className="card">
         <p className="error">Failed to load runs: {(error as Error).message}</p>
@@ -163,13 +144,17 @@ export const RunsPage = () => {
                     <button
                       className="btn btn--ghost"
                       type="button"
-                      onClick={() =>
-                        cancelRun.mutate(
-                          { runId: run.runId },
-                          { onError: (mutationError) => console.error("Failed to stop run", mutationError) }
-                        )
-                      }
-                      disabled={cancelRun.isPending && cancelRun.variables?.runId === run.runId}
+                      onClick={async () => {
+                        setCancellingId(run.runId);
+                        try {
+                          await cancelRun(run.runId);
+                        } catch (mutationError) {
+                          console.error("Failed to stop run", mutationError);
+                        } finally {
+                          setCancellingId(null);
+                        }
+                      }}
+                      disabled={cancellingId === run.runId}
                     >
                       Stop
                     </button>

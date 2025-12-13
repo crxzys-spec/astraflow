@@ -1,6 +1,5 @@
 import { EventSourcePolyfill } from "event-source-polyfill";
-import { UiEventType } from "../../api/models/uiEventType";
-import type { UiEventEnvelope } from "../../api/models/uiEventEnvelope";
+import { UiEventType, type UiEventEnvelope } from "../../client/models";
 import { getClientSessionId } from "../clientSession";
 import { getAuthToken } from "../setupAxios";
 
@@ -164,3 +163,4 @@ export class SseClient {
 }
 
 export const sseClient = new SseClient();
+

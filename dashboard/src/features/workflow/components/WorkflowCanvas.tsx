@@ -1,6 +1,5 @@
 import type { DragEvent, MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import ReactFlow, { Background, applyNodeChanges, useReactFlow } from "reactflow";
 import type { Connection, Edge, EdgeChange, EdgeTypes, Node, NodeChange, NodeTypes } from "reactflow";
 import "reactflow/dist/style.css";
@@ -16,7 +15,7 @@ import {
   WORKFLOW_NODE_DRAG_TYPE_KEY,
   WORKFLOW_NODE_DRAG_VERSION_KEY
 } from "../constants.ts";
-import { getGetPackageQueryOptions } from "../../../api/endpoints";
+import { getPackage } from "../../../services/packages";
 
 interface WorkflowCanvasProps {
   onNodeDrop?: (
@@ -115,7 +114,6 @@ const nodeDataEqual = (left?: Node["data"], right?: Node["data"]): boolean => {
 };
 
 const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
-  const queryClient = useQueryClient();
   const workflow = useWorkflowStore((state) => {
     if (!state.workflow) {
       return undefined;
@@ -476,10 +474,7 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   const convertSelection = useCallback(async () => {
     let template: WorkflowPaletteNode | undefined;
     try {
-      const response = await queryClient.ensureQueryData(
-        getGetPackageQueryOptions("system", undefined, { query: { staleTime: 5 * 60 * 1000 } })
-      );
-      const definition = response;
+      const definition = await getPackage("system");
       const containerManifest = definition?.manifest?.nodes?.find(
         (node: { type?: string }) => node.type === "workflow.container"
       );
@@ -498,7 +493,7 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
       console.error(result.error ?? "Failed to convert selection to subgraph.");
     }
     closeContextMenu();
-  }, [closeContextMenu, convertSelectionToSubgraph, queryClient]);
+  }, [closeContextMenu, convertSelectionToSubgraph]);
 
   useEffect(() => {
     if (typeof window === "undefined") {

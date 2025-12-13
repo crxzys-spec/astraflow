@@ -1,6 +1,6 @@
 ﻿- `src/features/workflow/components/NodeInspector.tsx`: inspector panel that resolves widget bindings and writes updates back into the store.
 - `src/features/workflow/constants.ts`: shared DnD payload identifiers.
-- `src/pages/WorkflowBuilderPage.tsx`: route-level integration that fetches a workflow via Orval hooks, hydrates the store, and orchestrates palette/canvas/inspector.
+- `src/pages/WorkflowBuilderPage.tsx`: route-level integration that fetches a workflow via API client + React Query wrappers (legacy orval hooks being phased out), hydrates the store, and orchestrates palette/canvas/inspector.
 
 The dashboard is the control-plane UI for orchestrating and monitoring AstraFlow
 workflows. Two main personas are supported:
@@ -15,7 +15,21 @@ the workflow canvas, TanStack Query handles server state, and the HTTP contract
 is generated automatically from the OpenAPI specification.
 
 ```
-鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?     鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?     鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹?React Router鈹傗攢鈹€鈹€鈹€鈹€鈻垛攤 Feature Pages鈹傗攢鈹€鈹€鈹€鈹€鈻垛攤 UI Components鈹?鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?     鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?     鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?        鈹?                   鈹?                    鈹?        鈻?                   鈻?                    鈻?鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹?State Layer                                              鈹?鈹?鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹? 鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹?鈹?鈹?React Query (server  鈹? 鈹?Workflow Store            鈹?鈹?鈹?鈹?cache + requests)    鈹? 鈹?(Zustand/Jotai, domain)   鈹?鈹?鈹?鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹? 鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹?鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?        鈹?                   鈹?                    鈹?        鈻?                   鈻?                    鈻?鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?     鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?     鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?鈹?Orval SDK  鈹傗攢鈹€鈹€鈹€鈹€鈻垛攤 Axios Client 鈹傗攢鈹€鈹€鈹€鈹€鈻垛攤 Scheduler API鈹?鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?     鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?     鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?```
++--------------------+     +--------------------+     +--------------------+
+| React Router       | --> | Feature Pages      | --> | UI Components      |
++--------------------+     +--------------------+     +--------------------+
+         |                          |                           |
+         v                          v                           v
++--------------------+     +--------------------+     +--------------------+
+| React Query        |     | Workflow Store     |     | UI State           |
+| (server state)     |     | (Zustand/Jotai)    |     | helpers            |
++--------------------+     +--------------------+     +--------------------+
+         |                          |                           |
+         v                          v                           v
++--------------------+     +--------------------+     +--------------------+
+| OpenAPI SDK        | --> | Axios Client       | --> | Scheduler API      |
++--------------------+     +--------------------+     +--------------------+
+```
 
 ## 2. Technology Stack
 
@@ -27,24 +41,32 @@ is generated automatically from the OpenAPI specification.
     state (`WorkflowDraft`, `WorkflowNodeDraft`, etc.).
 - **HTTP Client**: Axios, configured via `src/lib/httpClient.ts`. Base URL is
   injected through `VITE_API_BASE_URL`.
-- **API SDK**: `npm run generate:api` uses swagger-cli + orval to bundle the
-  multi-file OpenAPI spec and generate typed React Query hooks under `src/api/`.
+- **API SDK**: `npm run generate:api` bundles the OpenAPI spec via
+  `swagger-cli` (`tmp/openapi.bundled.json`), normalises it with
+  `scripts/resolve-openapi.js` (`tmp/openapi.resolved.json`), then uses
+  `openapi-generator-cli` to emit a TypeScript Axios client under
+  `src/client/`. Legacy orval output under `src/api/` remains temporarily
+  until the migration lands.
 - **Styling**: Lightweight custom styles (`App.css`, `index.css`) with BEM-like
   class names; can be replaced with a design system later.
 
 ## 3. API Integration
 
-- `docs/api/v1/openapi.yaml` is the source of truth. Multi-file references are
-  bundled to `tmp/openapi.bundle.yaml` before generation.
-- Orval creates Axios-based clients and React Query hooks (e.g.
-  `useListRuns`, `useGetRun`).
+- `docs/api/v1/openapi.yaml` is the source of truth. `swagger-cli bundle`
+  resolves the multi-file spec to `tmp/openapi.bundled.json`, then
+  `scripts/resolve-openapi.js` lifts `x-parameters`/`x-responses` into standard
+  components, rewrites refs, and downgrades `const` to `enum` for the generator
+  (`tmp/openapi.resolved.json`).
+- The generator produces plain Axios APIs and models; React Query wrappers are
+  maintained manually. Legacy orval hooks (e.g. `useListRuns`) are being
+  retired.
 - All Axios requests share configuration defined in
   `src/lib/httpClient.ts`. Future cross-cutting concerns (auth tokens, tracing,
   error logging) should be wired in here.
 - Regeneration workflow:
   ```bash
   npm run generate:api
-  # tmp/openapi.bundle.yaml, src/api/endpoints.ts, src/api/models/** are rebuilt
+  # bundles/normalises to tmp/openapi.resolved.json, outputs into src/client/**
   ```
   Generated files are git-ignored (except README) to avoid manual edits.
 
@@ -53,7 +75,8 @@ is generated automatically from the OpenAPI specification.
 ### 4.1 TanStack Query
 
 Server-side resources (runs, workers, workflow definitions) are fetched through
-orval-generated hooks. Query options (retry, stale time, refetch behaviour) are
+React Query wrappers around the generated client (legacy orval hooks are still
+present until migration completes). Query options (retry, stale time, refetch behaviour) are
 centralised in `src/lib/queryClient.ts`. The app is wrapped by
 `QueryClientProvider` and includes React Query Devtools for debugging.
 
@@ -200,8 +223,10 @@ Runs or workflow list pages can open the builder in read-only mode:
   widget registrations backed by components under `widgets/components/`.
 - `src/features/workflow/components/WorkflowCanvas.tsx`: canvas shell binding
   React Flow callbacks to store actions; shows overlay when empty.
-- src/features/workflow/components/WorkflowPalette.tsx: catalog UI that groups node definitions\n  and emits drag payloads for the canvas.\n- src/features/workflow/components/NodeInspector.tsx: inspector panel that\n  resolves widget bindings and writes updates back into the store.
-- src/features/workflow/constants.ts: shared DnD payload identifiers.\n- src/pages/WorkflowBuilderPage.tsx: route-level integration that fetches a\n  workflow via Orval hooks, hydrates the store, and orchestrates palette/canvas/inspector.
+- `src/features/workflow/components/WorkflowPalette.tsx`: catalog UI that groups node definitions and emits drag payloads for the canvas.
+- `src/features/workflow/components/NodeInspector.tsx`: inspector panel that resolves widget bindings and writes updates back into the store.
+- `src/features/workflow/constants.ts`: shared DnD payload identifiers.
+- `src/pages/WorkflowBuilderPage.tsx`: route-level integration that fetches a workflow via API client + React Query wrappers (legacy orval hooks being phased out), hydrates the store, and orchestrates palette/canvas/inspector.
 
 ## 6. Panels & Navigation
 
@@ -257,8 +282,4 @@ Environment variables:
 
 This architecture enables incremental development while keeping workflow schema
 parsing, editing, and persistence aligned with backend definitions.
-
-
-
-- `src/features/workflow/components/WorkflowPalette.tsx`: catalog UI that groups node definitions and emits drag payloads for the canvas.
 

@@ -1,27 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import { useDeleteWorkflow, useListWorkflows } from "../api/endpoints";
 import { useAuthStore } from "../features/auth/store";
 import { useToolbarStore } from "../features/workflow/hooks/useToolbar";
+import { useWorkflows, useWorkflowsStore } from "../store/workflowsSlice";
 
 const WorkflowsPage = () => {
-  const workflowsQuery = useListWorkflows(undefined, {
-    query: {
-      staleTime: 60_000
-    }
-  });
+  const workflowsQuery = useWorkflows(undefined, { enabled: true });
   const canCreateWorkflow = useAuthStore((state) => state.hasRole(["admin", "workflow.editor"]));
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingWorkflowId, setDeletingWorkflowId] = useState<string | null>(null);
   const [previewMap, setPreviewMap] = useState<Record<string, string | null>>({});
-  const deleteWorkflowMutation = useDeleteWorkflow();
+  const deleteWorkflow = useWorkflowsStore((state) => state.deleteWorkflow);
 
-  const workflows = workflowsQuery.data?.items ?? [];
+  const workflows = workflowsQuery.items ?? [];
   const isLoading = workflowsQuery.isLoading;
   const isError = workflowsQuery.isError;
   const errorMessage =
-    (workflowsQuery.error as Error | undefined)?.message ??
+    (workflowsQuery.error as { message?: string } | undefined)?.message ??
     (workflowsQuery.error as { response?: { data?: { message?: string } } } | undefined)?.response
       ?.data?.message;
 
@@ -83,7 +79,7 @@ const WorkflowsPage = () => {
     setDeleteError(null);
     setDeletingWorkflowId(workflowId);
     try {
-      await deleteWorkflowMutation.mutateAsync({ workflowId });
+      await deleteWorkflow(workflowId);
       await workflowsQuery.refetch();
     } catch (error) {
       const defaultMessage = "Failed to delete workflow.";
@@ -180,7 +176,7 @@ const WorkflowsPage = () => {
                       <button
                         className="btn btn--ghost"
                         type="button"
-                        disabled={deletingWorkflowId === workflow.id || deleteWorkflowMutation.isPending}
+                        disabled={deletingWorkflowId === workflow.id}
                         onClick={() => handleDelete(workflow.id, metadata.name ?? workflow.id)}
                       >
                         <span className="btn__icon" aria-hidden="true">🗑</span>

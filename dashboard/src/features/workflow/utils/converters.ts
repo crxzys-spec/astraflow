@@ -1,51 +1,34 @@
-import type { EdgeEndpoint } from "../../../api/models/edgeEndpoint";
-
-import type { Workflow as WorkflowDefinition } from "../../../api/models/workflow";
-
-import type { WorkflowEdge } from "../../../api/models/workflowEdge";
-
-import type { WorkflowNode } from "../../../api/models/workflowNode";
-import type { WorkflowMiddleware } from "../../../api/models/workflowMiddleware";
-
-import { WorkflowNodeStatus } from "../../../api/models/workflowNodeStatus";
-
-import type { WorkflowMetadata } from "../../../api/models/workflowMetadata";
-
-import type { WorkflowNodeSchema } from "../../../api/models/workflowNodeSchema";
-
-import type { WorkflowNodeState } from "../../../api/models/workflowNodeState";
-
-import type { NodeUI } from "../../../api/models/nodeUI";
-
-import type { UIBinding } from "../../../api/models/uIBinding";
-
-import { UIBindingMode } from "../../../api/models/uIBindingMode";
-
-import type { UIPort } from "../../../api/models/uIPort";
-
-import type { UIWidget } from "../../../api/models/uIWidget";
-
-import type { ManifestBinding } from "../../../api/models/manifestBinding";
-
-import type { ManifestNodeUI } from "../../../api/models/manifestNodeUI";
-
-import type { ManifestPort } from "../../../api/models/manifestPort";
-
-import type { ManifestWidget } from "../../../api/models/manifestWidget";
-
-import type { WorkflowSubgraph } from "../../../api/models/workflowSubgraph";
+import {
+  WorkflowMiddlewareStatusEnum,
+  WorkflowNodeStatusEnum,
+} from "../../../client/models";
+import type {
+  Workflow,
+  WorkflowEdge,
+  WorkflowMetadata,
+  WorkflowMiddleware,
+  WorkflowNode,
+  WorkflowNodeSchema,
+  WorkflowNodeState,
+  WorkflowSubgraph,
+  EdgeEndpoint,
+  NodeUI,
+  UIBinding,
+  UIPort,
+  UIWidget,
+  ManifestBinding,
+  ManifestNodeUI,
+  ManifestPort,
+  ManifestWidget,
+} from "../../../client/models";
+import { UIBindingMode } from "../../../client/model-shims";
 import type {
   WorkflowDraft,
-
   WorkflowEdgeDraft,
-
   WorkflowEdgeEndpointDraft,
-
   WorkflowMiddlewareDraft,
   WorkflowNodeDraft,
-
   WorkflowPaletteNode,
-
   XYPosition,
 } from "../types.ts";
 import type { ContainerSettings } from "../types.ts";
@@ -55,7 +38,28 @@ import { buildDefaultsFromSchema } from "./schemaDefaults.ts";
 
 import type { JsonSchema } from "./schemaDefaults.ts";
 
+const defaultNodeStatus: WorkflowNodeStatusEnum = WorkflowNodeStatusEnum.Draft;
+const defaultMiddlewareStatus: WorkflowMiddlewareStatusEnum = WorkflowMiddlewareStatusEnum.Draft;
 
+const normalizeNodeStatus = (status?: string): WorkflowNodeStatusEnum => {
+  if (status === WorkflowNodeStatusEnum.Published) {
+    return WorkflowNodeStatusEnum.Published;
+  }
+  if (status === WorkflowNodeStatusEnum.Deprecated) {
+    return WorkflowNodeStatusEnum.Deprecated;
+  }
+  return defaultNodeStatus;
+};
+
+const normalizeMiddlewareStatus = (status?: string): WorkflowMiddlewareStatusEnum => {
+  if (status === WorkflowMiddlewareStatusEnum.Published) {
+    return WorkflowMiddlewareStatusEnum.Published;
+  }
+  if (status === WorkflowMiddlewareStatusEnum.Deprecated) {
+    return WorkflowMiddlewareStatusEnum.Deprecated;
+  }
+  return defaultMiddlewareStatus;
+};
 
 const clone = <T>(value: T): T =>
 
@@ -259,11 +263,8 @@ const sanitizeNodeUi = (ui?: NodeUI | null): NodeUI | undefined => {
 
 
 const sanitizeMetadata = (
-
   metadata: WorkflowMetadata | undefined,
-
   fallbackName: string,
-
 ): WorkflowMetadata => {
 
   const safeName = metadata?.name ?? fallbackName;
@@ -500,7 +501,7 @@ const middlewareToDraft = (middleware: WorkflowMiddleware): WorkflowMiddlewareDr
     label: middleware.label,
     role: "middleware",
     nodeKind: middleware.type,
-    status: middleware.status ?? WorkflowNodeStatus.draft,
+    status: normalizeMiddlewareStatus(middleware.status),
     category: middleware.category ?? "uncategorised",
     description: coerceOptional(middleware.description),
     tags: sanitizeTags(middleware.tags),
@@ -541,7 +542,7 @@ const middlewareDraftToDefinition = (middleware: WorkflowMiddlewareDraft): Workf
       name: middleware.packageName ?? "",
       version: middleware.packageVersion ?? "",
     },
-    status: (middleware.status ?? WorkflowNodeStatus.draft) as WorkflowNodeStatus,
+    status: normalizeMiddlewareStatus(middleware.status),
     category: middleware.category ?? "uncategorised",
     label: middleware.label,
     parameters: clone(params ?? defaultParams),
@@ -590,9 +591,7 @@ const mapEdgeToDraft = (edge: WorkflowEdge): WorkflowEdgeDraft => ({
 
 
 export const workflowDefinitionToDraft = (
-
-  definition: WorkflowDefinition,
-
+  definition: Workflow,
 ): WorkflowDraft => {
 
   const nodes: Record<string, WorkflowNodeDraft> = {};
@@ -607,7 +606,7 @@ export const workflowDefinitionToDraft = (
         label: node.label,
         role: (node as { role?: string }).role as WorkflowNodeDraft["role"],
         nodeKind: node.type,
-        status: node.status ?? WorkflowNodeStatus.draft,
+        status: normalizeNodeStatus(node.status),
         category: node.category ?? "uncategorised",
         description: coerceOptional(node.description),
         tags: sanitizeTags(node.tags),
@@ -615,8 +614,8 @@ export const workflowDefinitionToDraft = (
         packageVersion: node.package?.version,
         adapter: (node as { adapter?: string }).adapter,
         handler: (node as { handler?: string }).handler,
-        parameters: clone(node.parameters ?? defaultParams),
-        results: clone(node.results ?? defaultResults),
+        parameters: clone(node.parameters ?? defaultParams ?? {}),
+        results: clone(node.results ?? defaultResults ?? {}),
         schema: node.schema ?? undefined,
         ui: ensureInputGeneratorUi(node.type, node.ui),
         position: {
@@ -635,7 +634,7 @@ export const workflowDefinitionToDraft = (
       }
       const containerConfig = readContainerParameters(node.parameters);
       if (containerConfig) {
-        draft.parameters = writeContainerParameters(draft.parameters, containerConfig);
+        draft.parameters = writeContainerParameters(draft.parameters, containerConfig) ?? draft.parameters ?? {};
       }
       nodes[draft.id] = draft;
 
@@ -692,11 +691,8 @@ export const workflowDefinitionToDraft = (
 
 
 export const workflowDraftToDefinition = (
-
   draft: WorkflowDraft,
-
-): WorkflowDefinition => {
-
+): Workflow => {
   const nodes: WorkflowNode[] = Object.values(draft.nodes)
     .filter((node) => node.role !== "middleware")
     .map((node) => {
@@ -717,7 +713,7 @@ export const workflowDraftToDefinition = (
 
         },
 
-        status: (node.status ?? WorkflowNodeStatus.draft) as WorkflowNodeStatus,
+        status: normalizeNodeStatus(node.status),
 
         category: node.category ?? "uncategorised",
 
@@ -844,7 +840,7 @@ export const createNodeDraftFromTemplate = (
 
     nodeKind: manifestNode.type,
 
-    status: manifestNode.status ?? WorkflowNodeStatus.draft,
+    status: normalizeNodeStatus(manifestNode.status),
 
     category: manifestNode.category,
 
@@ -908,4 +904,5 @@ export const ensureUniqueNodeId = (
   return baseId;
 
 };
+
 

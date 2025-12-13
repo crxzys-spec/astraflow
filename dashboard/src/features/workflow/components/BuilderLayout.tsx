@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactMouseEvent, ReactNode, Ref } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, Ref } from "react";
 
 type BuilderLayoutProps = {
   palette: ReactNode;

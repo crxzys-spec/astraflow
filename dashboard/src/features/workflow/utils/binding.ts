@@ -1,5 +1,5 @@
 import type { WorkflowMiddlewareDraft, WorkflowNodeDraft, NodeWidgetDefinition } from "../types";
-import type { UIBindingMode } from "../../../api/models/uIBindingMode";
+import type { UIBindingMode } from "../../../client/model-shims";
 
 type BindingRoot = "parameters" | "results";
 
@@ -106,3 +106,4 @@ export const formatBindingDisplay = (
   }
   return prefix || undefined;
 };
+

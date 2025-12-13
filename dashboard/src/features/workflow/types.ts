@@ -1,34 +1,28 @@
-import type { ManifestNode } from '../../api/models/manifestNode';
+import type {
+  ManifestNode,
+  NodeUI,
+  UIPort,
+  UIWidget,
+  WorkflowSubgraph,
+  RunArtifact,
+  Workflow as ApiWorkflow,
+  WorkflowEdge as ApiWorkflowEdge,
+  WorkflowMetadata as ApiWorkflowMetadata,
+  WorkflowNode as ApiWorkflowNode,
+  WorkflowNodeSchema as ApiWorkflowNodeSchema,
+  WorkflowNodeState as ApiWorkflowNodeState,
+  WorkflowSubgraphMetadata as ApiWorkflowSubgraphMetadata,
+} from '../../client/models';
 
-import type { Workflow as ApiWorkflow } from '../../api/models/workflow';
-
-import type { WorkflowEdge as ApiWorkflowEdge } from '../../api/models/workflowEdge';
-
-import type { WorkflowMetadata } from '../../api/models/workflowMetadata';
-
-import type { WorkflowNode as ApiWorkflowNode } from '../../api/models/workflowNode';
-import type { WorkflowNodeSchema } from '../../api/models/workflowNodeSchema';
-
-import type { RunArtifact } from '../../api/models/runArtifact';
-
-import type { NodeUI } from '../../api/models/nodeUI';
-
-import type { UIPort } from '../../api/models/uIPort';
-
-import type { UIWidget } from '../../api/models/uIWidget';
-
-import type { WorkflowNodeState } from '../../api/models/workflowNodeState';
-import type { WorkflowSubgraph } from '../../api/models/workflowSubgraph';
-import type { WorkflowSubgraphMetadata } from '../../api/models/workflowSubgraphMetadata';
 export type WorkflowDefinition = ApiWorkflow;
-
 export type WorkflowDefinitionNode = ApiWorkflowNode;
-
 export type WorkflowDefinitionEdge = ApiWorkflowEdge;
-
+export type WorkflowMetadata = ApiWorkflowMetadata;
+export type WorkflowNodeSchema = ApiWorkflowNodeSchema;
+export type WorkflowSubgraphMetadata = ApiWorkflowSubgraphMetadata;
+export type WorkflowNodeState = ApiWorkflowNodeState;
 export type ManifestNodeTemplate = ManifestNode;
-
-
+export type RunArtifactModel = RunArtifact;
 
 export interface WorkflowDraft {
 
@@ -76,7 +70,7 @@ export interface WorkflowMiddlewareDraft {
   concurrencyKey?: string;
   metadata?: Record<string, unknown>;
   state?: WorkflowNodeState;
-  runtimeArtifacts?: RunArtifact[] | null;
+  runtimeArtifacts?: RunArtifactModel[] | null;
   runtimeSummary?: string | null;
 }
 
@@ -105,7 +99,7 @@ export interface WorkflowNodeDraft {
   concurrencyKey?: string;
   metadata?: Record<string, unknown>;
   state?: WorkflowNodeState;
-  runtimeArtifacts?: RunArtifact[] | null;
+  runtimeArtifacts?: RunArtifactModel[] | null;
 
   runtimeSummary?: string | null;
 
@@ -245,7 +239,7 @@ export interface WorkflowStoreActions {
 
       result?: Record<string, unknown> | null;
 
-      artifacts?: RunArtifact[] | null;
+      artifacts?: RunArtifactModel[] | null;
 
       summary?: string | null;
 
@@ -286,7 +280,7 @@ export interface WorkflowSubgraphDraftEntry {
 }
 
 export type WorkflowGraphScope =
-  | { type: "root" }
+  | { type: "root"; subgraphId?: string }
   | { type: "subgraph"; subgraphId: string };
 
 export interface ContainerSettings {
@@ -314,3 +308,5 @@ export interface ConvertSelectionResult {
   subgraphId?: string;
   containerId?: string;
 }
+
+

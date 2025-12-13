@@ -1,22 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import type { AxiosError } from "axios";
 import { useNavigate } from "react-router-dom";
-import type { QueryClient } from "@tanstack/react-query";
-import {
-  useGetWorkflow,
-  usePersistWorkflow,
-  usePublishWorkflow,
-  useSetWorkflowPreview,
-  useListWorkflowPackages,
-} from "../api/endpoints";
 import { useWorkflowStore } from "../features/workflow";
 import { workflowDraftToDefinition } from "../features/workflow/utils/converters";
-import type {
-  WorkflowDraft,
-  WorkflowNodeStateUpdateMap,
-} from "../features/workflow";
+import type { WorkflowDefinition, WorkflowDraft, WorkflowNodeStateUpdateMap } from "../features/workflow";
 import { createEmptyWorkflow, normalizeVisibility, slugifyValue } from "../features/workflow/utils/builderHelpers";
+import type { Workflow, WorkflowPreview, WorkflowPublishRequest, WorkflowPublishResponse, WorkflowRef } from "../client/models";
+import type { WorkflowPackageListModel } from "../services/workflowPackages";
+import { useWorkflow } from "../store/workflowsSlice";
+import { workflowsGateway } from "../services/workflows";
+import { workflowPackagesGateway } from "../services/workflowPackages";
+import type { ApiError } from "../api/fetcher";
+import { useAsyncAction } from "./useAsyncAction";
+
+type ResourceStatus = "idle" | "loading" | "success" | "error";
 
 export type PublishMessage = { type: "success" | "error"; text: string };
 export type MetadataFormState = { name: string; description: string };
@@ -33,7 +30,6 @@ export type PublishFormState = {
 
 export const useWorkflowDraft = (
   workflowId: string | undefined,
-  queryClient: QueryClient,
   ensurePersistableIds: (draft: WorkflowDraft, workflowKey?: string) => WorkflowDraft,
 ) => {
   const navigate = useNavigate();
@@ -50,13 +46,51 @@ export const useWorkflowDraft = (
   const isNewSession = !workflowId || workflowId === "new";
   const workflowKey = !isNewSession ? workflowId : undefined;
 
-  const workflowQuery = useGetWorkflow(workflowKey ?? "new", {
-    query: { enabled: Boolean(workflowKey) },
-  });
-  const persistWorkflowMutation = usePersistWorkflow(undefined, queryClient);
-  const publishWorkflowMutation = usePublishWorkflow(undefined, queryClient);
-  const setPreviewMutation = useSetWorkflowPreview(undefined, queryClient);
-  const workflowPackagesQuery = useListWorkflowPackages(undefined, { query: { enabled: true } }, queryClient);
+  const workflowQuery = useWorkflow(workflowKey);
+  const persistWorkflowMutation = useAsyncAction<
+    { data: WorkflowDefinition; idempotencyKey?: string },
+    WorkflowRef
+  >(({ data, idempotencyKey }) =>
+    workflowsGateway.persist(data as unknown as Workflow, idempotencyKey),
+  );
+  const publishWorkflowMutation = useAsyncAction<
+    { workflowId: string; data: WorkflowPublishRequest },
+    WorkflowPublishResponse
+  >(({ workflowId, data }) => workflowPackagesGateway.publish(workflowId, data));
+  const setPreviewMutation = useAsyncAction<
+    { workflowId: string; data: { previewImage?: string | null } },
+    WorkflowPreview
+  >(({ workflowId, data }) => workflowsGateway.setPreview(workflowId, data));
+  const [workflowPackages, setWorkflowPackages] = useState<WorkflowPackageListModel | null>(null);
+  const [workflowPackagesStatus, setWorkflowPackagesStatus] = useState<ResourceStatus>("idle");
+  const [workflowPackagesError, setWorkflowPackagesError] = useState<unknown>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setWorkflowPackagesStatus("loading");
+    setWorkflowPackagesError(null);
+    workflowPackagesGateway.list(undefined)
+      .then((result) => {
+        if (cancelled) return;
+        setWorkflowPackages(result);
+        setWorkflowPackagesStatus("success");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setWorkflowPackagesError(error);
+        setWorkflowPackagesStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const workflowPackagesQuery = {
+    data: workflowPackages,
+    isLoading: workflowPackagesStatus === "loading",
+    isError: workflowPackagesStatus === "error",
+    error: workflowPackagesError,
+  };
 
   const [publishMessage, setPublishMessage] = useState<PublishMessage | null>(null);
   const [saveMessage, setSaveMessage] = useState<PublishMessage | null>(null);
@@ -97,11 +131,11 @@ export const useWorkflowDraft = (
   }, [isNewSession, workflow, workflowId, loadWorkflow]);
 
   useEffect(() => {
-    const definition = workflowQuery.data;
+    const definition = workflowQuery.workflow;
     if (!definition) {
       return;
     }
-    const updatedAt = workflowQuery.dataUpdatedAt ?? 0;
+    const updatedAt = workflowQuery.updatedAt ?? 0;
     if (hasHydrated.current && lastHydrateAt.current === updatedAt) {
       return;
     }
@@ -138,17 +172,17 @@ export const useWorkflowDraft = (
     if (Object.keys(updates).length > 0) {
       updateNodeStates(updates);
     }
-  }, [workflowQuery.data, workflowQuery.dataUpdatedAt, workflow, subgraphDrafts, loadWorkflow, updateNodeStates]);
+  }, [workflowQuery.workflow, workflowQuery.updatedAt, workflow, subgraphDrafts, loadWorkflow, updateNodeStates]);
 
-  const queryError = workflowQuery.error as AxiosError | undefined;
+  const queryError = workflowQuery.error as ApiError | undefined;
   const notFound =
     Boolean(workflowKey) &&
     workflowQuery.isError &&
-    queryError?.response?.status === 404;
+    queryError?.status === 404;
   const loadError =
     Boolean(workflowKey) &&
     workflowQuery.isError &&
-    queryError?.response?.status !== 404 &&
+    queryError?.status !== 404 &&
     workflowQuery.error != null;
 
   useEffect(() => {
@@ -208,7 +242,7 @@ export const useWorkflowDraft = (
         { data: definition },
         {
           onSuccess: async (response) => {
-            const workflowIdResponse = response.data?.workflowId ?? workflowForPersist.id;
+            const workflowIdResponse = response?.workflowId ?? workflowForPersist.id;
             setSaveMessage({ type: "success", text: "Workflow saved successfully." });
             if (workflowIdResponse) {
               await setPreviewMutation.mutateAsync({
@@ -219,8 +253,7 @@ export const useWorkflowDraft = (
             if (!workflowKey || workflowKey !== workflowIdResponse) {
               navigate(`/workflows/${workflowIdResponse}`, { replace: true });
             } else {
-              queryClient.invalidateQueries({ queryKey: ["/api/v1/workflows", workflowIdResponse] });
-              queryClient.invalidateQueries({ queryKey: ["/api/v1/workflows"] });
+              void workflowQuery.refetch();
             }
           },
           onError: (error) => {
@@ -229,7 +262,7 @@ export const useWorkflowDraft = (
         }
       );
     },
-    [ensurePersistableIds, navigate, persistWorkflowMutation, queryClient, setPreviewImage, setPreviewMutation]
+    [ensurePersistableIds, navigate, persistWorkflowMutation, setPreviewImage, setPreviewMutation, workflowQuery]
   );
 
   const uploadPreview = useCallback(
@@ -247,11 +280,11 @@ export const useWorkflowDraft = (
     [setPreviewMutation]
   );
 
-  const ownedWorkflowPackages = (workflowPackagesQuery.data?.items ?? []).filter((pkg) => pkg.owner === "me");
+  const ownedWorkflowPackages = workflowPackagesQuery.data?.items ?? [];
   const canTargetExistingPackage = ownedWorkflowPackages.length > 0;
   const workflowPackagesErrorMessage =
     workflowPackagesQuery.isError && workflowPackagesQuery.error
-      ? (workflowPackagesQuery.error as AxiosError)?.message ?? "Failed to load packages"
+      ? (workflowPackagesQuery.error as { message?: string })?.message ?? "Failed to load packages"
       : null;
 
   const derivedSlugForValidation = publishForm.mode === "new"
@@ -470,7 +503,7 @@ export const useWorkflowDraft = (
         },
         {
           onSuccess: async (response) => {
-            const versionLabel = response.data?.version ?? publishForm.version.trim();
+            const versionLabel = response?.version ?? publishForm.version.trim();
             setPublishMessage({
               type: "success",
               text: `Workflow published as version ${versionLabel}.`

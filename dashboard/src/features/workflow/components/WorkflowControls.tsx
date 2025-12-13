@@ -27,7 +27,7 @@ const WorkflowControls = memo(() => {
         className="workflow-controls__btn"
         aria-label="Zoom in"
         title="Zoom in"
-        onClick={zoomIn}
+        onClick={() => zoomIn()}
         disabled={maxZoomReached}
       >
         <span aria-hidden className="workflow-controls__icon workflow-controls__icon--plus" />
@@ -37,7 +37,7 @@ const WorkflowControls = memo(() => {
         className="workflow-controls__btn"
         aria-label="Zoom out"
         title="Zoom out"
-        onClick={zoomOut}
+        onClick={() => zoomOut()}
         disabled={minZoomReached}
       >
         <span aria-hidden className="workflow-controls__icon workflow-controls__icon--minus" />

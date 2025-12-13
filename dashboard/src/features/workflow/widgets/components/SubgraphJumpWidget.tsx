@@ -17,12 +17,15 @@ const baseButtonStyle: React.CSSProperties = {
 export const SubgraphJumpWidget = ({
   widget,
   value,
-  readOnly,
 }: WidgetRendererProps) => {
   const setActiveGraph = useWorkflowStore((state) => state.setActiveGraph);
   const subgraphs = useWorkflowStore((state) => state.subgraphDrafts);
   const subgraphId = typeof value === "string" && value.trim().length ? value.trim() : undefined;
   const target = subgraphId ? subgraphs.find((entry) => entry.id === subgraphId) : undefined;
+  const options = (widget.options as { buttonLabel?: string } | undefined) ?? {};
+  const buttonLabel = typeof options.buttonLabel === "string" && options.buttonLabel.length
+    ? options.buttonLabel
+    : "Open subgraph";
 
   const handleClick = () => {
     if (target) {
@@ -51,8 +54,7 @@ export const SubgraphJumpWidget = ({
             cursor: target ? "pointer" : "not-allowed",
           }}
         >
-          {(widget.options as Record<string, unknown>)?.buttonLabel ??
-            "Open subgraph"}
+          {buttonLabel}
         </button>
       </div>
       {!target && (

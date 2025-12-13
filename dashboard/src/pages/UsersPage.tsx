@@ -1,16 +1,18 @@
-import type { FormEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
-import {
-  useAddUserRole,
-  useCreateUser,
-  useListUsers,
-  useRemoveUserRole,
-  useResetUserPassword,
-  useUpdateUserStatus,
-} from "../api/endpoints";
-import type { CreateUserRequest } from "../api/models/createUserRequest";
-import type { UserSummary } from "../api/models/userSummary";
+﻿import type { FormEvent } from "react";
+import { useEffect, useState } from "react";
+import type { CreateUserRequest } from "../client/models";
+import type { UserSummary } from "../client/models";
 import { useAuthStore } from "../features/auth/store";
+import {
+  addUserRole,
+  createUser,
+  listUsers,
+  removeUserRole,
+  resetUserPassword,
+  updateUserStatus,
+} from "../services/users";
+import { useAsyncAction } from "../hooks/useAsyncAction";
+import { toApiError, type ApiError } from "../api/fetcher";
 
 type CreateUserForm = Omit<CreateUserRequest, "roles"> & { roles: string[] };
 
@@ -48,13 +50,26 @@ const UsersPage = () => {
   const [feedback, setFeedback] = useState<{ type: "info" | "error"; message: string } | null>(null);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [isManageModalOpen, setManageModalOpen] = useState(false);
+  const [users, setUsers] = useState<UserSummary[]>([]);
+  const [usersStatus, setUsersStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [usersError, setUsersError] = useState<ApiError | null>(null);
 
-  const usersQuery = useListUsers({ query: { enabled: isAdmin, refetchOnWindowFocus: false } });
-
-  const users: UserSummary[] = useMemo(() => {
-    const items = usersQuery.data?.data.items ?? [];
-    return [...items].sort((a, b) => a.username.localeCompare(b.username));
-  }, [usersQuery.data]);
+  const fetchUsers = async () => {
+    if (!isAdmin) {
+      return;
+    }
+    setUsersStatus("loading");
+    setUsersError(null);
+    try {
+      const response = await listUsers();
+      const items = response.items ?? [];
+      setUsers([...items].sort((a, b) => a.username.localeCompare(b.username)));
+      setUsersStatus("success");
+    } catch (err) {
+      setUsersError(toApiError(err));
+      setUsersStatus("error");
+    }
+  };
 
   const selectedUser = users.find((user) => user.userId === selectedUserId) ?? null;
 
@@ -68,56 +83,25 @@ const UsersPage = () => {
     }
   }, [users, selectedUserId]);
 
-  const createUserMutation = useCreateUser({
-    mutation: {
-      onSuccess: (response) => {
-        setFeedback({ type: "info", message: `User '${response.data.username}' created successfully.` });
-        setCreateForm(INITIAL_CREATE_FORM);
-        setCreateModalOpen(false);
-        usersQuery.refetch();
-      },
-      onError: (error: any) => {
-        setFeedback({ type: "error", message: getErrorMessage(error, "Unable to create user.") });
-      },
-    },
-  });
+  useEffect(() => {
+    if (isAdmin) {
+      void fetchUsers();
+    } else {
+      setUsers([]);
+      setSelectedUserId(null);
+    }
+  }, [isAdmin]);
 
-  const resetPasswordMutation = useResetUserPassword({
-    mutation: {
-      onSuccess: () => {
-        const username = selectedUser?.username ?? "user";
-        setFeedback({ type: "info", message: `Password updated for '${username}'.` });
-        setNewPassword("");
-      },
-      onError: (error: any) => {
-        setFeedback({ type: "error", message: getErrorMessage(error, "Unable to reset password.") });
-      },
-    },
-  });
-
-  const addRoleMutation = useAddUserRole({
-    mutation: {
-      onSuccess: () => {
-        setFeedback({ type: "info", message: "Role assigned successfully." });
-        usersQuery.refetch();
-      },
-      onError: (error: any) => {
-        setFeedback({ type: "error", message: getErrorMessage(error, "Unable to assign role.") });
-      },
-    },
-  });
-
-  const removeRoleMutation = useRemoveUserRole({
-    mutation: {
-      onSuccess: () => {
-        setFeedback({ type: "info", message: "Role removed successfully." });
-        usersQuery.refetch();
-      },
-      onError: (error: any) => {
-        setFeedback({ type: "error", message: getErrorMessage(error, "Unable to remove role.") });
-      },
-    },
-  });
+  const createUserMutation = useAsyncAction(async (payload: CreateUserRequest) => createUser(payload));
+  const resetPasswordMutation = useAsyncAction(async ({ userId, password }: { userId: string; password: string }) =>
+    resetUserPassword(userId, password),
+  );
+  const addRoleMutation = useAsyncAction(async ({ userId, role }: { userId: string; role: string }) =>
+    addUserRole(userId, { role }),
+  );
+  const removeRoleMutation = useAsyncAction(async ({ userId, role }: { userId: string; role: string }) =>
+    removeUserRole(userId, role),
+  );
 
   if (!isAdmin) {
     return (
@@ -132,17 +116,9 @@ const UsersPage = () => {
     );
   }
 
-  const updateStatusMutation = useUpdateUserStatus({
-    mutation: {
-      onSuccess: () => {
-        setFeedback({ type: "info", message: "Account status updated." });
-        usersQuery.refetch();
-      },
-      onError: (error: any) => {
-        setFeedback({ type: "error", message: getErrorMessage(error, "Unable to update status.") });
-      },
-    },
-  });
+  const updateStatusMutation = useAsyncAction(async ({ userId, isActive }: { userId: string; isActive: boolean }) =>
+    updateUserStatus(userId, isActive),
+  );
 
   const handleCreateSubmit = (evt: FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -153,7 +129,17 @@ const UsersPage = () => {
       password: createForm.password,
       ...(createForm.roles.length ? { roles: createForm.roles } : {}),
     };
-    createUserMutation.mutate({ data: payload });
+    createUserMutation.mutate(payload, {
+      onSuccess: (response) => {
+        setFeedback({ type: "info", message: `User '${response.username}' created successfully.` });
+        setCreateForm(INITIAL_CREATE_FORM);
+        setCreateModalOpen(false);
+        void fetchUsers();
+      },
+      onError: (error: any) => {
+        setFeedback({ type: "error", message: getErrorMessage(error, "Unable to create user.") });
+      },
+    });
   };
 
   const handlePasswordReset = (evt: FormEvent<HTMLFormElement>) => {
@@ -167,7 +153,19 @@ const UsersPage = () => {
       return;
     }
     setFeedback(null);
-    resetPasswordMutation.mutate({ userId: selectedUser.userId, data: { password } });
+    resetPasswordMutation.mutate(
+      { userId: selectedUser.userId, password },
+      {
+        onSuccess: () => {
+          const username = selectedUser?.username ?? "user";
+          setFeedback({ type: "info", message: `Password updated for '${username}'.` });
+          setNewPassword("");
+        },
+        onError: (error: any) => {
+          setFeedback({ type: "error", message: getErrorMessage(error, "Unable to reset password.") });
+        },
+      },
+    );
   };
 
   const toggleCreateRole = (roleName: string) => {
@@ -183,9 +181,31 @@ const UsersPage = () => {
     }
     setFeedback(null);
     if (checked) {
-      addRoleMutation.mutate({ userId: selectedUser.userId, data: { role: roleName } });
+      addRoleMutation.mutate(
+        { userId: selectedUser.userId, role: roleName },
+        {
+          onSuccess: () => {
+            setFeedback({ type: "info", message: "Role assigned successfully." });
+            void fetchUsers();
+          },
+          onError: (error: any) => {
+            setFeedback({ type: "error", message: getErrorMessage(error, "Unable to assign role.") });
+          },
+        },
+      );
     } else {
-      removeRoleMutation.mutate({ userId: selectedUser.userId, role: roleName });
+      removeRoleMutation.mutate(
+        { userId: selectedUser.userId, role: roleName },
+        {
+          onSuccess: () => {
+            setFeedback({ type: "info", message: "Role removed successfully." });
+            void fetchUsers();
+          },
+          onError: (error: any) => {
+            setFeedback({ type: "error", message: getErrorMessage(error, "Unable to remove role.") });
+          },
+        },
+      );
     }
   };
 
@@ -194,7 +214,18 @@ const UsersPage = () => {
       return;
     }
     setFeedback(null);
-    updateStatusMutation.mutate({ userId: selectedUser.userId, data: { isActive: nextActive } });
+    updateStatusMutation.mutate(
+      { userId: selectedUser.userId, isActive: nextActive },
+      {
+        onSuccess: () => {
+          setFeedback({ type: "info", message: "Account status updated." });
+          void fetchUsers();
+        },
+        onError: (error: any) => {
+          setFeedback({ type: "error", message: getErrorMessage(error, "Unable to update status.") });
+        },
+      },
+    );
   };
 
   const disableCreate =
@@ -223,8 +254,8 @@ const UsersPage = () => {
             <button className="btn btn--ghost" type="button" onClick={() => setCreateModalOpen(true)}>
               Create User
             </button>
-            <button className="btn" type="button" onClick={() => usersQuery.refetch()} disabled={usersQuery.isFetching}>
-              {usersQuery.isFetching ? "Refreshing..." : "Refresh"}
+            <button className="btn" type="button" onClick={() => void fetchUsers()} disabled={usersStatus === "loading"}>
+              {usersStatus === "loading" ? "Refreshing..." : "Refresh"}
             </button>
           </div>
         </header>
@@ -232,6 +263,11 @@ const UsersPage = () => {
         {feedback && (
           <div className={`users-feedback users-feedback--${feedback.type === "error" ? "error" : "info"}`}>
             {feedback.message}
+          </div>
+        )}
+        {usersStatus === "error" && (
+          <div className="users-feedback users-feedback--error">
+            {usersError?.message ?? "Unable to load users."}
           </div>
         )}
 
@@ -247,20 +283,20 @@ const UsersPage = () => {
               </tr>
             </thead>
             <tbody>
-              {usersQuery.isLoading ? (
+              {usersStatus === "loading" ? (
                 <tr>
                   <td colSpan={4}>Loading users...</td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={4}>No users found. Use “Create User” to add one.</td>
+                  <td colSpan={4}>No users found. Use "Create User" to add one.</td>
                 </tr>
               ) : (
                 users.map((user) => (
                   <tr key={user.userId}>
                     <td>{user.username}</td>
                     <td>{user.displayName}</td>
-                    <td>{user.roles.join(", ") || "—"}</td>
+                    <td>{user.roles.join(", ") || "None"}</td>
                     <td>
                       <span className={`badge ${user.isActive ? "badge--success" : "badge--muted"}`}>
                         {user.isActive ? "Active" : "Disabled"}
@@ -301,30 +337,30 @@ const UsersPage = () => {
               <label className="stack">
                 <span>Username</span>
                 <input
-                  type="text"
-                  value={createForm.username}
-                  onChange={(evt) => setCreateForm((prev) => ({ ...prev, username: evt.target.value }))}
-                  placeholder="jane.doe"
-                  required
-                />
-              </label>
-              <label className="stack">
-                <span>Display name</span>
-                <input
-                  type="text"
-                  value={createForm.displayName}
-                  onChange={(evt) => setCreateForm((prev) => ({ ...prev, displayName: evt.target.value }))}
-                  placeholder="Jane Doe"
-                  required
-                />
-              </label>
+              type="text"
+              value={createForm.username}
+              onChange={(evt) => setCreateForm((prev) => ({ ...prev, username: evt.target.value }))}
+              placeholder="username"
+              required
+            />
+          </label>
+          <label className="stack">
+            <span>Display name</span>
+            <input
+              type="text"
+              value={createForm.displayName}
+              onChange={(evt) => setCreateForm((prev) => ({ ...prev, displayName: evt.target.value }))}
+              placeholder="Display name"
+              required
+            />
+          </label>
               <label className="stack">
                 <span>Temporary password</span>
                 <input
                   type="password"
                   value={createForm.password}
                   onChange={(evt) => setCreateForm((prev) => ({ ...prev, password: evt.target.value }))}
-                  placeholder="••••••••"
+                  placeholder="********"
                   required
                 />
               </label>
@@ -362,7 +398,7 @@ const UsersPage = () => {
               <div>
                 <h3>Manage {selectedUser.displayName}</h3>
                 <p className="text-subtle">
-                  Username: {selectedUser.username} • Roles: {selectedUser.roles.join(", ") || "None"}
+                  Username: {selectedUser.username} - Roles: {selectedUser.roles.join(", ") || "None"}
                 </p>
                 <p className="text-subtle">
                   Status:{" "}
@@ -408,7 +444,7 @@ const UsersPage = () => {
             <form className="stack users-password-form" onSubmit={handlePasswordReset}>
               <label className="stack">
                 <span>Reset password</span>
-                <input
+              <input
                   type="password"
                   value={newPassword}
                   onChange={(evt) => setNewPassword(evt.target.value)}
@@ -427,3 +463,7 @@ const UsersPage = () => {
 };
 
 export default UsersPage;
+
+
+
+

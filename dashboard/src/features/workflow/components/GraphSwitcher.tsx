@@ -1,4 +1,3 @@
-import type { ChangeEvent } from "react";
 import type { WorkflowGraphScope, WorkflowSubgraphDraftEntry, WorkflowMetadata } from "../../workflow";
 
 interface GraphSwitcherProps {
@@ -11,7 +10,6 @@ interface GraphSwitcherProps {
   onInline?: (subgraphId: string) => void;
   inlineMessage?: { subgraphId: string; type: "success" | "error"; text: string } | null;
   workflowMetadata?: WorkflowMetadata;
-  onUpdateMetadata?: (changes: Partial<WorkflowMetadata>) => void;
   onEditMetadata?: () => void;
 }
 
@@ -25,17 +23,10 @@ const GraphSwitcher = ({
   onInline,
   inlineMessage,
   workflowMetadata,
-  onUpdateMetadata,
   onEditMetadata,
 }: GraphSwitcherProps) => {
   const mainActive = activeGraph.type === "root";
-  const metadata = workflowMetadata ?? {};
-  const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
-    onUpdateMetadata?.({ name: event.target.value });
-  };
-  const handleDescriptionChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    onUpdateMetadata?.({ description: event.target.value });
-  };
+  const metadata = workflowMetadata;
   return (
     <div className="graph-switcher">
       <div className="graph-switcher__section">
@@ -78,7 +69,7 @@ const GraphSwitcher = ({
               )}
             </div>
             <p className="graph-switcher__helper">
-              {metadata.description || "Add a short summary to describe this workflow."}
+              {metadata?.description || "Add a short summary to describe this workflow."}
             </p>
             <p className="graph-switcher__helper">Drag nodes from the catalog to build the main flow.</p>
           </div>

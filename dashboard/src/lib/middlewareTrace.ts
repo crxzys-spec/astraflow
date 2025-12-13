@@ -14,7 +14,7 @@ export type MiddlewareTrace = {
 };
 
 export const buildMiddlewareTraces = (
-  nodes?: { nodeId: string; metadata?: Record<string, unknown>; status?: string; startedAt?: string | null; finishedAt?: string | null }[]
+  nodes?: { nodeId: string; metadata?: Record<string, unknown> | null; status?: string; startedAt?: string | null; finishedAt?: string | null }[]
 ): MiddlewareTrace[] => {
   if (!nodes?.length) return [];
   const hostToChain = new Map<string, string[]>();
@@ -33,7 +33,7 @@ export const buildMiddlewareTraces = (
           }
           return undefined;
         })
-        .filter((id): id is string => typeof id === "string" && id.length);
+        .filter((id): id is string => typeof id === "string" && id.length > 0);
       if (chain.length) {
         hostToChain.set(node.nodeId, chain);
       }

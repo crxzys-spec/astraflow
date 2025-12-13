@@ -1,9 +1,9 @@
 import { createContext, useContext, useMemo } from "react";
 import type { ComponentType, ReactElement } from "react";
-import type { WorkflowNodeDraft, NodeWidgetDefinition } from "../types";
+import type { WorkflowNodeDraft, NodeWidgetDefinition, WorkflowMiddlewareDraft } from "../types";
 
 export interface WidgetRendererProps {
-  node: WorkflowNodeDraft;
+  node: WorkflowNodeDraft | WorkflowMiddlewareDraft;
   widget: NodeWidgetDefinition;
   value: unknown;
   onChange: (value: unknown) => void;

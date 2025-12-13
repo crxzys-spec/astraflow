@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { useNavigate, useParams } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import { ReactFlowProvider } from "reactflow";
-import { useStartRun, useCancelRun } from "../api/endpoints";
-import { useSearchCatalogNodes } from "../api/endpoints";
-import type { CatalogNode } from "../api/models/catalogNode";
+import { useCatalogSearch } from "../hooks/useCatalogSearch";
+import type { CatalogNode } from "../client/models";
 import { WidgetRegistryProvider, useWorkflowStore } from "../features/workflow";
 import { workflowDraftToDefinition } from "../features/workflow/utils/converters";
 import type { WorkflowDefinition, WorkflowDraft, WorkflowPaletteNode, WorkflowSubgraphDraftEntry, XYPosition } from "../features/workflow";
@@ -25,12 +23,13 @@ import { useWorkflowDraft } from "../hooks/useWorkflowDraft";
 import GraphSwitcher from "../features/workflow/components/GraphSwitcher";
 import RunsInspectorPanel from "../features/workflow/components/RunsInspectorPanel";
 import BuilderLayout from "../features/workflow/components/BuilderLayout";
-import type { RunStatus } from "../api/models/runStatus";
+import type { RunStatusModel } from "../services/runs";
 import { useAuthStore } from "../features/auth/store";
 import { useToolbarStore } from "../features/workflow/hooks/useToolbar";
 import {
   ensurePersistableIds,
 } from "../features/workflow/utils/builderHelpers";
+import { useRunsStore } from "../store";
 
 const isEditableTarget = (target: EventTarget | null): boolean => {
   const element = target as HTMLElement | null;
@@ -116,22 +115,18 @@ const getErrorMessage = (error: unknown): string => {
   return "Unknown error.";
 };
 
-const STALE_TIME_MS = 5 * 60_000;
-
 type RunMessage =
   | { type: "success"; runId?: string; text: string }
   | { type: "error"; text: string };
 
 const WorkflowBuilderPage = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { workflowId } = useParams<{ workflowId: string }>();
 
   const subgraphDrafts = useWorkflowStore((state) => state.subgraphDrafts);
   const activeGraph = useWorkflowStore((state) => state.activeGraph);
   const setActiveGraph = useWorkflowStore((state) => state.setActiveGraph);
   const addNodeFromTemplate = useWorkflowStore((state) => state.addNodeFromTemplate);
-  const selectedNodeId = useWorkflowStore((state) => state.selectedNodeId);
   const inlineSubgraph = useWorkflowStore((state) => state.inlineSubgraphIntoActiveGraph);
   const undo = useWorkflowStore((state) => state.undo);
   const redo = useWorkflowStore((state) => state.redo);
@@ -192,10 +187,11 @@ const WorkflowBuilderPage = () => {
     metadataForm,
     setMetadataForm,
     handleMetadataSubmit,
-    updateWorkflowMetadata,
-  } = useWorkflowDraft(workflowId, queryClient, ensurePersistableIds);
+  } = useWorkflowDraft(workflowId, ensurePersistableIds);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [activeRunStatus, setActiveRunStatus] = useState<RunStatus | undefined>();
+  const [activeRunStatus, setActiveRunStatus] = useState<RunStatusModel | undefined>();
+  const [isStartingRun, setIsStartingRun] = useState(false);
+  const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
   const [inlineMessage, setInlineMessage] = useState<{ subgraphId: string; type: "success" | "error"; text: string } | null>(null);
   const toolbarRef = useRef<React.ReactNode | null>(null);
 
@@ -244,15 +240,15 @@ const WorkflowBuilderPage = () => {
     return () => window.removeEventListener("keydown", handleKeydown);
   }, [canRedo, canUndo, redo, undo]);
 
-  const catalogSearchQuery = useSearchCatalogNodes(
+  const catalogSearchQuery = useCatalogSearch(
     {
       q: catalogQuery.trim() || "*",
-      package: selectedPackageName || undefined
+      package: selectedPackageName || undefined,
     },
-    { query: { staleTime: STALE_TIME_MS } }
+    { enabled: Boolean(catalogQuery) },
   );
-  const startRun = useStartRun(undefined, queryClient);
-  const cancelRun = useCancelRun(undefined, queryClient);
+  const startRun = useRunsStore((state) => state.startRun);
+  const cancelRun = useRunsStore((state) => state.cancelRun);
   const setToolbar = useToolbarStore((state) => state.setContent);
 
   const captureCanvasPreview = useCallback(async () => {
@@ -283,8 +279,7 @@ const WorkflowBuilderPage = () => {
   const catalogError = catalogSearchQuery.isError
     ? (catalogSearchQuery.error as Error)
     : undefined;
-  const catalogIsLoading =
-    catalogSearchQuery.isLoading || (catalogSearchQuery.isFetching && !catalogSearchQuery.data);
+  const catalogIsLoading = catalogSearchQuery.isLoading && !catalogSearchQuery.data;
   const canPublishWorkflow = canEditWorkflow && Boolean(workflowKey);
   const openPublishModalGuard = useCallback(
     () => openPublishModal(canPublishWorkflow),
@@ -398,9 +393,22 @@ const WorkflowBuilderPage = () => {
     activeRunId,
     toWorkflowDefinition,
     ensurePersistableIds,
-    startRun,
-    cancelRun,
-    queryClient,
+    startRun: async (payload) => {
+      setIsStartingRun(true);
+      try {
+        return await startRun(payload);
+      } finally {
+        setIsStartingRun(false);
+      }
+    },
+    cancelRun: async (runId) => {
+      setPendingCancelId(runId);
+      try {
+        await cancelRun(runId);
+      } finally {
+        setPendingCancelId(null);
+      }
+    },
     onRunMessage: setRunMessage,
     onActiveRunId: setActiveRunId,
     onActiveRunStatus: setActiveRunStatus,
@@ -442,9 +450,7 @@ const WorkflowBuilderPage = () => {
       <div className="card stack">
         <h2>Unable to load workflow</h2>
         <p className="error">
-          {(queryError?.response?.data as { message?: string })?.message ??
-            queryError?.message ??
-            "An unexpected error occurred."}
+          {queryError?.message ?? "An unexpected error occurred."}
         </p>
         <button className="btn" type="button" onClick={() => workflowKey && workflowQuery.refetch()}>
           Retry
@@ -494,9 +500,9 @@ const WorkflowBuilderPage = () => {
         canEditWorkflow={canEditWorkflow}
         canPublishWorkflow={canPublishWorkflow}
         persistPending={persistWorkflowMutation.isPending}
-        startRunPending={startRun.isPending}
-        cancelRunPending={cancelRun.isPending}
-        cancelRunId={cancelRun.variables?.runId}
+        startRunPending={isStartingRun}
+        cancelRunPending={Boolean(pendingCancelId)}
+        cancelRunId={pendingCancelId ?? undefined}
         activeRunId={activeRunId}
         activeRunStatus={activeRunStatus}
         messages={alertMessages}
@@ -511,8 +517,7 @@ const WorkflowBuilderPage = () => {
     activeRunStatus,
     canEditWorkflow,
     canPublishWorkflow,
-    cancelRun.isPending,
-    cancelRun.variables?.runId,
+    pendingCancelId,
     handleCancelActiveRun,
     handleRunWorkflow,
     handleSaveWorkflowAction,
@@ -521,7 +526,7 @@ const WorkflowBuilderPage = () => {
     publishMessage,
     runMessage,
     saveMessage,
-    startRun.isPending,
+    isStartingRun,
     workflow
   ]);
 
@@ -614,7 +619,6 @@ const WorkflowBuilderPage = () => {
       workflowId={workflow.id}
       canEdit={canEditWorkflow}
       workflowMetadata={workflow.metadata}
-      onUpdateMetadata={updateWorkflowMetadata}
       onEditMetadata={openMetadataModal}
       onSelect={setActiveGraph}
       onInline={handleInlineFromSwitcher}
@@ -671,53 +675,55 @@ const WorkflowBuilderPage = () => {
 
   return (
     <WidgetRegistryProvider>
-      <BuilderLayout
-        palette={palettePanel}
-        inspector={inspectorPanel}
-        canvas={canvasNode}
-        canvasRef={canvasRef}
-        watermarkTitle={workflow.metadata?.name ?? "Untitled Workflow"}
-        watermarkSubtitle={`ID: ${workflow.id}`}
-        paletteWidth={paletteWidth}
-        inspectorWidth={inspectorWidth}
-        isPaletteOpen={isPaletteOpen}
-        isInspectorOpen={isInspectorOpen}
-        paletteSwitchStyle={paletteSwitchStyle}
-        inspectorSwitchStyle={inspectorSwitchStyle}
-        paletteHandleStyle={paletteHandleStyle}
-        inspectorHandleStyle={inspectorHandleStyle}
-        onPaletteResizeStart={handleResizeStart("palette")}
-        onInspectorResizeStart={handleResizeStart("inspector")}
-        paletteTabs={paletteTabs}
-        inspectorTabs={inspectorTabs}
-      />
-      {selectedRunId && (
-        <RunDetailPage runIdOverride={selectedRunId} onClose={() => setSelectedRunId(null)} />
-      )}
-      <MetadataModal
-        isOpen={isMetadataModalOpen}
-        form={metadataForm}
-        onClose={closeMetadataModal}
-        onSubmit={handleMetadataSubmit}
-        onChange={(changes) => setMetadataForm((prev) => ({ ...prev, ...changes }))}
-      />
-      <PublishModal
-        isOpen={isPublishModalOpen}
-        form={publishForm}
-        isValid={isPublishValid}
-        canTargetExistingPackage={canTargetExistingPackage}
-        ownedWorkflowPackages={ownedWorkflowPackages}
-        workflowPackagesErrorMessage={workflowPackagesErrorMessage}
-        isLoadingPackages={workflowPackagesQuery.isLoading}
-        publishInProgress={publishInProgress}
-        errorMessage={publishModalError}
-        onClose={closePublishModal}
-        onSubmit={handlePublishSubmit}
-        onModeChange={handlePublishModeChange}
-        onPackageSelect={handlePackageSelectionChange}
-        onSlugChange={handleSlugInputChange}
-        onFormChange={(changes) => setPublishForm((prev) => ({ ...prev, ...changes }))}
-      />
+      <>
+        <BuilderLayout
+          palette={palettePanel}
+          inspector={inspectorPanel}
+          canvas={canvasNode}
+          canvasRef={canvasRef}
+          watermarkTitle={workflow.metadata?.name ?? "Untitled Workflow"}
+          watermarkSubtitle={`ID: ${workflow.id}`}
+          paletteWidth={paletteWidth}
+          inspectorWidth={inspectorWidth}
+          isPaletteOpen={isPaletteOpen}
+          isInspectorOpen={isInspectorOpen}
+          paletteSwitchStyle={paletteSwitchStyle}
+          inspectorSwitchStyle={inspectorSwitchStyle}
+          paletteHandleStyle={paletteHandleStyle}
+          inspectorHandleStyle={inspectorHandleStyle}
+          onPaletteResizeStart={handleResizeStart("palette")}
+          onInspectorResizeStart={handleResizeStart("inspector")}
+          paletteTabs={paletteTabs}
+          inspectorTabs={inspectorTabs}
+        />
+        {selectedRunId && (
+          <RunDetailPage runIdOverride={selectedRunId} onClose={() => setSelectedRunId(null)} />
+        )}
+        <MetadataModal
+          isOpen={isMetadataModalOpen}
+          form={metadataForm}
+          onClose={closeMetadataModal}
+          onSubmit={handleMetadataSubmit}
+          onChange={(changes) => setMetadataForm((prev) => ({ ...prev, ...changes }))}
+        />
+        <PublishModal
+          isOpen={isPublishModalOpen}
+          form={publishForm}
+          isValid={isPublishValid}
+          canTargetExistingPackage={canTargetExistingPackage}
+          ownedWorkflowPackages={ownedWorkflowPackages}
+          workflowPackagesErrorMessage={workflowPackagesErrorMessage}
+          isLoadingPackages={workflowPackagesQuery.isLoading}
+          publishInProgress={publishInProgress}
+          errorMessage={publishModalError}
+          onClose={closePublishModal}
+          onSubmit={handlePublishSubmit}
+          onModeChange={handlePublishModeChange}
+          onPackageSelect={handlePackageSelectionChange}
+          onSlugChange={handleSlugInputChange}
+          onFormChange={(changes) => setPublishForm((prev) => ({ ...prev, ...changes }))}
+        />
+      </>
     </WidgetRegistryProvider>
   );
 };

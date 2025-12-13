@@ -1,19 +1,19 @@
 import { useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import type { UiEventEnvelope } from "../../api/models/uiEventEnvelope";
-import { UiEventType } from "../../api/models/uiEventType";
-import type { RunStatusEvent } from "../../api/models/runStatusEvent";
-import type { RunSnapshotEvent } from "../../api/models/runSnapshotEvent";
+import {
+  UiEventType,
+  type UiEventEnvelope,
+  type RunSnapshotEvent,
+  type RunStatusEvent,
+} from "../../client/models";
 import { useAuthStore } from "../../features/auth/store";
 import { registerSseHandler } from "./dispatcher";
-import { handleRunSnapshotCacheUpdate, handleRunStatusCacheUpdate } from "./runEventHandlers";
+import { handleRunSnapshotStoreUpdate, handleRunStatusStoreUpdate } from "./runEventHandlers";
 
 /**
  * Global run-level SSE subscriptions.
  * Keeps run list/detail caches fresh regardless of the current page.
  */
 export const RunSseSubscriptions = () => {
-  const queryClient = useQueryClient();
   const canViewRuns = useAuthStore((state) =>
     state.hasRole(["admin", "run.viewer", "workflow.editor"])
   );
@@ -28,7 +28,7 @@ export const RunSseSubscriptions = () => {
       if (!payload || payload.kind !== "run.status") {
         return;
       }
-      handleRunStatusCacheUpdate(queryClient, payload, event.occurredAt);
+      handleRunStatusStoreUpdate(payload, event.occurredAt);
     };
 
     const handleRunSnapshot = (event: UiEventEnvelope) => {
@@ -36,17 +36,17 @@ export const RunSseSubscriptions = () => {
       if (!payload || payload.kind !== "run.snapshot") {
         return;
       }
-      handleRunSnapshotCacheUpdate(queryClient, payload);
+      handleRunSnapshotStoreUpdate(payload);
     };
 
-    const unregisterStatus = registerSseHandler(UiEventType.runstatus, handleRunStatus);
-    const unregisterSnapshot = registerSseHandler(UiEventType.runsnapshot, handleRunSnapshot);
+    const unregisterStatus = registerSseHandler(UiEventType.RunStatus, handleRunStatus);
+    const unregisterSnapshot = registerSseHandler(UiEventType.RunSnapshot, handleRunSnapshot);
 
     return () => {
       unregisterStatus();
       unregisterSnapshot();
     };
-  }, [canViewRuns, queryClient]);
+  }, [canViewRuns]);
 
   return null;
 };

@@ -1,4 +1,4 @@
-import type { NodeResultDeltaEvent } from "../../api/models/nodeResultDeltaEvent";
+import type { NodeResultDeltaEvent } from "../../client/models";
 
 export const valuesEqual = (left: unknown, right: unknown) => {
   if (left === right) {
@@ -197,3 +197,4 @@ export const applyResultDelta = (
   );
   return { next: result.root as Record<string, unknown>, changed: result.changed };
 };
+

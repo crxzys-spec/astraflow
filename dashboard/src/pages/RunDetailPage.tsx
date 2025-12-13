@@ -1,6 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useGetRun, useGetRunDefinition } from "../api/endpoints";
 import { getClientSessionId } from "../lib/clientSession";
 import StatusBadge from "../components/StatusBadge";
 import CollapsibleJsonView, {
@@ -10,6 +9,7 @@ import CollapsibleJsonView, {
 import { useRunSseSync } from "../hooks/useRunSseSync";
 import { useRunDetailData } from "../hooks/useRunDetailData";
 import { MiddlewareTraceList, NodeGroups, RunSummary } from "./RunDetailSections";
+import { useRun, useRunDefinition } from "../store";
 
 type DetailPanel = "run" | "workflow";
 
@@ -27,21 +27,12 @@ export const RunDetailPage = ({ runIdOverride, onClose }: RunDetailPageProps = {
   const [showMiddlewareOnly, setShowMiddlewareOnly] = useState(false);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
 
-  const runQueryEnabled = Boolean(runId);
-  const runQuery = useGetRun(runId ?? "", {
-    query: {
-      enabled: runQueryEnabled,
-    },
-  });
-  const definitionQuery = useGetRunDefinition(runId ?? "", {
-    query: {
-      enabled: runQueryEnabled && runQuery.isSuccess,
-    },
-  });
+  const runQuery = useRun(runId);
+  const definitionQuery = useRunDefinition(runId);
 
-  const workflowDefinition = (definitionQuery.data as any)?.data ?? definitionQuery.data;
+  const workflowDefinition = definitionQuery.definition;
   const workflowLink = workflowDefinition?.id;
-  const runData = runQuery.data;
+  const runData = runQuery.run ?? undefined;
 
   const {
     middlewareRelations,
@@ -109,13 +100,13 @@ export const RunDetailPage = ({ runIdOverride, onClose }: RunDetailPageProps = {
         </button>
       </div>
     );
-  } else if (runQuery.isLoading) {
+  } else if (runQuery.status === "loading") {
     modalContent = (
       <div className="run-detail__status">
         <p>Loading run...</p>
       </div>
     );
-  } else if (runQuery.isError) {
+  } else if (runQuery.status === "error") {
     modalContent = (
       <div className="run-detail__status">
         <p className="error">Failed to load run: {(runQuery.error as Error).message}</p>

@@ -8,8 +8,8 @@ import {
   type NodeStateEvent,
   type NodeStatusEvent,
 } from "../../client/models";
-import { useAuthStore } from "../../features/auth/store";
-import { useWorkflowStore } from "../../features/workflow";
+import { useAuthStore } from "@store/authSlice";
+import { useWorkflowStore } from "../../features/builder/store";
 import { applyResultDelta } from "../utils/jsonDelta";
 import {
   handleNodeErrorStoreUpdate,

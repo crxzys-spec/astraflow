@@ -1,9 +1,9 @@
 ﻿import { useEffect, useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import type { AuthLoginRequest } from "../client/models";
-import { useAuthStore } from "../features/auth/store";
-import { authLogin } from "../services/auth";
-import { useAsyncAction } from "../hooks/useAsyncAction";
+import type { AuthLoginRequest } from "../../../client/models";
+import { useAuthStore } from "@store/authSlice";
+import { authLogin } from "../../../services/auth";
+import { useAsyncAction } from "../../../hooks/useAsyncAction";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -105,5 +105,3 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
-
-

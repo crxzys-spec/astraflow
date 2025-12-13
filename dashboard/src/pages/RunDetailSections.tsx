@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import StatusBadge from "../components/StatusBadge";
-import { middlewareNextErrorMessages } from "../features/workflow/middlewareErrors";
+import { middlewareNextErrorMessages } from "../features/builder/middlewareErrors";
 import type { MiddlewareTrace } from "../lib/middlewareTrace";
 import type {
   MiddlewareRelations,
@@ -302,4 +302,3 @@ export const MiddlewareTraceList = ({ traces }: { traces: MiddlewareTrace[] }) =
     </div>
   );
 };
-

@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import type { UserSummary } from "../../client/models";
-import { setAuthToken, getAuthToken as getAxiosToken } from "../../lib/setupAxios";
-import { AUTH_STORAGE_KEY } from "./constants";
+import type { UserSummary } from "../client/models";
+import { setAuthToken, getAuthToken as getAxiosToken } from "../lib/setupAxios";
+import { AUTH_STORAGE_KEY } from "../features/auth/constants";
 
 type StoredAuth = {
   token: string;
@@ -64,4 +64,3 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return targetRoles.some((role) => assigned.includes(role));
   },
 }));
-

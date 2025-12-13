@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useWorkflowPackages, useWorkflowPackagesStore } from "../store/workflowPackagesSlice";
 import type { WorkflowPackageSummary } from "../client/models";
-import { useAuthStore } from "../features/auth/store";
+import { useAuthStore } from "@store/authSlice";
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (error && typeof error === "object" && "response" in error) {
@@ -337,5 +337,3 @@ const StorePage = () => {
 };
 
 export default StorePage;
-
-

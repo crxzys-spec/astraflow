@@ -1,8 +1,8 @@
 import { useCallback } from "react";
-import type { WorkflowDefinition, WorkflowDraft } from "../features/workflow";
-import { getClientSessionId } from "../lib/clientSession";
-import { useWorkflowStore } from "../features/workflow";
-import type { RunModel, RunStartPayload, RunStatusModel } from "../services/runs";
+import type { WorkflowDefinition, WorkflowDraft } from "../types";
+import { getClientSessionId } from "../../../lib/clientSession";
+import { useWorkflowStore } from "../store";
+import type { RunModel, RunStartPayload, RunStatusModel } from "../../../services/runs";
 
 export type RunMessage =
   | { type: "success"; runId?: string; text: string }

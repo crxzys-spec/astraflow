@@ -1,4 +1,4 @@
-import type { WorkflowGraphScope, WorkflowSubgraphDraftEntry, WorkflowMetadata } from "../../workflow";
+import type { WorkflowGraphScope, WorkflowSubgraphDraftEntry, WorkflowMetadata } from "../types";
 
 interface GraphSwitcherProps {
   activeGraph: WorkflowGraphScope;

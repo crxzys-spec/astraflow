@@ -4,7 +4,7 @@ import ReactFlow, { Background, applyNodeChanges, useReactFlow } from "reactflow
 import type { Connection, Edge, EdgeChange, EdgeTypes, Node, NodeChange, NodeTypes } from "reactflow";
 import "reactflow/dist/style.css";
 import WorkflowControls from "./WorkflowControls";
-import { useWorkflowStore } from "../store.ts";
+import { useWorkflowStore } from "../store";
 import { buildFlowEdges, buildFlowNodes } from "../utils/flowTransforms.ts";
 import type { WorkflowEdgeDraft, XYPosition, WorkflowPaletteNode } from "../types.ts";
 import { WorkflowNode } from "../nodes";

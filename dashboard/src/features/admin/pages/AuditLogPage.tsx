@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import type { AuditEvent } from "../client/models";
-import { useAuthStore } from "../features/auth/store";
-import { listAuditEvents } from "../services/audit";
-import { toApiError, type ApiError } from "../api/fetcher";
+import type { AuditEvent } from "../../../client/models";
+import { useAuthStore } from "@store/authSlice";
+import { listAuditEvents } from "../../../services/audit";
+import { toApiError, type ApiError } from "../../../api/fetcher";
 
 const AuditLogPage = () => {
   const isAdmin = useAuthStore((state) => state.hasRole(["admin"]));
@@ -211,8 +211,5 @@ const AuditLogPage = () => {
 };
 
 export default AuditLogPage;
-
-
-
 
 

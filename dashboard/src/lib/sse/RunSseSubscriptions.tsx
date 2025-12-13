@@ -5,7 +5,7 @@ import {
   type RunSnapshotEvent,
   type RunStatusEvent,
 } from "../../client/models";
-import { useAuthStore } from "../../features/auth/store";
+import { useAuthStore } from "@store/authSlice";
 import { registerSseHandler } from "./dispatcher";
 import { handleRunSnapshotStoreUpdate, handleRunStatusStoreUpdate } from "./runEventHandlers";
 

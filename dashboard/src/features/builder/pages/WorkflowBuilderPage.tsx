@@ -2,34 +2,35 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { useNavigate, useParams } from "react-router-dom";
 import { ReactFlowProvider } from "reactflow";
-import { useCatalogSearch } from "../hooks/useCatalogSearch";
-import type { CatalogNode } from "../client/models";
-import { WidgetRegistryProvider, useWorkflowStore } from "../features/workflow";
-import { workflowDraftToDefinition } from "../features/workflow/utils/converters";
-import type { WorkflowDefinition, WorkflowDraft, WorkflowPaletteNode, WorkflowSubgraphDraftEntry, XYPosition } from "../features/workflow";
-import WorkflowCanvas from "../features/workflow/components/WorkflowCanvas";
-import WorkflowPalette, { type PaletteNode } from "../features/workflow/components/WorkflowPalette";
-import NodeInspector from "../features/workflow/components/NodeInspector";
-import BuilderToolbar from "../features/workflow/components/BuilderToolbar";
-import RunDetailPage from "./RunDetailPage";
+import { useCatalogSearch } from "../../../hooks/useCatalogSearch";
+import type { CatalogNode } from "../../../client/models";
+import { WidgetRegistryProvider } from "..";
+import { useWorkflowStore } from "../store";
+import { workflowDraftToDefinition } from "../utils/converters";
+import type { WorkflowDefinition, WorkflowDraft, WorkflowPaletteNode, WorkflowSubgraphDraftEntry, XYPosition } from "../types";
+import WorkflowCanvas from "../components/WorkflowCanvas";
+import WorkflowPalette, { type PaletteNode } from "../components/WorkflowPalette";
+import NodeInspector from "../components/NodeInspector";
+import BuilderToolbar from "../components/BuilderToolbar";
+import RunDetailPage from "../../../pages/RunDetailPage";
 import {
   MetadataModal,
   PublishModal,
 } from "./WorkflowBuilderModals";
-import { useRunSseSync } from "../hooks/useRunSseSync";
+import { useRunSseSync } from "../../../hooks/useRunSseSync";
 import { useRunActions } from "../hooks/useRunActions";
 import { useBuilderPanels } from "../hooks/useBuilderPanels";
 import { useWorkflowDraft } from "../hooks/useWorkflowDraft";
-import GraphSwitcher from "../features/workflow/components/GraphSwitcher";
-import RunsInspectorPanel from "../features/workflow/components/RunsInspectorPanel";
-import BuilderLayout from "../features/workflow/components/BuilderLayout";
-import type { RunStatusModel } from "../services/runs";
-import { useAuthStore } from "../features/auth/store";
-import { useToolbarStore } from "../features/workflow/hooks/useToolbar";
+import GraphSwitcher from "../components/GraphSwitcher";
+import RunsInspectorPanel from "../components/RunsInspectorPanel";
+import BuilderLayout from "../components/BuilderLayout";
+import type { RunStatusModel } from "../../../services/runs";
+import { useAuthStore } from "@store/authSlice";
+import { useToolbarStore } from "../hooks/useToolbar";
 import {
   ensurePersistableIds,
-} from "../features/workflow/utils/builderHelpers";
-import { useRunsStore } from "../store";
+} from "../utils/builderHelpers";
+import { useRunsStore } from "../../../store";
 
 const isEditableTarget = (target: EventTarget | null): boolean => {
   const element = target as HTMLElement | null;
@@ -729,9 +730,3 @@ const WorkflowBuilderPage = () => {
 };
 
 export default WorkflowBuilderPage;
-
-
-
-
-
-

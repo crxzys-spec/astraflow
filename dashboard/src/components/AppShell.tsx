@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { useToolbarStore } from "../features/workflow/hooks/useToolbar";
+import { useToolbarStore } from "../features/builder/hooks/useToolbar";
 
 export interface NavItem {
   to: string;

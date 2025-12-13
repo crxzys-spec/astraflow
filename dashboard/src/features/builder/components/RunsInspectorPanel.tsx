@@ -1,6 +1,6 @@
 import { useState } from "react";
 import StatusBadge from "../../../components/StatusBadge";
-import { useAuthStore } from "../../auth/store";
+import { useAuthStore } from "@store/authSlice";
 import { useRuns, useRunsStore } from "../../../store";
 
 interface RunsInspectorPanelProps {

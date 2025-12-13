@@ -1016,5 +1016,3 @@ export default NodeInspector;
 
 
 
-
-

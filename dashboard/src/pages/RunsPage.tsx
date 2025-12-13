@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import StatusBadge from "../components/StatusBadge";
 import { getClientSessionId } from "../lib/clientSession";
-import { useAuthStore } from "../features/auth/store";
-import { useToolbarStore } from "../features/workflow/hooks/useToolbar";
+import { useAuthStore } from "@store/authSlice";
+import { useToolbarStore } from "../features/builder/hooks/useToolbar";
 import { useRuns, useRunsStore } from "../store";
 
 export const RunsPage = () => {

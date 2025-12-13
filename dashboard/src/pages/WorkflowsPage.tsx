@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import { useAuthStore } from "../features/auth/store";
-import { useToolbarStore } from "../features/workflow/hooks/useToolbar";
+import { useAuthStore } from "@store/authSlice";
+import { useToolbarStore } from "../features/builder/hooks/useToolbar";
 import { useWorkflows, useWorkflowsStore } from "../store/workflowsSlice";
 
 const WorkflowsPage = () => {

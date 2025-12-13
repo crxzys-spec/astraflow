@@ -1,8 +1,8 @@
 ﻿import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import type { CreateUserRequest } from "../client/models";
-import type { UserSummary } from "../client/models";
-import { useAuthStore } from "../features/auth/store";
+import type { CreateUserRequest } from "../../../client/models";
+import type { UserSummary } from "../../../client/models";
+import { useAuthStore } from "@store/authSlice";
 import {
   addUserRole,
   createUser,
@@ -10,9 +10,9 @@ import {
   removeUserRole,
   resetUserPassword,
   updateUserStatus,
-} from "../services/users";
-import { useAsyncAction } from "../hooks/useAsyncAction";
-import { toApiError, type ApiError } from "../api/fetcher";
+} from "../../../services/users";
+import { useAsyncAction } from "../../../hooks/useAsyncAction";
+import { toApiError, type ApiError } from "../../../api/fetcher";
 
 type CreateUserForm = Omit<CreateUserRequest, "roles"> & { roles: string[] };
 
@@ -463,7 +463,4 @@ const UsersPage = () => {
 };
 
 export default UsersPage;
-
-
-
 

@@ -12,6 +12,7 @@ import LoginPage from "./pages/LoginPage";
 import { useAuthStore } from "./features/auth/store";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RunSseSubscriptions } from "./lib/sse/RunSseSubscriptions";
+import { NodeSseSubscriptions } from "./lib/sse/NodeSseSubscriptions";
 
 const NotFound = () => (
   <div className="card">
@@ -246,6 +247,7 @@ function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <RunSseSubscriptions />
+      <NodeSseSubscriptions />
       <Routes>
         <Route path="/" element={<Navigate to="/workflows" replace />} />
         <Route

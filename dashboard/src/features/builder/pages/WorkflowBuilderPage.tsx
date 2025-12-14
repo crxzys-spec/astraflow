@@ -7,6 +7,7 @@ import type { CatalogNode } from "../../../client/models";
 import { WidgetRegistryProvider } from "..";
 import { useWorkflowStore } from "../store";
 import { workflowDraftToDefinition } from "../utils/converters";
+import "../styles/builder.css";
 import type { WorkflowDefinition, WorkflowDraft, WorkflowPaletteNode, WorkflowSubgraphDraftEntry, XYPosition } from "../types";
 import WorkflowCanvas from "../components/WorkflowCanvas";
 import WorkflowPalette, { type PaletteNode } from "../components/WorkflowPalette";
@@ -31,6 +32,7 @@ import {
   ensurePersistableIds,
 } from "../utils/builderHelpers";
 import { useRunsStore } from "../../../store";
+import { useMessageCenter } from "../../../components/MessageCenter";
 
 const isEditableTarget = (target: EventTarget | null): boolean => {
   const element = target as HTMLElement | null;
@@ -251,6 +253,7 @@ const WorkflowBuilderPage = () => {
   const startRun = useRunsStore((state) => state.startRun);
   const cancelRun = useRunsStore((state) => state.cancelRun);
   const setToolbar = useToolbarStore((state) => state.setContent);
+  const setStoreActiveRunId = useWorkflowStore((state) => state.setActiveRunId);
 
   const captureCanvasPreview = useCallback(async () => {
     if (typeof window === "undefined") {
@@ -430,6 +433,90 @@ const WorkflowBuilderPage = () => {
     onRunMessage: setRunMessage,
   });
 
+  const { pushMessage } = useMessageCenter();
+  const deliveredMessageIds = useRef<Set<string>>(new Set());
+
+  const alertMessages = useMemo(
+    () =>
+      [
+        saveMessage
+          ? {
+              id: `save-${saveMessage.type}-${saveMessage.text}`,
+              tone: saveMessage.type,
+              content: (
+                <span
+                  className={`builder-alert builder-alert--${saveMessage.type}`}
+                  role={saveMessage.type === "error" ? "alert" : "status"}
+                >
+                  {saveMessage.text}
+                </span>
+              ),
+            }
+          : null,
+        publishMessage
+          ? {
+              id: `publish-${publishMessage.type}-${publishMessage.text}`,
+              tone: publishMessage.type,
+              content: (
+                <span
+                  className={`builder-alert builder-alert--${publishMessage.type}`}
+                  role={publishMessage.type === "error" ? "alert" : "status"}
+                >
+                  {publishMessage.text}
+                </span>
+              ),
+            }
+          : null,
+        runMessage
+          ? {
+              id: `run-${runMessage.type}-${runMessage.text}`,
+              tone: runMessage.type,
+              content: (
+                <span
+                  className={`builder-alert builder-alert--${runMessage.type}`}
+                  role={runMessage.type === "error" ? "alert" : "status"}
+                >
+                  {runMessage.text}
+                </span>
+              ),
+            }
+          : null,
+      ].filter(Boolean) as {
+        id: string;
+        content: React.ReactNode;
+        tone?: "success" | "error" | "info";
+        durationMs?: number;
+      }[],
+    [publishMessage, runMessage, saveMessage]
+  );
+
+  useEffect(() => {
+    const nextIds = new Set(alertMessages.map((msg) => msg.id));
+    deliveredMessageIds.current.forEach((id) => {
+      if (!nextIds.has(id)) {
+        deliveredMessageIds.current.delete(id);
+      }
+    });
+    alertMessages.forEach((msg) => {
+      if (deliveredMessageIds.current.has(msg.id)) {
+        return;
+      }
+      deliveredMessageIds.current.add(msg.id);
+      pushMessage(msg);
+    });
+  }, [alertMessages, pushMessage]);
+
+  useEffect(() => {
+    setStoreActiveRunId(activeRunId);
+  }, [activeRunId, setStoreActiveRunId]);
+
+  useEffect(
+    () => () => {
+      setStoreActiveRunId(undefined);
+    },
+    [setStoreActiveRunId]
+  );
+
   if (notFound) {
     return (
       <div className="card stack">
@@ -466,35 +553,6 @@ const WorkflowBuilderPage = () => {
     if (!workflow) {
       return null;
     }
-    const alertMessages = [
-      saveMessage
-        ? (
-          <span
-            className={`builder-alert builder-alert--${saveMessage.type}`}
-            role={saveMessage.type === "error" ? "alert" : "status"}
-          >
-            {saveMessage.text}
-          </span>
-        ) : null,
-      publishMessage
-        ? (
-          <span
-            className={`builder-alert builder-alert--${publishMessage.type}`}
-            role={publishMessage.type === "error" ? "alert" : "status"}
-          >
-            {publishMessage.text}
-          </span>
-        ) : null,
-      runMessage
-        ? (
-          <span
-            className={`builder-alert builder-alert--${runMessage.type}`}
-            role={runMessage.type === "error" ? "alert" : "status"}
-          >
-            {runMessage.text}
-          </span>
-        ) : null,
-    ].filter(Boolean) as React.ReactNode[];
 
     return (
       <BuilderToolbar
@@ -506,7 +564,6 @@ const WorkflowBuilderPage = () => {
         cancelRunId={pendingCancelId ?? undefined}
         activeRunId={activeRunId}
         activeRunStatus={activeRunStatus}
-        messages={alertMessages}
         onSave={handleSaveWorkflowAction}
         onPublish={openPublishModalGuard}
         onRun={handleRunWorkflow}
@@ -524,9 +581,6 @@ const WorkflowBuilderPage = () => {
     handleSaveWorkflowAction,
     openPublishModalGuard,
     persistWorkflowMutation.isPending,
-    publishMessage,
-    runMessage,
-    saveMessage,
     isStartingRun,
     workflow
   ]);

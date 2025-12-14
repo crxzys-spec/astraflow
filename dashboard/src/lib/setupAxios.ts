@@ -2,9 +2,28 @@ import axios from "axios";
 import type { AxiosRequestHeaders } from "axios";
 import { AUTH_STORAGE_KEY } from "../features/auth/constants";
 
-// Use a relative base during development so Vite's proxy can avoid CORS.
-const baseURL = import.meta.env.VITE_SCHEDULER_BASE_URL ?? "/api";
-axios.defaults.baseURL = baseURL;
+const resolveBaseURL = () => {
+  const envBase = import.meta.env.VITE_SCHEDULER_BASE_URL;
+  if (!envBase) {
+    return ""; // use relative paths with Vite proxy
+  }
+  try {
+    const parsed = new URL(envBase, typeof window !== "undefined" ? window.location.origin : envBase);
+    // Avoid duplicating /api prefix since generated paths already include it.
+    const cleanPath = parsed.pathname.replace(/\/+$/, "");
+    if (cleanPath === "/api") {
+      parsed.pathname = "";
+    } else {
+      parsed.pathname = cleanPath;
+    }
+    return parsed.toString();
+  } catch (error) {
+    console.warn("[setupAxios] Invalid VITE_SCHEDULER_BASE_URL, using relative base", error);
+    return "";
+  }
+};
+
+axios.defaults.baseURL = resolveBaseURL();
 
 let currentToken: string | null = null;
 

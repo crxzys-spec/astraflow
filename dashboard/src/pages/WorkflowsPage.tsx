@@ -92,7 +92,7 @@ const WorkflowsPage = () => {
   };
 
   return (
-    <div className="card stack store-panel">
+    <div className="card stack package-center-panel">
       <header className="card__header">
         <div>
           <h2>Workflows</h2>
@@ -101,7 +101,7 @@ const WorkflowsPage = () => {
           </p>
         </div>
       </header>
-      <div className="store-content">
+      <div className="package-center-content">
       {deleteError && (
         <div className="card card--error">
           <p className="error">Unable to delete workflow: {deleteError}</p>

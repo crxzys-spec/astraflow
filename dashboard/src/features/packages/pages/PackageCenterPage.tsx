@@ -1,8 +1,7 @@
-﻿import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useWorkflowPackages, useWorkflowPackagesStore } from "../store/workflowPackagesSlice";
-import type { WorkflowPackageSummary } from "../client/models";
+import { useWorkflowPackages, useWorkflowPackagesStore } from "../../../store/workflowPackagesSlice";
+import type { WorkflowPackageSummary } from "../../../client/models";
 import { useAuthStore } from "@store/authSlice";
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
@@ -18,6 +17,24 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
   return fallback;
 };
 
+const ArrowUpRightIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width="16"
+    height="16"
+    aria-hidden
+    focusable="false"
+  >
+    <path d="M7 17 17 7" />
+    <path d="M7 7h10v10" />
+  </svg>
+);
+
 const PackageCard = ({
   pkg,
   actionSlot,
@@ -25,7 +42,6 @@ const PackageCard = ({
   pkg: WorkflowPackageSummary;
   actionSlot?: ReactNode;
 }) => {
-
   const latestVersion = pkg.latestVersion;
   const previewImage = pkg.previewImage ?? pkg.latestVersion?.previewImage ?? null;
   const visibilityLabel = pkg.visibility.charAt(0).toUpperCase() + pkg.visibility.slice(1);
@@ -36,9 +52,7 @@ const PackageCard = ({
     <article className="card card--surface workflow-card workflow-card--accent">
       <div className="workflow-card__media">
         <div
-          className={`workflow-card__preview ${
-            previewImage ? "" : "workflow-card__preview--empty"
-          }`}
+          className={`workflow-card__preview ${previewImage ? "" : "workflow-card__preview--empty"}`}
         >
           {previewImage ? (
             <img src={previewImage} alt={`${pkg.displayName} preview`} loading="lazy" />
@@ -77,16 +91,16 @@ const PackageCard = ({
   );
 };
 
-const StorePage = () => {
+const PackageCenterPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const canClone = useAuthStore((state) => state.hasRole(["admin", "workflow.editor"]));
   const canViewOwnPackages = useAuthStore((state) =>
     state.hasRole(["admin", "workflow.editor", "workflow.viewer"])
   );
-  type StoreTab = "public" | "mine";
+  type PackageCenterTab = "public" | "mine";
   const paramTab = searchParams.get("tab") === "mine" ? "mine" : "public";
-  const [activeTab, setActiveTab] = useState<StoreTab>(paramTab);
+  const [activeTab, setActiveTab] = useState<PackageCenterTab>(paramTab);
 
   useEffect(() => {
     setActiveTab(paramTab);
@@ -98,7 +112,7 @@ const StorePage = () => {
     }
   }, [activeTab, canViewOwnPackages, setSearchParams]);
 
-  const handleTabChange = (next: StoreTab) => {
+  const handleTabChange = (next: PackageCenterTab) => {
     if (next === activeTab) {
       return;
     }
@@ -109,20 +123,15 @@ const StorePage = () => {
   const [deletePackageError, setDeletePackageError] = useState<string | null>(null);
   const [deletingPackageId, setDeletingPackageId] = useState<string | null>(null);
 
-  const publicPackagesQuery = useWorkflowPackages(
-    { visibility: "public" },
-    { enabled: true },
-  );
-  const myPackagesQuery = useWorkflowPackages(
-    { owner: "me" },
-    { enabled: canViewOwnPackages },
-  );
+  const publicPackagesQuery = useWorkflowPackages({ visibility: "public" }, { enabled: true });
+  const myPackagesQuery = useWorkflowPackages({ owner: "me" }, { enabled: canViewOwnPackages });
 
   const clonePackage = useWorkflowPackagesStore((state) => state.clonePackage);
   const deletePackage = useWorkflowPackagesStore((state) => state.deletePackage);
 
   const publicPackages = publicPackagesQuery.items ?? [];
-  const publicErrorMessage = (publicPackagesQuery.error as { message?: string } | undefined)?.message ?? null;
+  const publicErrorMessage =
+    (publicPackagesQuery.error as { message?: string } | undefined)?.message ?? null;
   const myPackages = myPackagesQuery.items ?? [];
   const myErrorMessage = (myPackagesQuery.error as { message?: string } | undefined)?.message ?? null;
 
@@ -152,7 +161,7 @@ const StorePage = () => {
   };
 
   const handleDeletePackage = async (pkg: WorkflowPackageSummary) => {
-    if (!window.confirm(`Delete package "${pkg.displayName}"? This hides it from the Store.`)) {
+    if (!window.confirm(`Delete package "${pkg.displayName}"? This hides it from the Package Center.`)) {
       return;
     }
     setDeletePackageError(null);
@@ -205,22 +214,22 @@ const StorePage = () => {
         publicPackages.length > 0 && (
           <div className="workflow-grid-shell">
             <div className="workflow-grid">
-            {publicPackages.map((pkg) => (
-              <PackageCard
-                key={pkg.id}
-                pkg={pkg}
-                actionSlot={
-                  <button
-                    className="btn btn--primary"
-                    type="button"
-                    onClick={() => handleClone(pkg)}
-                    disabled={!canClone || activeCloneId === pkg.id}
-                  >
-                    {activeCloneId === pkg.id ? "Cloning..." : "Clone"}
-                  </button>
-                }
-              />
-            ))}
+              {publicPackages.map((pkg) => (
+                <PackageCard
+                  key={pkg.id}
+                  pkg={pkg}
+                  actionSlot={
+                    <button
+                      className="btn btn--primary"
+                      type="button"
+                      onClick={() => handleClone(pkg)}
+                      disabled={!canClone || activeCloneId === pkg.id}
+                    >
+                      {activeCloneId === pkg.id ? "Cloning..." : "Clone"}
+                    </button>
+                  }
+                />
+              ))}
             </div>
           </div>
         )}
@@ -272,8 +281,7 @@ const StorePage = () => {
         <div className="workflow-grid-shell">
           <div className="workflow-grid">
             {myPackages.map((pkg) => {
-              const isDeleting =
-                deletingPackageId === pkg.id;
+              const isDeleting = deletingPackageId === pkg.id;
               return (
                 <PackageCard
                   key={pkg.id}
@@ -297,31 +305,57 @@ const StorePage = () => {
     );
   };
 
-  const heading = activeTab === "public" ? "Workflow Store" : "My Packages";
+  const heading = activeTab === "public" ? "Package Center" : "My Packages";
   const subheading =
     activeTab === "public"
-      ? "Browse published workflows and clone them into your personal workspace."
-      : "Review packages you have published to the store.";
+      ? "Discover published workflows and clone them into your workspace."
+      : "Review packages you have published to the Package Center.";
+
+  const publicCount = publicPackages?.length ?? 0;
+  const myCount = myPackages?.length ?? 0;
 
   return (
-    <div className="card stack store-panel">
-      <header className="card__header">
-        <div>
+    <div className="card stack package-center-panel">
+      <header className="package-center-hero">
+        <div className="package-center-hero__text">
+          <p className="package-center-hero__eyebrow">Packages</p>
           <h2>{heading}</h2>
           <p className="text-subtle">{subheading}</p>
+          <div className="package-center-stats">
+            <span className="package-center-stat">
+              Public<span className="package-center-stat__value">{publicCount}</span>
+            </span>
+            <span className="package-center-stat">
+              My packages
+              <span className="package-center-stat__value">
+                {canViewOwnPackages ? myCount : "Locked"}
+              </span>
+            </span>
+          </div>
+        </div>
+        <div className="package-center-hero__actions">
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => navigate("/workflows/new")}
+            title="Create a workflow to publish"
+          >
+            Create Workflow
+            <ArrowUpRightIcon />
+          </button>
         </div>
       </header>
-      <div className="store-tabs">
+      <div className="package-center-tabs">
         <button
           type="button"
-          className={`store-tab ${activeTab === "public" ? "store-tab--active" : ""}`}
+          className={`package-center-tab ${activeTab === "public" ? "package-center-tab--active" : ""}`}
           onClick={() => handleTabChange("public")}
         >
           Discover
         </button>
         <button
           type="button"
-          className={`store-tab ${activeTab === "mine" ? "store-tab--active" : ""}`}
+          className={`package-center-tab ${activeTab === "mine" ? "package-center-tab--active" : ""}`}
           onClick={() => handleTabChange("mine")}
           disabled={!canViewOwnPackages}
           title={!canViewOwnPackages ? "Requires workflow.viewer access." : undefined}
@@ -329,11 +363,9 @@ const StorePage = () => {
           My Packages
         </button>
       </div>
-      <div className="store-content">
-        {activeTab === "public" ? renderPublicTab() : renderMyTab()}
-      </div>
+      <div className="package-center-content">{activeTab === "public" ? renderPublicTab() : renderMyTab()}</div>
     </div>
   );
 };
 
-export default StorePage;
+export default PackageCenterPage;

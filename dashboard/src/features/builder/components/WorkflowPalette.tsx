@@ -477,7 +477,7 @@ export const WorkflowPalette = ({
               type="text"
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
-              placeholder="Search nodes (system + workers)"
+              placeholder="Search nodes"
               aria-label="Search catalog nodes"
             />
             {onRetry && (

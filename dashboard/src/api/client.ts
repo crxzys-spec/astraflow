@@ -3,10 +3,22 @@ import { Configuration } from "../client";
 
 type ApiConstructor<T> = new (config?: Configuration, basePath?: string, axios?: typeof axiosInstance) => T;
 
-const basePath =
-  axiosInstance.defaults.baseURL ??
-  import.meta.env.VITE_SCHEDULER_BASE_URL ??
-  "/api";
+const resolveBasePath = () => {
+  const envBase = import.meta.env.VITE_SCHEDULER_BASE_URL;
+  if (!envBase) {
+    return ""; // generated paths already include /api
+  }
+  try {
+    const parsed = new URL(envBase, typeof window !== "undefined" ? window.location.origin : envBase);
+    const path = parsed.pathname.replace(/\/+$/, "");
+    return path === "/api" ? "" : path;
+  } catch (error) {
+    console.warn("[api/client] Invalid VITE_SCHEDULER_BASE_URL, using empty basePath", error);
+    return "";
+  }
+};
+
+const basePath = resolveBasePath();
 
 // Shared configuration for all generated API classes; uses the global axios with auth interceptors.
 export const configuration = new Configuration({

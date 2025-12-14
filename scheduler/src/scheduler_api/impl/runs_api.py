@@ -19,6 +19,7 @@ from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkf
 from scheduler_api.models.start_run_request_workflow_nodes_inner import (
     StartRunRequestWorkflowNodesInner,
 )
+from scheduler_api.models.workflow import Workflow
 
 from ..control_plane.orchestrator import run_orchestrator
 from ..control_plane.run_registry import run_registry
@@ -164,7 +165,7 @@ class RunsApiImpl(BaseRunsApi):
     async def get_run_definition(
         self,
         runId: str,
-    ) -> StartRunRequestWorkflow:
+    ) -> Workflow:
         require_roles(*RUN_VIEW_ROLES)
         workflow = await run_registry.get_workflow_with_state(runId)
         if not workflow:
@@ -172,7 +173,9 @@ class RunsApiImpl(BaseRunsApi):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Run {runId} not found",
             )
-        return workflow
+        # Normalize to the public Workflow model to satisfy response validation and avoid
+        # leaking internal BaseModel attributes (e.g. .schema method) into the payload.
+        return Workflow.from_dict(workflow.to_dict())
 
     def _ensure_initial_node(self, workflow: StartRunRequestWorkflow) -> None:
         self._select_initial_node(workflow)

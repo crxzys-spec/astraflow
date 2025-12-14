@@ -177,6 +177,7 @@ export interface WorkflowStoreState {
   selectedNodeIds: string[];
   subgraphDrafts: WorkflowSubgraphDraftEntry[];
   activeGraph: WorkflowGraphScope;
+  activeRunId?: string;
   history: {
     past: WorkflowHistoryEntry[];
     future: WorkflowHistoryEntry[];
@@ -248,6 +249,7 @@ export interface WorkflowStoreActions {
   ) => void;
 
   resetRunState: () => void;
+  setActiveRunId: (runId?: string) => void;
   setActiveGraph: (scope: WorkflowGraphScope, options?: { recordHistory?: boolean }) => void;
   setSelectedNodes: (nodeIds: string[]) => void;
   toggleSelectedNode: (nodeId: string) => void;
@@ -308,5 +310,4 @@ export interface ConvertSelectionResult {
   subgraphId?: string;
   containerId?: string;
 }
-
 

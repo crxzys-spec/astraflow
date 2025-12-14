@@ -34,6 +34,15 @@ export const NodeSseSubscriptions = () => {
     }
 
     const workflowStore = useWorkflowStore.getState();
+    const getWorkflowState = useWorkflowStore.getState;
+
+    const shouldApplyToWorkflow = (runId?: string | null) => {
+      if (!runId) {
+        return false;
+      }
+      const state = getWorkflowState();
+      return Boolean(state.activeRunId) && state.activeRunId === runId;
+    };
 
     const getCurrentResult = (nodeId: string): Record<string, unknown> | null | undefined => {
       const workflow = workflowStore.workflow;
@@ -78,12 +87,18 @@ export const NodeSseSubscriptions = () => {
         return;
       }
       handleNodeStateStoreUpdate(payload);
+      if (!shouldApplyToWorkflow(payload.runId)) {
+        return;
+      }
       applyStateToWorkflow(payload.nodeId, payload.state);
     };
 
     const handleStatus = (event: UiEventEnvelope) => {
       const payload = event.data as NodeStatusEvent | undefined;
       if (!payload || payload.kind !== "node.status") {
+        return;
+      }
+      if (!shouldApplyToWorkflow(payload.runId)) {
         return;
       }
       // Map status into a minimal state update so the canvas reflects progress.
@@ -96,6 +111,9 @@ export const NodeSseSubscriptions = () => {
         return;
       }
       handleNodeResultSnapshotStoreUpdate(payload);
+      if (!shouldApplyToWorkflow(payload.runId)) {
+        return;
+      }
       applyResultSnapshotToWorkflow(payload);
     };
 
@@ -105,6 +123,9 @@ export const NodeSseSubscriptions = () => {
         return;
       }
       handleNodeResultDeltaStoreUpdate(payload);
+      if (!shouldApplyToWorkflow(payload.runId)) {
+        return;
+      }
       applyResultDeltaToWorkflow(payload);
     };
 
@@ -114,6 +135,9 @@ export const NodeSseSubscriptions = () => {
         return;
       }
       handleNodeErrorStoreUpdate(payload);
+      if (!shouldApplyToWorkflow(payload.runId)) {
+        return;
+      }
       applyStateToWorkflow(payload.nodeId, { stage: "failed", error: payload.error } as NodeStateEvent["state"]);
     };
 

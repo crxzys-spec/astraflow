@@ -57,6 +57,7 @@ type RunsState = {
   metaById: Record<string, RunMeta>;
   lists: Record<string, RunListState>;
   definitions: Record<string, RunDefinitionState>;
+  ensureRunInLists: (run: RunModel) => void;
   fetchRuns: (params?: RunsQueryParams, options?: { force?: boolean; staleAfter?: number }) => Promise<RunModel[]>;
   getRun: (runId: string, options?: { force?: boolean; staleAfter?: number }) => Promise<RunModel | null>;
   getRunDefinition: (
@@ -85,6 +86,27 @@ const DEFAULT_RUN_STALE_MS = 30_000;
 const DEFAULT_LIST_STALE_MS = 30_000;
 const DEFAULT_DEFINITION_STALE_MS = 120_000;
 
+const listAcceptsRun = (list: RunListState, run: RunModel) => {
+  const { status, clientId } = list.params;
+  if (status && run.status !== status) {
+    return false;
+  }
+  if (clientId && run.clientId !== clientId) {
+    return false;
+  }
+  return true;
+};
+
+const addRunToList = (list: RunListState, runId: string) => {
+  const nextIds = [runId, ...list.ids.filter((id) => id !== runId)];
+  const limit = list.params.limit;
+  if (typeof limit === "number" && limit > 0 && nextIds.length > limit) {
+    list.ids = nextIds.slice(0, limit);
+  } else {
+    list.ids = nextIds;
+  }
+};
+
 const buildParamsKey = (params?: RunsQueryParams): { key: string; normalized: RunsQueryParamsNormalized } => {
   const normalized: RunsQueryParamsNormalized = {
     limit: params?.limit ?? null,
@@ -108,6 +130,17 @@ export const useRunsStore = create<RunsState>()(
     metaById: {},
     lists: {},
     definitions: {},
+
+    ensureRunInLists: (run) => {
+      set((state) => {
+        Object.values(state.lists).forEach((list) => {
+          if (!listAcceptsRun(list, run)) {
+            return;
+          }
+          addRunToList(list, run.runId);
+        });
+      });
+    },
 
     fetchRuns: async (params, options) => {
       const { key, normalized } = buildParamsKey(params);
@@ -161,6 +194,9 @@ export const useRunsStore = create<RunsState>()(
           next.updatedAt = now;
           next.staleAfter = staleAfter;
         });
+        // Newly fetched runs should be visible in other compatible lists.
+        const ensure = get().ensureRunInLists;
+        items.forEach((run) => ensure(run));
         return items;
       } catch (error) {
         const apiError = toApiError(error);
@@ -302,6 +338,12 @@ export const useRunsStore = create<RunsState>()(
           error: null,
           updatedAt: now,
         };
+        Object.values(state.lists).forEach((list) => {
+          if (!listAcceptsRun(list, run)) {
+            return;
+          }
+          addRunToList(list, run.runId);
+        });
       });
       return run;
     },
@@ -334,6 +376,12 @@ export const useRunsStore = create<RunsState>()(
           error: null,
           updatedAt: timestamp,
         };
+        Object.values(state.lists).forEach((list) => {
+          if (!listAcceptsRun(list, merged)) {
+            return;
+          }
+          addRunToList(list, merged.runId);
+        });
       });
     },
 
@@ -355,6 +403,12 @@ export const useRunsStore = create<RunsState>()(
           error: null,
           updatedAt: timestamp,
         };
+        Object.values(state.lists).forEach((list) => {
+          if (!listAcceptsRun(list, merged)) {
+            return;
+          }
+          addRunToList(list, merged.runId);
+        });
       });
     },
 

@@ -8,7 +8,10 @@ import type {
   WorkflowPublishResponse,
   WorkflowRef,
 } from "../client/models";
-import type { WorkflowPackageSummaryModel, WorkflowPackagesQueryParams } from "../services/workflowPackages";
+import type {
+  WorkflowPackageSummaryModel,
+  WorkflowPackagesQueryParams,
+} from "../services/workflowPackages";
 import { workflowPackagesGateway } from "../services/workflowPackages";
 import { buildKey, isCacheFresh, type ResourceStatus } from "./shared";
 
@@ -36,20 +39,20 @@ type WorkflowPackagesState = {
   lists: Record<string, PackageListState>;
   fetchPackages: (
     params?: WorkflowPackagesQueryParams,
-    options?: { force?: boolean; staleAfter?: number },
+    options?: { force?: boolean; staleAfter?: number }
   ) => Promise<WorkflowPackageSummaryModel[]>;
-  clonePackage: (
-    packageId: string,
-    data?: WorkflowPackageCloneRequest,
-  ) => Promise<WorkflowRef>;
+  clonePackage: (packageId: string, data?: WorkflowPackageCloneRequest) => Promise<WorkflowRef>;
   deletePackage: (packageId: string) => Promise<void>;
-  publishWorkflow: (workflowId: string, data: WorkflowPublishRequest) => Promise<WorkflowPublishResponse>;
+  publishWorkflow: (
+    workflowId: string,
+    data: WorkflowPublishRequest
+  ) => Promise<WorkflowPublishResponse>;
 };
 
 const DEFAULT_LIST_STALE_MS = 30_000;
 
 const buildParamsKey = (
-  params?: WorkflowPackagesQueryParams,
+  params?: WorkflowPackagesQueryParams
 ): { key: string; normalized: WorkflowPackagesQueryParamsNormalized } => {
   const normalized: WorkflowPackagesQueryParamsNormalized = {
     limit: params?.limit ?? null,
@@ -63,7 +66,7 @@ const buildParamsKey = (
     normalized.cursor,
     normalized.owner,
     normalized.visibility,
-    normalized.search,
+    normalized.search
   );
   return { key, normalized };
 };
@@ -79,7 +82,10 @@ export const useWorkflowPackagesStore = create<WorkflowPackagesState>()(
       const currentList = get().lists[key];
       const staleAfter = options?.staleAfter ?? currentList?.staleAfter ?? DEFAULT_LIST_STALE_MS;
 
-      if (currentList?.status === "success" && isCacheFresh(currentList.updatedAt, staleAfter, now, options?.force)) {
+      if (
+        currentList?.status === "success" &&
+        isCacheFresh(currentList.updatedAt, staleAfter, now, options?.force)
+      ) {
         return currentList.ids
           .map((id) => get().byId[id])
           .filter((pkg): pkg is WorkflowPackageSummaryModel => Boolean(pkg));
@@ -141,16 +147,20 @@ export const useWorkflowPackagesStore = create<WorkflowPackagesState>()(
       });
     },
 
-    publishWorkflow: async (workflowId, data) => workflowPackagesGateway.publish(workflowId, data),
-  })),
+    publishWorkflow: async (workflowId, data) =>
+      workflowPackagesGateway.publish(workflowId, data),
+  }))
 );
 
 export const useWorkflowPackages = (
   params?: WorkflowPackagesQueryParams,
-  options?: { enabled?: boolean },
+  options?: { enabled?: boolean }
 ) => {
   const enabled = options?.enabled ?? true;
-  const { key } = useMemo(() => buildParamsKey(params), [params?.limit, params?.cursor, params?.owner, params?.visibility, params?.search]);
+  const { key } = useMemo(
+    () => buildParamsKey(params),
+    [params?.limit, params?.cursor, params?.owner, params?.visibility, params?.search]
+  );
   const list = useWorkflowPackagesStore((state) => state.lists[key]);
   const byId = useWorkflowPackagesStore((state) => state.byId);
   const fetchList = useWorkflowPackagesStore((state) => state.fetchPackages);
@@ -162,8 +172,11 @@ export const useWorkflowPackages = (
   }, [enabled, fetchList, key]);
 
   const items = useMemo(
-    () => list?.ids.map((id) => byId[id]).filter((pkg): pkg is WorkflowPackageSummaryModel => Boolean(pkg)) ?? [],
-    [byId, list?.ids],
+    () =>
+      list?.ids
+        .map((id) => byId[id])
+        .filter((pkg): pkg is WorkflowPackageSummaryModel => Boolean(pkg)) ?? [],
+    [byId, list?.ids]
   );
   const selected = useMemo(
     () => ({
@@ -172,12 +185,12 @@ export const useWorkflowPackages = (
       status: list?.status ?? ("idle" as ResourceStatus),
       error: list?.error ?? null,
     }),
-    [items, list?.error, list?.nextCursor, list?.status],
+    [items, list?.error, list?.nextCursor, list?.status]
   );
 
   const refetch = useCallback(
     () => (enabled ? fetchList(params, { force: true }) : Promise.resolve([])),
-    [enabled, fetchList, key],
+    [enabled, fetchList, key]
   );
 
   return {

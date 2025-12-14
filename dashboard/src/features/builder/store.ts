@@ -267,6 +267,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
     selectedNodeIds: [],
     subgraphDrafts: [],
     activeGraph: defaultGraphScope,
+    activeRunId: undefined,
     history: {
       past: [],
       future: [],
@@ -285,6 +286,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
         state.selectedNodeId = undefined;
         state.selectedNodeIds = [];
         state.activeGraph = defaultGraphScope;
+        state.activeRunId = undefined;
         state.history = { past: [], future: [] };
       });
     },
@@ -296,6 +298,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
         state.selectedNodeIds = [];
         state.subgraphDrafts = [];
         state.activeGraph = defaultGraphScope;
+        state.activeRunId = undefined;
         state.history = { past: [], future: [] };
       });
     },
@@ -601,6 +604,12 @@ export const useWorkflowStore = create<WorkflowStore>()(
             node.results = JSON.parse(JSON.stringify(defaults.results ?? {}));
           });
         });
+      });
+    },
+
+    setActiveRunId: (runId) => {
+      set((state) => {
+        state.activeRunId = runId;
       });
     },
 

@@ -59,6 +59,7 @@ export const useRunActions = ({
         if (runId) {
           const storeSnapshot = useWorkflowStore.getState();
           storeSnapshot.resetRunState();
+          storeSnapshot.setActiveRunId(runId);
           onActiveRunId(runId);
           onActiveRunStatus(run?.status ?? "queued");
         }

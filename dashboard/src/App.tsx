@@ -4,7 +4,7 @@ import RunsPage from "./pages/RunsPage";
 import RunDetailPage from "./pages/RunDetailPage";
 import WorkflowBuilderPage from "./features/builder/pages/WorkflowBuilderPage";
 import WorkflowsPage from "./pages/WorkflowsPage";
-import StorePage from "./pages/StorePage";
+import PackageCenterPage from "./features/packages/pages/PackageCenterPage";
 import AuditLogPage from "./features/admin/pages/AuditLogPage";
 import UsersPage from "./features/admin/pages/UsersPage";
 import WorkersPage from "./features/admin/pages/WorkersPage";
@@ -13,6 +13,7 @@ import { useAuthStore } from "@store/authSlice";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RunSseSubscriptions } from "./lib/sse/RunSseSubscriptions";
 import { NodeSseSubscriptions } from "./lib/sse/NodeSseSubscriptions";
+import { MessageProvider } from "./components/MessageCenter";
 
 const NotFound = () => (
   <div className="card">
@@ -28,9 +29,9 @@ const baseNavItems: NavItem[] = [
     match: (pathname) => pathname === "/workflows"
   },
   {
-    to: "/store",
-    label: "Store",
-    match: (pathname) => pathname === "/store"
+    to: "/packages",
+    label: "Package Center",
+    match: (pathname) => pathname === "/packages"
   }
 ];
 
@@ -85,7 +86,7 @@ const AuthHeader = () => {
 
   const handleMyPackagesNavigate = () => {
     setOpen(false);
-    navigate("/store?tab=mine");
+    navigate("/packages?tab=mine");
   };
 
   const handleLogoutClick = () => {
@@ -245,95 +246,98 @@ const RequireAuth = ({ children }: React.PropsWithChildren) => {
 
 function App() {
   return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <RunSseSubscriptions />
-      <NodeSseSubscriptions />
-      <Routes>
-        <Route path="/" element={<Navigate to="/workflows" replace />} />
-        <Route
-          path="/runs"
-          element={
-            <RequireAuth>
-              <RunsRoute />
-            </RequireAuth>
-          }
-        >
-          <Route path=":runId" element={<RunDetailPage />} />
-        </Route>
-        <Route
-          path="/workflows"
+    <MessageProvider>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <RunSseSubscriptions />
+        <NodeSseSubscriptions />
+        <Routes>
+          <Route path="/" element={<Navigate to="/workflows" replace />} />
+          <Route
+            path="/runs"
+            element={
+              <RequireAuth>
+                <RunsRoute />
+              </RequireAuth>
+            }
+          >
+            <Route path=":runId" element={<RunDetailPage />} />
+          </Route>
+          <Route
+            path="/workflows"
+            element={
+              <RequireAuth>
+                <DashboardRoute>
+                  <WorkflowsPage />
+                </DashboardRoute>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/workflows/:workflowId"
+            element={
+              <RequireAuth>
+                <WorkflowBuilderRoute />
+              </RequireAuth>
+            }
+          />
+          <Route
+          path="/packages"
           element={
             <RequireAuth>
               <DashboardRoute>
-                <WorkflowsPage />
+                <PackageCenterPage />
               </DashboardRoute>
             </RequireAuth>
           }
         />
-        <Route
-          path="/workflows/:workflowId"
-          element={
-            <RequireAuth>
-              <WorkflowBuilderRoute />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/store"
-          element={
-            <RequireAuth>
-              <DashboardRoute>
-                <StorePage />
-              </DashboardRoute>
-            </RequireAuth>
-          }
-        />
-        <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
-        <Route
-          path="/admin/users"
-          element={
-            <RequireAuth>
-              <AdminRoute>
-                <UsersPage />
-              </AdminRoute>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/admin/audit"
-          element={
-            <RequireAuth>
-              <AdminRoute>
-                <AuditLogPage />
-              </AdminRoute>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/admin/workers"
-          element={
-            <RequireAuth>
-              <AdminRoute>
-                <WorkersPage />
-              </AdminRoute>
-            </RequireAuth>
-          }
-        />
-        <Route path="/login" element={<LoginPage />} />
-        <Route
-          path="*"
-          element={
-            <RequireAuth>
-              <DashboardRoute>
-                <NotFound />
-              </DashboardRoute>
-            </RequireAuth>
-          }
-        />
-        <Route path="/audit" element={<Navigate to="/admin/audit" replace />} />
-        <Route path="/users" element={<Navigate to="/admin/users" replace />} />
-      </Routes>
-    </BrowserRouter>
+        <Route path="/store" element={<Navigate to="/packages" replace />} />
+          <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
+          <Route
+            path="/admin/users"
+            element={
+              <RequireAuth>
+                <AdminRoute>
+                  <UsersPage />
+                </AdminRoute>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/admin/audit"
+            element={
+              <RequireAuth>
+                <AdminRoute>
+                  <AuditLogPage />
+                </AdminRoute>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/admin/workers"
+            element={
+              <RequireAuth>
+                <AdminRoute>
+                  <WorkersPage />
+                </AdminRoute>
+              </RequireAuth>
+            }
+          />
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="*"
+            element={
+              <RequireAuth>
+                <DashboardRoute>
+                  <NotFound />
+                </DashboardRoute>
+              </RequireAuth>
+            }
+          />
+          <Route path="/audit" element={<Navigate to="/admin/audit" replace />} />
+          <Route path="/users" element={<Navigate to="/admin/users" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </MessageProvider>
   );
 }
 

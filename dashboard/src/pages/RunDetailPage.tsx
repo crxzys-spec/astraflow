@@ -10,6 +10,7 @@ import { useRunSseSync } from "../hooks/useRunSseSync";
 import { useRunDetailData } from "../hooks/useRunDetailData";
 import { MiddlewareTraceList, NodeGroups, RunSummary } from "./RunDetailSections";
 import { useRun, useRunDefinition } from "../store";
+import "./run-detail.css";
 
 type DetailPanel = "run" | "workflow";
 

@@ -10,10 +10,24 @@ const MAX_RETRY_MS = 60_000;
 const HEARTBEAT_TIMEOUT_MS = 120_000;
 
 const buildEventsUrl = (clientSessionId: string): string => {
-  const base =
-    import.meta.env.VITE_SCHEDULER_BASE_URL != null
-      ? new URL(import.meta.env.VITE_SCHEDULER_BASE_URL)
-      : new URL(window.location.origin);
+  const envBase = import.meta.env.VITE_SCHEDULER_BASE_URL;
+  let base: URL;
+  if (envBase) {
+    try {
+      const parsed = new URL(envBase, window.location.origin);
+      if (parsed.origin !== window.location.origin && import.meta.env.DEV) {
+        // In dev prefer proxy to avoid CORS trouble.
+        base = new URL(window.location.origin);
+      } else {
+        base = parsed;
+      }
+    } catch (error) {
+      console.warn("[sse] Invalid VITE_SCHEDULER_BASE_URL, falling back to window origin", error);
+      base = new URL(window.location.origin);
+    }
+  } else {
+    base = new URL(window.location.origin);
+  }
 
   base.pathname = "/api/v1/events";
   base.searchParams.set("clientSessionId", clientSessionId);
@@ -163,4 +177,3 @@ export class SseClient {
 }
 
 export const sseClient = new SseClient();
-

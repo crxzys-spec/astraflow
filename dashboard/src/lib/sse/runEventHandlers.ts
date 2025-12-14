@@ -36,6 +36,10 @@ export const handleRunStatusStoreUpdate = (payload: RunStatusEvent, occurredAt?:
         ? { message: payload.reason, code: "run.failed" }
         : undefined,
   }, occurredTs ?? undefined);
+  const run = store.byId[runId];
+  if (run) {
+    store.ensureRunInLists(run);
+  }
 };
 
 /**

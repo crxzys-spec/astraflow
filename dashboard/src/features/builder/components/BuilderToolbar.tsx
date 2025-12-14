@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 type BuilderToolbarProps = {
   canEditWorkflow: boolean;
   canPublishWorkflow: boolean;
@@ -9,7 +7,6 @@ type BuilderToolbarProps = {
   cancelRunId?: string;
   activeRunId?: string;
   activeRunStatus?: string;
-  messages: ReactNode[];
   onSave: () => void;
   onPublish: () => void;
   onRun: () => void;
@@ -47,7 +44,6 @@ export const BuilderToolbar = ({
   cancelRunId,
   activeRunId,
   activeRunStatus,
-  messages,
   onSave,
   onPublish,
   onRun,
@@ -55,9 +51,6 @@ export const BuilderToolbar = ({
 }: BuilderToolbarProps) => (
   <div className="builder-toolbar">
     <div className="builder-actions">
-      {messages.map((message, index) => (
-        <span key={index}>{message}</span>
-      ))}
       {!canEditWorkflow && (
         <span className="builder-alert builder-alert--error">
           You have read-only access. Request workflow.editor rights to edit or run workflows.

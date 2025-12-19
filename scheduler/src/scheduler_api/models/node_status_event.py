@@ -35,10 +35,10 @@ class NodeStatusEvent(BaseModel):
     run_id: StrictStr = Field(alias="runId")
     node_id: StrictStr = Field(alias="nodeId")
     status: StrictStr
-    worker_id: Optional[StrictStr] = Field(default=None, alias="workerId")
+    worker_name: Optional[StrictStr] = Field(default=None, alias="workerName")
     seq: Optional[StrictInt] = None
     ack_pending: Optional[StrictBool] = Field(default=None, alias="ackPending")
-    __properties: ClassVar[List[str]] = ["kind", "runId", "nodeId", "status", "workerId", "seq", "ackPending"]
+    __properties: ClassVar[List[str]] = ["kind", "runId", "nodeId", "status", "workerName", "seq", "ackPending"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
@@ -89,10 +89,10 @@ class NodeStatusEvent(BaseModel):
         if self.kind is None and "kind" in self.model_fields_set:
             _dict['kind'] = None
 
-        # set to None if worker_id (nullable) is None
+        # set to None if worker_name (nullable) is None
         # and model_fields_set contains the field
-        if self.worker_id is None and "worker_id" in self.model_fields_set:
-            _dict['workerId'] = None
+        if self.worker_name is None and "worker_name" in self.model_fields_set:
+            _dict['workerName'] = None
 
         # set to None if seq (nullable) is None
         # and model_fields_set contains the field
@@ -120,7 +120,7 @@ class NodeStatusEvent(BaseModel):
             "runId": obj.get("runId"),
             "nodeId": obj.get("nodeId"),
             "status": obj.get("status"),
-            "workerId": obj.get("workerId"),
+            "workerName": obj.get("workerName"),
             "seq": obj.get("seq"),
             "ackPending": obj.get("ackPending")
         })

@@ -36,10 +36,11 @@ from scheduler_api.sse.mappers import (
     run_snapshot_envelope,
     run_state_envelope,
 )
-from shared.models.ws import result as ws_result
-from shared.models.ws.error import ErrorPayload
-from shared.models.ws.feedback import FeedbackPayload
-from shared.models.ws.next import NextRequestPayload, NextResponsePayload
+from shared.models.biz.exec.result import ExecResultPayload
+from shared.models.biz.exec.error import ExecErrorPayload
+from shared.models.biz.exec.feedback import ExecFeedbackPayload
+from shared.models.biz.exec.next.request import ExecMiddlewareNextRequest
+from shared.models.biz.exec.next.response import ExecMiddlewareNextResponse
 
 LOGGER = logging.getLogger(__name__)
 
@@ -397,7 +398,8 @@ class DispatchRequest:
     affinity: Optional[Dict[str, Any]]
     concurrency_key: str
     seq: int
-    preferred_worker_id: Optional[str] = None
+    constraints: Dict[str, Any] = field(default_factory=dict)
+    preferred_worker_name: Optional[str] = None
     attempts: int = 0
     dispatch_id: Optional[str] = None
     host_node_id: Optional[str] = None
@@ -416,7 +418,7 @@ class NodeState:
     package_version: str = ""
     parameters: Dict[str, Any] = field(default_factory=dict)
     concurrency_key: str = ""
-    worker_id: Optional[str] = None
+    worker_name: Optional[str] = None
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
     seq: Optional[int] = None
@@ -487,7 +489,7 @@ class RunRecord:
     status: str = "queued"
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
-    worker_id: Optional[str] = None
+    worker_name: Optional[str] = None
     task_id: Optional[str] = None
     node_id: Optional[str] = None
     node_type: Optional[str] = None
@@ -619,7 +621,7 @@ class RunRecord:
     def _format_artifact(self, data: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "resourceId": data.get("resourceId") or data.get("resource_id"),
-            "workerId": data.get("workerId") or data.get("worker_id") or self.worker_id,
+            "workerName": data.get("workerName") or data.get("worker_name") or self.worker_name,
             "type": data.get("type"),
             "sizeBytes": data.get("sizeBytes") or data.get("size_bytes"),
             "inline": data.get("inline"),
@@ -630,7 +632,7 @@ class RunRecord:
     def _format_resource_ref(self, data: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "resourceId": data.get("resourceId") or data.get("resource_id"),
-            "workerId": data.get("workerId") or data.get("worker_id"),
+            "workerName": data.get("workerName") or data.get("worker_name"),
             "type": data.get("type"),
             "scope": data.get("scope"),
             "expiresAt": data.get("expiresAt") or data.get("expires_at"),
@@ -731,8 +733,8 @@ class RunRecord:
             "taskId": task_id,
             "status": node.status,
         }
-        if node.worker_id:
-            payload["workerId"] = node.worker_id
+        if node.worker_name:
+            payload["workerName"] = node.worker_name
         if node.started_at:
             payload["startedAt"] = node.started_at
         if node.finished_at:
@@ -800,8 +802,11 @@ class RunRegistry:
     def __init__(self) -> None:
         self._runs: Dict[str, RunRecord] = {}
         self._lock = asyncio.Lock()
-        # pending middleware next requests keyed by request_id -> (run_id, worker_id, deadline, node_id, middleware_id, target_task_id)
-        self._pending_next_requests: Dict[str, Tuple[str, Optional[str], Optional[datetime], Optional[str], Optional[str], Optional[str]]] = {}
+        # pending middleware next requests keyed by request_id -> (run_id, worker_instance_id, worker_name, deadline, node_id, middleware_id, target_task_id)
+        self._pending_next_requests: Dict[
+            str,
+            Tuple[str, Optional[str], Optional[str], Optional[datetime], Optional[str], Optional[str], Optional[str]],
+        ] = {}
         self._next_error_messages = NEXT_ERROR_MESSAGES
 
     @staticmethod
@@ -880,27 +885,27 @@ class RunRegistry:
 
     def _finalise_pending_next(
         self,
-        payload: ws_result.ResultPayload,
+        payload: ExecResultPayload,
         node_state: NodeState,
         *,
         status: str,
-    ) -> List[Tuple[Optional[str], NextResponsePayload]]:
+    ) -> List[Tuple[Optional[str], ExecMiddlewareNextResponse]]:
         """Send a terminal next_response for any middleware.next waiting on this task."""
-        responses: List[Tuple[Optional[str], NextResponsePayload]] = []
+        responses: List[Tuple[Optional[str], ExecMiddlewareNextResponse]] = []
         pending_next_to_clear = [
-            (req_id, worker_id, run_id, node_id, middleware_id)
-            for req_id, (run_id, worker_id, deadline, node_id, middleware_id, target_task_id)
+            (req_id, worker_instance_id, run_id, node_id, middleware_id)
+            for req_id, (run_id, worker_instance_id, worker_name, deadline, node_id, middleware_id, target_task_id)
             in self._pending_next_requests.items()
             if target_task_id == node_state.task_id and run_id == payload.run_id
         ]
-        for req_id, worker_id, run_id, node_id, middleware_id in pending_next_to_clear:
+        for req_id, worker_instance_id, run_id, node_id, middleware_id in pending_next_to_clear:
             self._pending_next_requests.pop(req_id, None)
             err_body = None
             if payload.error:
                 err_body = {"code": payload.error.code, "message": payload.error.message}
             elif status != "succeeded":
                 err_body = {"code": f"next_{status}", "message": f"target {node_state.node_id} status {status}"}
-            resp = NextResponsePayload(
+            resp = ExecMiddlewareNextResponse(
                 requestId=req_id,
                 runId=run_id,
                 nodeId=node_id or "",
@@ -908,7 +913,7 @@ class RunRegistry:
                 result=node_state.result,
                 error=err_body,
             )
-            responses.append((worker_id, resp))
+            responses.append((worker_instance_id, resp))
         return responses
 
     async def _publish_run_state(self, record: RunRecord) -> None:
@@ -1119,8 +1124,8 @@ class RunRegistry:
             "taskId": task_id,
             "status": node.status,
         }
-        if node.worker_id:
-            payload["workerId"] = node.worker_id
+        if node.worker_name:
+            payload["workerName"] = node.worker_name
         if node.started_at:
             payload["startedAt"] = node.started_at
         if node.finished_at:
@@ -1236,7 +1241,7 @@ class RunRegistry:
         self,
         run_id: str,
         *,
-        worker_id: str,
+        worker_name: str,
         task_id: str,
         node_id: str,
         node_type: str,
@@ -1258,7 +1263,7 @@ class RunRegistry:
             timestamp = _utc_now()
             record.status = "running"
             record.started_at = record.started_at or timestamp
-            record.worker_id = worker_id
+            record.worker_name = worker_name
             record.task_id = task_id
             record.node_id = node_id
             record.node_type = node_type
@@ -1274,7 +1279,7 @@ class RunRegistry:
                 node_state = record.get_node(node_id, task_id=task_id)
                 frame_state = None
             node_state.status = "running"
-            node_state.worker_id = worker_id
+            node_state.worker_name = worker_name
             node_state.started_at = timestamp
             node_state.finished_at = None
             node_state.seq = seq_used
@@ -1291,8 +1296,8 @@ class RunRegistry:
             new_status = record.status
             if new_status in FINAL_STATUSES:
                 self._pending_next_requests = {
-                    req_id: (r_id, worker_id, deadline, node_id, middleware_id, target_task_id)
-                    for req_id, (r_id, worker_id, deadline, node_id, middleware_id, target_task_id) in self._pending_next_requests.items()
+                    req_id: (r_id, worker_instance_id, worker_name, deadline, node_id, middleware_id, target_task_id)
+                    for req_id, (r_id, worker_instance_id, worker_name, deadline, node_id, middleware_id, target_task_id) in self._pending_next_requests.items()
                     if r_id != record.run_id
                 }
             record_snapshot = copy.deepcopy(record)
@@ -1364,14 +1369,14 @@ class RunRegistry:
             record.finished_at = timestamp
             cancelled_next: List[Tuple[str, str, str, Optional[str], Optional[str]]] = []
             # drop pending middleware next requests for this run and surface worker targets
-            remaining_next: Dict[str, Tuple[str, Optional[str], Optional[datetime], Optional[str], Optional[str], Optional[str]]] = {}
-            for req_id, (r_id, worker_id, deadline, node_id, middleware_id, target_task_id) in self._pending_next_requests.items():
-                if r_id == run_id and worker_id:
-                    cancelled_next.append((req_id, worker_id, r_id, node_id, middleware_id))
+            remaining_next: Dict[str, Tuple[str, Optional[str], Optional[str], Optional[datetime], Optional[str], Optional[str], Optional[str]]] = {}
+            for req_id, (r_id, worker_instance_id, worker_name, deadline, node_id, middleware_id, target_task_id) in self._pending_next_requests.items():
+                if r_id == run_id and (worker_instance_id or worker_name):
+                    cancelled_next.append((req_id, worker_instance_id or worker_name or "", r_id, node_id, middleware_id))
                     continue
                 if r_id == run_id:
                     continue
-                remaining_next[req_id] = (r_id, worker_id, deadline, node_id, middleware_id, target_task_id)
+                remaining_next[req_id] = (r_id, worker_instance_id, worker_name, deadline, node_id, middleware_id, target_task_id)
             self._pending_next_requests = remaining_next
             record.refresh_rollup()
             record.status = "cancelled"
@@ -1400,14 +1405,14 @@ class RunRegistry:
             if not node_state or node_state.node_id != node_id:
                 return copy.deepcopy(record)
             previous_status = record.status
-            previous_worker = node_state.worker_id
+            previous_worker = node_state.worker_name
             previous_node_type = node_state.node_type
             previous_package_name = node_state.package_name
             previous_package_version = node_state.package_version
             previous_task_id = node_state.task_id
 
             node_state.status = "queued"
-            node_state.worker_id = None
+            node_state.worker_name = None
             node_state.started_at = None
             node_state.finished_at = None
             node_state.seq = None
@@ -1422,8 +1427,8 @@ class RunRegistry:
                 record.task_id = None
             if record.node_type == previous_node_type:
                 record.node_type = None
-            if record.worker_id == previous_worker:
-                record.worker_id = None
+            if record.worker_name == previous_worker:
+                record.worker_name = None
             if record.package_name == previous_package_name:
                 record.package_name = None
             if record.package_version == previous_package_version:
@@ -1471,7 +1476,7 @@ class RunRegistry:
 
             previous_status = record.status
             node_state.status = "queued"
-            node_state.worker_id = None
+            node_state.worker_name = None
             node_state.started_at = None
             node_state.finished_at = None
             node_state.seq = None
@@ -1505,8 +1510,8 @@ class RunRegistry:
     async def record_result(
         self,
         run_id: str,
-        payload: ws_result.ResultPayload,
-    ) -> tuple[Optional[RunRecord], List[DispatchRequest], List[Tuple[Optional[str], NextResponsePayload]]]:
+        payload: ExecResultPayload,
+    ) -> tuple[Optional[RunRecord], List[DispatchRequest], List[Tuple[Optional[str], ExecMiddlewareNextResponse]]]:
         async with self._lock:
             record = self._runs.get(run_id)
             if not record:
@@ -1554,7 +1559,7 @@ class RunRegistry:
 
             ready: List[DispatchRequest] = []
             state_events: List[Tuple[RunRecord, NodeState]] = []
-            next_responses: List[Tuple[Optional[str], NextResponsePayload]] = []
+            next_responses: List[Tuple[Optional[str], ExecMiddlewareNextResponse]] = []
             # Host nodes with middleware chains keep looping; do not release dependents or finalize yet.
             if not self._is_host_with_middleware(node_state):
                 if status in {"succeeded", "skipped"}:
@@ -1677,7 +1682,7 @@ class RunRegistry:
 
     async def record_feedback(
         self,
-        payload: FeedbackPayload,
+        payload: ExecFeedbackPayload,
     ) -> None:
         async with self._lock:
             record = self._runs.get(payload.run_id)
@@ -1832,19 +1837,20 @@ class RunRegistry:
 
     async def handle_next_request(
         self,
-        payload: NextRequestPayload,
+        payload: ExecMiddlewareNextRequest,
         *,
-        worker_id: Optional[str],
+        worker_name: Optional[str],
+        worker_instance_id: Optional[str],
     ) -> Tuple[List[DispatchRequest], Optional[str]]:
         state_events: List[Tuple[RunRecord, NodeState]] = []
         record_snapshot: Optional[RunRecord] = None
         node_snapshot: Optional[NodeState] = None
         ready: List[DispatchRequest] = []
         async with self._lock:
-            record = self._runs.get(payload.run_id)
+            record = self._runs.get(payload.runId)
             if not record or record.status in FINAL_STATUSES:
                 return [], "next_run_finalised"
-            if payload.request_id in self._pending_next_requests:
+            if payload.requestId in self._pending_next_requests:
                 return [], "next_duplicate"
 
             host_node_id = None
@@ -1859,7 +1865,7 @@ class RunRegistry:
 
             for node in _iter_all_nodes():
                 chain_ids = getattr(node, "middlewares", []) or []
-                if payload.middleware_id in chain_ids:
+                if payload.middlewareId in chain_ids:
                     host_node_id = node.node_id
                     chain = chain_ids
                     break
@@ -1867,9 +1873,7 @@ class RunRegistry:
                 return [], "next_no_chain"
 
             try:
-                current_index = (
-                    payload.chain_index if payload.chain_index is not None else chain.index(payload.middleware_id)
-                )
+                current_index = payload.chainIndex if payload.chainIndex is not None else chain.index(payload.middlewareId)
             except ValueError:
                 return [], "next_invalid_chain"
             target_index = current_index + 1
@@ -1911,7 +1915,7 @@ class RunRegistry:
                     return [], "next_target_not_ready"
                 if node_state.status in FINAL_STATUSES or node_state.status == "running":
                     node_state.status = "queued"
-                    node_state.worker_id = None
+                    node_state.worker_name = None
                     node_state.pending_ack = False
                     node_state.dispatch_id = None
                     node_state.ack_deadline = None
@@ -1931,14 +1935,15 @@ class RunRegistry:
                     state_events=state_events,
                 )
                 deadline = None
-                if payload.timeout_ms and payload.timeout_ms > 0:
-                    deadline = _utc_now() + timedelta(milliseconds=payload.timeout_ms)
-                self._pending_next_requests[payload.request_id] = (
+                if payload.timeoutMs and payload.timeoutMs > 0:
+                    deadline = _utc_now() + timedelta(milliseconds=payload.timeoutMs)
+                self._pending_next_requests[payload.requestId] = (
                     record.run_id,
-                    worker_id,
+                    worker_instance_id,
+                    worker_name,
                     deadline,
-                    payload.node_id,
-                    payload.middleware_id,
+                    payload.nodeId,
+                    payload.middlewareId,
                     node_state.task_id,
                 )
                 ready.extend(frame_ready)
@@ -1951,14 +1956,15 @@ class RunRegistry:
                     chain_index=target_chain_index,
                 )
                 deadline = None
-                if payload.timeout_ms and payload.timeout_ms > 0:
-                    deadline = _utc_now() + timedelta(milliseconds=payload.timeout_ms)
-                self._pending_next_requests[payload.request_id] = (
+                if payload.timeoutMs and payload.timeoutMs > 0:
+                    deadline = _utc_now() + timedelta(milliseconds=payload.timeoutMs)
+                self._pending_next_requests[payload.requestId] = (
                     record.run_id,
-                    worker_id,
+                    worker_instance_id,
+                    worker_name,
                     deadline,
-                    payload.node_id,
-                    payload.middleware_id,
+                    payload.nodeId,
+                    payload.middlewareId,
                     node_state.task_id,
                 )
                 record_snapshot = copy.deepcopy(record)
@@ -1980,22 +1986,22 @@ class RunRegistry:
             entry = self._pending_next_requests.pop(request_id, None)
             if not entry:
                 return None
-            _, worker_id, deadline, _, _, _ = entry
+            _, worker_instance_id, worker_name, deadline, _, _, _ = entry
             if deadline and _utc_now() > deadline:
                 return None
-            return worker_id
+            return worker_instance_id or worker_name
 
     async def collect_expired_next_requests(self) -> List[Tuple[str, str, str, Optional[str], Optional[str]]]:
         async with self._lock:
             now = _utc_now()
             expired: List[Tuple[str, str, str, Optional[str], Optional[str]]] = []
-            remaining: Dict[str, Tuple[str, Optional[str], Optional[datetime], Optional[str], Optional[str], Optional[str]]] = {}
-            for req_id, (run_id, worker_id, deadline, node_id, middleware_id, target_task_id) in self._pending_next_requests.items():
+            remaining: Dict[str, Tuple[str, Optional[str], Optional[str], Optional[datetime], Optional[str], Optional[str], Optional[str]]] = {}
+            for req_id, (run_id, worker_instance_id, worker_name, deadline, node_id, middleware_id, target_task_id) in self._pending_next_requests.items():
                 if deadline and now > deadline:
-                    if worker_id:
-                        expired.append((req_id, worker_id, run_id, node_id, middleware_id))
+                    if worker_instance_id or worker_name:
+                        expired.append((req_id, worker_instance_id or worker_name or "", run_id, node_id, middleware_id))
                 else:
-                    remaining[req_id] = (run_id, worker_id, deadline, node_id, middleware_id, target_task_id)
+                    remaining[req_id] = (run_id, worker_instance_id, worker_name, deadline, node_id, middleware_id, target_task_id)
             self._pending_next_requests = remaining
             return expired
 
@@ -2004,7 +2010,7 @@ class RunRegistry:
 
     async def record_command_error(
         self,
-        payload: ErrorPayload,
+        payload: ExecErrorPayload,
         *,
         run_id: Optional[str] = None,
         task_id: Optional[str] = None,
@@ -2056,7 +2062,7 @@ class RunRegistry:
                 node_state.pending_ack = False
                 node_state.dispatch_id = None
                 node_state.ack_deadline = None
-                node_state.worker_id = None
+                node_state.worker_name = None
                 if frame_state:
                     frame_ready, container_node, _ = self._complete_frame_if_needed(record, frame_state)
                     ready.extend(frame_ready)
@@ -2611,7 +2617,7 @@ class RunRegistry:
         self,
         record: RunRecord,
         frame: FrameRuntimeState,
-    ) -> Tuple[List[DispatchRequest], Optional[NodeState], List[Tuple[Optional[str], NextResponsePayload]]]:
+    ) -> Tuple[List[DispatchRequest], Optional[NodeState], List[Tuple[Optional[str], ExecMiddlewareNextResponse]]]:
         nodes = list(frame.nodes.values())
         failed = any(node.status == "failed" for node in nodes)
         terminal = all(node.status in FINAL_STATUSES for node in nodes)
@@ -2636,7 +2642,7 @@ class RunRegistry:
         container_node.pending_ack = False
         container_node.dispatch_id = None
         container_node.ack_deadline = None
-        container_node.worker_id = None
+        container_node.worker_name = None
         container_node.error = None
         if container_node.started_at is None:
             container_node.started_at = frame.started_at or now
@@ -2664,21 +2670,21 @@ class RunRegistry:
         }
         self._pop_frame(record, frame.frame_id)
         ready: List[DispatchRequest] = []
-        next_responses: List[Tuple[Optional[str], NextResponsePayload]] = []
+        next_responses: List[Tuple[Optional[str], ExecMiddlewareNextResponse]] = []
         pending_next_to_clear = [
-            (req_id, worker_id, run_id, node_id, middleware_id)
-            for req_id, (run_id, worker_id, deadline, node_id, middleware_id, target_task_id)
+            (req_id, worker_instance_id, run_id, node_id, middleware_id)
+            for req_id, (run_id, worker_instance_id, worker_name, deadline, node_id, middleware_id, target_task_id)
             in self._pending_next_requests.items()
             if target_task_id == container_node.task_id and run_id == record.run_id
         ]
-        for req_id, worker_id, run_id, node_id, middleware_id in pending_next_to_clear:
+        for req_id, worker_instance_id, run_id, node_id, middleware_id in pending_next_to_clear:
             self._pending_next_requests.pop(req_id, None)
             err_body = None
             if container_node.error:
                 err_body = {"code": container_node.error.code, "message": container_node.error.message}
             elif failed:
                 err_body = {"code": "next_failed", "message": f"target {container_node.node_id} status failed"}
-            resp = NextResponsePayload(
+            resp = ExecMiddlewareNextResponse(
                 requestId=req_id,
                 runId=run_id,
                 nodeId=node_id or "",
@@ -2686,7 +2692,7 @@ class RunRegistry:
                 result=container_node.result,
                 error=err_body,
             )
-            next_responses.append((worker_id, resp))
+            next_responses.append((worker_instance_id, resp))
         # When the container has middlewares, the execution unit isn't finished yet; let the outermost middleware finalise and release dependents.
         if self._is_host_with_middleware(container_node):
             return ready, container_node, next_responses
@@ -2815,14 +2821,14 @@ class RunRegistry:
         node.enqueued = True
         resource_refs = copy.deepcopy(node.resource_refs)
         affinity = copy.deepcopy(node.affinity) if node.affinity else None
-        worker_ids = {
-            ref.get("workerId") or ref.get("worker_id")
+        worker_names = {
+            ref.get("workerName") or ref.get("worker_name")
             for ref in resource_refs
-            if ref.get("workerId") or ref.get("worker_id")
+            if ref.get("workerName") or ref.get("worker_name")
         }
-        preferred_worker_id = None
-        if len(worker_ids) == 1:
-            preferred_worker_id = next(iter(worker_ids))
+        preferred_worker_name = None
+        if len(worker_names) == 1:
+            preferred_worker_name = next(iter(worker_names))
         seq = record.next_seq
         record.next_seq = seq + 1
         return DispatchRequest(
@@ -2838,7 +2844,7 @@ class RunRegistry:
             affinity=affinity,
             concurrency_key=node.concurrency_key or f"{record.run_id}:{node.node_id}",
             seq=seq,
-            preferred_worker_id=preferred_worker_id,
+            preferred_worker_name=preferred_worker_name,
             host_node_id=host_node_id,
             middleware_chain=middleware_chain,
             chain_index=chain_index,

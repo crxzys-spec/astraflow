@@ -34,9 +34,9 @@ class CommandAck(BaseModel):
     """ # noqa: E501
     kind: Optional[Any] = None
     command_id: Optional[StrictStr] = Field(default=None, alias="commandId")
-    worker_id: Optional[StrictStr] = Field(default=None, alias="workerId")
+    worker_name: Optional[StrictStr] = Field(default=None, alias="workerName")
     received_at: Optional[datetime] = Field(default=None, alias="receivedAt")
-    __properties: ClassVar[List[str]] = ["kind", "commandId", "workerId", "receivedAt"]
+    __properties: ClassVar[List[str]] = ["kind", "commandId", "workerName", "receivedAt"]
 
     model_config = {
         "populate_by_name": True,
@@ -94,7 +94,7 @@ class CommandAck(BaseModel):
         _obj = cls.model_validate({
             "kind": obj.get("kind"),
             "commandId": obj.get("commandId"),
-            "workerId": obj.get("workerId"),
+            "workerName": obj.get("workerName"),
             "receivedAt": obj.get("receivedAt")
         })
         return _obj

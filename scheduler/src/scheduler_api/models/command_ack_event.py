@@ -34,9 +34,9 @@ class CommandAckEvent(BaseModel):
     """ # noqa: E501
     kind: Optional[Any]
     command_id: StrictStr = Field(alias="commandId")
-    worker_id: StrictStr = Field(alias="workerId")
+    worker_name: StrictStr = Field(alias="workerName")
     received_at: Optional[datetime] = Field(default=None, alias="receivedAt")
-    __properties: ClassVar[List[str]] = ["kind", "commandId", "workerId", "receivedAt"]
+    __properties: ClassVar[List[str]] = ["kind", "commandId", "workerName", "receivedAt"]
 
     model_config = {
         "populate_by_name": True,
@@ -99,7 +99,7 @@ class CommandAckEvent(BaseModel):
         _obj = cls.model_validate({
             "kind": obj.get("kind"),
             "commandId": obj.get("commandId"),
-            "workerId": obj.get("workerId"),
+            "workerName": obj.get("workerName"),
             "receivedAt": obj.get("receivedAt")
         })
         return _obj

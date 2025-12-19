@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **kind** | **string** |  | [default to undefined]
-**workerId** | **string** |  | [default to undefined]
+**workerName** | **string** |  | [default to undefined]
 **at** | **string** |  | [default to undefined]
 **queues** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **capacity** | **{ [key: string]: any; }** |  | [optional] [default to undefined]
@@ -18,7 +18,7 @@ import { WorkerHeartbeatEvent } from './api';
 
 const instance: WorkerHeartbeatEvent = {
     kind,
-    workerId,
+    workerName,
     at,
     queues,
     capacity,

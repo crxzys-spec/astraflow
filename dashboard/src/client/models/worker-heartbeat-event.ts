@@ -16,7 +16,7 @@
 
 export interface WorkerHeartbeatEvent {
     'kind': WorkerHeartbeatEventKindEnum;
-    'workerId': string;
+    'workerName': string;
     'at': string;
     'queues'?: Array<string> | null;
     'capacity'?: { [key: string]: any; } | null;

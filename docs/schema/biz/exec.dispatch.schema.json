@@ -1,0 +1,80 @@
+{
+  "$id": "https://astraflow.example.com/schema/biz.exec.dispatch.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Exec Dispatch Payload",
+  "$defs": {
+    "resourceRef": {
+      "type": "object",
+      "title": "Resource Reference",
+      "required": ["resource_id", "worker_name", "type"],
+      "properties": {
+        "resource_id": { "type": "string", "minLength": 1 },
+        "worker_name": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "scope": { "type": "string", "minLength": 1 },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "metadata": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "affinity": {
+      "type": "object",
+      "title": "Session Affinity",
+      "required": ["key"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "mode": {
+          "type": "string",
+          "enum": ["sticky", "preferred"]
+        },
+        "expires_at": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "run_id",
+    "task_id",
+    "node_id",
+    "node_type",
+    "package_name",
+    "package_version",
+    "parameters",
+    "constraints"
+  ],
+  "properties": {
+    "run_id": { "type": "string", "minLength": 1 },
+    "task_id": { "type": "string", "minLength": 1 },
+    "priority": { "type": "integer", "nullable": true },
+    "node_id": { "type": "string", "minLength": 1 },
+    "node_type": { "type": "string", "minLength": 1 },
+    "package_name": { "type": "string", "minLength": 1 },
+    "package_version": { "type": "string", "minLength": 1 },
+    "parameters": { "type": "object" },
+    "host_node_id": { "type": "string", "minLength": 1 },
+    "middleware_chain": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "chain_index": { "type": "integer", "minimum": 0 },
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "timeout_ms": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "concurrency_key": { "type": "string", "minLength": 1 },
+    "resource_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/resourceRef" },
+      "description": "Resources that must exist on the selected worker before executing the command."
+    },
+    "affinity": {
+      "$ref": "#/$defs/affinity",
+      "description": "Scheduler hint to keep related tasks on the same worker."
+    }
+  },
+  "additionalProperties": false
+}

@@ -851,7 +851,7 @@
         }
       }
     },
-    "/api/v1/workers/{workerId}": {
+    "/api/v1/workers/{workerName}": {
       "get": {
         "tags": [
           "Workers"
@@ -880,7 +880,7 @@
         }
       }
     },
-    "/api/v1/workers/{workerId}/commands": {
+    "/api/v1/workers/{workerName}/commands": {
       "post": {
         "tags": [
           "Workers"
@@ -1343,14 +1343,14 @@
         "type": "object",
         "required": [
           "resourceId",
-          "workerId",
+          "workerName",
           "type"
         ],
         "properties": {
           "resourceId": {
             "type": "string"
           },
-          "workerId": {
+          "workerName": {
             "type": "string"
           },
           "type": {
@@ -1400,7 +1400,7 @@
           "status": {
             "$ref": "#/components/schemas/RunStatus"
           },
-          "workerId": {
+          "workerName": {
             "type": "string",
             "nullable": true
           },
@@ -2594,7 +2594,7 @@
             "type": "string",
             "nullable": true
           },
-          "workerId": {
+          "workerName": {
             "type": "string",
             "nullable": true
           },
@@ -2852,7 +2852,7 @@
               "cancelled"
             ]
           },
-          "workerId": {
+          "workerName": {
             "type": "string",
             "nullable": true
           },
@@ -3061,7 +3061,7 @@
         "required": [
           "kind",
           "commandId",
-          "workerId"
+          "workerName"
         ],
         "properties": {
           "kind": {
@@ -3073,7 +3073,7 @@
           "commandId": {
             "type": "string"
           },
-          "workerId": {
+          "workerName": {
             "type": "string"
           },
           "receivedAt": {
@@ -3088,7 +3088,7 @@
         "required": [
           "kind",
           "commandId",
-          "workerId",
+          "workerName",
           "error"
         ],
         "properties": {
@@ -3101,7 +3101,7 @@
           "commandId": {
             "type": "string"
           },
-          "workerId": {
+          "workerName": {
             "type": "string"
           },
           "error": {
@@ -3113,7 +3113,7 @@
         "type": "object",
         "required": [
           "kind",
-          "workerId",
+          "workerName",
           "at"
         ],
         "properties": {
@@ -3123,7 +3123,7 @@
             ],
             "type": "string"
           },
-          "workerId": {
+          "workerName": {
             "type": "string"
           },
           "at": {
@@ -3148,7 +3148,7 @@
         "type": "object",
         "required": [
           "kind",
-          "workerId",
+          "workerName",
           "package",
           "status"
         ],
@@ -3159,7 +3159,7 @@
             ],
             "type": "string"
           },
-          "workerId": {
+          "workerName": {
             "type": "string"
           },
           "package": {
@@ -3532,14 +3532,14 @@
         "type": "object",
         "required": [
           "commandId",
-          "workerId",
+          "workerName",
           "acceptedAt"
         ],
         "properties": {
           "commandId": {
             "type": "string"
           },
-          "workerId": {
+          "workerName": {
             "type": "string"
           },
           "acceptedAt": {
@@ -3753,7 +3753,7 @@
             ],
             "type": "string"
           },
-          "workerId": {
+          "workerName": {
             "type": "string"
           },
           "at": {
@@ -3777,7 +3777,7 @@
             ],
             "type": "string"
           },
-          "workerId": {
+          "workerName": {
             "type": "string"
           },
           "name": {
@@ -3815,7 +3815,7 @@
           "commandId": {
             "type": "string"
           },
-          "workerId": {
+          "workerName": {
             "type": "string"
           },
           "receivedAt": {
@@ -3836,7 +3836,7 @@
           "commandId": {
             "type": "string"
           },
-          "workerId": {
+          "workerName": {
             "type": "string"
           },
           "error": {
@@ -4252,7 +4252,7 @@
         }
       },
       "WorkerId": {
-        "name": "workerId",
+        "name": "workerName",
         "in": "path",
         "required": true,
         "schema": {

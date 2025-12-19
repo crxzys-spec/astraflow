@@ -13,8 +13,8 @@ def main() -> None:
     sys.path.insert(0, str(repo_root))
 
     # Lazy import after adjusting sys.path
-    from worker.agent.config import get_settings  # type: ignore
-    from worker.agent.runtime import run_forever  # type: ignore
+    from worker.config import get_settings  # type: ignore
+    from worker.control_plane.runtime import run_forever  # type: ignore
 
     settings = get_settings()
     logging.basicConfig(

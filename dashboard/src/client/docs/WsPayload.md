@@ -15,7 +15,7 @@ Name | Type | Description | Notes
 **outputs** | **{ [key: string]: any; }** |  | [optional] [default to undefined]
 **metadata** | [**NodeErrorMetadata**](NodeErrorMetadata.md) |  | [optional] [default to undefined]
 **error** | [**ResultError**](ResultError.md) |  | [default to undefined]
-**workerId** | **string** |  | [optional] [default to undefined]
+**workerName** | **string** |  | [optional] [default to undefined]
 **at** | **string** |  | [optional] [default to undefined]
 **queues** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **name** | **string** |  | [optional] [default to undefined]
@@ -40,7 +40,7 @@ const instance: WsPayload = {
     outputs,
     metadata,
     error,
-    workerId,
+    workerName,
     at,
     queues,
     name,

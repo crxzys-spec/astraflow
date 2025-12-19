@@ -17,7 +17,7 @@
 export interface CommandAckEvent {
     'kind': CommandAckEventKindEnum;
     'commandId': string;
-    'workerId': string;
+    'workerName': string;
     'receivedAt'?: string | null;
 }
 

@@ -16,7 +16,7 @@
 
 export interface WorkerHeartbeat {
     'kind'?: WorkerHeartbeatKindEnum;
-    'workerId'?: string;
+    'workerName'?: string;
     'at'?: string;
     'queues'?: Array<string>;
 }

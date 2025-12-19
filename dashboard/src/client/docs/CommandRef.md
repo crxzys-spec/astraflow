@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **commandId** | **string** |  | [default to undefined]
-**workerId** | **string** |  | [default to undefined]
+**workerName** | **string** |  | [default to undefined]
 **acceptedAt** | **string** |  | [default to undefined]
 
 ## Example
@@ -16,7 +16,7 @@ import { CommandRef } from './api';
 
 const instance: CommandRef = {
     commandId,
-    workerId,
+    workerName,
     acceptedAt,
 };
 ```

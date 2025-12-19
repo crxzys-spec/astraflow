@@ -30,7 +30,7 @@ class Artifact(BaseModel):
         extra='forbid',
     )
     resource_id: constr(min_length=1)
-    worker_id: constr(min_length=1)
+    worker_name: constr(min_length=1)
     type: constr(min_length=1)
     size_bytes: Optional[conint(ge=0)] = None
     inline: Optional[bool] = None

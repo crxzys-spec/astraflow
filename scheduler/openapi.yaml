@@ -506,7 +506,7 @@ paths:
                   nextCursor:
                     type: string
                     nullable: true
-  /api/v1/workers/{workerId}:
+  /api/v1/workers/{workerName}:
     get:
       tags:
       - Workers
@@ -523,7 +523,7 @@ paths:
                 $ref: '#/components/schemas/Worker'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/workers/{workerId}/commands:
+  /api/v1/workers/{workerName}/commands:
     post:
       tags:
       - Workers
@@ -828,12 +828,12 @@ components:
       type: object
       required:
       - resourceId
-      - workerId
+      - workerName
       - type
       properties:
         resourceId:
           type: string
-        workerId:
+        workerName:
           type: string
         type:
           type: string
@@ -869,7 +869,7 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/RunStatus'
-        workerId:
+        workerName:
           type: string
           nullable: true
         startedAt:
@@ -1733,7 +1733,7 @@ components:
         runId:
           type: string
           nullable: true
-        workerId:
+        workerName:
           type: string
           nullable: true
         clientSessionId:
@@ -1887,7 +1887,7 @@ components:
           - completed
           - failed
           - cancelled
-        workerId:
+        workerName:
           type: string
           nullable: true
         seq:
@@ -2031,12 +2031,12 @@ components:
       required:
       - kind
       - commandId
-      - workerId
+      - workerName
       properties:
         kind: {}
         commandId:
           type: string
-        workerId:
+        workerName:
           type: string
         receivedAt:
           type: string
@@ -2047,13 +2047,13 @@ components:
       required:
       - kind
       - commandId
-      - workerId
+      - workerName
       - error
       properties:
         kind: {}
         commandId:
           type: string
-        workerId:
+        workerName:
           type: string
         error:
           $ref: '#/components/schemas/ResultError'
@@ -2061,11 +2061,11 @@ components:
       type: object
       required:
       - kind
-      - workerId
+      - workerName
       - at
       properties:
         kind: {}
-        workerId:
+        workerName:
           type: string
         at:
           type: string
@@ -2083,12 +2083,12 @@ components:
       type: object
       required:
       - kind
-      - workerId
+      - workerName
       - package
       - status
       properties:
         kind: {}
-        workerId:
+        workerName:
           type: string
         package:
           type: string
@@ -2347,12 +2347,12 @@ components:
       type: object
       required:
       - commandId
-      - workerId
+      - workerName
       - acceptedAt
       properties:
         commandId:
           type: string
-        workerId:
+        workerName:
           type: string
         acceptedAt:
           type: string
@@ -2484,7 +2484,7 @@ components:
       type: object
       properties:
         kind: {}
-        workerId:
+        workerName:
           type: string
         at:
           type: string
@@ -2497,7 +2497,7 @@ components:
       type: object
       properties:
         kind: {}
-        workerId:
+        workerName:
           type: string
         name:
           type: string
@@ -2521,7 +2521,7 @@ components:
         kind: {}
         commandId:
           type: string
-        workerId:
+        workerName:
           type: string
         receivedAt:
           type: string
@@ -2532,7 +2532,7 @@ components:
         kind: {}
         commandId:
           type: string
-        workerId:
+        workerName:
           type: string
         error:
           $ref: '#/components/schemas/ResultError'
@@ -2819,7 +2819,7 @@ components:
       schema:
         type: string
     WorkerId:
-      name: workerId
+      name: workerName
       in: path
       required: true
       schema:

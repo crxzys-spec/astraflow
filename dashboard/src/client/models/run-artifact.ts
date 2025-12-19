@@ -16,7 +16,7 @@
 
 export interface RunArtifact {
     'resourceId': string;
-    'workerId': string;
+    'workerName': string;
     'type': string;
     'sizeBytes'?: number | null;
     'inline'?: boolean | null;

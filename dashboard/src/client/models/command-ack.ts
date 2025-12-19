@@ -17,7 +17,7 @@
 export interface CommandAck {
     'kind'?: CommandAckKindEnum;
     'commandId'?: string;
-    'workerId'?: string;
+    'workerName'?: string;
     'receivedAt'?: string;
 }
 

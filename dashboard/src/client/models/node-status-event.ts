@@ -19,7 +19,7 @@ export interface NodeStatusEvent {
     'runId': string;
     'nodeId': string;
     'status': NodeStatusEventStatusEnum;
-    'workerId'?: string | null;
+    'workerName'?: string | null;
     'seq'?: number | null;
     'ackPending'?: boolean | null;
 }

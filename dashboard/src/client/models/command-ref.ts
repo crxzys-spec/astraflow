@@ -16,7 +16,7 @@
 
 export interface CommandRef {
     'commandId': string;
-    'workerId': string;
+    'workerName': string;
     'acceptedAt': string;
 }
 

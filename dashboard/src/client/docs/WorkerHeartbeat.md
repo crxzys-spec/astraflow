@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **kind** | **string** |  | [optional] [default to undefined]
-**workerId** | **string** |  | [optional] [default to undefined]
+**workerName** | **string** |  | [optional] [default to undefined]
 **at** | **string** |  | [optional] [default to undefined]
 **queues** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 
@@ -17,7 +17,7 @@ import { WorkerHeartbeat } from './api';
 
 const instance: WorkerHeartbeat = {
     kind,
-    workerId,
+    workerName,
     at,
     queues,
 };

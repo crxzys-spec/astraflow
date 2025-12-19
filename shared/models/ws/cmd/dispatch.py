@@ -21,7 +21,7 @@ class ResourceRef(BaseModel):
         extra='forbid',
     )
     resource_id: constr(min_length=1)
-    worker_id: constr(min_length=1)
+    worker_name: constr(min_length=1)
     type: constr(min_length=1)
     scope: Optional[constr(min_length=1)] = None
     expires_at: Optional[AwareDatetime] = None

@@ -17,7 +17,7 @@
 export interface UiEventScope {
     'tenant': string;
     'runId'?: string | null;
-    'workerId'?: string | null;
+    'workerName'?: string | null;
     'clientSessionId'?: string | null;
     'clientInstanceId'?: string | null;
 }

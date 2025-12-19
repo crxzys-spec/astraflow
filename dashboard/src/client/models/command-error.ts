@@ -20,7 +20,7 @@ import type { ResultError } from './result-error';
 export interface CommandError {
     'kind'?: CommandErrorKindEnum;
     'commandId'?: string;
-    'workerId'?: string;
+    'workerName'?: string;
     'error'?: ResultError;
 }
 

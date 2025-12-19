@@ -3,8 +3,7 @@ import pytest
 from scheduler_api.control_plane.run_registry import EdgeBinding, RunRegistry, WorkflowScopeIndex
 from scheduler_api.models.start_run_request import StartRunRequest
 from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkflow
-from shared.models.ws import result as ws_result
-from shared.models.ws.next import NextRequestPayload
+from shared.models.biz.exec.result import ExecResultPayload, Status as ExecStatus
 
 
 def _build_workflow_with_middleware_handle(middleware_id: str) -> StartRunRequestWorkflow:
@@ -104,10 +103,10 @@ async def test_edge_binding_applies_to_middleware_parameters():
     )
     await registry.create_run(run_id="run-1", request=request, tenant="t")
     # simulate source node completion with result payload
-    payload = ws_result.ResultPayload(
+    payload = ExecResultPayload(
         run_id="run-1",
         task_id="source-node",
-        status=ws_result.Status.SUCCEEDED,
+        status=ExecStatus.SUCCEEDED,
         result={"value": 42},
         metadata=None,
         artifacts=None,
@@ -279,7 +278,7 @@ async def test_middleware_chain_requires_next_to_progress():
         middlewareId="mw-1",
         chainIndex=0,
     )
-    advance_ready, error = await registry.handle_next_request(next_req, worker_id="worker-1")
+    advance_ready, error = await registry.handle_next_request(next_req, worker_name="worker-1")
     assert error is None
     assert [req.node_id for req in advance_ready] == ["mw-2"]
 
@@ -314,7 +313,7 @@ async def test_container_next_response_emitted_on_frame_completion():
         middlewareId="mw-c",
         chainIndex=0,
     )
-    frame_ready, error = await registry.handle_next_request(next_req, worker_id="worker-1")
+    frame_ready, error = await registry.handle_next_request(next_req, worker_name="worker-1")
     assert error is None
     assert len(frame_ready) == 1
     inner_dispatch = frame_ready[0]
@@ -332,8 +331,8 @@ async def test_container_next_response_emitted_on_frame_completion():
     )
     _, _, next_responses = await registry.record_result("run-container", inner_payload)
     assert len(next_responses) == 1
-    worker_id, response = next_responses[0]
-    assert worker_id == "worker-1"
+    worker_name, response = next_responses[0]
+    assert worker_name == "worker-1"
     assert response.request_id == "req-container"
     assert response.middleware_id == "mw-c"
 
@@ -355,7 +354,7 @@ async def test_middleware_completion_finalises_rollup():
         middlewareId="mw-single",
         chainIndex=0,
     )
-    host_ready, error = await registry.handle_next_request(next_req, worker_id="worker-1")
+    host_ready, error = await registry.handle_next_request(next_req, worker_name="worker-1")
     assert error is None
     assert [req.node_id for req in host_ready] == ["host-single"]
     host_dispatch = host_ready[0]
@@ -402,7 +401,7 @@ async def test_next_rejected_while_container_frame_active():
     mw_dispatch = ready[0]
     await registry.mark_dispatched(
         "run-busy",
-        worker_id="worker-1",
+        worker_name="worker-1",
         task_id=mw_dispatch.task_id,
         node_id=mw_dispatch.node_id,
         node_type=mw_dispatch.node_type,
@@ -418,13 +417,13 @@ async def test_next_rejected_while_container_frame_active():
         middlewareId="mw-c",
         chainIndex=0,
     )
-    frame_ready, error = await registry.handle_next_request(next_req, worker_id="worker-1")
+    frame_ready, error = await registry.handle_next_request(next_req, worker_name="worker-1")
     assert error is None
     assert frame_ready
     inner_dispatch = frame_ready[0]
     await registry.mark_dispatched(
         inner_dispatch.run_id,
-        worker_id="worker-1",
+        worker_name="worker-1",
         task_id=inner_dispatch.task_id,
         node_id=inner_dispatch.node_id,
         node_type=inner_dispatch.node_type,
@@ -440,7 +439,7 @@ async def test_next_rejected_while_container_frame_active():
         middlewareId="mw-c",
         chainIndex=0,
     )
-    frame_ready_again, error_again = await registry.handle_next_request(next_req_again, worker_id="worker-1")
+    frame_ready_again, error_again = await registry.handle_next_request(next_req_again, worker_name="worker-1")
     assert error_again == "next_target_not_ready"
     assert frame_ready_again == []
 
@@ -456,7 +455,7 @@ async def test_next_request_recovers_stale_running_target():
     mw_dispatch = ready[0]
     await registry.mark_dispatched(
         "run-stale",
-        worker_id="worker-1",
+        worker_name="worker-1",
         task_id=mw_dispatch.task_id,
         node_id=mw_dispatch.node_id,
         node_type=mw_dispatch.node_type,
@@ -469,7 +468,7 @@ async def test_next_request_recovers_stale_running_target():
     async with registry._lock:  # noqa: SLF001
         host_state = registry._runs["run-stale"].nodes["host-single"]  # noqa: SLF001
         host_state.status = "running"
-        host_state.worker_id = None
+        host_state.worker_name = None
         host_state.pending_ack = False
         host_state.enqueued = False
         host_state.pending_dependencies = 0
@@ -481,7 +480,7 @@ async def test_next_request_recovers_stale_running_target():
         middlewareId="mw-single",
         chainIndex=0,
     )
-    host_ready, error = await registry.handle_next_request(next_req, worker_id="worker-1")
+    host_ready, error = await registry.handle_next_request(next_req, worker_name="worker-1")
     assert error is None
     assert [req.node_id for req in host_ready] == ["host-single"]
 
@@ -497,7 +496,7 @@ async def test_next_request_fails_when_target_not_ready():
     mw_dispatch = ready[0]
     await registry.mark_dispatched(
         "run-fail",
-        worker_id="worker-1",
+        worker_name="worker-1",
         task_id=mw_dispatch.task_id,
         node_id=mw_dispatch.node_id,
         node_type=mw_dispatch.node_type,
@@ -521,7 +520,7 @@ async def test_next_request_fails_when_target_not_ready():
         middlewareId="mw-single",
         chainIndex=0,
     )
-    host_ready, error = await registry.handle_next_request(next_req, worker_id="worker-1")
+    host_ready, error = await registry.handle_next_request(next_req, worker_name="worker-1")
     assert host_ready == []
     assert error == "next_target_not_ready"
 

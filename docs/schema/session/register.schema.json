@@ -1,0 +1,44 @@
+{
+  "$id": "https://astraflow.example.com/schema/ws.register.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Register Payload",
+  "type": "object",
+  "required": ["capabilities"],
+  "properties": {
+    "capabilities": {
+      "type": "object",
+      "required": ["concurrency", "runtimes", "features"],
+      "properties": {
+        "concurrency": {
+          "type": "object",
+          "required": ["max_parallel"],
+          "properties": {
+            "max_parallel": { "type": "integer", "minimum": 1 },
+            "per_node_limits": {
+              "type": "object",
+              "additionalProperties": { "type": "integer", "minimum": 1 }
+            }
+          },
+          "additionalProperties": false
+        },
+        "runtimes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "features": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_types": {
+      "type": "array",
+      "description": "Business/extension payload types this endpoint understands (e.g. biz.exec.dispatch).",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    }
+  },
+  "additionalProperties": false
+}

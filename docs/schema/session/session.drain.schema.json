@@ -1,0 +1,11 @@
+{
+  "$id": "https://astraflow.example.com/schema/ws.session.drain.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Session Drain Payload",
+  "type": "object",
+  "properties": {
+    "reason": { "type": ["string", "null"] },
+    "deadline_ms": { "type": ["integer", "null"], "minimum": 0 }
+  },
+  "additionalProperties": false
+}

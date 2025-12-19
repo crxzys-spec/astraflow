@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **kind** | **string** |  | [default to undefined]
 **commandId** | **string** |  | [default to undefined]
-**workerId** | **string** |  | [default to undefined]
+**workerName** | **string** |  | [default to undefined]
 **error** | [**ResultError**](ResultError.md) |  | [default to undefined]
 
 ## Example
@@ -18,7 +18,7 @@ import { CommandErrorEvent } from './api';
 const instance: CommandErrorEvent = {
     kind,
     commandId,
-    workerId,
+    workerName,
     error,
 };
 ```

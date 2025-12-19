@@ -16,7 +16,7 @@
 
 export interface WorkerPackageSseEvent {
     'kind': WorkerPackageSseEventKindEnum;
-    'workerId': string;
+    'workerName': string;
     'package': string;
     'version'?: string | null;
     'status': WorkerPackageSseEventStatusEnum;

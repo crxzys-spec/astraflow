@@ -15,7 +15,7 @@ from typing import Any, Dict, Iterable
 from urllib.parse import urlparse
 from urllib.request import urlretrieve
 
-from ..config import WorkerSettings
+from worker.config import WorkerSettings
 from .registry import AdapterRegistry
 
 LOGGER = logging.getLogger(__name__)
@@ -74,6 +74,28 @@ class PackageManager:
         if not root.exists():
             return []
         return self._iter_installed_dirs(root)
+
+    def collect_inventory(self) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """List installed packages and register handlers for control-plane registration."""
+
+        inventory: list[dict[str, Any]] = []
+        manifest_payloads: list[dict[str, Any]] = []
+        for package_path in self.list_installed():
+            package_dir = Path(package_path)
+            try:
+                manifest = self._load_manifest(package_dir)
+            except Exception as exc:  # noqa: BLE001
+                LOGGER.warning("Failed to load manifest from %s: %s", package_dir, exc)
+                continue
+            name = manifest.get("name") or package_dir.name
+            version = manifest.get("version") or "unknown"
+            try:
+                self._register_handlers(package_dir, manifest)
+            except Exception as exc:  # noqa: BLE001
+                LOGGER.warning("Failed to register handlers for %s@%s: %s", name, version, exc)
+            inventory.append({"name": name, "version": version, "status": "installed"})
+            manifest_payloads.append({"name": name, "version": version, "manifest": manifest})
+        return inventory, manifest_payloads
 
     def _download(self, url: str, dest: Path) -> Path:
         parsed = urlparse(url)

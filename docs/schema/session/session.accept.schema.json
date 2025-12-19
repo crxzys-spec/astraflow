@@ -1,0 +1,15 @@
+{
+  "$id": "https://astraflow.example.com/schema/ws.session.accept.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Session Accept Payload",
+  "type": "object",
+  "required": ["session_id", "session_token", "worker_instance_id"],
+  "properties": {
+    "session_id": { "type": "string", "minLength": 1 },
+    "session_token": { "type": "string", "minLength": 1 },
+    "expires_at": { "type": ["string", "null"], "format": "date-time" },
+    "resumed": { "type": ["boolean", "null"] },
+    "worker_instance_id": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}

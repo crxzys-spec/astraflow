@@ -139,11 +139,11 @@ class RunsApiImpl(BaseRunsApi):
         from uuid import uuid4  # local import to avoid cycle
 
         from scheduler_api.control_plane.manager import worker_manager  # late import
-        from shared.models.ws.envelope import Role, Sender, WsEnvelope
-        from shared.models.ws.next import NextResponsePayload
+        from shared.models.session import Role, Sender, WsEnvelope
+        from shared.models.biz.exec.next.response import ExecMiddlewareNextResponse
 
-        for request_id, worker_id, run_id, node_id, middleware_id in cancelled:
-            payload = NextResponsePayload(
+        for request_id, worker_key, run_id, node_id, middleware_id in cancelled:
+            payload = ExecMiddlewareNextResponse(
                 requestId=request_id,
                 runId=run_id or "",
                 nodeId=node_id or "",
@@ -151,7 +151,7 @@ class RunsApiImpl(BaseRunsApi):
                 error={"code": "next_cancelled", "message": run_registry.get_next_error_message("next_cancelled")},
             )
             envelope = WsEnvelope(
-                type="middleware.next_response",
+                type="biz.exec.next.response",
                 id=str(uuid4()),
                 ts=datetime.now(timezone.utc),
                 corr=request_id,
@@ -160,7 +160,7 @@ class RunsApiImpl(BaseRunsApi):
                 sender=Sender(role=Role.scheduler, id=worker_manager.scheduler_id),
                 payload=payload.model_dump(by_alias=True, exclude_none=True),
             )
-            await worker_manager.send_envelope(worker_id, envelope)
+            await worker_manager.send_envelope(worker_key, envelope)
 
     async def get_run_definition(
         self,

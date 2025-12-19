@@ -33,10 +33,10 @@ This document captures the backend positioning for AstraFlow, detailing the role
 ### WebSocket Control Plane
 - **Worker ->Scheduler**: registration, heartbeat updates, execution results, incremental task feedback (progress/logs/LLM tokens), package install acknowledgements.
 - **Scheduler ->Worker**: package install/uninstall commands, manual controls (Drain/Rebind), task dispatch notifications.
-- **Specification**: WebSocket frame structure is defined in `docs/comm-protocol.md`, with authoritative JSON Schema under `docs/schema/ws/`.
+- **Specification**: WebSocket frame structure is defined in `docs/comm-protocol.md`, with authoritative JSON Schema under `docs/schema/session/`.
 - **Message format** (JSON examples):
   ```json
-  { "type": "register", "workerId": "...", "capabilities": [...] }
+  { "type": "register", "workerName": "...", "capabilities": [...] }
   { "type": "heartbeat", "status": { ... }, "packages": [ ... ] }
   { "type": "package.install", "package": "crawlerx_playwright", "version": "2025.10.0", "url": "...", "sha256": "..." }
   { "type": "task.dispatch", "runId": "...", "taskId": "...", "nodeId": "...", "package": {"name": "...", "version": "2025.10.0"}, "parameters": { ... } }
@@ -966,11 +966,11 @@ This payload is stored alongside the manifest-driven catalog. When a run is trig
 ## 8. Contract & SDK Generation
 
 - Adopt `openapi-generator` as the standard tooling for producing Scheduler REST client/server stubs from `docs/api/v1/openapi.yaml`, and wire the generation step into local dev tasks and CI.
-- For WebSocket payloads, continue sourcing types from `docs/schema/ws/*.json`; reuse the same generation pipeline to emit language-specific models so Scheduler and Worker share a single contract surface.
+- For WebSocket payloads, continue sourcing types from `docs/schema/session/*.json`; reuse the same generation pipeline to emit language-specific models so Scheduler and Worker share a single contract surface.
 
 ## 9. Manual WS Loop Validation
 
-1. Regenerate shared WS models if schemas changed: `python scripts/generate_ws_models.py`.
+1. Regenerate shared WS models if schemas changed: `python scripts/generate_protocol_models.py`.
 2. Launch the scheduler (e.g. `uvicorn scheduler_api.app:app --host 0.0.0.0 --port 8080`) so `/ws/worker` and REST `/api/v1/runs` are reachable.
 3. Start a worker with WebSocket transport enabled (`ASTRA_WORKER_TRANSPORT=websocket` or config file) so it handshakes, registers, and heartbeats against the scheduler. Populate the control-plane metadata via env vars or config, for example:
    ```env
@@ -999,7 +999,7 @@ This payload is stored alongside the manifest-driven catalog. When a run is trig
 See `docs/resource-affinity-and-artifacts.md` for the full design of artifact references, worker-side resource management, and scheduler affinity. Highlights:
 
 - Workers expose a unified `ResourceRegistry` to store large files, browser sessions, torch models, and other reusable assets, reporting their state via heartbeat metrics.
-- Result payloads can return lightweight references (`resourceId`, `workerId`, `type`, metadata) instead of inlining large data, while dispatch parameters support `resourceRef` to enforce worker affinity.
+- Result payloads can return lightweight references (`resourceId`, `workerName`, `type`, metadata) instead of inlining large data, while dispatch parameters support `resourceRef` to enforce worker affinity.
 - The scheduler maintains an affinity registry so follow-up tasks stick to the worker that owns the required resource; platform-level guardrails control inline size limits, TTL, and eviction policies.
 - Lifecycle hooks (register ->lease ->touch ->release ->cleanup) coordinate between packages, worker runtime, and scheduler to reclaim resources safely.
 - `/api/v1/runs` responses now include per-node state and aggregated artifacts so UIs can inspect which worker handled each step and which resources are available for reuse. Each node also exposes `pendingAck`, `dispatchId`, and `ackDeadline` so operators can spot dispatch retries or stalled acknowledgements directly from the REST view.

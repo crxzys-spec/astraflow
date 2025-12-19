@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **resourceId** | **string** |  | [default to undefined]
-**workerId** | **string** |  | [default to undefined]
+**workerName** | **string** |  | [default to undefined]
 **type** | **string** |  | [default to undefined]
 **sizeBytes** | **number** |  | [optional] [default to undefined]
 **inline** | **boolean** |  | [optional] [default to undefined]
@@ -20,7 +20,7 @@ import { RunArtifact } from './api';
 
 const instance: RunArtifact = {
     resourceId,
-    workerId,
+    workerName,
     type,
     sizeBytes,
     inline,

@@ -1,0 +1,35 @@
+{
+  "$id": "https://astraflow.example.com/schema/biz.exec.next.request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Exec Middleware Next Request",
+  "type": "object",
+  "required": ["requestId", "runId", "nodeId", "middlewareId"],
+  "properties": {
+    "requestId": { "type": "string", "minLength": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "nodeId": { "type": "string", "minLength": 1 },
+    "middlewareId": { "type": "string", "minLength": 1 },
+    "chainIndex": { "type": "integer", "minimum": 0 },
+    "hostCtx": {
+      "type": "object",
+      "description": "Host node context forwarded to the next middleware.",
+      "additionalProperties": true
+    },
+    "middlewareCtx": {
+      "type": "object",
+      "description": "Middleware-specific context for the next stage.",
+      "additionalProperties": true
+    },
+    "payload": {
+      "type": "object",
+      "description": "Adapter-emitted payload to pass to the next middleware/host.",
+      "additionalProperties": true
+    },
+    "timeoutMs": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Optional local timeout hint for the waiter."
+    }
+  },
+  "additionalProperties": false
+}

@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict
 
 from worker.agent.runner.context import ExecutionContext
-from shared.models.ws.feedback import FeedbackChannel
+from shared.models.biz.exec.feedback import Channel as FeedbackChannel
 
 LOGGER = logging.getLogger(__name__)
 

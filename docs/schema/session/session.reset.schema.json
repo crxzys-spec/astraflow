@@ -1,0 +1,13 @@
+{
+  "$id": "https://astraflow.example.com/schema/ws.session.reset.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Session Reset Payload",
+  "type": "object",
+  "required": ["code", "reason"],
+  "properties": {
+    "code": { "type": "string", "minLength": 1 },
+    "reason": { "type": "string", "minLength": 1 },
+    "retry_after_ms": { "type": ["integer", "null"], "minimum": 0 }
+  },
+  "additionalProperties": false
+}

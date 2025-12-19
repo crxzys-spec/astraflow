@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import argparse
 import errno
-import os
+import logging
+import socket
 import sys
 from pathlib import Path
 from typing import Final
 
 import uvicorn
-import socket
-import logging
 
 DEFAULT_HOST: Final[str] = "127.0.0.1"
 DEFAULT_PORT: Final[int] = 8080
@@ -24,32 +23,25 @@ WINDOWS_IN_USE_ERRORS: Final[set[int]] = {10013, 10048}
 DEFAULT_LOG_LEVEL: Final[str] = "info"
 
 
-def _truthy_env(var_name: str, default: bool = False) -> bool:
-    value = os.getenv(var_name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the scheduler API locally.")
-    parser.add_argument("--host", default=os.getenv("SCHEDULER_API_HOST", DEFAULT_HOST))
+    parser.add_argument("--host", default=None, help="Bind address (overrides settings/env).")
     parser.add_argument(
         "--port",
         type=int,
         default=None,
-        help="Port to bind to. Defaults to SCHEDULER_API_PORT or 8080.",
+        help="Port to bind to (overrides settings/env).",
     )
     parser.add_argument(
         "--reload",
         action="store_true",
-        help="Enable uvicorn auto-reload (or set SCHEDULER_API_RELOAD=1).",
+        help="Enable uvicorn auto-reload (overrides settings/env).",
     )
     parser.add_argument(
         "--log-level",
         choices=["critical", "error", "warning", "info", "debug", "trace"],
         default=None,
-        help="Log level for scheduler and uvicorn output (or set SCHEDULER_API_LOG_LEVEL).",
+        help="Log level for scheduler and uvicorn output (overrides settings/env).",
     )
     return parser.parse_args()
 
@@ -99,11 +91,15 @@ def main() -> None:
     sys.path.insert(0, str(repo_root))
     sys.path.insert(0, str(scheduler_src))
 
-    host = args.host
-    port_env = os.getenv("SCHEDULER_API_PORT")
-    port = args.port or (int(port_env) if port_env else DEFAULT_PORT)
-    reload = args.reload or _truthy_env("SCHEDULER_API_RELOAD")
-    log_level = (args.log_level or os.getenv("SCHEDULER_API_LOG_LEVEL") or DEFAULT_LOG_LEVEL).lower()
+    # Import after sys.path is adjusted
+    from scheduler_api.config.settings import get_api_settings
+
+    api_settings = get_api_settings()
+
+    host = args.host or api_settings.host
+    port = args.port or api_settings.port
+    reload = args.reload or api_settings.reload
+    log_level = (args.log_level or api_settings.log_level or DEFAULT_LOG_LEVEL).lower()
     if log_level == "trace":
         # Uvicorn treats "trace" as the most verbose level; map to DEBUG for stdlib logging.
         root_level = logging.DEBUG

@@ -1,0 +1,13 @@
+{
+  "$id": "https://astraflow.example.com/schema/ws.session.resume.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Session Resume Payload",
+  "type": "object",
+  "required": ["session_id", "session_token"],
+  "properties": {
+    "session_id": { "type": "string", "minLength": 1 },
+    "session_token": { "type": "string", "minLength": 1 },
+    "last_seen_seq": { "type": ["integer", "null"], "minimum": 0 }
+  },
+  "additionalProperties": false
+}

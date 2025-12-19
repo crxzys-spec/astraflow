@@ -1,0 +1,14 @@
+{
+  "$id": "https://astraflow.example.com/schema/biz.pkg.install.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Package Install Command",
+  "type": "object",
+  "required": ["name", "version"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "url": { "type": "string", "format": "uri" },
+    "sha256": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}

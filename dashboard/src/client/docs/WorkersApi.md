@@ -4,9 +4,9 @@ All URIs are relative to *https://scheduler.example.com*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**getWorker**](#getworker) | **GET** /api/v1/workers/{workerId} | Get worker snapshot|
+|[**getWorker**](#getworker) | **GET** /api/v1/workers/{workerName} | Get worker snapshot|
 |[**listWorkers**](#listworkers) | **GET** /api/v1/workers | List workers (scheduler view)|
-|[**sendWorkerCommand**](#sendworkercommand) | **POST** /api/v1/workers/{workerId}/commands | Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)|
+|[**sendWorkerCommand**](#sendworkercommand) | **POST** /api/v1/workers/{workerName}/commands | Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)|
 
 # **getWorker**
 > Worker getWorker()
@@ -23,10 +23,10 @@ import {
 const configuration = new Configuration();
 const apiInstance = new WorkersApi(configuration);
 
-let workerId: string; // (default to undefined)
+let workerName: string; // (default to undefined)
 
 const { status, data } = await apiInstance.getWorker(
-    workerId
+    workerName
 );
 ```
 
@@ -34,7 +34,7 @@ const { status, data } = await apiInstance.getWorker(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **workerId** | [**string**] |  | defaults to undefined|
+| **workerName** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -131,12 +131,12 @@ import {
 const configuration = new Configuration();
 const apiInstance = new WorkersApi(configuration);
 
-let workerId: string; // (default to undefined)
+let workerName: string; // (default to undefined)
 let workerCommand: WorkerCommand; //
 let idempotencyKey: string; //Optional idempotency key for safe retries; if reused with a different body, return 409 (optional) (default to undefined)
 
 const { status, data } = await apiInstance.sendWorkerCommand(
-    workerId,
+    workerName,
     workerCommand,
     idempotencyKey
 );
@@ -147,7 +147,7 @@ const { status, data } = await apiInstance.sendWorkerCommand(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **workerCommand** | **WorkerCommand**|  | |
-| **workerId** | [**string**] |  | defaults to undefined|
+| **workerName** | [**string**] |  | defaults to undefined|
 | **idempotencyKey** | [**string**] | Optional idempotency key for safe retries; if reused with a different body, return 409 | (optional) defaults to undefined|
 
 

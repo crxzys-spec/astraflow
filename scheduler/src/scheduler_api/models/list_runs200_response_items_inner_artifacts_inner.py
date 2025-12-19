@@ -34,13 +34,13 @@ class ListRuns200ResponseItemsInnerArtifactsInner(BaseModel):
     ListRuns200ResponseItemsInnerArtifactsInner
     """ # noqa: E501
     resource_id: StrictStr = Field(alias="resourceId")
-    worker_id: StrictStr = Field(alias="workerId")
+    worker_name: StrictStr = Field(alias="workerName")
     type: StrictStr
     size_bytes: Optional[Annotated[int, Field(strict=True, ge=0)]] = Field(default=None, alias="sizeBytes")
     inline: Optional[StrictBool] = None
     expires_at: Optional[datetime] = Field(default=None, alias="expiresAt")
     metadata: Optional[Dict[str, Any]] = None
-    __properties: ClassVar[List[str]] = ["resourceId", "workerId", "type", "sizeBytes", "inline", "expiresAt", "metadata"]
+    __properties: ClassVar[List[str]] = ["resourceId", "workerName", "type", "sizeBytes", "inline", "expiresAt", "metadata"]
 
     model_config = {
         "populate_by_name": True,
@@ -92,7 +92,7 @@ class ListRuns200ResponseItemsInnerArtifactsInner(BaseModel):
 
         _obj = cls.model_validate({
             "resourceId": obj.get("resourceId"),
-            "workerId": obj.get("workerId"),
+            "workerName": obj.get("workerName"),
             "type": obj.get("type"),
             "sizeBytes": obj.get("sizeBytes"),
             "inline": obj.get("inline"),

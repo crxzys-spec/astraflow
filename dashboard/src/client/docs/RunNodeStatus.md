@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **nodeId** | **string** |  | [default to undefined]
 **taskId** | **string** |  | [default to undefined]
 **status** | [**RunStatus**](RunStatus.md) |  | [default to undefined]
-**workerId** | **string** |  | [optional] [default to undefined]
+**workerName** | **string** |  | [optional] [default to undefined]
 **startedAt** | **string** |  | [optional] [default to undefined]
 **finishedAt** | **string** |  | [optional] [default to undefined]
 **seq** | **number** |  | [optional] [default to undefined]
@@ -32,7 +32,7 @@ const instance: RunNodeStatus = {
     nodeId,
     taskId,
     status,
-    workerId,
+    workerName,
     startedAt,
     finishedAt,
     seq,

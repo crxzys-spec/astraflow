@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **kind** | **string** |  | [optional] [default to undefined]
 **commandId** | **string** |  | [optional] [default to undefined]
-**workerId** | **string** |  | [optional] [default to undefined]
+**workerName** | **string** |  | [optional] [default to undefined]
 **error** | [**ResultError**](ResultError.md) |  | [optional] [default to undefined]
 
 ## Example
@@ -18,7 +18,7 @@ import { CommandError } from './api';
 const instance: CommandError = {
     kind,
     commandId,
-    workerId,
+    workerName,
     error,
 };
 ```

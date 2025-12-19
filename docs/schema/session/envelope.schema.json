@@ -1,0 +1,43 @@
+{
+  "$id": "https://astraflow.example.com/schema/ws.envelope.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WS Envelope",
+  "type": "object",
+  "required": ["type", "id", "ts", "tenant", "sender", "payload"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Message type; reserve `control.*` for built-in session frames, `biz.*` for first-party business extensions, `ext.vendor.*` for third-party extensions."
+    },
+    "id": { "type": "string", "minLength": 1 },
+    "ts": { "type": "string", "format": "date-time" },
+    "corr": { "type": ["string", "null"] },
+    "seq": { "type": ["integer", "null"], "minimum": 0 },
+    "session_seq": { "type": ["integer", "null"], "minimum": 0 },
+    "tenant": { "type": "string", "minLength": 1 },
+    "sender": {
+      "type": "object",
+      "required": ["role", "id"],
+      "properties": {
+        "role": { "type": "string", "enum": ["scheduler", "worker"] },
+        "id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "ack": {
+      "type": "object",
+      "properties": {
+        "for": { "type": ["string", "null"] },
+        "request": { "type": ["boolean", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "flags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "payload": { "type": "object" }
+  },
+  "additionalProperties": false
+}

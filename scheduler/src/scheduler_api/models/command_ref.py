@@ -33,9 +33,9 @@ class CommandRef(BaseModel):
     CommandRef
     """ # noqa: E501
     command_id: StrictStr = Field(alias="commandId")
-    worker_id: StrictStr = Field(alias="workerId")
+    worker_name: StrictStr = Field(alias="workerName")
     accepted_at: datetime = Field(alias="acceptedAt")
-    __properties: ClassVar[List[str]] = ["commandId", "workerId", "acceptedAt"]
+    __properties: ClassVar[List[str]] = ["commandId", "workerName", "acceptedAt"]
 
     model_config = {
         "populate_by_name": True,
@@ -87,7 +87,7 @@ class CommandRef(BaseModel):
 
         _obj = cls.model_validate({
             "commandId": obj.get("commandId"),
-            "workerId": obj.get("workerId"),
+            "workerName": obj.get("workerName"),
             "acceptedAt": obj.get("acceptedAt")
         })
         return _obj

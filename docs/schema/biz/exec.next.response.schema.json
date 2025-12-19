@@ -1,0 +1,29 @@
+{
+  "$id": "https://astraflow.example.com/schema/biz.exec.next.response.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Exec Middleware Next Response",
+  "type": "object",
+  "required": ["requestId", "runId", "nodeId", "middlewareId"],
+  "properties": {
+    "requestId": { "type": "string", "minLength": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "nodeId": { "type": "string", "minLength": 1 },
+    "middlewareId": { "type": "string", "minLength": 1 },
+    "result": {
+      "type": "object",
+      "description": "Returned payload from the downstream middleware/host.",
+      "additionalProperties": true
+    },
+    "error": {
+      "type": "object",
+      "description": "Structured error returned by downstream middleware/host.",
+      "additionalProperties": true
+    },
+    "trace": {
+      "type": "object",
+      "description": "Optional trace/diagnostic information for the call.",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,30 @@
+{
+  "$id": "https://astraflow.example.com/schema/biz.pkg.catalog.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Package Catalog",
+  "type": "object",
+  "required": ["packages"],
+  "properties": {
+    "packages": {
+      "type": "array",
+      "description": "List of packages the sender can serve.",
+      "items": {
+        "type": "object",
+        "required": ["name", "version", "status", "manifest"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "enum": ["installed", "missing", "failed"] },
+          "source": { "type": "string", "description": "Optional source identifier or URI." },
+          "manifest": {
+            "$ref": "../manifest.json#",
+            "description": "Full package manifest definition (see docs/schema/manifest.json)."
+          },
+          "metadata": { "type": "object", "additionalProperties": true }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

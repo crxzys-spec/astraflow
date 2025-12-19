@@ -6,9 +6,6 @@ import pytest
 from scheduler_api.control_plane.run_registry import RunRegistry
 from scheduler_api.models.start_run_request import StartRunRequest
 from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkflow
-from shared.models.ws.cmd.dispatch import Constraints
-
-
 def _basic_workflow() -> StartRunRequestWorkflow:
     return StartRunRequestWorkflow.from_dict(
         {
@@ -41,7 +38,7 @@ async def test_worker_cancel_resets_node_for_retry():
     # simulate dispatch so node is in running state
     await registry.mark_dispatched(
         "run-cancel",
-        worker_id="worker-1",
+        worker_name="worker-1",
         task_id="task-1",
         node_id="node-1",
         node_type="example.pkg.source",
@@ -58,7 +55,7 @@ async def test_worker_cancel_resets_node_for_retry():
     assert record is not None
     node = record.nodes["node-1"]
     assert node.status == "queued"
-    assert node.worker_id is None
+    assert node.worker_name is None
     ready = await registry.collect_ready_nodes("run-cancel")
     assert ready, "Node should be ready for retry after worker cancel"
     assert ready[0].node_id == "node-1"

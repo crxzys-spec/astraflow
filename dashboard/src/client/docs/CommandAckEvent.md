@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **kind** | **string** |  | [default to undefined]
 **commandId** | **string** |  | [default to undefined]
-**workerId** | **string** |  | [default to undefined]
+**workerName** | **string** |  | [default to undefined]
 **receivedAt** | **string** |  | [optional] [default to undefined]
 
 ## Example
@@ -18,7 +18,7 @@ import { CommandAckEvent } from './api';
 const instance: CommandAckEvent = {
     kind,
     commandId,
-    workerId,
+    workerName,
     receivedAt,
 };
 ```

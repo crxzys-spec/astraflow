@@ -7,8 +7,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
-from shared.models.ws.error import ErrorPayload
-from shared.models.ws.cmd.dispatch import Affinity, CommandDispatchPayload, Constraints, ResourceRef
+from shared.models.biz.exec.error import ExecErrorPayload
+from shared.models.biz.exec.dispatch import Affinity, ExecDispatchPayload, Constraints, ResourceRef
 
 from .manager import WorkerSession, worker_manager
 from .run_registry import DispatchRequest, FINAL_STATUSES, run_registry
@@ -144,7 +144,7 @@ class RunOrchestrator:
                 request.node_id,
                 exc,
             )
-            error_payload = ErrorPayload(
+            error_payload = ExecErrorPayload(
                 code="E.DISPATCH.INVALID_METADATA",
                 message=str(exc),
                 context={
@@ -175,7 +175,7 @@ class RunOrchestrator:
                 "Dispatch failed run=%s node=%s worker=%s error=%s",
                 request.run_id,
                 request.node_id,
-                session.worker_id,
+                session.worker_name,
                 exc,
             )
             await self._handle_retry(request, str(exc))
@@ -184,7 +184,7 @@ class RunOrchestrator:
         ack_deadline = datetime.now(timezone.utc) + timedelta(seconds=self._ack_timeout_seconds)
         record = await run_registry.mark_dispatched(
             request.run_id,
-            worker_id=session.worker_id,
+            worker_name=session.worker_name,
             task_id=request.task_id,
             node_id=request.node_id,
             node_type=request.node_type,
@@ -215,7 +215,7 @@ class RunOrchestrator:
             "Dispatched run=%s node=%s worker=%s dispatch_id=%s",
             request.run_id,
             request.node_id,
-            session.worker_id,
+            session.worker_name,
             dispatch_id,
         )
 
@@ -258,23 +258,14 @@ class RunOrchestrator:
         await self._handle_retry(request, "ack timeout")
 
     def _select_worker(self, request: DispatchRequest) -> Optional[WorkerSession]:
-        if request.preferred_worker_id:
-            session = worker_manager.get_session(request.preferred_worker_id)
-            if not session or session.tenant != request.tenant:
-                return None
-            if not self._worker_supports_package(session, request.package_name, request.package_version):
-                return None
-            return session
         return worker_manager.select_session(
             tenant=request.tenant,
-            package_name=request.package_name,
-            package_version=request.package_version,
         )
 
     @staticmethod
     def _worker_supports_package(session: WorkerSession, package_name: str, package_version: str) -> bool:
-        packages = session.packages or []
-        return any(pkg.name == package_name and pkg.version == package_version for pkg in packages)
+        # In the new protocol, package inventory is advertised via biz.pkg.catalog; selection is tenant-based here.
+        return True
 
     @staticmethod
     def _validate_middleware_metadata(request: DispatchRequest) -> None:
@@ -299,10 +290,11 @@ class RunOrchestrator:
             if request.chain_index is not None:
                 raise ValueError("host dispatch must not include chain_index when middleware_chain is present")
 
-    def _build_payload(self, request: DispatchRequest) -> CommandDispatchPayload:
+    def _build_payload(self, request: DispatchRequest) -> ExecDispatchPayload:
         resource_refs = [ResourceRef(**ref) for ref in request.resource_refs]
         affinity = Affinity(**request.affinity) if request.affinity else None
-        constraints = Constraints()
+        constraints_data = getattr(request, "constraints", None) or {}
+        constraints = Constraints(**constraints_data) if constraints_data else Constraints()
 
         # sanity check middleware metadata before payload construction
         try:
@@ -316,7 +308,7 @@ class RunOrchestrator:
             )
             raise
 
-        return CommandDispatchPayload(
+        return ExecDispatchPayload(
             run_id=request.run_id,
             task_id=request.task_id,
             node_id=request.node_id,
@@ -353,7 +345,7 @@ class RunOrchestrator:
                 request.node_id,
                 message,
             )
-            error_payload = ErrorPayload(
+            error_payload = ExecErrorPayload(
                 code="E.DISPATCH.UNAVAILABLE",
                 message=message,
                 context={
@@ -361,7 +353,7 @@ class RunOrchestrator:
                     "details": {
                         "run_id": request.run_id,
                         "node_id": request.node_id,
-                        "worker": request.preferred_worker_id,
+                        "worker": request.preferred_worker_name,
                     },
                 },
             )

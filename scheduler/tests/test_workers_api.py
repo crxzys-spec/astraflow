@@ -46,7 +46,7 @@ def test_get_worker(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "GET",
-    #    "/api/v1/workers/{workerId}".format(workerId='worker_id_example'),
+    #    "/api/v1/workers/{workerName}".format(workerName='worker_name_example'),
     #    headers=headers,
     #)
 
@@ -68,7 +68,7 @@ def test_send_worker_command(client: TestClient):
     # uncomment below to make a request
     #response = client.request(
     #    "POST",
-    #    "/api/v1/workers/{workerId}/commands".format(workerId='worker_id_example'),
+    #    "/api/v1/workers/{workerName}/commands".format(workerName='worker_name_example'),
     #    headers=headers,
     #    json=send_worker_command_request,
     #)

@@ -29,14 +29,14 @@ class BaseWorkersApi:
 
     async def get_worker(
         self,
-        workerId: StrictStr,
+        workerName: StrictStr,
     ) -> Worker:
         ...
 
 
     async def send_worker_command(
         self,
-        workerId: StrictStr,
+        workerName: StrictStr,
         worker_command: WorkerCommand,
         idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")],
     ) -> CommandRef:

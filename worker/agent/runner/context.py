@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from shared.models.ws.cmd.dispatch import ResourceRef
+    from shared.models.biz.exec.dispatch import ResourceRef
     from ..resource_registry import ResourceRegistry, ResourceHandle
     from ..feedback import FeedbackPublisher
 

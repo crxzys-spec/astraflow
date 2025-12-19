@@ -38,7 +38,7 @@ class RunNodeStatus(BaseModel):
     node_id: StrictStr = Field(alias="nodeId")
     task_id: StrictStr = Field(alias="taskId")
     status: RunStatus
-    worker_id: Optional[StrictStr] = Field(default=None, alias="workerId")
+    worker_name: Optional[StrictStr] = Field(default=None, alias="workerName")
     started_at: Optional[datetime] = Field(default=None, alias="startedAt")
     finished_at: Optional[datetime] = Field(default=None, alias="finishedAt")
     seq: Optional[StrictInt] = None
@@ -52,7 +52,7 @@ class RunNodeStatus(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
     state: Optional[WorkflowNodeState] = None
     error: Optional[ResultError] = None
-    __properties: ClassVar[List[str]] = ["nodeId", "taskId", "status", "workerId", "startedAt", "finishedAt", "seq", "pendingAck", "dispatchId", "ackDeadline", "resourceRefs", "affinity", "artifacts", "result", "metadata", "state", "error"]
+    __properties: ClassVar[List[str]] = ["nodeId", "taskId", "status", "workerName", "startedAt", "finishedAt", "seq", "pendingAck", "dispatchId", "ackDeadline", "resourceRefs", "affinity", "artifacts", "result", "metadata", "state", "error"]
 
     model_config = {
         "populate_by_name": True,
@@ -97,10 +97,10 @@ class RunNodeStatus(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of error
         if self.error:
             _dict['error'] = self.error.to_dict()
-        # set to None if worker_id (nullable) is None
+        # set to None if worker_name (nullable) is None
         # and model_fields_set contains the field
-        if self.worker_id is None and "worker_id" in self.model_fields_set:
-            _dict['workerId'] = None
+        if self.worker_name is None and "worker_name" in self.model_fields_set:
+            _dict['workerName'] = None
 
         # set to None if started_at (nullable) is None
         # and model_fields_set contains the field
@@ -162,7 +162,7 @@ class RunNodeStatus(BaseModel):
             "nodeId": obj.get("nodeId"),
             "taskId": obj.get("taskId"),
             "status": obj.get("status"),
-            "workerId": obj.get("workerId"),
+            "workerName": obj.get("workerName"),
             "startedAt": obj.get("startedAt"),
             "finishedAt": obj.get("finishedAt"),
             "seq": obj.get("seq"),

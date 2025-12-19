@@ -9,7 +9,7 @@ Name | Type | Description | Notes
 **runId** | **string** |  | [default to undefined]
 **nodeId** | **string** |  | [default to undefined]
 **status** | **string** |  | [default to undefined]
-**workerId** | **string** |  | [optional] [default to undefined]
+**workerName** | **string** |  | [optional] [default to undefined]
 **seq** | **number** |  | [optional] [default to undefined]
 **ackPending** | **boolean** |  | [optional] [default to undefined]
 
@@ -23,7 +23,7 @@ const instance: NodeStatusEvent = {
     runId,
     nodeId,
     status,
-    workerId,
+    workerName,
     seq,
     ackPending,
 };

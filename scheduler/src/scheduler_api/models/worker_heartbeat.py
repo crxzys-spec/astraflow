@@ -33,10 +33,10 @@ class WorkerHeartbeat(BaseModel):
     WorkerHeartbeat
     """ # noqa: E501
     kind: Optional[Any] = None
-    worker_id: Optional[StrictStr] = Field(default=None, alias="workerId")
+    worker_name: Optional[StrictStr] = Field(default=None, alias="workerName")
     at: Optional[datetime] = None
     queues: Optional[List[StrictStr]] = None
-    __properties: ClassVar[List[str]] = ["kind", "workerId", "at", "queues"]
+    __properties: ClassVar[List[str]] = ["kind", "workerName", "at", "queues"]
 
     model_config = {
         "populate_by_name": True,
@@ -93,7 +93,7 @@ class WorkerHeartbeat(BaseModel):
 
         _obj = cls.model_validate({
             "kind": obj.get("kind"),
-            "workerId": obj.get("workerId"),
+            "workerName": obj.get("workerName"),
             "at": obj.get("at"),
             "queues": obj.get("queues")
         })

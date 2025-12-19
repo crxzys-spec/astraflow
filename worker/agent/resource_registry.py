@@ -37,16 +37,16 @@ class ResourceHandle:
 class ResourceRegistry:
     """Tracks reusable resources (files, sessions, models) for worker packages."""
 
-    def __init__(self, *, worker_id: str, base_dir: Optional[Path] = None) -> None:
-        self._worker_id = worker_id
+    def __init__(self, *, worker_name: str, base_dir: Optional[Path] = None) -> None:
+        self._worker_name = worker_name
         self._base_dir = base_dir
         self._handles: Dict[str, ResourceHandle] = {}
         self._scope_index: Dict[str, set[str]] = {}
         self._lock = threading.RLock()
 
     @property
-    def worker_id(self) -> str:
-        return self._worker_id
+    def worker_name(self) -> str:
+        return self._worker_name
 
     @property
     def base_dir(self) -> Optional[Path]:
@@ -202,7 +202,7 @@ class ResourceRegistry:
                 raise KeyError(f"resource {resource_id} not found")
         descriptor: Dict[str, Any] = {
             "resource_id": resource_id,
-            "worker_id": self._worker_id,
+            "worker_name": self._worker_name,
             "type": handle.type,
         }
         if handle.size_bytes is not None:

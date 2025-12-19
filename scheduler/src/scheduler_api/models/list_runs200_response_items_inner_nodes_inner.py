@@ -37,7 +37,7 @@ class ListRuns200ResponseItemsInnerNodesInner(BaseModel):
     node_id: StrictStr = Field(alias="nodeId")
     task_id: StrictStr = Field(alias="taskId")
     status: StrictStr
-    worker_id: Optional[StrictStr] = Field(default=None, alias="workerId")
+    worker_name: Optional[StrictStr] = Field(default=None, alias="workerName")
     started_at: Optional[datetime] = Field(default=None, alias="startedAt")
     finished_at: Optional[datetime] = Field(default=None, alias="finishedAt")
     seq: Optional[StrictInt] = None
@@ -51,7 +51,7 @@ class ListRuns200ResponseItemsInnerNodesInner(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
     state: Optional[ListRuns200ResponseItemsInnerNodesInnerState] = None
     error: Optional[ListRuns200ResponseItemsInnerError] = None
-    __properties: ClassVar[List[str]] = ["nodeId", "taskId", "status", "workerId", "startedAt", "finishedAt", "seq", "pendingAck", "dispatchId", "ackDeadline", "resourceRefs", "affinity", "artifacts", "result", "metadata", "state", "error"]
+    __properties: ClassVar[List[str]] = ["nodeId", "taskId", "status", "workerName", "startedAt", "finishedAt", "seq", "pendingAck", "dispatchId", "ackDeadline", "resourceRefs", "affinity", "artifacts", "result", "metadata", "state", "error"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
@@ -118,7 +118,7 @@ class ListRuns200ResponseItemsInnerNodesInner(BaseModel):
             "nodeId": obj.get("nodeId"),
             "taskId": obj.get("taskId"),
             "status": obj.get("status"),
-            "workerId": obj.get("workerId"),
+            "workerName": obj.get("workerName"),
             "startedAt": obj.get("startedAt"),
             "finishedAt": obj.get("finishedAt"),
             "seq": obj.get("seq"),

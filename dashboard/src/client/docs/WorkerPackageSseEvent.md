@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **kind** | **string** |  | [default to undefined]
-**workerId** | **string** |  | [default to undefined]
+**workerName** | **string** |  | [default to undefined]
 **_package** | **string** |  | [default to undefined]
 **version** | **string** |  | [optional] [default to undefined]
 **status** | **string** |  | [default to undefined]
@@ -19,7 +19,7 @@ import { WorkerPackageSseEvent } from './api';
 
 const instance: WorkerPackageSseEvent = {
     kind,
-    workerId,
+    workerName,
     _package,
     version,
     status,

@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **kind** | **string** |  | [optional] [default to undefined]
 **commandId** | **string** |  | [optional] [default to undefined]
-**workerId** | **string** |  | [optional] [default to undefined]
+**workerName** | **string** |  | [optional] [default to undefined]
 **receivedAt** | **string** |  | [optional] [default to undefined]
 
 ## Example
@@ -18,7 +18,7 @@ import { CommandAck } from './api';
 const instance: CommandAck = {
     kind,
     commandId,
-    workerId,
+    workerName,
     receivedAt,
 };
 ```

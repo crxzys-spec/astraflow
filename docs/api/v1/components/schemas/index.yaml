@@ -86,12 +86,12 @@ RunArtifact:
   type: object
   required:
   - resourceId
-  - workerId
+  - workerName
   - type
   properties:
     resourceId:
       type: string
-    workerId:
+    workerName:
       type: string
     type:
       type: string
@@ -127,7 +127,7 @@ RunNodeStatus:
       type: string
     status:
       $ref: '#/RunStatus'
-    workerId:
+    workerName:
       type: string
       nullable: true
     startedAt:
@@ -985,7 +985,7 @@ UiEventScope:
     runId:
       type: string
       nullable: true
-    workerId:
+    workerName:
       type: string
       nullable: true
     clientSessionId:
@@ -1144,7 +1144,7 @@ NodeStatusEvent:
       - completed
       - failed
       - cancelled
-    workerId:
+    workerName:
       type: string
       nullable: true
     seq:
@@ -1291,13 +1291,13 @@ CommandAckEvent:
   required:
   - kind
   - commandId
-  - workerId
+  - workerName
   properties:
     kind:
       const: command.ack
     commandId:
       type: string
-    workerId:
+    workerName:
       type: string
     receivedAt:
       type: string
@@ -1308,14 +1308,14 @@ CommandErrorEvent:
   required:
   - kind
   - commandId
-  - workerId
+  - workerName
   - error
   properties:
     kind:
       const: command.error
     commandId:
       type: string
-    workerId:
+    workerName:
       type: string
     error:
       $ref: '#/ResultError'
@@ -1323,12 +1323,12 @@ WorkerHeartbeatEvent:
   type: object
   required:
   - kind
-  - workerId
+  - workerName
   - at
   properties:
     kind:
       const: worker.heartbeat
-    workerId:
+    workerName:
       type: string
     at:
       type: string
@@ -1346,13 +1346,13 @@ WorkerPackageSseEvent:
   type: object
   required:
   - kind
-  - workerId
+  - workerName
   - package
   - status
   properties:
     kind:
       const: worker.package
-    workerId:
+    workerName:
       type: string
     package:
       type: string
@@ -1607,12 +1607,12 @@ CommandRef:
   type: object
   required:
   - commandId
-  - workerId
+  - workerName
   - acceptedAt
   properties:
     commandId:
       type: string
-    workerId:
+    workerName:
       type: string
     acceptedAt:
       type: string
@@ -1748,7 +1748,7 @@ WorkerHeartbeat:
   properties:
     kind:
       const: worker.heartbeat
-    workerId:
+    workerName:
       type: string
     at:
       type: string
@@ -1762,7 +1762,7 @@ WorkerPackageEvent:
   properties:
     kind:
       const: worker.package
-    workerId:
+    workerName:
       type: string
     name:
       type: string
@@ -1787,7 +1787,7 @@ CommandAck:
       const: command.ack
     commandId:
       type: string
-    workerId:
+    workerName:
       type: string
     receivedAt:
       type: string
@@ -1799,7 +1799,7 @@ CommandError:
       const: command.error
     commandId:
       type: string
-    workerId:
+    workerName:
       type: string
     error:
       $ref: '#/ResultError'

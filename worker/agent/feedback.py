@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Iterable, Optional, TYPE_CHECKING, Union
+from typing import Any, Iterable, Optional, Protocol, TYPE_CHECKING, Union
 
-from shared.models.ws.feedback import FeedbackChannel, FeedbackChunk, FeedbackPayload
+from shared.models.biz.exec.feedback import Channel, FeedbackChunk, ExecFeedbackPayload
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .connection import ControlPlaneConnection
+    from shared.models.biz.exec.feedback import ExecFeedbackPayload as _ExecFeedbackPayload
+
+
+class _FeedbackSender(Protocol):
+    async def send_feedback(self, payload: "_ExecFeedbackPayload", *, corr: Optional[str] = None, seq: Optional[int] = None) -> None: ...
 
 FeedbackChunkLike = Union[FeedbackChunk, dict[str, Any]]
 
@@ -23,11 +27,11 @@ class FeedbackPublisher:
 
     def __init__(
         self,
-        connection: "ControlPlaneConnection",
+        connection: "_FeedbackSender",
         *,
         run_id: str,
         task_id: str,
-        default_channel: FeedbackChannel = FeedbackChannel.log,
+        default_channel: Channel = Channel.log,
     ) -> None:
         self._connection = connection
         self._run_id = run_id
@@ -68,7 +72,7 @@ class FeedbackPublisher:
                     )
                     chunk_payload.append(parsed)
 
-        payload = FeedbackPayload(
+        payload = ExecFeedbackPayload(
             run_id=self._run_id,
             task_id=self._task_id,
             stage=stage,
@@ -107,14 +111,14 @@ class FeedbackPublisher:
         self,
         text: str,
         *,
-        channel: FeedbackChannel | str = FeedbackChannel.log,
+        channel: Channel | str = Channel.log,
         stage: Optional[str] = None,
         progress: Optional[float] = None,
         metadata: Optional[dict[str, Any]] = None,
     ) -> None:
         """Shortcut for emitting a textual chunk."""
 
-        feedback_channel = FeedbackChannel(channel) if isinstance(channel, str) else channel
+        feedback_channel = Channel(channel) if isinstance(channel, str) else channel
         await self.send(
             stage=stage,
             progress=progress,

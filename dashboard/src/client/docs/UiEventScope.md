@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **tenant** | **string** |  | [default to undefined]
 **runId** | **string** |  | [optional] [default to undefined]
-**workerId** | **string** |  | [optional] [default to undefined]
+**workerName** | **string** |  | [optional] [default to undefined]
 **clientSessionId** | **string** |  | [optional] [default to undefined]
 **clientInstanceId** | **string** |  | [optional] [default to undefined]
 
@@ -19,7 +19,7 @@ import { UiEventScope } from './api';
 const instance: UiEventScope = {
     tenant,
     runId,
-    workerId,
+    workerName,
     clientSessionId,
     clientInstanceId,
 };

@@ -37,15 +37,15 @@ export const WorkersApiAxiosParamCreator = function (configuration?: Configurati
         /**
          * 
          * @summary Get worker snapshot
-         * @param {string} workerId 
+         * @param {string} workerName 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getWorker: async (workerId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'workerId' is not null or undefined
-            assertParamExists('getWorker', 'workerId', workerId)
-            const localVarPath = `/api/v1/workers/{workerId}`
-                .replace(`{${"workerId"}}`, encodeURIComponent(String(workerId)));
+        getWorker: async (workerName: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'workerName' is not null or undefined
+            assertParamExists('getWorker', 'workerName', workerName)
+            const localVarPath = `/api/v1/workers/{workerName}`
+                .replace(`{${"workerName"}}`, encodeURIComponent(String(workerName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -124,19 +124,19 @@ export const WorkersApiAxiosParamCreator = function (configuration?: Configurati
         /**
          * 
          * @summary Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)
-         * @param {string} workerId 
+         * @param {string} workerName 
          * @param {WorkerCommand} workerCommand 
          * @param {string} [idempotencyKey] Optional idempotency key for safe retries; if reused with a different body, return 409
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        sendWorkerCommand: async (workerId: string, workerCommand: WorkerCommand, idempotencyKey?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'workerId' is not null or undefined
-            assertParamExists('sendWorkerCommand', 'workerId', workerId)
+        sendWorkerCommand: async (workerName: string, workerCommand: WorkerCommand, idempotencyKey?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'workerName' is not null or undefined
+            assertParamExists('sendWorkerCommand', 'workerName', workerName)
             // verify required parameter 'workerCommand' is not null or undefined
             assertParamExists('sendWorkerCommand', 'workerCommand', workerCommand)
-            const localVarPath = `/api/v1/workers/{workerId}/commands`
-                .replace(`{${"workerId"}}`, encodeURIComponent(String(workerId)));
+            const localVarPath = `/api/v1/workers/{workerName}/commands`
+                .replace(`{${"workerName"}}`, encodeURIComponent(String(workerName)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -181,12 +181,12 @@ export const WorkersApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Get worker snapshot
-         * @param {string} workerId 
+         * @param {string} workerName 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getWorker(workerId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Worker>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getWorker(workerId, options);
+        async getWorker(workerName: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Worker>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getWorker(workerName, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['WorkersApi.getWorker']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -209,14 +209,14 @@ export const WorkersApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)
-         * @param {string} workerId 
+         * @param {string} workerName 
          * @param {WorkerCommand} workerCommand 
          * @param {string} [idempotencyKey] Optional idempotency key for safe retries; if reused with a different body, return 409
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async sendWorkerCommand(workerId: string, workerCommand: WorkerCommand, idempotencyKey?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<CommandRef>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.sendWorkerCommand(workerId, workerCommand, idempotencyKey, options);
+        async sendWorkerCommand(workerName: string, workerCommand: WorkerCommand, idempotencyKey?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<CommandRef>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.sendWorkerCommand(workerName, workerCommand, idempotencyKey, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['WorkersApi.sendWorkerCommand']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -233,12 +233,12 @@ export const WorkersApiFactory = function (configuration?: Configuration, basePa
         /**
          * 
          * @summary Get worker snapshot
-         * @param {string} workerId 
+         * @param {string} workerName 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getWorker(workerId: string, options?: RawAxiosRequestConfig): AxiosPromise<Worker> {
-            return localVarFp.getWorker(workerId, options).then((request) => request(axios, basePath));
+        getWorker(workerName: string, options?: RawAxiosRequestConfig): AxiosPromise<Worker> {
+            return localVarFp.getWorker(workerName, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -255,14 +255,14 @@ export const WorkersApiFactory = function (configuration?: Configuration, basePa
         /**
          * 
          * @summary Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)
-         * @param {string} workerId 
+         * @param {string} workerName 
          * @param {WorkerCommand} workerCommand 
          * @param {string} [idempotencyKey] Optional idempotency key for safe retries; if reused with a different body, return 409
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        sendWorkerCommand(workerId: string, workerCommand: WorkerCommand, idempotencyKey?: string, options?: RawAxiosRequestConfig): AxiosPromise<CommandRef> {
-            return localVarFp.sendWorkerCommand(workerId, workerCommand, idempotencyKey, options).then((request) => request(axios, basePath));
+        sendWorkerCommand(workerName: string, workerCommand: WorkerCommand, idempotencyKey?: string, options?: RawAxiosRequestConfig): AxiosPromise<CommandRef> {
+            return localVarFp.sendWorkerCommand(workerName, workerCommand, idempotencyKey, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -274,12 +274,12 @@ export class WorkersApi extends BaseAPI {
     /**
      * 
      * @summary Get worker snapshot
-     * @param {string} workerId 
+     * @param {string} workerName 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public getWorker(workerId: string, options?: RawAxiosRequestConfig) {
-        return WorkersApiFp(this.configuration).getWorker(workerId, options).then((request) => request(this.axios, this.basePath));
+    public getWorker(workerName: string, options?: RawAxiosRequestConfig) {
+        return WorkersApiFp(this.configuration).getWorker(workerName, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -298,14 +298,14 @@ export class WorkersApi extends BaseAPI {
     /**
      * 
      * @summary Enqueue admin command (drain/rebind/pkg.install/pkg.uninstall)
-     * @param {string} workerId 
+     * @param {string} workerName 
      * @param {WorkerCommand} workerCommand 
      * @param {string} [idempotencyKey] Optional idempotency key for safe retries; if reused with a different body, return 409
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public sendWorkerCommand(workerId: string, workerCommand: WorkerCommand, idempotencyKey?: string, options?: RawAxiosRequestConfig) {
-        return WorkersApiFp(this.configuration).sendWorkerCommand(workerId, workerCommand, idempotencyKey, options).then((request) => request(this.axios, this.basePath));
+    public sendWorkerCommand(workerName: string, workerCommand: WorkerCommand, idempotencyKey?: string, options?: RawAxiosRequestConfig) {
+        return WorkersApiFp(this.configuration).sendWorkerCommand(workerName, workerCommand, idempotencyKey, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

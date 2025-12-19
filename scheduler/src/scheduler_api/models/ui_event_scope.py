@@ -33,10 +33,10 @@ class UiEventScope(BaseModel):
     """ # noqa: E501
     tenant: StrictStr
     run_id: Optional[StrictStr] = Field(default=None, alias="runId")
-    worker_id: Optional[StrictStr] = Field(default=None, alias="workerId")
+    worker_name: Optional[StrictStr] = Field(default=None, alias="workerName")
     client_session_id: Optional[StrictStr] = Field(default=None, alias="clientSessionId")
     client_instance_id: Optional[StrictStr] = Field(default=None, alias="clientInstanceId")
-    __properties: ClassVar[List[str]] = ["tenant", "runId", "workerId", "clientSessionId", "clientInstanceId"]
+    __properties: ClassVar[List[str]] = ["tenant", "runId", "workerName", "clientSessionId", "clientInstanceId"]
 
     model_config = {
         "populate_by_name": True,
@@ -80,10 +80,10 @@ class UiEventScope(BaseModel):
         if self.run_id is None and "run_id" in self.model_fields_set:
             _dict['runId'] = None
 
-        # set to None if worker_id (nullable) is None
+        # set to None if worker_name (nullable) is None
         # and model_fields_set contains the field
-        if self.worker_id is None and "worker_id" in self.model_fields_set:
-            _dict['workerId'] = None
+        if self.worker_name is None and "worker_name" in self.model_fields_set:
+            _dict['workerName'] = None
 
         # set to None if client_session_id (nullable) is None
         # and model_fields_set contains the field
@@ -109,7 +109,7 @@ class UiEventScope(BaseModel):
         _obj = cls.model_validate({
             "tenant": obj.get("tenant"),
             "runId": obj.get("runId"),
-            "workerId": obj.get("workerId"),
+            "workerName": obj.get("workerName"),
             "clientSessionId": obj.get("clientSessionId"),
             "clientInstanceId": obj.get("clientInstanceId")
         })

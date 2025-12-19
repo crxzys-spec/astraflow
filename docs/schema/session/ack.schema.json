@@ -1,0 +1,15 @@
+{
+  "$id": "https://astraflow.example.com/schema/ws.ack.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ack Payload",
+  "type": "object",
+  "properties": {
+    "ok": { "type": ["boolean", "null"] },
+    "for": { "type": ["string", "null"] },
+    "info": { "type": ["string", "null"] },
+    "ack_seq": { "type": ["integer", "null"], "minimum": 0 },
+    "ack_bitmap": { "type": ["integer", "null"], "minimum": 0 },
+    "recv_window": { "type": ["integer", "null"], "minimum": 1 }
+  },
+  "additionalProperties": false
+}

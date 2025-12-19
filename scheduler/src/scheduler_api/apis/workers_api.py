@@ -63,7 +63,7 @@ async def list_workers(
 
 
 @router.get(
-    "/api/v1/workers/{workerId}",
+    "/api/v1/workers/{workerName}",
     responses={
         200: {"model": Worker, "description": "OK"},
         404: {"model": Error, "description": "Resource not found"},
@@ -73,18 +73,18 @@ async def list_workers(
     response_model_by_alias=True,
 )
 async def get_worker(
-    workerId: StrictStr = Path(..., description=""),
+    workerName: StrictStr = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
 ) -> Worker:
     if not BaseWorkersApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseWorkersApi.subclasses[0]().get_worker(workerId)
+    return await BaseWorkersApi.subclasses[0]().get_worker(workerName)
 
 
 @router.post(
-    "/api/v1/workers/{workerId}/commands",
+    "/api/v1/workers/{workerName}/commands",
     responses={
         202: {"model": CommandRef, "description": "Accepted"},
         400: {"model": Error, "description": "Invalid input"},
@@ -95,7 +95,7 @@ async def get_worker(
     response_model_by_alias=True,
 )
 async def send_worker_command(
-    workerId: StrictStr = Path(..., description=""),
+    workerName: StrictStr = Path(..., description=""),
     worker_command: WorkerCommand = Body(None, description=""),
     idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")] = Header(None, description="Optional idempotency key for safe retries; if reused with a different body, return 409", max_length=64),
     token_bearerAuth: TokenModel = Security(
@@ -104,4 +104,4 @@ async def send_worker_command(
 ) -> CommandRef:
     if not BaseWorkersApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseWorkersApi.subclasses[0]().send_worker_command(workerId, worker_command, idempotency_key)
+    return await BaseWorkersApi.subclasses[0]().send_worker_command(workerName, worker_command, idempotency_key)

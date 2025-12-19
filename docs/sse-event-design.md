@@ -38,7 +38,7 @@ Example envelope:
   "id": "evt-00153928",
   "type": "node.state",
   "occurredAt": "2025-11-02T15:21:33.412Z",
-  "scope": { "tenant": "acme-labs", "runId": "run-8c94f7aa", "workerId": "worker-17" },
+  "scope": { "tenant": "acme-labs", "runId": "run-8c94f7aa", "workerName": "worker-17" },
   "data": { ... }
 }
 ```
@@ -184,7 +184,7 @@ Each payload includes the minimal fields required to update the UI without leaki
 - **Event Pipeline**:
   1. Worker / orchestrator emits domain events (dispatch, node result, metrics鈥?.
   2. Scheduler maps domain events 鈫?`UiEventEnvelope` (using schema in 搂4).
-  3. Determine intended recipients: match tenant and apply filters (`runId`, `workerId`, etc.). If an event is tied to the initiating instance, compare `scope.clientInstanceId` to active connections鈥攐ptionally suppress duplicates for other tabs.
+  3. Determine intended recipients: match tenant and apply filters (`runId`, `workerName`, etc.). If an event is tied to the initiating instance, compare `scope.clientInstanceId` to active connections鈥攐ptionally suppress duplicates for other tabs.
   4. Serialize envelope, emit SSE frame:
      ```
      id: evt-12345

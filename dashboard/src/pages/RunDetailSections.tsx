@@ -154,7 +154,7 @@ const NodeCard = ({
         )}
         <div>
           <dt>Worker</dt>
-          <dd>{node.workerId ?? "-"}</dd>
+          <dd>{node.workerName ?? "-"}</dd>
         </div>
         <div>
           <dt>Started</dt>

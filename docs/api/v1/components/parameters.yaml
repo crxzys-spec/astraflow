@@ -11,7 +11,7 @@ WorkflowId:
   schema:
     type: string
 WorkerId:
-  name: workerId
+  name: workerName
   in: path
   required: true
   schema:

@@ -32,12 +32,12 @@ class WorkerPackageEvent(BaseModel):
     WorkerPackageEvent
     """ # noqa: E501
     kind: Optional[Any] = None
-    worker_id: Optional[StrictStr] = Field(default=None, alias="workerId")
+    worker_name: Optional[StrictStr] = Field(default=None, alias="workerName")
     name: Optional[StrictStr] = None
     version: Optional[StrictStr] = None
     status: Optional[StrictStr] = None
     message: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["kind", "workerId", "name", "version", "status", "message"]
+    __properties: ClassVar[List[str]] = ["kind", "workerName", "name", "version", "status", "message"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
@@ -114,7 +114,7 @@ class WorkerPackageEvent(BaseModel):
 
         _obj = cls.model_validate({
             "kind": obj.get("kind"),
-            "workerId": obj.get("workerId"),
+            "workerName": obj.get("workerName"),
             "name": obj.get("name"),
             "version": obj.get("version"),
             "status": obj.get("status"),

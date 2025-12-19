@@ -11,7 +11,7 @@ pip install -r requirements-dev.txt
 Generate WebSocket models (Pydantic) from JSON Schema:
 
 ```bash
-python scripts/generate_ws_models.py
+python scripts/generate_protocol_models.py
 ```
 
 Generated modules land in `shared/models/ws/` and should be committed.

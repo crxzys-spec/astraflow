@@ -27,7 +27,7 @@ export interface RunNodeStatus {
     'nodeId': string;
     'taskId': string;
     'status': RunStatus;
-    'workerId'?: string | null;
+    'workerName'?: string | null;
     'startedAt'?: string | null;
     'finishedAt'?: string | null;
     'seq'?: number | null;

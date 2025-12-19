@@ -18,7 +18,7 @@ Name | Type | Description | Notes
 **tags** | **{ [key: string]: string; }** |  | [optional] [default to undefined]
 **nodeId** | **string** |  | [default to undefined]
 **state** | [**WorkflowNodeState**](WorkflowNodeState.md) |  | [default to undefined]
-**workerId** | **string** |  | [default to undefined]
+**workerName** | **string** |  | [default to undefined]
 **seq** | **number** |  | [optional] [default to undefined]
 **ackPending** | **boolean** |  | [optional] [default to undefined]
 **revision** | **number** |  | [default to undefined]
@@ -67,7 +67,7 @@ const instance: UiEventPayload = {
     tags,
     nodeId,
     state,
-    workerId,
+    workerName,
     seq,
     ackPending,
     revision,

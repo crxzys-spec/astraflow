@@ -1,0 +1,51 @@
+{
+  "$id": "https://astraflow.example.com/schema/biz.exec.result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Exec Result Payload",
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "title": "Artifact Descriptor",
+      "required": ["resource_id", "worker_name", "type"],
+      "properties": {
+        "resource_id": { "type": "string", "minLength": 1 },
+        "worker_name": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "size_bytes": { "type": "integer", "minimum": 0 },
+        "inline": { "type": "boolean" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "metadata": { "type": "object" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "type": "object",
+  "required": ["run_id", "task_id", "status", "result"],
+  "properties": {
+    "run_id": { "type": "string", "minLength": 1 },
+    "task_id": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["SUCCEEDED", "FAILED", "SKIPPED", "CANCELLED"]
+    },
+    "result": { "type": "object" },
+    "duration_ms": { "type": "integer", "minimum": 0 },
+    "metadata": { "type": "object" },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" },
+      "description": "Optional list of artifacts created by the task."
+    },
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "remediation": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

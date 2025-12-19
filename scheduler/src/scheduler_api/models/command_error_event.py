@@ -34,9 +34,9 @@ class CommandErrorEvent(BaseModel):
     """ # noqa: E501
     kind: Optional[Any]
     command_id: StrictStr = Field(alias="commandId")
-    worker_id: StrictStr = Field(alias="workerId")
+    worker_name: StrictStr = Field(alias="workerName")
     error: ResultError
-    __properties: ClassVar[List[str]] = ["kind", "commandId", "workerId", "error"]
+    __properties: ClassVar[List[str]] = ["kind", "commandId", "workerName", "error"]
 
     model_config = {
         "populate_by_name": True,
@@ -97,7 +97,7 @@ class CommandErrorEvent(BaseModel):
         _obj = cls.model_validate({
             "kind": obj.get("kind"),
             "commandId": obj.get("commandId"),
-            "workerId": obj.get("workerId"),
+            "workerName": obj.get("workerName"),
             "error": ResultError.from_dict(obj.get("error")) if obj.get("error") is not None else None
         })
         return _obj

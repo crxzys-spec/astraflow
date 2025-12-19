@@ -34,9 +34,9 @@ class CommandError(BaseModel):
     """ # noqa: E501
     kind: Optional[Any] = None
     command_id: Optional[StrictStr] = Field(default=None, alias="commandId")
-    worker_id: Optional[StrictStr] = Field(default=None, alias="workerId")
+    worker_name: Optional[StrictStr] = Field(default=None, alias="workerName")
     error: Optional[ResultError] = None
-    __properties: ClassVar[List[str]] = ["kind", "commandId", "workerId", "error"]
+    __properties: ClassVar[List[str]] = ["kind", "commandId", "workerName", "error"]
 
     model_config = {
         "populate_by_name": True,
@@ -97,7 +97,7 @@ class CommandError(BaseModel):
         _obj = cls.model_validate({
             "kind": obj.get("kind"),
             "commandId": obj.get("commandId"),
-            "workerId": obj.get("workerId"),
+            "workerName": obj.get("workerName"),
             "error": ResultError.from_dict(obj.get("error")) if obj.get("error") is not None else None
         })
         return _obj

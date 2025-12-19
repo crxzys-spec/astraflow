@@ -12,7 +12,7 @@
 | Term | Meaning |
 |------|---------|
 | Resource / Artifact | Any reusable output: file on disk, browser session, loaded torch model, GPU context. |
-| ResourceHandle | Reference object with `resourceId`, `type`, `workerId`, `scope` (run or session), `state`, and metadata. |
+| ResourceHandle | Reference object with `resourceId`, `type`, `workerName`, `scope` (run or session), `state`, and metadata. |
 | Affinity Key | Scheduler-side identifier, for example `(tenant, package, version, sessionId)` or `(runtime, modelId)`. |
 | Lease / TTL | Time-bounded claim on a resource. Prevents stale state from living forever. |
 
@@ -112,19 +112,19 @@ async def async_run(context):
 
 ```python
 class AffinityRegistry:
-    def acquire(self, tenant, key, worker_id, *, ttl) -> bool: ...
+    def acquire(self, tenant, key, worker_name, *, ttl) -> bool: ...
     def lookup(self, tenant, key) -> AffinityRecord | None: ...
     def touch(self, tenant, key, *, ttl=None) -> None: ...
     def release(self, tenant, key, *, reason=None) -> None: ...
 ```
 
-`AffinityRecord` keeps `worker_id`, `acquired_at`, `expires_at`, `inflight_count`, `metadata`, and a `state` flag (active, stale, draining).
+`AffinityRecord` keeps `worker_name`, `acquired_at`, `expires_at`, `inflight_count`, `metadata`, and a `state` flag (active, stale, draining).
 
 ### Dispatch flow
 
 1. During workflow planning, extract affinity keys from node metadata (for example resource references or explicit session markers).  
 2. Call `lookup` before selecting a worker. If the record is active and the worker is online, use that worker.  
-3. When `resource_refs` specify a `workerId`, the scheduler pins dispatch to that worker; conflicting hints return HTTP 409, and an unavailable worker surfaces HTTP 503.  
+3. When `resource_refs` specify a `workerName`, the scheduler pins dispatch to that worker; conflicting hints return HTTP 409, and an unavailable worker surfaces HTTP 503.  
 4. On successful dispatch, call `acquire` (or `touch`) to refresh the lease.  
 5. When the run or session ends, or the worker reports the resource freed, call `release`.
 The runtime dispatcher reads the registry's ready queue, resolves pinned workers before fallback selection, and pushes commands via the WebSocket control-plane. Retry/backoff logic handles temporary worker unavailability; exceeding retry thresholds results in a transport error that closes the run.
@@ -148,7 +148,7 @@ The runtime dispatcher reads the registry's ready queue, resolves pinned workers
     "artifacts": [
       {
         "resourceId": "run-123/session-A/frame-001",
-        "workerId": "worker-playwright-1",
+        "workerName": "worker-playwright-1",
         "type": "file",
         "sizeBytes": 52428800,
         "expiresAt": "2025-11-01T12:00:00Z",
@@ -174,14 +174,14 @@ The runtime dispatcher reads the registry's ready queue, resolves pinned workers
     "sourceVideo": {
       "resourceRef": {
         "resourceId": "run-123/session-A/frame-001",
-        "workerId": "worker-playwright-1",
+        "workerName": "worker-playwright-1",
         "type": "file"
       }
     },
     "browserSession": {
       "resourceRef": {
         "resourceId": "run-123/playwright-session",
-        "workerId": "worker-playwright-1",
+        "workerName": "worker-playwright-1",
         "type": "browserSession"
       }
     }

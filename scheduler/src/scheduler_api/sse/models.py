@@ -30,7 +30,7 @@ class UiEventScope(BaseModel):
 
     tenant: str
     runId: Optional[str] = None
-    workerId: Optional[str] = None
+    workerName: Optional[str] = None
     clientSessionId: Optional[str] = None
     clientInstanceId: Optional[str] = None
 

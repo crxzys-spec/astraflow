@@ -1,6 +1,6 @@
 # Worker Service
 
-The worker process reads its configuration via `worker.agent.config.get_settings()`.  
+The worker process reads its configuration via `worker.config.get_settings()`.  
 Configuration sources are merged in the following priority order:
 
 1. explicit arguments provided by the caller (reserved for future bootstrap hooks);
@@ -23,7 +23,7 @@ Key configuration fields include:
 
 ### Control-plane scaffold
 
-- Use `worker.agent.runtime.build_connection()` to obtain a `ControlPlaneConnection`
+- Use `worker.control_plane.runtime.build_connection()` to obtain a `ControlPlaneClient`
   configured with current settings and the transport dictated by `WorkerSettings.transport`.
 - Optional `command_handler` / `package_handler` callables can be supplied to `build_connection`
   to integrate with task runners and package management code; handlers receive the raw envelope

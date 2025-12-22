@@ -9,7 +9,7 @@ Name | Type | Description | Notes
 **workerName** | **string** |  | [default to undefined]
 **_package** | **string** |  | [default to undefined]
 **version** | **string** |  | [optional] [default to undefined]
-**status** | **string** |  | [default to undefined]
+**status** | [**WorkerPackageStatus**](WorkerPackageStatus.md) |  | [default to undefined]
 **message** | **string** |  | [optional] [default to undefined]
 
 ## Example

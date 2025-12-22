@@ -2,6 +2,8 @@
 
 from fastapi.testclient import TestClient
 
+import scheduler_api
+
 
 from pydantic import Field, StrictStr  # noqa: F401
 from typing import Optional  # noqa: F401
@@ -38,7 +40,27 @@ def test_persist_workflow(client: TestClient):
 
     Persist a workflow for editor storage (no versioning)
     """
-    list_workflows200_response_items_inner = scheduler_api.ListWorkflows200ResponseItemsInner()
+    list_workflows200_response_items_inner = scheduler_api.ListWorkflows200ResponseItemsInner(
+        id="wf-1",
+        schema_version="2025-10",
+        metadata={
+            "name": "workflow",
+            "namespace": "default",
+            "originId": "wf-1",
+        },
+        nodes=[
+            {
+                "id": "node-1",
+                "type": "example.node",
+                "package": {"name": "example", "version": "1.0.0"},
+                "status": "published",
+                "category": "test",
+                "label": "Node",
+                "position": {"x": 0, "y": 0},
+            }
+        ],
+        edges=[],
+    )
 
     headers = {
         "idempotency_key": 'idempotency_key_example',

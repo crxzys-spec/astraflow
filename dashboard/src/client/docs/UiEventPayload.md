@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **kind** | **string** |  | [default to undefined]
 **runId** | **string** |  | [default to undefined]
-**status** | **string** |  | [default to undefined]
+**status** | [**WorkerPackageStatus**](WorkerPackageStatus.md) |  | [default to undefined]
 **startedAt** | **string** |  | [optional] [default to undefined]
 **finishedAt** | **string** |  | [optional] [default to undefined]
 **reason** | **string** |  | [optional] [default to undefined]
@@ -43,9 +43,13 @@ Name | Type | Description | Notes
 **receivedAt** | **string** |  | [optional] [default to undefined]
 **at** | **string** |  | [default to undefined]
 **queues** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
-**capacity** | **{ [key: string]: any; }** |  | [optional] [default to undefined]
-**_package** | **string** |  | [default to undefined]
+**instanceId** | **string** |  | [optional] [default to undefined]
+**hostname** | **string** |  | [optional] [default to undefined]
 **version** | **string** |  | [optional] [default to undefined]
+**connected** | **boolean** |  | [optional] [default to undefined]
+**registered** | **boolean** |  | [optional] [default to undefined]
+**heartbeat** | [**WorkerHeartbeatSnapshot**](WorkerHeartbeatSnapshot.md) |  | [optional] [default to undefined]
+**_package** | **string** |  | [default to undefined]
 **message** | **string** |  | [optional] [default to undefined]
 
 ## Example
@@ -92,9 +96,13 @@ const instance: UiEventPayload = {
     receivedAt,
     at,
     queues,
-    capacity,
-    _package,
+    instanceId,
+    hostname,
     version,
+    connected,
+    registered,
+    heartbeat,
+    _package,
     message,
 };
 ```

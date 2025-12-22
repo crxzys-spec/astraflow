@@ -14,14 +14,14 @@ def main() -> None:
 
     # Lazy import after adjusting sys.path
     from worker.config import get_settings  # type: ignore
-    from worker.control_plane.runtime import run_forever  # type: ignore
+    from worker.bootstrap import serve_forever  # type: ignore
 
     settings = get_settings()
     logging.basicConfig(
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-    asyncio.run(run_forever())
+    asyncio.run(serve_forever())
 
 
 if __name__ == "__main__":

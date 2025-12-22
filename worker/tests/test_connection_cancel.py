@@ -8,8 +8,10 @@ from shared.models.biz.exec.dispatch import ExecDispatchPayload, Constraints
 from shared.models.biz.exec.next.response import ExecMiddlewareNextResponse
 from shared.models.session import Role, Sender, WsEnvelope
 from worker.config import WorkerSettings
-from worker.control_plane.connection import ControlPlaneClient
-from worker.transport.dummy import DummyTransport
+from worker.network.client import NetworkClient
+from worker.network.transport.dummy import DummyTransport
+from worker.biz_handlers.dispatch_handler import DispatchHandler
+from worker.biz_handlers.next_handler import NextHandler
 
 
 class _CancelRunner:
@@ -31,7 +33,7 @@ async def test_default_command_handler_reports_cancel(monkeypatch):
     settings = WorkerSettings()
     transport = _SinkTransport()
 
-    conn = ControlPlaneClient(
+    conn = NetworkClient(
         settings=settings,
         transport_factory=lambda _: transport,
         runner=_CancelRunner(),
@@ -40,12 +42,22 @@ async def test_default_command_handler_reports_cancel(monkeypatch):
     dispatched_errors = []
 
     conn._ensure_layers()
-    assert conn.biz is not None
+    next_handler = NextHandler(send_biz=conn.send_biz, next_message_id=conn.next_message_id)
+    dispatch_handler = DispatchHandler(
+        settings=settings,
+        send_biz=conn.send_biz,
+        next_handler=next_handler,
+        concurrency_guard=conn.concurrency_guard,
+        runner=_CancelRunner(),
+        resource_registry=None,
+    )
+    conn.register_handler("biz.exec.dispatch", dispatch_handler.handle)
+    conn.register_handler("biz.exec.next.response", next_handler.handle_next_response)
 
     async def _fake_send_error(payload, *, corr=None, seq=None):
         dispatched_errors.append(payload)
 
-    monkeypatch.setattr(conn.biz, "send_command_error", _fake_send_error)
+    monkeypatch.setattr(dispatch_handler, "_send_command_error", _fake_send_error)
 
     dispatch = ExecDispatchPayload(
         run_id="run-1",
@@ -70,7 +82,7 @@ async def test_default_command_handler_reports_cancel(monkeypatch):
     )
 
     with pytest.raises(asyncio.CancelledError):
-        await conn.biz.default_command_handler(envelope, dispatch)
+        await dispatch_handler._default_command_handler(envelope, dispatch)
 
     assert dispatched_errors, "Cancellation should emit command.error"
     assert dispatched_errors[0].code == "E.RUNNER.CANCELLED"
@@ -80,22 +92,32 @@ async def test_default_command_handler_reports_cancel(monkeypatch):
 async def test_late_next_response_after_local_cancel_is_ignored(caplog):
     settings = WorkerSettings()
     transport = DummyTransport(settings)
-    conn = ControlPlaneClient(
+    conn = NetworkClient(
         settings=settings,
         transport_factory=lambda _: transport,
     )
+
     conn._ensure_layers()
-    assert conn.biz is not None
-    biz = conn.biz
+    next_handler = NextHandler(send_biz=conn.send_biz, next_message_id=conn.next_message_id)
+    dispatch_handler = DispatchHandler(
+        settings=settings,
+        send_biz=conn.send_biz,
+        next_handler=next_handler,
+        concurrency_guard=conn.concurrency_guard,
+        runner=None,
+        resource_registry=None,
+    )
+    conn.register_handler("biz.exec.dispatch", dispatch_handler.handle)
+    conn.register_handler("biz.exec.next.response", next_handler.handle_next_response)
 
     request_id = "req-cancelled"
     fut = asyncio.get_running_loop().create_future()
-    async with biz._next_lock:
-        biz._pending_next[request_id] = (fut, "task-cancelled", "run-cancelled")
+    async with next_handler._next_lock:
+        next_handler._pending_next[request_id] = (fut, "task-cancelled", "run-cancelled")
 
     caplog.set_level(logging.DEBUG)
 
-    await biz.interrupt_pending_next("run-cancelled", "task-cancelled", code="next_cancelled", message="task cancelled")
+    await next_handler.interrupt_pending_next("run-cancelled", "task-cancelled", code="next_cancelled", message="task cancelled")
 
     payload = ExecMiddlewareNextResponse(
         requestId=request_id,
@@ -115,8 +137,8 @@ async def test_late_next_response_after_local_cancel_is_ignored(caplog):
         payload=payload.model_dump(by_alias=True, exclude_none=True),
     )
 
-    await biz.handle_next_response(envelope)
+    await next_handler.handle_next_response(envelope)
 
     warnings = [record for record in caplog.records if record.levelno >= logging.WARNING]
     assert not warnings, "Late next responses for cancelled waits should be ignored without warnings"
-    assert request_id not in biz._aborted_next_index
+    assert request_id not in next_handler._aborted_next_index

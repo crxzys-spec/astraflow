@@ -20,8 +20,9 @@ import json
 
 
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from scheduler_api.models.worker_package_status import WorkerPackageStatus
 try:
     from typing import Self
 except ImportError:
@@ -35,16 +36,9 @@ class WorkerPackageSseEvent(BaseModel):
     worker_name: StrictStr = Field(alias="workerName")
     package: StrictStr
     version: Optional[StrictStr] = None
-    status: StrictStr
+    status: WorkerPackageStatus
     message: Optional[StrictStr] = None
     __properties: ClassVar[List[str]] = ["kind", "workerName", "package", "version", "status", "message"]
-
-    @field_validator('status')
-    def status_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in ('installing', 'installed', 'removing', 'removed', 'failed',):
-            raise ValueError("must be one of enum values ('installing', 'installed', 'removing', 'removed', 'failed')")
-        return value
 
     model_config = {
         "populate_by_name": True,

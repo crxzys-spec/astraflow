@@ -157,8 +157,8 @@ def node_result_snapshot_envelope(
             runId=run_id,
             clientSessionId=client_session_id,
         ),
-    data=payload,
-)
+        data=payload,
+    )
 
 
 def node_result_delta_envelope(
@@ -203,5 +203,83 @@ def node_result_delta_envelope(
             clientSessionId=client_session_id,
         ),
         data=event_payload,
+    )
+
+
+def worker_heartbeat_envelope(
+    *,
+    tenant: str,
+    worker_name: str,
+    at: datetime,
+    queues: Optional[list[str]] = None,
+    instance_id: Optional[str] = None,
+    hostname: Optional[str] = None,
+    version: Optional[str] = None,
+    connected: Optional[bool] = None,
+    registered: Optional[bool] = None,
+    heartbeat: Optional[Dict[str, Any]] = None,
+    occurred_at: Optional[datetime] = None,
+) -> UiEventEnvelope:
+    payload_raw = {
+        "kind": UiEventType.WORKER_HEARTBEAT.value,
+        "workerName": worker_name,
+        "at": at.isoformat(),
+        "queues": queues,
+        "instanceId": instance_id,
+        "hostname": hostname,
+        "version": version,
+        "connected": connected,
+        "registered": registered,
+        "heartbeat": heartbeat,
+    }
+    payload = {
+        key: value
+        for key, value in payload_raw.items()
+        if value is not None
+    }
+    return UiEventEnvelope(
+        id="pending",
+        type=UiEventType.WORKER_HEARTBEAT,
+        occurredAt=occurred_at or datetime.now(timezone.utc),
+        scope=UiEventScope(
+            tenant=tenant,
+            workerName=worker_name,
+        ),
+        data=payload,
+    )
+
+
+def worker_package_envelope(
+    *,
+    tenant: str,
+    worker_name: str,
+    package_name: str,
+    version: Optional[str],
+    status: str,
+    message: Optional[str] = None,
+    occurred_at: Optional[datetime] = None,
+) -> UiEventEnvelope:
+    payload_raw = {
+        "kind": UiEventType.WORKER_PACKAGE.value,
+        "workerName": worker_name,
+        "package": package_name,
+        "version": version,
+        "status": status,
+        "message": message,
+    }
+    payload = {
+        key: value
+        for key, value in payload_raw.items()
+        if value is not None
+    }
+    return UiEventEnvelope(
+        id="pending",
+        type=UiEventType.WORKER_PACKAGE,
+        occurredAt=occurred_at or datetime.now(timezone.utc),
+        scope=UiEventScope(
+            tenant=tenant,
+            workerName=worker_name,
+        ),
+        data=payload,
     )
 

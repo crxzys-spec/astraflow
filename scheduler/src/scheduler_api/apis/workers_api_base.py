@@ -2,14 +2,15 @@
 
 from typing import ClassVar, Dict, List, Tuple  # noqa: F401
 
-from pydantic import Field, StrictStr
-from typing import Optional
+from pydantic import Field, StrictBool, StrictStr
+from typing import Optional, Union
 from typing_extensions import Annotated
 from scheduler_api.models.command_ref import CommandRef
 from scheduler_api.models.error import Error
 from scheduler_api.models.list_workers200_response import ListWorkers200Response
 from scheduler_api.models.worker import Worker
 from scheduler_api.models.worker_command import WorkerCommand
+from scheduler_api.models.worker_package_status import WorkerPackageStatus
 from scheduler_api.security_api import get_token_bearerAuth
 
 class BaseWorkersApi:
@@ -21,6 +22,15 @@ class BaseWorkersApi:
     async def list_workers(
         self,
         queue: Optional[StrictStr],
+        connected: Optional[StrictBool],
+        registered: Optional[StrictBool],
+        healthy: Optional[StrictBool],
+        package_name: Optional[StrictStr],
+        package_version: Optional[StrictStr],
+        package_status: Optional[WorkerPackageStatus],
+        max_heartbeat_age_seconds: Optional[Union[Annotated[float, Field(ge=0)], Annotated[int, Field(ge=0)]]],
+        max_inflight: Optional[Annotated[int, Field(ge=0)]],
+        max_latency_ms: Optional[Annotated[int, Field(ge=0)]],
         limit: Optional[Annotated[int, Field(le=200, ge=1)]],
         cursor: Optional[StrictStr],
     ) -> ListWorkers200Response:
@@ -38,6 +48,6 @@ class BaseWorkersApi:
         self,
         workerName: StrictStr,
         worker_command: WorkerCommand,
-        idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")],
+        idempotency_key: Annotated[Optional[Annotated[str, Field(max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")],
     ) -> CommandRef:
         ...

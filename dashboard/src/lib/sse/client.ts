@@ -4,6 +4,8 @@ import { getClientSessionId } from "../clientSession";
 import { getAuthToken } from "../setupAxios";
 
 type UiEventListener = (event: UiEventEnvelope) => void;
+export type SseConnectionStatus = "idle" | "connecting" | "open" | "reconnecting";
+type SseStatusListener = (status: SseConnectionStatus) => void;
 
 const DEFAULT_RETRY_MS = 2_000;
 const MAX_RETRY_MS = 60_000;
@@ -37,11 +39,13 @@ const buildEventsUrl = (clientSessionId: string): string => {
 
 export class SseClient {
   private listeners = new Set<UiEventListener>();
+  private statusListeners = new Set<SseStatusListener>();
   private eventSource: EventSource | null = null;
   private reconnectTimer: number | null = null;
   private retryDelay = DEFAULT_RETRY_MS;
   private connecting = false;
   private keepAlive = false;
+  private status: SseConnectionStatus = "idle";
 
   subscribe(listener: UiEventListener): () => void {
     this.listeners.add(listener);
@@ -52,6 +56,14 @@ export class SseClient {
       if (this.listeners.size === 0 && !this.keepAlive) {
         this.teardown();
       }
+    };
+  }
+
+  subscribeStatus(listener: SseStatusListener): () => void {
+    this.statusListeners.add(listener);
+    listener(this.status);
+    return () => {
+      this.statusListeners.delete(listener);
     };
   }
 
@@ -80,8 +92,17 @@ export class SseClient {
     this.connect();
   }
 
+  private setStatus(next: SseConnectionStatus) {
+    if (this.status === next) {
+      return;
+    }
+    this.status = next;
+    this.statusListeners.forEach((listener) => listener(next));
+  }
+
   private connect() {
     this.connecting = true;
+    this.setStatus("connecting");
     const sessionId = getClientSessionId();
     const url = buildEventsUrl(sessionId);
 
@@ -110,6 +131,7 @@ export class SseClient {
           window.clearTimeout(this.reconnectTimer);
           this.reconnectTimer = null;
         }
+        this.setStatus("open");
       };
 
       eventSource.onerror = () => {
@@ -148,6 +170,7 @@ export class SseClient {
     }
 
     this.cleanupConnection();
+    this.setStatus("reconnecting");
     if (this.reconnectTimer !== null) {
       return;
     }
@@ -161,6 +184,7 @@ export class SseClient {
 
   private teardown() {
     this.cleanupConnection();
+    this.setStatus("idle");
     if (this.reconnectTimer !== null) {
       window.clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;

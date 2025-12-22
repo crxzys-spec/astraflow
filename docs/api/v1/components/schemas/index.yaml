@@ -1338,9 +1338,23 @@ WorkerHeartbeatEvent:
       items:
         type: string
       nullable: true
-    capacity:
-      type: object
-      additionalProperties: true
+    instanceId:
+      type: string
+      nullable: true
+    hostname:
+      type: string
+      nullable: true
+    version:
+      type: string
+      nullable: true
+    connected:
+      type: boolean
+      nullable: true
+    registered:
+      type: boolean
+      nullable: true
+    heartbeat:
+      $ref: '#/WorkerHeartbeatSnapshot'
       nullable: true
 WorkerPackageSseEvent:
   type: object
@@ -1360,13 +1374,7 @@ WorkerPackageSseEvent:
       type: string
       nullable: true
     status:
-      type: string
-      enum:
-      - installing
-      - installed
-      - removing
-      - removed
-      - failed
+      $ref: '#/WorkerPackageStatus'
     message:
       type: string
       nullable: true
@@ -1550,24 +1558,101 @@ Worker:
     packages:
       type: array
       items:
-        type: object
-        properties:
-          name:
-            type: string
-          version:
-            type: string
-          status:
-            type: string
-            enum:
-            - installed
-            - installing
-            - uninstalling
-            - removed
-            - failed
-            - unknown
+        $ref: '#/WorkerPackage'
     meta:
       type: object
       additionalProperties: true
+    connected:
+      type: boolean
+      nullable: true
+    registered:
+      type: boolean
+      nullable: true
+    tenant:
+      type: string
+      nullable: true
+    instanceId:
+      type: string
+      nullable: true
+    version:
+      type: string
+      nullable: true
+    capabilities:
+      $ref: '#/WorkerCapabilities'
+      nullable: true
+    payloadTypes:
+      type: array
+      items:
+        type: string
+      nullable: true
+    heartbeat:
+      $ref: '#/WorkerHeartbeatSnapshot'
+      nullable: true
+WorkerPackageStatus:
+  type: string
+  enum:
+  - installed
+  - installing
+  - uninstalling
+  - removed
+  - failed
+  - missing
+  - unknown
+WorkerPackage:
+  type: object
+  properties:
+    name:
+      type: string
+    version:
+      type: string
+    status:
+      $ref: '#/WorkerPackageStatus'
+WorkerCapabilities:
+  type: object
+  properties:
+    concurrency:
+      type: object
+      properties:
+        maxParallel:
+          type: integer
+        perNodeLimits:
+          type: object
+          additionalProperties:
+            type: integer
+    runtimes:
+      type: array
+      items:
+        type: string
+    features:
+      type: array
+      items:
+        type: string
+WorkerHeartbeatMetrics:
+  type: object
+  additionalProperties: true
+  properties:
+    cpuPct:
+      type: number
+    memPct:
+      type: number
+    diskPct:
+      type: number
+    inflight:
+      type: integer
+    latencyMs:
+      type: integer
+WorkerHeartbeatSnapshot:
+  type: object
+  properties:
+    healthy:
+      type: boolean
+    metrics:
+      $ref: '#/WorkerHeartbeatMetrics'
+    packages:
+      type: object
+      properties:
+        drift:
+          type: boolean
 WorkerCommand:
   type: object
   oneOf:

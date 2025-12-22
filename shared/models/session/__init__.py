@@ -2,7 +2,7 @@ from .ack import AckPayload
 from .envelope import Ack, Role, Sender, WsEnvelope
 from .handshake import HandshakePayload, Mode, Auth, Worker
 from .heartbeat import HeartbeatPayload, Metrics
-from .register import RegisterPayload, Capabilities, Concurrency
+from .register import RegisterPayload, Capabilities, Concurrency, Package, Manifest, Status
 from .session.accept import SessionAcceptPayload
 from .session.drain import SessionDrainPayload
 from .session.reset import SessionResetPayload
@@ -23,6 +23,9 @@ __all__ = [
     "RegisterPayload",
     "Capabilities",
     "Concurrency",
+    "Package",
+    "Manifest",
+    "Status",
     "SessionAcceptPayload",
     "SessionDrainPayload",
     "SessionResetPayload",

@@ -23,14 +23,15 @@ from fastapi import (  # noqa: F401
 )
 
 from scheduler_api.models.extra_models import TokenModel  # noqa: F401
-from pydantic import Field, StrictStr
-from typing import Optional
+from pydantic import Field, StrictBool, StrictStr
+from typing import Optional, Union
 from typing_extensions import Annotated
 from scheduler_api.models.command_ref import CommandRef
 from scheduler_api.models.error import Error
 from scheduler_api.models.list_workers200_response import ListWorkers200Response
 from scheduler_api.models.worker import Worker
 from scheduler_api.models.worker_command import WorkerCommand
+from scheduler_api.models.worker_package_status import WorkerPackageStatus
 from scheduler_api.security_api import get_token_bearerAuth
 
 router = APIRouter()
@@ -51,6 +52,15 @@ for _, name, _ in pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + "."):
 )
 async def list_workers(
     queue: Optional[StrictStr] = Query(None, description="", alias="queue"),
+    connected: Optional[StrictBool] = Query(None, description="", alias="connected"),
+    registered: Optional[StrictBool] = Query(None, description="", alias="registered"),
+    healthy: Optional[StrictBool] = Query(None, description="", alias="healthy"),
+    package_name: Optional[StrictStr] = Query(None, description="", alias="packageName"),
+    package_version: Optional[StrictStr] = Query(None, description="", alias="packageVersion"),
+    package_status: Optional[WorkerPackageStatus] = Query(None, description="", alias="packageStatus"),
+    max_heartbeat_age_seconds: Optional[Union[Annotated[float, Field(ge=0)], Annotated[int, Field(ge=0)]]] = Query(None, description="", alias="maxHeartbeatAgeSeconds"),
+    max_inflight: Optional[Annotated[int, Field(ge=0)]] = Query(None, description="", alias="maxInflight", ge=0),
+    max_latency_ms: Optional[Annotated[int, Field(ge=0)]] = Query(None, description="", alias="maxLatencyMs", ge=0),
     limit: Optional[Annotated[int, Field(le=200, ge=1)]] = Query(50, description="", alias="limit", ge=1, le=200),
     cursor: Optional[StrictStr] = Query(None, description="", alias="cursor"),
     token_bearerAuth: TokenModel = Security(
@@ -59,7 +69,7 @@ async def list_workers(
 ) -> ListWorkers200Response:
     if not BaseWorkersApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseWorkersApi.subclasses[0]().list_workers(queue, limit, cursor)
+    return await BaseWorkersApi.subclasses[0]().list_workers(queue, connected, registered, healthy, package_name, package_version, package_status, max_heartbeat_age_seconds, max_inflight, max_latency_ms, limit, cursor)
 
 
 @router.get(
@@ -97,7 +107,7 @@ async def get_worker(
 async def send_worker_command(
     workerName: StrictStr = Path(..., description=""),
     worker_command: WorkerCommand = Body(None, description=""),
-    idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")] = Header(None, description="Optional idempotency key for safe retries; if reused with a different body, return 409", max_length=64),
+    idempotency_key: Annotated[Optional[Annotated[str, Field(max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")] = Header(None, description="Optional idempotency key for safe retries; if reused with a different body, return 409", max_length=64),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),

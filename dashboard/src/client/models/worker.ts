@@ -15,14 +15,28 @@
 
 // May contain unused imports in some cases
 // @ts-ignore
-import type { WorkerPackagesInner } from './worker-packages-inner';
+import type { WorkerCapabilities } from './worker-capabilities';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { WorkerHeartbeatSnapshot } from './worker-heartbeat-snapshot';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { WorkerPackage } from './worker-package';
 
 export interface Worker {
     'id': string;
     'hostname'?: string;
     'lastHeartbeatAt': string;
     'queues': Array<string>;
-    'packages'?: Array<WorkerPackagesInner>;
+    'packages'?: Array<WorkerPackage>;
     'meta'?: { [key: string]: any; };
+    'connected'?: boolean | null;
+    'registered'?: boolean | null;
+    'tenant'?: string | null;
+    'instanceId'?: string | null;
+    'version'?: string | null;
+    'capabilities'?: WorkerCapabilities;
+    'payloadTypes'?: Array<string> | null;
+    'heartbeat'?: WorkerHeartbeatSnapshot;
 }
 

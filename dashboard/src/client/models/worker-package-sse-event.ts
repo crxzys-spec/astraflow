@@ -13,13 +13,16 @@
  */
 
 
+// May contain unused imports in some cases
+// @ts-ignore
+import type { WorkerPackageStatus } from './worker-package-status';
 
 export interface WorkerPackageSseEvent {
     'kind': WorkerPackageSseEventKindEnum;
     'workerName': string;
     'package': string;
     'version'?: string | null;
-    'status': WorkerPackageSseEventStatusEnum;
+    'status': WorkerPackageStatus;
     'message'?: string | null;
 }
 
@@ -28,14 +31,5 @@ export const WorkerPackageSseEventKindEnum = {
 } as const;
 
 export type WorkerPackageSseEventKindEnum = typeof WorkerPackageSseEventKindEnum[keyof typeof WorkerPackageSseEventKindEnum];
-export const WorkerPackageSseEventStatusEnum = {
-    Installing: 'installing',
-    Installed: 'installed',
-    Removing: 'removing',
-    Removed: 'removed',
-    Failed: 'failed'
-} as const;
-
-export type WorkerPackageSseEventStatusEnum = typeof WorkerPackageSseEventStatusEnum[keyof typeof WorkerPackageSseEventStatusEnum];
 
 

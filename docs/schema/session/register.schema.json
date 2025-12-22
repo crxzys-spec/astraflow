@@ -38,6 +38,39 @@
       "description": "Business/extension payload types this endpoint understands (e.g. biz.exec.dispatch).",
       "items": { "type": "string", "minLength": 1 },
       "default": []
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "version", "status"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "enum": ["installed", "missing", "failed"] }
+        },
+        "additionalProperties": false
+      },
+      "default": []
+    },
+    "channels": {
+      "type": "array",
+      "description": "Optional execution channels exposed by the worker.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "manifests": {
+      "type": "array",
+      "description": "Optional manifest payloads so the scheduler can index capabilities without shared storage.",
+      "items": {
+        "type": "object",
+        "required": ["name", "version", "manifest"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "minLength": 1 },
+          "manifest": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false

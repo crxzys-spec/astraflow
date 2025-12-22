@@ -8,7 +8,14 @@ import { WidgetRegistryProvider } from "..";
 import { useWorkflowStore } from "../store";
 import { workflowDraftToDefinition } from "../utils/converters";
 import "../styles/builder.css";
-import type { WorkflowDefinition, WorkflowDraft, WorkflowPaletteNode, WorkflowSubgraphDraftEntry, XYPosition } from "../types";
+import type {
+  WorkflowDefinition,
+  WorkflowDraft,
+  WorkflowPaletteNode,
+  WorkflowSubgraphDraftEntry,
+  WorkflowNodeStateUpdateMap,
+  XYPosition,
+} from "../types";
 import WorkflowCanvas from "../components/WorkflowCanvas";
 import WorkflowPalette, { type PaletteNode } from "../components/WorkflowPalette";
 import NodeInspector from "../components/NodeInspector";
@@ -26,6 +33,7 @@ import GraphSwitcher from "../components/GraphSwitcher";
 import RunsInspectorPanel from "../components/RunsInspectorPanel";
 import BuilderLayout from "../components/BuilderLayout";
 import type { RunStatusModel } from "../../../services/runs";
+import { getStoredActiveRunId, setStoredActiveRunId } from "../../../lib/activeRunSession";
 import { useAuthStore } from "@store/authSlice";
 import { useToolbarStore } from "../hooks/useToolbar";
 import {
@@ -118,6 +126,14 @@ const getErrorMessage = (error: unknown): string => {
   return "Unknown error.";
 };
 
+const getApiStatus = (error: unknown): number | undefined => {
+  if (typeof error === "object" && error !== null && "status" in error) {
+    const status = (error as { status?: number }).status;
+    return typeof status === "number" ? status : undefined;
+  }
+  return undefined;
+};
+
 type RunMessage =
   | { type: "success"; runId?: string; text: string }
   | { type: "error"; text: string };
@@ -144,7 +160,8 @@ const WorkflowBuilderPage = () => {
   const [catalogQuery, setCatalogQuery] = useState("");
   const [selectedPackageName, setSelectedPackageName] = useState<string>();
   const [runMessage, setRunMessage] = useState<RunMessage | null>(null);
-  const [activeRunId, setActiveRunId] = useState<string | undefined>();
+  const activeRunId = useWorkflowStore((state) => state.activeRunId);
+  const setActiveRunId = useWorkflowStore((state) => state.setActiveRunId);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const {
     isPaletteOpen,
@@ -197,6 +214,8 @@ const WorkflowBuilderPage = () => {
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
   const [inlineMessage, setInlineMessage] = useState<{ subgraphId: string; type: "success" | "error"; text: string } | null>(null);
   const toolbarRef = useRef<React.ReactNode | null>(null);
+  const restoreAttemptedRef = useRef<string | null>(null);
+  const restoreRunIdRef = useRef<string | null>(null);
 
   const handleInlineFromSwitcher = useCallback(
     (subgraphId: string) => {
@@ -252,8 +271,11 @@ const WorkflowBuilderPage = () => {
   );
   const startRun = useRunsStore((state) => state.startRun);
   const cancelRun = useRunsStore((state) => state.cancelRun);
+  const getRun = useRunsStore((state) => state.getRun);
   const setToolbar = useToolbarStore((state) => state.setContent);
-  const setStoreActiveRunId = useWorkflowStore((state) => state.setActiveRunId);
+  const resetRunState = useWorkflowStore((state) => state.resetRunState);
+  const updateNodeStates = useWorkflowStore((state) => state.updateNodeStates);
+  const updateNodeRuntime = useWorkflowStore((state) => state.updateNodeRuntime);
 
   const captureCanvasPreview = useCallback(async () => {
     if (typeof window === "undefined") {
@@ -425,6 +447,117 @@ const WorkflowBuilderPage = () => {
     }
   }, [activeRunId]);
 
+  useEffect(() => {
+    if (!workflowId || workflowId === "new") {
+      restoreAttemptedRef.current = null;
+      restoreRunIdRef.current = null;
+      return;
+    }
+    if (!workflow) {
+      return;
+    }
+    if (restoreAttemptedRef.current === workflow.id) {
+      return;
+    }
+    restoreAttemptedRef.current = workflow.id;
+    if (activeRunId) {
+      return;
+    }
+    const storedRunId = getStoredActiveRunId(workflowId);
+    if (storedRunId) {
+      restoreRunIdRef.current = storedRunId;
+      setActiveRunId(storedRunId);
+    }
+  }, [activeRunId, setActiveRunId, workflow, workflowId]);
+
+  useEffect(() => {
+    if (!workflowId || workflowId === "new") {
+      return;
+    }
+    if (!workflow || workflow.id !== workflowId) {
+      return;
+    }
+    if (!activeRunId) {
+      return;
+    }
+    setStoredActiveRunId(workflowId, activeRunId);
+  }, [activeRunId, workflow, workflowId]);
+
+  useEffect(() => {
+    const restoreRunId = restoreRunIdRef.current;
+    if (!workflow || !restoreRunId || activeRunId !== restoreRunId) {
+      return;
+    }
+    let cancelled = false;
+
+    const hydrate = async () => {
+      try {
+        const run = await getRun(restoreRunId, { force: true });
+        if (cancelled || !run) {
+          return;
+        }
+        resetRunState();
+        const updates: WorkflowNodeStateUpdateMap = {};
+        (run.nodes ?? []).forEach((node) => {
+          const nextState = { ...(node.state ?? {}) };
+          if (!nextState.stage) {
+            nextState.stage = node.status;
+          }
+          if (!nextState.error && node.error) {
+            nextState.error = node.error;
+          }
+          updates[node.nodeId] = nextState;
+        });
+        if (Object.keys(updates).length > 0) {
+          updateNodeStates(updates);
+        }
+        (run.nodes ?? []).forEach((node) => {
+          const hasResult = node.result !== undefined;
+          const hasArtifacts = node.artifacts !== undefined;
+          if (!hasResult && !hasArtifacts) {
+            return;
+          }
+          updateNodeRuntime(node.nodeId, {
+            result: hasResult ? (node.result ?? null) : undefined,
+            artifacts: hasArtifacts ? (node.artifacts ?? null) : undefined,
+          });
+        });
+        setActiveRunStatus(run.status);
+      } catch (error) {
+        if (getApiStatus(error) === 404) {
+          setRunMessage({
+            type: "error",
+            text: "Previous run not found. Cleared stored run playback.",
+          });
+          setStoredActiveRunId(workflowId, null);
+          setActiveRunId(null);
+          return;
+        }
+        console.warn("Failed to restore run playback", error);
+      } finally {
+        if (!cancelled) {
+          restoreRunIdRef.current = null;
+        }
+      }
+    };
+
+    hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeRunId,
+    getRun,
+    resetRunState,
+    setActiveRunId,
+    setActiveRunStatus,
+    setRunMessage,
+    updateNodeRuntime,
+    updateNodeStates,
+    workflow,
+    workflowId,
+  ]);
+
   useRunSseSync({
     activeRunId,
     activeRunStatus,
@@ -505,17 +638,6 @@ const WorkflowBuilderPage = () => {
       pushMessage(msg);
     });
   }, [alertMessages, pushMessage]);
-
-  useEffect(() => {
-    setStoreActiveRunId(activeRunId);
-  }, [activeRunId, setStoreActiveRunId]);
-
-  useEffect(
-    () => () => {
-      setStoreActiveRunId(undefined);
-    },
-    [setStoreActiveRunId]
-  );
 
   if (notFound) {
     return (

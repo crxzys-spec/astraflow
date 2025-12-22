@@ -66,7 +66,13 @@ import type { RunStatusEvent } from './run-status-event';
 import type { WorkerHeartbeatEvent } from './worker-heartbeat-event';
 // May contain unused imports in some cases
 // @ts-ignore
+import type { WorkerHeartbeatSnapshot } from './worker-heartbeat-snapshot';
+// May contain unused imports in some cases
+// @ts-ignore
 import type { WorkerPackageSseEvent } from './worker-package-sse-event';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { WorkerPackageStatus } from './worker-package-status';
 // May contain unused imports in some cases
 // @ts-ignore
 import type { WorkflowNodeState } from './workflow-node-state';

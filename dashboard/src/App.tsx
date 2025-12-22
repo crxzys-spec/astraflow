@@ -13,6 +13,7 @@ import { useAuthStore } from "@store/authSlice";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RunSseSubscriptions } from "./lib/sse/RunSseSubscriptions";
 import { NodeSseSubscriptions } from "./lib/sse/NodeSseSubscriptions";
+import { WorkerSseSubscriptions } from "./lib/sse/WorkerSseSubscriptions";
 import { MessageProvider } from "./components/MessageCenter";
 
 const NotFound = () => (
@@ -250,6 +251,7 @@ function App() {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <RunSseSubscriptions />
         <NodeSseSubscriptions />
+        <WorkerSseSubscriptions />
         <Routes>
           <Route path="/" element={<Navigate to="/workflows" replace />} />
           <Route

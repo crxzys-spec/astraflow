@@ -2,6 +2,8 @@
 
 from fastapi.testclient import TestClient
 
+import scheduler_api
+
 
 from pydantic import Field, StrictStr, field_validator  # noqa: F401
 from typing import Optional  # noqa: F401
@@ -40,7 +42,33 @@ def test_start_run(client: TestClient):
 
     Start a run using the in-memory workflow snapshot
     """
-    start_run_request = scheduler_api.StartRunRequest()
+    workflow = StartRunRequestWorkflow.from_dict(
+        {
+            "id": "wf-1",
+            "schemaVersion": "2025-10",
+            "metadata": {
+                "name": "workflow",
+                "namespace": "default",
+                "originId": "wf-1",
+            },
+            "nodes": [
+                {
+                    "id": "node-1",
+                    "type": "example.node",
+                    "package": {"name": "example", "version": "1.0.0"},
+                    "status": "published",
+                    "category": "test",
+                    "label": "Node",
+                    "position": {"x": 0, "y": 0},
+                }
+            ],
+            "edges": [],
+        }
+    )
+    start_run_request = scheduler_api.StartRunRequest(
+        workflow=workflow,
+        client_id="client-1",
+    )
 
     headers = {
         "idempotency_key": 'idempotency_key_example',

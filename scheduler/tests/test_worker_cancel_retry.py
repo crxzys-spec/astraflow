@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from scheduler_api.control_plane.run_registry import RunRegistry
+from scheduler_api.control_plane.run_state_service import RunStateService
 from scheduler_api.models.start_run_request import StartRunRequest
 from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkflow
 def _basic_workflow() -> StartRunRequestWorkflow:
@@ -30,7 +30,7 @@ def _basic_workflow() -> StartRunRequestWorkflow:
 
 @pytest.mark.asyncio
 async def test_worker_cancel_resets_node_for_retry():
-    registry = RunRegistry()
+    registry = RunStateService()
     workflow = _basic_workflow()
     request = StartRunRequest(workflow=workflow, client_id="client-1")
     await registry.create_run(run_id="run-cancel", request=request, tenant="t")
@@ -59,3 +59,4 @@ async def test_worker_cancel_resets_node_for_retry():
     ready = await registry.collect_ready_nodes("run-cancel")
     assert ready, "Node should be ready for retry after worker cancel"
     assert ready[0].node_id == "node-1"
+

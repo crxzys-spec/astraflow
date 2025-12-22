@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Dict, Iterable, Literal
 
 import yaml
-from pydantic import AnyUrl, Field, PositiveInt
+from pydantic import AnyUrl, Field, PositiveInt, conint, confloat
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -127,6 +127,54 @@ class WorkerSettings(BaseSettings):
         default=0.2,
         description="Jitter factor applied to reconnection backoff (0.0-1.0).",
     )
+    reconnect_abort_on_auth_error: bool = Field(
+        default=False,
+        description="Stop reconnecting when authentication errors are detected.",
+    )
+    reconnect_abort_on_protocol_error: bool = Field(
+        default=False,
+        description="Stop reconnecting when protocol errors are detected.",
+    )
+    transport_recv_queue_max: conint(ge=0) = Field(
+        default=0,
+        description="Max size of the inbound transport queue (0 = unbounded).",
+    )
+    session_app_queue_max: conint(ge=0) = Field(
+        default=1024,
+        description="Max size of the session application queue (0 = unbounded).",
+    )
+    session_app_queue_overflow: Literal["block", "drop_new", "drop_oldest"] = Field(
+        default="block",
+        description="Overflow strategy for the session app queue.",
+    )
+    handler_dispatch_max_inflight: conint(ge=0) = Field(
+        default=8,
+        description="Maximum concurrent biz handler tasks (0 = sequential).",
+    )
+    handler_dispatch_queue_max: conint(ge=0) = Field(
+        default=256,
+        description="Max size of per-type dispatch queues (0 = unbounded).",
+    )
+    handler_dispatch_queue_overflow: Literal["block", "drop_new", "drop_oldest"] = Field(
+        default="block",
+        description="Overflow strategy for per-type dispatch queues.",
+    )
+    handler_dispatch_queue_idle_seconds: confloat(ge=0) = Field(
+        default=300,
+        description="Idle time before retiring per-type dispatch queues (0 = disabled).",
+    )
+    handler_dispatch_timeout_seconds: confloat(ge=0) = Field(
+        default=0,
+        description="Timeout for biz handler execution (0 = disabled).",
+    )
+    handler_dispatch_max_failures: conint(ge=0) = Field(
+        default=0,
+        description="Consecutive handler failures before entering cooldown (0 = disabled).",
+    )
+    handler_dispatch_failure_cooldown_seconds: confloat(ge=0) = Field(
+        default=0,
+        description="Cooldown window after handler failure threshold is exceeded.",
+    )
 
     concurrency_max_parallel: PositiveInt = Field(
         default=1,
@@ -135,6 +183,10 @@ class WorkerSettings(BaseSettings):
     concurrency_per_node_limits: Dict[str, PositiveInt] | None = Field(
         default=None,
         description="Optional per-node concurrency limits enforced locally.",
+    )
+    handler_exec_mode_default: Literal["auto", "inline", "thread"] = Field(
+        default="auto",
+        description="Default execution mode for adapter handlers (auto=thread for sync, inline for async).",
     )
     runtime_names: list[str] = Field(
         default_factory=lambda: ["python"],
@@ -155,7 +207,6 @@ class WorkerSettings(BaseSettings):
             "biz.pkg.install",
             "biz.pkg.uninstall",
             "biz.pkg.event",
-            "biz.pkg.catalog",
         ],
         description="Business/extension payload types this worker can handle.",
     )

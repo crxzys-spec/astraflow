@@ -9,7 +9,12 @@ Name | Type | Description | Notes
 **workerName** | **string** |  | [default to undefined]
 **at** | **string** |  | [default to undefined]
 **queues** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
-**capacity** | **{ [key: string]: any; }** |  | [optional] [default to undefined]
+**instanceId** | **string** |  | [optional] [default to undefined]
+**hostname** | **string** |  | [optional] [default to undefined]
+**version** | **string** |  | [optional] [default to undefined]
+**connected** | **boolean** |  | [optional] [default to undefined]
+**registered** | **boolean** |  | [optional] [default to undefined]
+**heartbeat** | [**WorkerHeartbeatSnapshot**](WorkerHeartbeatSnapshot.md) |  | [optional] [default to undefined]
 
 ## Example
 
@@ -21,7 +26,12 @@ const instance: WorkerHeartbeatEvent = {
     workerName,
     at,
     queues,
-    capacity,
+    instanceId,
+    hostname,
+    version,
+    connected,
+    registered,
+    heartbeat,
 };
 ```
 

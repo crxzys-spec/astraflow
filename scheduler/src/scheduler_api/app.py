@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from scheduler_api import main as generated_main
 from scheduler_api.catalog import catalog
-from scheduler_api.control_plane import router as ControlPlaneRouter
+from scheduler_api.control_plane import router as control_router
 from scheduler_api.db.migrations import upgrade_database
 from scheduler_api.db.seed_data import seed_demo_workflow
 
@@ -24,7 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(ControlPlaneRouter)
+app.include_router(control_router)
 
 
 @app.on_event("startup")

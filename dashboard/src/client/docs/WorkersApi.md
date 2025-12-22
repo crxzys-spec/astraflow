@@ -75,11 +75,29 @@ const configuration = new Configuration();
 const apiInstance = new WorkersApi(configuration);
 
 let queue: string; // (optional) (default to undefined)
+let connected: boolean; // (optional) (default to undefined)
+let registered: boolean; // (optional) (default to undefined)
+let healthy: boolean; // (optional) (default to undefined)
+let packageName: string; // (optional) (default to undefined)
+let packageVersion: string; // (optional) (default to undefined)
+let packageStatus: WorkerPackageStatus; // (optional) (default to undefined)
+let maxHeartbeatAgeSeconds: number; // (optional) (default to undefined)
+let maxInflight: number; // (optional) (default to undefined)
+let maxLatencyMs: number; // (optional) (default to undefined)
 let limit: number; // (optional) (default to 50)
 let cursor: string; // (optional) (default to undefined)
 
 const { status, data } = await apiInstance.listWorkers(
     queue,
+    connected,
+    registered,
+    healthy,
+    packageName,
+    packageVersion,
+    packageStatus,
+    maxHeartbeatAgeSeconds,
+    maxInflight,
+    maxLatencyMs,
     limit,
     cursor
 );
@@ -90,6 +108,15 @@ const { status, data } = await apiInstance.listWorkers(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **queue** | [**string**] |  | (optional) defaults to undefined|
+| **connected** | [**boolean**] |  | (optional) defaults to undefined|
+| **registered** | [**boolean**] |  | (optional) defaults to undefined|
+| **healthy** | [**boolean**] |  | (optional) defaults to undefined|
+| **packageName** | [**string**] |  | (optional) defaults to undefined|
+| **packageVersion** | [**string**] |  | (optional) defaults to undefined|
+| **packageStatus** | **WorkerPackageStatus** |  | (optional) defaults to undefined|
+| **maxHeartbeatAgeSeconds** | [**number**] |  | (optional) defaults to undefined|
+| **maxInflight** | [**number**] |  | (optional) defaults to undefined|
+| **maxLatencyMs** | [**number**] |  | (optional) defaults to undefined|
 | **limit** | [**number**] |  | (optional) defaults to 50|
 | **cursor** | [**string**] |  | (optional) defaults to undefined|
 

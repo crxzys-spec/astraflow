@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel, conint, constr
 
@@ -29,6 +30,30 @@ class Capabilities(BaseModel):
     features: List[constr(min_length=1)]
 
 
+class Status(Enum):
+    installed = 'installed'
+    missing = 'missing'
+    failed = 'failed'
+
+
+class Package(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: constr(min_length=1)
+    version: constr(min_length=1)
+    status: Status
+
+
+class Manifest(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    name: constr(min_length=1)
+    version: constr(min_length=1)
+    manifest: Dict[str, Any]
+
+
 class RegisterPayload(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -37,4 +62,12 @@ class RegisterPayload(BaseModel):
     payload_types: Optional[List[constr(min_length=1)]] = Field(
         [],
         description='Business/extension payload types this endpoint understands (e.g. biz.exec.dispatch).',
+    )
+    packages: Optional[List[Package]] = []
+    channels: Optional[List[constr(min_length=1)]] = Field(
+        None, description='Optional execution channels exposed by the worker.'
+    )
+    manifests: Optional[List[Manifest]] = Field(
+        None,
+        description='Optional manifest payloads so the scheduler can index capabilities without shared storage.',
     )

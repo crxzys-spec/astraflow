@@ -2,6 +2,8 @@
 
 from fastapi.testclient import TestClient
 
+import scheduler_api
+
 
 from scheduler_api.models.auth_login200_response import AuthLogin200Response  # noqa: F401
 from scheduler_api.models.auth_login401_response import AuthLogin401Response  # noqa: F401
@@ -13,7 +15,10 @@ def test_auth_login(client: TestClient):
 
     Exchange username/password for a JWT
     """
-    auth_login_request = scheduler_api.AuthLoginRequest()
+    auth_login_request = scheduler_api.AuthLoginRequest(
+        username="user@example.com",
+        password="password",
+    )
 
     headers = {
     }
@@ -27,4 +32,3 @@ def test_auth_login(client: TestClient):
 
     # uncomment below to assert the status code of the HTTP response
     #assert response.status_code == 200
-

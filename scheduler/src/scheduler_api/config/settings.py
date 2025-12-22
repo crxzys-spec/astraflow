@@ -58,6 +58,14 @@ class SchedulerSettings(BaseSettings):
         default=64,
         description="Sliding window size for session sequencing/ack bitmaps.",
     )
+    dispatch_worker_strategy: str = Field(
+        default="default",
+        description="Worker selection strategy for dispatch (default, least_inflight, least_latency, random).",
+    )
+    dispatch_worker_max_heartbeat_age_seconds: PositiveInt = Field(
+        default=90,
+        description="Max heartbeat age (seconds) for eligible workers.",
+    )
 
     def allowed_worker_tokens(self) -> Set[str]:
         tokens: Set[str] = set()

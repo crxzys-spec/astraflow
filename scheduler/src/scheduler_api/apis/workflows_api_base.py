@@ -29,7 +29,7 @@ class BaseWorkflowsApi:
     async def persist_workflow(
         self,
         workflow: Workflow,
-        idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")],
+        idempotency_key: Annotated[Optional[Annotated[str, Field(max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")],
     ) -> WorkflowRef:
         ...
 

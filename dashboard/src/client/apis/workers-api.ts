@@ -29,6 +29,8 @@ import type { ListWorkers200Response } from '../models';
 import type { Worker } from '../models';
 // @ts-ignore
 import type { WorkerCommand } from '../models';
+// @ts-ignore
+import type { WorkerPackageStatus } from '../models';
 /**
  * WorkersApi - axios parameter creator
  */
@@ -76,12 +78,21 @@ export const WorkersApiAxiosParamCreator = function (configuration?: Configurati
          * 
          * @summary List workers (scheduler view)
          * @param {string} [queue] 
+         * @param {boolean} [connected] 
+         * @param {boolean} [registered] 
+         * @param {boolean} [healthy] 
+         * @param {string} [packageName] 
+         * @param {string} [packageVersion] 
+         * @param {WorkerPackageStatus} [packageStatus] 
+         * @param {number} [maxHeartbeatAgeSeconds] 
+         * @param {number} [maxInflight] 
+         * @param {number} [maxLatencyMs] 
          * @param {number} [limit] 
          * @param {string} [cursor] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listWorkers: async (queue?: string, limit?: number, cursor?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        listWorkers: async (queue?: string, connected?: boolean, registered?: boolean, healthy?: boolean, packageName?: string, packageVersion?: string, packageStatus?: WorkerPackageStatus, maxHeartbeatAgeSeconds?: number, maxInflight?: number, maxLatencyMs?: number, limit?: number, cursor?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/api/v1/workers`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -100,6 +111,42 @@ export const WorkersApiAxiosParamCreator = function (configuration?: Configurati
 
             if (queue !== undefined) {
                 localVarQueryParameter['queue'] = queue;
+            }
+
+            if (connected !== undefined) {
+                localVarQueryParameter['connected'] = connected;
+            }
+
+            if (registered !== undefined) {
+                localVarQueryParameter['registered'] = registered;
+            }
+
+            if (healthy !== undefined) {
+                localVarQueryParameter['healthy'] = healthy;
+            }
+
+            if (packageName !== undefined) {
+                localVarQueryParameter['packageName'] = packageName;
+            }
+
+            if (packageVersion !== undefined) {
+                localVarQueryParameter['packageVersion'] = packageVersion;
+            }
+
+            if (packageStatus !== undefined) {
+                localVarQueryParameter['packageStatus'] = packageStatus;
+            }
+
+            if (maxHeartbeatAgeSeconds !== undefined) {
+                localVarQueryParameter['maxHeartbeatAgeSeconds'] = maxHeartbeatAgeSeconds;
+            }
+
+            if (maxInflight !== undefined) {
+                localVarQueryParameter['maxInflight'] = maxInflight;
+            }
+
+            if (maxLatencyMs !== undefined) {
+                localVarQueryParameter['maxLatencyMs'] = maxLatencyMs;
             }
 
             if (limit !== undefined) {
@@ -195,13 +242,22 @@ export const WorkersApiFp = function(configuration?: Configuration) {
          * 
          * @summary List workers (scheduler view)
          * @param {string} [queue] 
+         * @param {boolean} [connected] 
+         * @param {boolean} [registered] 
+         * @param {boolean} [healthy] 
+         * @param {string} [packageName] 
+         * @param {string} [packageVersion] 
+         * @param {WorkerPackageStatus} [packageStatus] 
+         * @param {number} [maxHeartbeatAgeSeconds] 
+         * @param {number} [maxInflight] 
+         * @param {number} [maxLatencyMs] 
          * @param {number} [limit] 
          * @param {string} [cursor] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async listWorkers(queue?: string, limit?: number, cursor?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ListWorkers200Response>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.listWorkers(queue, limit, cursor, options);
+        async listWorkers(queue?: string, connected?: boolean, registered?: boolean, healthy?: boolean, packageName?: string, packageVersion?: string, packageStatus?: WorkerPackageStatus, maxHeartbeatAgeSeconds?: number, maxInflight?: number, maxLatencyMs?: number, limit?: number, cursor?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ListWorkers200Response>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listWorkers(queue, connected, registered, healthy, packageName, packageVersion, packageStatus, maxHeartbeatAgeSeconds, maxInflight, maxLatencyMs, limit, cursor, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['WorkersApi.listWorkers']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -244,13 +300,22 @@ export const WorkersApiFactory = function (configuration?: Configuration, basePa
          * 
          * @summary List workers (scheduler view)
          * @param {string} [queue] 
+         * @param {boolean} [connected] 
+         * @param {boolean} [registered] 
+         * @param {boolean} [healthy] 
+         * @param {string} [packageName] 
+         * @param {string} [packageVersion] 
+         * @param {WorkerPackageStatus} [packageStatus] 
+         * @param {number} [maxHeartbeatAgeSeconds] 
+         * @param {number} [maxInflight] 
+         * @param {number} [maxLatencyMs] 
          * @param {number} [limit] 
          * @param {string} [cursor] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listWorkers(queue?: string, limit?: number, cursor?: string, options?: RawAxiosRequestConfig): AxiosPromise<ListWorkers200Response> {
-            return localVarFp.listWorkers(queue, limit, cursor, options).then((request) => request(axios, basePath));
+        listWorkers(queue?: string, connected?: boolean, registered?: boolean, healthy?: boolean, packageName?: string, packageVersion?: string, packageStatus?: WorkerPackageStatus, maxHeartbeatAgeSeconds?: number, maxInflight?: number, maxLatencyMs?: number, limit?: number, cursor?: string, options?: RawAxiosRequestConfig): AxiosPromise<ListWorkers200Response> {
+            return localVarFp.listWorkers(queue, connected, registered, healthy, packageName, packageVersion, packageStatus, maxHeartbeatAgeSeconds, maxInflight, maxLatencyMs, limit, cursor, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -286,13 +351,22 @@ export class WorkersApi extends BaseAPI {
      * 
      * @summary List workers (scheduler view)
      * @param {string} [queue] 
+     * @param {boolean} [connected] 
+     * @param {boolean} [registered] 
+     * @param {boolean} [healthy] 
+     * @param {string} [packageName] 
+     * @param {string} [packageVersion] 
+     * @param {WorkerPackageStatus} [packageStatus] 
+     * @param {number} [maxHeartbeatAgeSeconds] 
+     * @param {number} [maxInflight] 
+     * @param {number} [maxLatencyMs] 
      * @param {number} [limit] 
      * @param {string} [cursor] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public listWorkers(queue?: string, limit?: number, cursor?: string, options?: RawAxiosRequestConfig) {
-        return WorkersApiFp(this.configuration).listWorkers(queue, limit, cursor, options).then((request) => request(this.axios, this.basePath));
+    public listWorkers(queue?: string, connected?: boolean, registered?: boolean, healthy?: boolean, packageName?: string, packageVersion?: string, packageStatus?: WorkerPackageStatus, maxHeartbeatAgeSeconds?: number, maxInflight?: number, maxLatencyMs?: number, limit?: number, cursor?: string, options?: RawAxiosRequestConfig) {
+        return WorkersApiFp(this.configuration).listWorkers(queue, connected, registered, healthy, packageName, packageVersion, packageStatus, maxHeartbeatAgeSeconds, maxInflight, maxLatencyMs, limit, cursor, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

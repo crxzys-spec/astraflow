@@ -13,13 +13,21 @@
  */
 
 
+// May contain unused imports in some cases
+// @ts-ignore
+import type { WorkerHeartbeatSnapshot } from './worker-heartbeat-snapshot';
 
 export interface WorkerHeartbeatEvent {
     'kind': WorkerHeartbeatEventKindEnum;
     'workerName': string;
     'at': string;
     'queues'?: Array<string> | null;
-    'capacity'?: { [key: string]: any; } | null;
+    'instanceId'?: string | null;
+    'hostname'?: string | null;
+    'version'?: string | null;
+    'connected'?: boolean | null;
+    'registered'?: boolean | null;
+    'heartbeat'?: WorkerHeartbeatSnapshot;
 }
 
 export const WorkerHeartbeatEventKindEnum = {

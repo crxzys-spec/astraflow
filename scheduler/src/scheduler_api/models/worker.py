@@ -21,9 +21,11 @@ import json
 
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from scheduler_api.models.worker_packages_inner import WorkerPackagesInner
+from scheduler_api.models.worker_capabilities import WorkerCapabilities
+from scheduler_api.models.worker_heartbeat_snapshot import WorkerHeartbeatSnapshot
+from scheduler_api.models.worker_package import WorkerPackage
 try:
     from typing import Self
 except ImportError:
@@ -37,9 +39,17 @@ class Worker(BaseModel):
     hostname: Optional[StrictStr] = None
     last_heartbeat_at: datetime = Field(alias="lastHeartbeatAt")
     queues: List[StrictStr]
-    packages: Optional[List[WorkerPackagesInner]] = None
+    packages: Optional[List[WorkerPackage]] = None
     meta: Optional[Dict[str, Any]] = None
-    __properties: ClassVar[List[str]] = ["id", "hostname", "lastHeartbeatAt", "queues", "packages", "meta"]
+    connected: Optional[StrictBool] = None
+    registered: Optional[StrictBool] = None
+    tenant: Optional[StrictStr] = None
+    instance_id: Optional[StrictStr] = Field(default=None, alias="instanceId")
+    version: Optional[StrictStr] = None
+    capabilities: Optional[WorkerCapabilities] = None
+    payload_types: Optional[List[StrictStr]] = Field(default=None, alias="payloadTypes")
+    heartbeat: Optional[WorkerHeartbeatSnapshot] = None
+    __properties: ClassVar[List[str]] = ["id", "hostname", "lastHeartbeatAt", "queues", "packages", "meta", "connected", "registered", "tenant", "instanceId", "version", "capabilities", "payloadTypes", "heartbeat"]
 
     model_config = {
         "populate_by_name": True,
@@ -85,6 +95,42 @@ class Worker(BaseModel):
                 if _item:
                     _items.append(_item.to_dict())
             _dict['packages'] = _items
+        # override the default output from pydantic by calling `to_dict()` of capabilities
+        if self.capabilities:
+            _dict['capabilities'] = self.capabilities.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of heartbeat
+        if self.heartbeat:
+            _dict['heartbeat'] = self.heartbeat.to_dict()
+        # set to None if connected (nullable) is None
+        # and model_fields_set contains the field
+        if self.connected is None and "connected" in self.model_fields_set:
+            _dict['connected'] = None
+
+        # set to None if registered (nullable) is None
+        # and model_fields_set contains the field
+        if self.registered is None and "registered" in self.model_fields_set:
+            _dict['registered'] = None
+
+        # set to None if tenant (nullable) is None
+        # and model_fields_set contains the field
+        if self.tenant is None and "tenant" in self.model_fields_set:
+            _dict['tenant'] = None
+
+        # set to None if instance_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.instance_id is None and "instance_id" in self.model_fields_set:
+            _dict['instanceId'] = None
+
+        # set to None if version (nullable) is None
+        # and model_fields_set contains the field
+        if self.version is None and "version" in self.model_fields_set:
+            _dict['version'] = None
+
+        # set to None if payload_types (nullable) is None
+        # and model_fields_set contains the field
+        if self.payload_types is None and "payload_types" in self.model_fields_set:
+            _dict['payloadTypes'] = None
+
         return _dict
 
     @classmethod
@@ -101,8 +147,16 @@ class Worker(BaseModel):
             "hostname": obj.get("hostname"),
             "lastHeartbeatAt": obj.get("lastHeartbeatAt"),
             "queues": obj.get("queues"),
-            "packages": [WorkerPackagesInner.from_dict(_item) for _item in obj.get("packages")] if obj.get("packages") is not None else None,
-            "meta": obj.get("meta")
+            "packages": [WorkerPackage.from_dict(_item) for _item in obj.get("packages")] if obj.get("packages") is not None else None,
+            "meta": obj.get("meta"),
+            "connected": obj.get("connected"),
+            "registered": obj.get("registered"),
+            "tenant": obj.get("tenant"),
+            "instanceId": obj.get("instanceId"),
+            "version": obj.get("version"),
+            "capabilities": WorkerCapabilities.from_dict(obj.get("capabilities")) if obj.get("capabilities") is not None else None,
+            "payloadTypes": obj.get("payloadTypes"),
+            "heartbeat": WorkerHeartbeatSnapshot.from_dict(obj.get("heartbeat")) if obj.get("heartbeat") is not None else None
         })
         return _obj
 

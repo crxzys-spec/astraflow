@@ -104,6 +104,8 @@ src/scheduler_api/models/user_list.py
 src/scheduler_api/models/user_role_request.py
 src/scheduler_api/models/user_summary.py
 src/scheduler_api/models/worker.py
+src/scheduler_api/models/worker_capabilities.py
+src/scheduler_api/models/worker_capabilities_concurrency.py
 src/scheduler_api/models/worker_command.py
 src/scheduler_api/models/worker_command_one_of.py
 src/scheduler_api/models/worker_command_one_of1.py
@@ -111,9 +113,13 @@ src/scheduler_api/models/worker_command_one_of2.py
 src/scheduler_api/models/worker_command_one_of3.py
 src/scheduler_api/models/worker_heartbeat.py
 src/scheduler_api/models/worker_heartbeat_event.py
+src/scheduler_api/models/worker_heartbeat_metrics.py
+src/scheduler_api/models/worker_heartbeat_snapshot.py
+src/scheduler_api/models/worker_heartbeat_snapshot_packages.py
+src/scheduler_api/models/worker_package.py
 src/scheduler_api/models/worker_package_event.py
 src/scheduler_api/models/worker_package_sse_event.py
-src/scheduler_api/models/worker_packages_inner.py
+src/scheduler_api/models/worker_package_status.py
 src/scheduler_api/models/workflow.py
 src/scheduler_api/models/workflow_edge.py
 src/scheduler_api/models/workflow_list.py

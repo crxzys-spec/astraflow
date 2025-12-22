@@ -187,6 +187,37 @@
   height: 100%;
 }
 
+.worker-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.worker-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.worker-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(226, 232, 240, 0.85);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.worker-stat__value {
+  font-weight: 700;
+}
+
 .admin-layout {
   display: flex;
   gap: 1.5rem;
@@ -465,6 +496,34 @@ select:focus {
 
 .data-table tbody tr:hover {
   background: rgba(59, 130, 246, 0.08);
+}
+
+.worker-table td {
+  vertical-align: top;
+}
+
+.worker-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.worker-cell__title {
+  font-weight: 600;
+}
+
+.worker-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.worker-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  color: rgba(226, 232, 240, 0.85);
 }
 
 .admin-user-card {

@@ -110,6 +110,9 @@ def make_register_payload(
     runtimes: List[str],
     features: List[str],
     payload_types: Optional[List[str]] = None,
+    packages: Optional[List[Dict[str, Any]]] = None,
+    manifests: Optional[List[Dict[str, Any]]] = None,
+    channels: Optional[List[str]] = None,
 ) -> RegisterPayload:
     """Helper to construct a RegisterPayload."""
 
@@ -122,6 +125,9 @@ def make_register_payload(
     return RegisterPayload(
         capabilities=capabilities,
         payload_types=payload_types or [],
+        packages=packages or [],
+        manifests=manifests,
+        channels=channels,
     )
 
 

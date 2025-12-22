@@ -586,7 +586,9 @@
       ],
       "adapter": "demo",
       "handler": "delay",
-      "config": {},
+      "config": {
+        "exec_mode": "inline"
+      },
       "schema": {
         "parameters": {
           "type": "object",

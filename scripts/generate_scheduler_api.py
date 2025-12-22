@@ -233,7 +233,8 @@ def relax_field_strictness(apis_root: Path) -> None:
         text = path.read_text(encoding="utf-8")
         if "strict=True" not in text:
             continue
-        new_text = re.sub(r",\s*strict=True", "", text)
+        new_text = re.sub(r"strict=True,\s*", "", text)
+        new_text = re.sub(r",\s*strict=True", "", new_text)
         if new_text != text:
             path.write_text(new_text, encoding="utf-8")
 

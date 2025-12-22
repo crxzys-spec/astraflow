@@ -7,7 +7,7 @@ from typing import List, Optional
 from scheduler_api.apis.catalog_api_base import BaseCatalogApi
 from scheduler_api.catalog import catalog
 from scheduler_api.catalog.package_catalog import _version_key
-from scheduler_api.control_plane.manager import worker_manager
+from scheduler_api.control_plane.network import worker_gateway
 from scheduler_api.models.catalog_node import CatalogNode
 from scheduler_api.models.catalog_node_search_response import CatalogNodeSearchResponse
 from scheduler_api.models.catalog_node_version import CatalogNodeVersion
@@ -129,7 +129,7 @@ def _build_catalog_nodes() -> List[CatalogNode]:
 
     # Worker-reported manifests (hot data).
     try:
-        for session in worker_manager.list_sessions().values():
+        for session in worker_gateway.list_sessions().values():
             for m in session.manifests or []:
                 try:
                     name = getattr(m, "name", None) or m.get("name")  # type: ignore[attr-defined]

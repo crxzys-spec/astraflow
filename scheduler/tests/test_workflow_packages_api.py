@@ -2,6 +2,8 @@
 
 from fastapi.testclient import TestClient
 
+import scheduler_api
+
 
 from pydantic import Field, StrictStr  # noqa: F401
 from typing import Optional  # noqa: F401
@@ -104,7 +106,7 @@ def test_publish_workflow(client: TestClient):
 
     Publish a workflow draft to the Store
     """
-    publish_workflow_request = scheduler_api.PublishWorkflowRequest()
+    publish_workflow_request = scheduler_api.PublishWorkflowRequest(version="1.0.0")
 
     headers = {
         "Authorization": "Bearer special-key",
@@ -119,4 +121,3 @@ def test_publish_workflow(client: TestClient):
 
     # uncomment below to assert the status code of the HTTP response
     #assert response.status_code == 200
-

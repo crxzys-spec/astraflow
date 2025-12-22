@@ -33,7 +33,7 @@ class BaseRunsApi:
     async def start_run(
         self,
         run_start_request: RunStartRequest,
-        idempotency_key: Annotated[Optional[Annotated[str, Field(strict=True, max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")],
+        idempotency_key: Annotated[Optional[Annotated[str, Field(max_length=64)]], Field(description="Optional idempotency key for safe retries; if reused with a different body, return 409")],
     ) -> RunRef:
         ...
 

@@ -21,8 +21,8 @@ from scheduler_api.models.start_run_request_workflow_nodes_inner import (
 )
 from scheduler_api.models.workflow import Workflow
 
-from ..control_plane.orchestrator import run_orchestrator
-from ..control_plane.run_registry import run_registry
+from ..control_plane.biz import biz_facade
+from ..control_plane.biz.engine import status
 
 LOGGER = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class RunsApiImpl(BaseRunsApi):
     ) -> ListRuns200Response:
         require_roles(*RUN_VIEW_ROLES)
         capped_limit = limit or 50
-        return await run_registry.to_list_response(
+        return await biz_facade.list_runs(
             limit=capped_limit,
             cursor=cursor,
             status=status,
@@ -69,15 +69,11 @@ class RunsApiImpl(BaseRunsApi):
         self._ensure_initial_node(workflow)
 
         run_id = str(uuid4())
-        record = await run_registry.create_run(
+        record, ready = await biz_facade.start_run(
             run_id=run_id,
             request=start_run_request,
             tenant=self.tenant,
         )
-
-        ready = await run_registry.collect_ready_nodes(run_id)
-        if ready:
-            await run_orchestrator.enqueue(ready)
         LOGGER.info(
             "Run %s queued with %d initial nodes", run_id, len(ready)
         )
@@ -98,7 +94,7 @@ class RunsApiImpl(BaseRunsApi):
         runId: str,
     ) -> ListRuns200ResponseItemsInner:
         require_roles(*RUN_VIEW_ROLES)
-        record = await run_registry.get(runId)
+        record = await biz_facade.get_run(runId)
         if not record:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -111,13 +107,12 @@ class RunsApiImpl(BaseRunsApi):
         runId: str,
     ) -> StartRun202Response:
         token = require_roles(*WORKFLOW_EDIT_ROLES)
-        record, cancelled_next = await run_registry.cancel_run(runId)
+        record, cancelled_next = await biz_facade.cancel_run(runId)
         if not record:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Run {runId} not found",
             )
-        await run_orchestrator.cancel_run(runId)
         if cancelled_next:
             await self._notify_cancelled_next(cancelled_next, tenant=self.tenant)
         record_audit_event(
@@ -138,7 +133,7 @@ class RunsApiImpl(BaseRunsApi):
 
         from uuid import uuid4  # local import to avoid cycle
 
-        from scheduler_api.control_plane.manager import worker_manager  # late import
+        from scheduler_api.control_plane.network import worker_gateway  # late import
         from shared.models.session import Role, Sender, WsEnvelope
         from shared.models.biz.exec.next.response import ExecMiddlewareNextResponse
 
@@ -148,7 +143,7 @@ class RunsApiImpl(BaseRunsApi):
                 runId=run_id or "",
                 nodeId=node_id or "",
                 middlewareId=middleware_id or "",
-                error={"code": "next_cancelled", "message": run_registry.get_next_error_message("next_cancelled")},
+                error={"code": "next_cancelled", "message": status.get_next_error_message("next_cancelled")},
             )
             envelope = WsEnvelope(
                 type="biz.exec.next.response",
@@ -157,17 +152,17 @@ class RunsApiImpl(BaseRunsApi):
                 corr=request_id,
                 seq=None,
                 tenant=tenant,
-                sender=Sender(role=Role.scheduler, id=worker_manager.scheduler_id),
+                sender=Sender(role=Role.scheduler, id=worker_gateway.scheduler_id),
                 payload=payload.model_dump(by_alias=True, exclude_none=True),
             )
-            await worker_manager.send_envelope(worker_key, envelope)
+            await worker_gateway.send_envelope(worker_key, envelope)
 
     async def get_run_definition(
         self,
         runId: str,
     ) -> Workflow:
         require_roles(*RUN_VIEW_ROLES)
-        workflow = await run_registry.get_workflow_with_state(runId)
+        workflow = await biz_facade.get_workflow_with_state(runId)
         if not workflow:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

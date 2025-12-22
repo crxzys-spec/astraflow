@@ -8,6 +8,15 @@ get:
       required: false
       schema:
         type: string
+    - $ref: '../components/parameters.yaml#/WorkerConnected'
+    - $ref: '../components/parameters.yaml#/WorkerRegistered'
+    - $ref: '../components/parameters.yaml#/WorkerHealthy'
+    - $ref: '../components/parameters.yaml#/WorkerPackageName'
+    - $ref: '../components/parameters.yaml#/WorkerPackageVersion'
+    - $ref: '../components/parameters.yaml#/WorkerPackageStatus'
+    - $ref: '../components/parameters.yaml#/WorkerMaxHeartbeatAgeSeconds'
+    - $ref: '../components/parameters.yaml#/WorkerMaxInflight'
+    - $ref: '../components/parameters.yaml#/WorkerMaxLatencyMs'
     - $ref: '../components/parameters.yaml#/PageLimit'
     - $ref: '../components/parameters.yaml#/PageCursor'
   responses:

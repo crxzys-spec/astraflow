@@ -2,6 +2,8 @@
 
 from fastapi.testclient import TestClient
 
+import scheduler_api
+
 
 from pydantic import StrictStr  # noqa: F401
 from typing import Any  # noqa: F401
@@ -37,7 +39,11 @@ def test_create_user(client: TestClient):
 
     Create a new user
     """
-    create_user_request = scheduler_api.CreateUserRequest()
+    create_user_request = scheduler_api.CreateUserRequest(
+        username="user",
+        display_name="Test User",
+        password="password",
+    )
 
     headers = {
         "Authorization": "Bearer special-key",
@@ -59,7 +65,7 @@ def test_reset_user_password(client: TestClient):
 
     Reset user password
     """
-    reset_user_password_request = scheduler_api.ResetUserPasswordRequest()
+    reset_user_password_request = scheduler_api.ResetUserPasswordRequest(password="new-password")
 
     headers = {
         "Authorization": "Bearer special-key",
@@ -81,7 +87,7 @@ def test_add_user_role(client: TestClient):
 
     Assign role to user
     """
-    add_user_role_request = scheduler_api.AddUserRoleRequest()
+    add_user_role_request = scheduler_api.AddUserRoleRequest(role="admin")
 
     headers = {
         "Authorization": "Bearer special-key",
@@ -116,4 +122,3 @@ def test_remove_user_role(client: TestClient):
 
     # uncomment below to assert the status code of the HTTP response
     #assert response.status_code == 200
-

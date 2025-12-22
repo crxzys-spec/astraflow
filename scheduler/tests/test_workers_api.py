@@ -2,6 +2,8 @@
 
 from fastapi.testclient import TestClient
 
+import scheduler_api
+
 
 from pydantic import Field, StrictStr  # noqa: F401
 from typing import Optional  # noqa: F401

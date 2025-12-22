@@ -21,8 +21,9 @@ import json
 
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from scheduler_api.models.worker_heartbeat_snapshot import WorkerHeartbeatSnapshot
 try:
     from typing import Self
 except ImportError:
@@ -36,8 +37,13 @@ class WorkerHeartbeatEvent(BaseModel):
     worker_name: StrictStr = Field(alias="workerName")
     at: datetime
     queues: Optional[List[StrictStr]] = None
-    capacity: Optional[Dict[str, Any]] = None
-    __properties: ClassVar[List[str]] = ["kind", "workerName", "at", "queues", "capacity"]
+    instance_id: Optional[StrictStr] = Field(default=None, alias="instanceId")
+    hostname: Optional[StrictStr] = None
+    version: Optional[StrictStr] = None
+    connected: Optional[StrictBool] = None
+    registered: Optional[StrictBool] = None
+    heartbeat: Optional[WorkerHeartbeatSnapshot] = None
+    __properties: ClassVar[List[str]] = ["kind", "workerName", "at", "queues", "instanceId", "hostname", "version", "connected", "registered", "heartbeat"]
 
     model_config = {
         "populate_by_name": True,
@@ -76,6 +82,9 @@ class WorkerHeartbeatEvent(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of heartbeat
+        if self.heartbeat:
+            _dict['heartbeat'] = self.heartbeat.to_dict()
         # set to None if kind (nullable) is None
         # and model_fields_set contains the field
         if self.kind is None and "kind" in self.model_fields_set:
@@ -86,10 +95,30 @@ class WorkerHeartbeatEvent(BaseModel):
         if self.queues is None and "queues" in self.model_fields_set:
             _dict['queues'] = None
 
-        # set to None if capacity (nullable) is None
+        # set to None if instance_id (nullable) is None
         # and model_fields_set contains the field
-        if self.capacity is None and "capacity" in self.model_fields_set:
-            _dict['capacity'] = None
+        if self.instance_id is None and "instance_id" in self.model_fields_set:
+            _dict['instanceId'] = None
+
+        # set to None if hostname (nullable) is None
+        # and model_fields_set contains the field
+        if self.hostname is None and "hostname" in self.model_fields_set:
+            _dict['hostname'] = None
+
+        # set to None if version (nullable) is None
+        # and model_fields_set contains the field
+        if self.version is None and "version" in self.model_fields_set:
+            _dict['version'] = None
+
+        # set to None if connected (nullable) is None
+        # and model_fields_set contains the field
+        if self.connected is None and "connected" in self.model_fields_set:
+            _dict['connected'] = None
+
+        # set to None if registered (nullable) is None
+        # and model_fields_set contains the field
+        if self.registered is None and "registered" in self.model_fields_set:
+            _dict['registered'] = None
 
         return _dict
 
@@ -107,7 +136,12 @@ class WorkerHeartbeatEvent(BaseModel):
             "workerName": obj.get("workerName"),
             "at": obj.get("at"),
             "queues": obj.get("queues"),
-            "capacity": obj.get("capacity")
+            "instanceId": obj.get("instanceId"),
+            "hostname": obj.get("hostname"),
+            "version": obj.get("version"),
+            "connected": obj.get("connected"),
+            "registered": obj.get("registered"),
+            "heartbeat": WorkerHeartbeatSnapshot.from_dict(obj.get("heartbeat")) if obj.get("heartbeat") is not None else None
         })
         return _obj
 

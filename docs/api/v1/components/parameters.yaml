@@ -16,6 +16,63 @@ WorkerId:
   required: true
   schema:
     type: string
+WorkerConnected:
+  name: connected
+  in: query
+  required: false
+  schema:
+    type: boolean
+WorkerRegistered:
+  name: registered
+  in: query
+  required: false
+  schema:
+    type: boolean
+WorkerHealthy:
+  name: healthy
+  in: query
+  required: false
+  schema:
+    type: boolean
+WorkerPackageName:
+  name: packageName
+  in: query
+  required: false
+  schema:
+    type: string
+WorkerPackageVersion:
+  name: packageVersion
+  in: query
+  required: false
+  schema:
+    type: string
+WorkerPackageStatus:
+  name: packageStatus
+  in: query
+  required: false
+  schema:
+    $ref: './schemas/index.yaml#/WorkerPackageStatus'
+WorkerMaxHeartbeatAgeSeconds:
+  name: maxHeartbeatAgeSeconds
+  in: query
+  required: false
+  schema:
+    type: number
+    minimum: 0
+WorkerMaxInflight:
+  name: maxInflight
+  in: query
+  required: false
+  schema:
+    type: integer
+    minimum: 0
+WorkerMaxLatencyMs:
+  name: maxLatencyMs
+  in: query
+  required: false
+  schema:
+    type: integer
+    minimum: 0
 IdempotencyKey:
   name: Idempotency-Key
   in: header

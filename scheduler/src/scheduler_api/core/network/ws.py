@@ -4,12 +4,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, WebSocket
 
-from scheduler_api.control_plane.biz.adapters.handlers import register_handlers
-from scheduler_api.control_plane.network import ControlPlaneServer
+from scheduler_api.core.facade import core_facade
 
 router = APIRouter()
-_server = ControlPlaneServer()
-register_handlers(_server)
+_server = core_facade.build_server()
 
 
 @router.websocket("/ws/worker")

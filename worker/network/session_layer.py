@@ -14,8 +14,7 @@ from shared.models.session.handshake import Auth, Mode, Worker
 from shared.models.session.heartbeat import Metrics
 from shared.models.session.register import Capabilities, Concurrency
 
-from worker.agent.concurrency import ConcurrencyGuard
-from worker.agent.resource_registry import ResourceRegistry
+from worker.execution.runtime import ConcurrencyGuard, ResourceRegistry
 from worker.config import WorkerSettings
 
 LOGGER = logging.getLogger(__name__)

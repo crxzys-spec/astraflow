@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 
 from scheduler_api.apis.workers_api_base import BaseWorkersApi
 from scheduler_api.auth.roles import RUN_VIEW_ROLES, WORKFLOW_EDIT_ROLES, require_roles
-from scheduler_api.control_plane.network import WorkerSession, worker_gateway
+from scheduler_api.core.network import WorkerSession, worker_gateway
 from scheduler_api.models.command_ref import CommandRef
 from scheduler_api.models.list_workers200_response import ListWorkers200Response
 from scheduler_api.models.worker import Worker

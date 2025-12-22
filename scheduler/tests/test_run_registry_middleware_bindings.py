@@ -1,9 +1,9 @@
 import pytest
 
-from scheduler_api.control_plane.biz.domain.graph import build_edge_bindings_for_workflow
-from scheduler_api.control_plane.biz.domain.middleware import extract_middleware_entries
-from scheduler_api.control_plane.biz.domain.models import EdgeBinding, WorkflowScopeIndex
-from scheduler_api.control_plane.run_state_service import RunStateService
+from scheduler_api.core.biz.domain.graph import build_edge_bindings_for_workflow
+from scheduler_api.core.biz.domain.middleware import extract_middleware_entries
+from scheduler_api.core.biz.domain.models import EdgeBinding, WorkflowScopeIndex
+from scheduler_api.core.biz.services.run_state_service import RunStateService
 from scheduler_api.models.start_run_request import StartRunRequest
 from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkflow
 from shared.models.biz.exec.next.request import ExecMiddlewareNextRequest

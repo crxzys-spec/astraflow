@@ -6,7 +6,7 @@ import asyncio
 import logging
 from typing import Any, Dict, List
 
-from worker.agent.runner.context import ExecutionContext
+from worker.execution import ExecutionContext
 
 LOGGER = logging.getLogger(__name__)
 

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from scheduler_api.control_plane.run_state_service import RunStateService
+from scheduler_api.core.biz.services.run_state_service import RunStateService
 from scheduler_api.models.start_run_request import StartRunRequest
 from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkflow
 def _basic_workflow() -> StartRunRequestWorkflow:

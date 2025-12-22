@@ -25,9 +25,9 @@ def _make_envelope(settings: WorkerSettings, message_type: str, envelope_id: str
 @pytest.mark.asyncio
 async def test_dispatch_queue_drop_oldest():
     settings = WorkerSettings(
-        handler_dispatch_queue_max=1,
-        handler_dispatch_queue_overflow="drop_oldest",
-        handler_dispatch_max_inflight=0,
+        dispatch_queue_max=1,
+        dispatch_queue_overflow="drop_oldest",
+        dispatch_max_inflight=0,
     )
     client = NetworkClient(
         settings=settings,
@@ -51,10 +51,10 @@ async def test_dispatch_queue_drop_oldest():
 @pytest.mark.asyncio
 async def test_handler_timeout_enters_cooldown():
     settings = WorkerSettings(
-        handler_dispatch_timeout_seconds=0.01,
-        handler_dispatch_max_failures=1,
-        handler_dispatch_failure_cooldown_seconds=0.1,
-        handler_dispatch_max_inflight=0,
+        dispatch_timeout_seconds=0.01,
+        dispatch_max_failures=1,
+        dispatch_failure_cooldown_seconds=0.1,
+        dispatch_max_inflight=0,
     )
     client = NetworkClient(
         settings=settings,

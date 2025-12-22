@@ -8,7 +8,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from ..packages import AdapterRegistry
+from worker.packages import AdapterRegistry
+
 from .context import ExecutionContext
 
 LOGGER = logging.getLogger(__name__)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from worker.agent.runner import ExecutionContext
+from worker.execution import ExecutionContext
 
 
 def _build_payload(context: ExecutionContext) -> Dict[str, Any]:

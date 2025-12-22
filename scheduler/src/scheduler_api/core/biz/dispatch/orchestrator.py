@@ -15,8 +15,9 @@ from shared.models.session import Role
 from shared.models.session.register import Status as PackageStatus
 from shared.protocol import build_envelope
 
-from ...network import WorkerSession, worker_gateway
-from ...run_state_service import DispatchRequest, FINAL_STATUSES, run_state_service
+from ...network.manager import WorkerSession
+from ...network.gateway import worker_gateway
+from ..services.run_state_service import DispatchRequest, FINAL_STATUSES, run_state_service
 from scheduler_api.config.settings import get_settings
 from scheduler_api.models.workflow_node import WorkflowNode
 

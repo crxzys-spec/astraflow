@@ -1,6 +1,7 @@
-"""Scheduler worker control-plane utilities."""
+"""Scheduler core utilities for worker control and run orchestration."""
 
 from .biz import biz_facade, run_orchestrator, run_state_service
+from .facade import CoreFacade, core_facade
 from .network import (
     WorkerControlManager,
     WorkerGateway,
@@ -8,7 +9,7 @@ from .network import (
     worker_gateway,
     worker_manager,
 )
-from .ws import router
+from .network.ws import router
 
 __all__ = [
     "router",
@@ -20,4 +21,6 @@ __all__ = [
     "WorkerSession",
     "worker_gateway",
     "worker_manager",
+    "CoreFacade",
+    "core_facade",
 ]

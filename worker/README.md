@@ -50,7 +50,7 @@ Key configuration fields include:
   `command.error` containing `E.RUNNER.FAILURE`.
 - Handler execution mode can be set per node via `nodes[].config.exec_mode` or per adapter via
   `adapters[].metadata.exec_mode` (`auto`, `inline`, `thread`). The worker default comes from
-  `ASTRA_WORKER_HANDLER_EXEC_MODE_DEFAULT` (`auto` runs sync handlers in a thread and async inline).
+  `ASTRA_WORKER_EXEC_MODE_DEFAULT` (`auto` runs sync handlers in a thread and async inline).
 
 ### Concurrency
 
@@ -61,16 +61,16 @@ Key configuration fields include:
   `ASTRA_WORKER_TRANSPORT_RECV_QUEUE_MAX` and `ASTRA_WORKER_SESSION_APP_QUEUE_MAX`
   (set to `0` for unbounded). Overflow policy for the session queue is controlled by
   `ASTRA_WORKER_SESSION_APP_QUEUE_OVERFLOW` (`block`, `drop_new`, `drop_oldest`).
-- `ASTRA_WORKER_HANDLER_DISPATCH_MAX_INFLIGHT` caps concurrent biz handler tasks
+- `ASTRA_WORKER_DISPATCH_MAX_INFLIGHT` caps concurrent dispatch tasks
   (`0` keeps sequential dispatch).
-- `ASTRA_WORKER_HANDLER_DISPATCH_QUEUE_MAX` caps per-type dispatch queue depth
+- `ASTRA_WORKER_DISPATCH_QUEUE_MAX` caps per-type dispatch queue depth
   (`0` keeps queues unbounded). Overflow policy is controlled by
-  `ASTRA_WORKER_HANDLER_DISPATCH_QUEUE_OVERFLOW`.
-- `ASTRA_WORKER_HANDLER_DISPATCH_QUEUE_IDLE_SECONDS` retires per-type dispatch
+  `ASTRA_WORKER_DISPATCH_QUEUE_OVERFLOW`.
+- `ASTRA_WORKER_DISPATCH_QUEUE_IDLE_SECONDS` retires per-type dispatch
   queues after idle time to avoid unbounded type growth.
-- `ASTRA_WORKER_HANDLER_DISPATCH_TIMEOUT_SECONDS` applies a timeout per handler
-  invocation. Use `ASTRA_WORKER_HANDLER_DISPATCH_MAX_FAILURES` +
-  `ASTRA_WORKER_HANDLER_DISPATCH_FAILURE_COOLDOWN_SECONDS` to enable cooldown
+- `ASTRA_WORKER_DISPATCH_TIMEOUT_SECONDS` applies a timeout per dispatch
+  invocation. Use `ASTRA_WORKER_DISPATCH_MAX_FAILURES` +
+  `ASTRA_WORKER_DISPATCH_FAILURE_COOLDOWN_SECONDS` to enable cooldown
   after consecutive failures.
 - `ASTRA_WORKER_RECONNECT_ABORT_ON_AUTH_ERROR` and
   `ASTRA_WORKER_RECONNECT_ABORT_ON_PROTOCOL_ERROR` can stop reconnect loops

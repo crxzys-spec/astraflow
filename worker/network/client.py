@@ -11,10 +11,10 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, Optional, List, Dict
 
-from worker.agent.concurrency import ConcurrencyGuard
-from worker.agent.packages import AdapterRegistry, PackageManager
-from worker.agent.resource_registry import ResourceRegistry
-from worker.agent.runner import Runner
+from worker.execution.runtime import ConcurrencyGuard
+from worker.packages import AdapterRegistry, PackageManager
+from worker.execution.runtime import ResourceRegistry
+from worker.execution import Runner
 from worker.config import WorkerSettings
 from worker.network.session import Session
 from worker.network.transport.base import BaseTransport
@@ -132,18 +132,18 @@ class NetworkClient:
     def _ensure_dispatch_control(self) -> None:
         if self._dispatch_semaphore is not None:
             return
-        limit = int(self.settings.handler_dispatch_max_inflight or 0)
+        limit = int(self.settings.dispatch_max_inflight or 0)
         if limit > 0:
             self._dispatch_semaphore = asyncio.Semaphore(limit)
-        self._dispatch_queue_max = max(0, int(self.settings.handler_dispatch_queue_max or 0))
-        overflow = getattr(self.settings, "handler_dispatch_queue_overflow", "block")
+        self._dispatch_queue_max = max(0, int(self.settings.dispatch_queue_max or 0))
+        overflow = self.settings.dispatch_queue_overflow
         if overflow not in {"block", "drop_new", "drop_oldest"}:
             overflow = "block"
         self._dispatch_queue_overflow = overflow
-        self._dispatch_timeout = float(self.settings.handler_dispatch_timeout_seconds or 0)
-        self._dispatch_failure_limit = int(self.settings.handler_dispatch_max_failures or 0)
-        self._dispatch_failure_cooldown = float(self.settings.handler_dispatch_failure_cooldown_seconds or 0)
-        self._type_idle_seconds = float(self.settings.handler_dispatch_queue_idle_seconds or 0)
+        self._dispatch_timeout = float(self.settings.dispatch_timeout_seconds or 0)
+        self._dispatch_failure_limit = int(self.settings.dispatch_max_failures or 0)
+        self._dispatch_failure_cooldown = float(self.settings.dispatch_failure_cooldown_seconds or 0)
+        self._type_idle_seconds = float(self.settings.dispatch_queue_idle_seconds or 0)
         if self._type_idle_seconds > 0:
             self._type_gc_interval = max(1.0, self._type_idle_seconds / 2)
 

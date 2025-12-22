@@ -21,8 +21,8 @@ from scheduler_api.models.start_run_request_workflow_nodes_inner import (
 )
 from scheduler_api.models.workflow import Workflow
 
-from ..control_plane.biz import biz_facade
-from ..control_plane.biz.engine import status
+from ..core.biz.facade import biz_facade
+from ..core.biz.engine import status
 
 LOGGER = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ class RunsApiImpl(BaseRunsApi):
 
         from uuid import uuid4  # local import to avoid cycle
 
-        from scheduler_api.control_plane.network import worker_gateway  # late import
+        from scheduler_api.core.network import worker_gateway  # late import
         from shared.models.session import Role, Sender, WsEnvelope
         from shared.models.biz.exec.next.response import ExecMiddlewareNextResponse
 

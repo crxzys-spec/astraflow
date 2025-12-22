@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict
 
-from worker.agent.runner.context import ExecutionContext
+from worker.execution import ExecutionContext
 from shared.models.biz.exec.feedback import Channel as FeedbackChannel
 
 LOGGER = logging.getLogger(__name__)

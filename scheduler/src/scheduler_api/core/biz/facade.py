@@ -13,7 +13,7 @@ from shared.models.biz.exec.next.request import ExecMiddlewareNextRequest
 from shared.models.biz.exec.next.response import ExecMiddlewareNextResponse
 from shared.models.biz.exec.result import ExecResultPayload
 
-from ..run_state_service import DispatchRequest, RunRecord, RunStateService, run_state_service
+from .services.run_state_service import DispatchRequest, RunRecord, RunStateService, run_state_service
 from .dispatch.orchestrator import RunOrchestrator, run_orchestrator
 
 

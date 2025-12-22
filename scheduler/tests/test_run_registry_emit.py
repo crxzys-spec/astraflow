@@ -2,8 +2,8 @@ import asyncio
 
 import pytest
 
-from scheduler_api.control_plane.biz.events import emit
-from scheduler_api.control_plane.biz.domain.models import NodeState, RunRecord
+from scheduler_api.core.biz.events import emit
+from scheduler_api.core.biz.domain.models import NodeState, RunRecord
 from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkflow
 
 

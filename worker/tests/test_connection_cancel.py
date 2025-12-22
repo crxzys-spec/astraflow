@@ -10,8 +10,8 @@ from shared.models.session import Role, Sender, WsEnvelope
 from worker.config import WorkerSettings
 from worker.network.client import NetworkClient
 from worker.network.transport.dummy import DummyTransport
-from worker.biz_handlers.dispatch_handler import DispatchHandler
-from worker.biz_handlers.next_handler import NextHandler
+from worker.handlers.dispatch_handler import DispatchHandler
+from worker.handlers.next_handler import NextHandler
 
 
 class _CancelRunner:

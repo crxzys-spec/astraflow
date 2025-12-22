@@ -18,8 +18,8 @@ from shared.models.session import Role, Sender, WsEnvelope
 
 from ..engine import status
 from ..facade import biz_facade
-from scheduler_api.control_plane.network import ControlPlaneServer
-from scheduler_api.control_plane.network import WorkerSession
+from scheduler_api.core.network.server import ControlPlaneServer
+from scheduler_api.core.network.manager import WorkerSession
 
 LOGGER = logging.getLogger(__name__)
 POLL_INTERVAL_SECONDS = 1.0

@@ -36,8 +36,7 @@ from shared.models.session import (
 )
 from shared.protocol.window import ReceiveWindow, is_seq_acked
 
-from worker.agent.concurrency import ConcurrencyGuard
-from worker.agent.resource_registry import ResourceRegistry
+from worker.execution.runtime import ConcurrencyGuard, ResourceRegistry
 from worker.config import WorkerSettings
 from worker.network.session_state import SessionState, SessionTracker
 from worker.network.session_layer import SessionLayer

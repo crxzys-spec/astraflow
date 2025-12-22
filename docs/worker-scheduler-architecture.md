@@ -53,7 +53,7 @@ This document captures the backend positioning for AstraFlow, detailing the role
 Packages can stream execution telemetry back to the scheduler through the `FeedbackPublisher` exposed on the `ExecutionContext`. A typical async adapter might look like:
 
 ```python
-from worker.agent.runner.context import ExecutionContext
+from worker.execution import ExecutionContext
 from shared.models.ws.feedback import FeedbackChannel
 
 

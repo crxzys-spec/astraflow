@@ -6,12 +6,12 @@ import asyncio
 import logging
 from typing import Type
 
-from worker.agent.packages import AdapterRegistry, PackageManager
-from worker.agent.resource_registry import ResourceRegistry
-from worker.agent.runner import Runner
+from worker.packages import AdapterRegistry, PackageManager
+from worker.execution.runtime import ResourceRegistry
+from worker.execution import Runner
 from worker.config import get_settings
-from worker.biz_handlers.next_handler import NextHandler
-from worker.biz_handlers.dispatch_handler import DispatchHandler
+from worker.handlers.next_handler import NextHandler
+from worker.handlers.dispatch_handler import DispatchHandler
 from worker.network.client import NetworkClient
 from worker.network.transport.base import BaseTransport
 from worker.network.transport.dummy import DummyTransport
@@ -43,7 +43,7 @@ async def setup() -> None:
     resolved_cls: Type[BaseTransport]
     resolved_cls = WebSocketTransport if settings.transport == "websocket" else DummyTransport
     LOGGER.debug("Initialising worker connection via %s", resolved_cls.__name__)
-    runner = Runner(registry, default_exec_mode=settings.handler_exec_mode_default)
+    runner = Runner(registry, default_exec_mode=settings.exec_mode_default)
 
     connection = NetworkClient(
         settings=settings,

@@ -147,33 +147,33 @@ class WorkerSettings(BaseSettings):
         default="block",
         description="Overflow strategy for the session app queue.",
     )
-    handler_dispatch_max_inflight: conint(ge=0) = Field(
+    dispatch_max_inflight: conint(ge=0) = Field(
         default=8,
-        description="Maximum concurrent biz handler tasks (0 = sequential).",
+        description="Maximum concurrent dispatch tasks (0 = sequential).",
     )
-    handler_dispatch_queue_max: conint(ge=0) = Field(
+    dispatch_queue_max: conint(ge=0) = Field(
         default=256,
         description="Max size of per-type dispatch queues (0 = unbounded).",
     )
-    handler_dispatch_queue_overflow: Literal["block", "drop_new", "drop_oldest"] = Field(
+    dispatch_queue_overflow: Literal["block", "drop_new", "drop_oldest"] = Field(
         default="block",
         description="Overflow strategy for per-type dispatch queues.",
     )
-    handler_dispatch_queue_idle_seconds: confloat(ge=0) = Field(
+    dispatch_queue_idle_seconds: confloat(ge=0) = Field(
         default=300,
         description="Idle time before retiring per-type dispatch queues (0 = disabled).",
     )
-    handler_dispatch_timeout_seconds: confloat(ge=0) = Field(
+    dispatch_timeout_seconds: confloat(ge=0) = Field(
         default=0,
-        description="Timeout for biz handler execution (0 = disabled).",
+        description="Timeout for dispatch execution (0 = disabled).",
     )
-    handler_dispatch_max_failures: conint(ge=0) = Field(
+    dispatch_max_failures: conint(ge=0) = Field(
         default=0,
-        description="Consecutive handler failures before entering cooldown (0 = disabled).",
+        description="Consecutive dispatch failures before entering cooldown (0 = disabled).",
     )
-    handler_dispatch_failure_cooldown_seconds: confloat(ge=0) = Field(
+    dispatch_failure_cooldown_seconds: confloat(ge=0) = Field(
         default=0,
-        description="Cooldown window after handler failure threshold is exceeded.",
+        description="Cooldown window after dispatch failure threshold is exceeded.",
     )
 
     concurrency_max_parallel: PositiveInt = Field(
@@ -184,7 +184,7 @@ class WorkerSettings(BaseSettings):
         default=None,
         description="Optional per-node concurrency limits enforced locally.",
     )
-    handler_exec_mode_default: Literal["auto", "inline", "thread"] = Field(
+    exec_mode_default: Literal["auto", "inline", "thread"] = Field(
         default="auto",
         description="Default execution mode for adapter handlers (auto=thread for sync, inline for async).",
     )

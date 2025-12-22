@@ -1,7 +1,7 @@
 import pytest
 
-from scheduler_api.control_plane.biz.dispatch.orchestrator import RunOrchestrator
-from scheduler_api.control_plane.biz.domain.models import DispatchRequest
+from scheduler_api.core.biz.dispatch.orchestrator import RunOrchestrator
+from scheduler_api.core.biz.domain.models import DispatchRequest
 
 
 def _request(**overrides) -> DispatchRequest:

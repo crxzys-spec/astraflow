@@ -1,0 +1,19 @@
+{
+  "upload_id": "8d44262fff244209b6db7a86874fa9bd",
+  "filename": "3773727.jpg",
+  "size_bytes": 238577,
+  "mime_type": "image/jpeg",
+  "sha256": "df42d0ad3ef94d7908fe189c75e427d326fe88f46d3440f8d84c72dbf5b99ba6",
+  "chunk_size": 8388608,
+  "uploaded_bytes": 238577,
+  "next_part": 1,
+  "total_parts": 1,
+  "status": "completed",
+  "resource_id": "58b1a315b3ff4e9bbd656784e8710aff",
+  "metadata": null,
+  "created_at": "2025-12-23T00:39:24.665128+00:00",
+  "updated_at": "2025-12-23T00:39:24.796670+00:00",
+  "completed_parts": [
+    0
+  ]
+}

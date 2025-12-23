@@ -92,6 +92,7 @@ export interface WorkflowNodeDraft {
   schema?: WorkflowNodeSchema;
   ui?: NodeUI;
   position: XYPosition;
+  layout?: WorkflowNodeLayout;
   dependencies: string[];
   middlewares?: WorkflowMiddlewareDraft[];
   resources?: WorkflowResourceBinding[];
@@ -103,6 +104,11 @@ export interface WorkflowNodeDraft {
 
   runtimeSummary?: string | null;
 
+}
+
+export interface WorkflowNodeLayout {
+  width?: number;
+  height?: number;
 }
 
 
@@ -310,4 +316,3 @@ export interface ConvertSelectionResult {
   subgraphId?: string;
   containerId?: string;
 }
-

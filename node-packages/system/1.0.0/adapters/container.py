@@ -35,6 +35,14 @@ def _as_float(value: Any, default: float) -> float:
         return default
 
 
+def _extract_resource_list(value: Any) -> List[Dict[str, Any]]:
+    if isinstance(value, list):
+        return [entry for entry in value if isinstance(entry, dict)]
+    if isinstance(value, dict):
+        return [value]
+    return []
+
+
 async def loop_middleware(context: ExecutionContext) -> Dict[str, Any]:
     """Middleware that invokes the next handler multiple times."""
     params = context.params or {}
@@ -122,6 +130,40 @@ async def input_generator(context: ExecutionContext) -> Dict[str, Any]:
         "type": kind,
         "raw": raw_value,
         "value": parsed,
+    }
+
+
+async def upload_test(context: ExecutionContext) -> Dict[str, Any]:
+    """Echo uploaded resource metadata for the file-upload widget."""
+
+    params = context.params or {}
+    resources = _extract_resource_list(params.get("resources"))
+    if not resources:
+        resources = _extract_resource_list(params.get("resource"))
+
+    resource_ids: List[str] = []
+    filenames: List[str] = []
+    sizes: List[int] = []
+    for entry in resources:
+        resource_id = entry.get("resourceId") or entry.get("resource_id") or entry.get("id")
+        if resource_id:
+            resource_ids.append(str(resource_id))
+        filename = entry.get("filename") or entry.get("name")
+        if filename:
+            filenames.append(str(filename))
+        size = entry.get("sizeBytes") or entry.get("size_bytes")
+        if isinstance(size, (int, float)):
+            sizes.append(int(size))
+
+    return {
+        "status": "succeeded",
+        "outputs": {
+            "count": len(resources),
+            "resourceIds": resource_ids,
+            "filenames": filenames,
+            "sizes": sizes,
+            "resources": resources,
+        },
     }
 
 

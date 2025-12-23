@@ -1,0 +1,41 @@
+put:
+  tags: [Resources]
+  summary: Upload resource part
+  operationId: uploadResourcePart
+  parameters:
+  - name: uploadId
+    in: path
+    required: true
+    schema:
+      type: string
+  - name: partNumber
+    in: path
+    required: true
+    schema:
+      type: integer
+      minimum: 0
+  requestBody:
+    required: true
+    content:
+      multipart/form-data:
+        schema:
+          type: object
+          required:
+            - file
+          properties:
+            file:
+              type: string
+              format: binary
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/ResourceUploadPart'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'
+    '409':
+      $ref: '../components/responses.yaml#/Conflict'

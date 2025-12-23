@@ -8,7 +8,12 @@ const resolveBaseURL = () => {
     return ""; // use relative paths with Vite proxy
   }
   try {
-    const parsed = new URL(envBase, typeof window !== "undefined" ? window.location.origin : envBase);
+    const origin = typeof window !== "undefined" ? window.location.origin : envBase;
+    const parsed = new URL(envBase, origin);
+    if (typeof window !== "undefined" && window.location.protocol === "https:" && parsed.protocol === "http:") {
+      console.warn("[setupAxios] Insecure API base under HTTPS, using relative base.");
+      return "";
+    }
     // Avoid duplicating /api prefix since generated paths already include it.
     const cleanPath = parsed.pathname.replace(/\/+$/, "");
     if (cleanPath === "/api") {

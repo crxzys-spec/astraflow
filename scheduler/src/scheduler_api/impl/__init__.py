@@ -8,4 +8,5 @@ from .audit_api import AuditApiImpl  # noqa: F401
 from .users_api import UsersApiImpl  # noqa: F401
 from .catalog_api import CatalogApiImpl  # noqa: F401
 from .workers_api import WorkersApiImpl  # noqa: F401
+from .resources_api import ResourcesApiImpl  # noqa: F401
 

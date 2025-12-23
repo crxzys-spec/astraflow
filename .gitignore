@@ -8,6 +8,7 @@
 
 # Local runtime data
 var/
+scheduler/data/
 
 # Worker runtime caches
 worker/**/__pycache__/

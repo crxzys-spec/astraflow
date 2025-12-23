@@ -1,0 +1,26 @@
+get:
+  tags: [Resources]
+  summary: Get resource metadata
+  operationId: getResource
+  parameters:
+    - $ref: '../components/parameters.yaml#/ResourceId'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/Resource'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'
+delete:
+  tags: [Resources]
+  summary: Delete resource
+  operationId: deleteResource
+  parameters:
+    - $ref: '../components/parameters.yaml#/ResourceId'
+  responses:
+    '204':
+      description: Deleted
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

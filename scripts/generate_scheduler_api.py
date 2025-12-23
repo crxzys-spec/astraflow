@@ -90,6 +90,8 @@ def main() -> None:
     api_src = OUTPUT_DIR / "src" / "scheduler_api"
     postprocess_generated_models(api_src / "models")
     relax_field_strictness(api_src / "apis")
+    fix_file_response_types(api_src / "apis")
+    fix_file_upload_params(api_src / "apis")
     # Preserve the clean, resolved spec as the checked-in OpenAPI document
     (OUTPUT_DIR / "openapi.yaml").write_text(spec_yaml, encoding="utf-8")
 
@@ -237,6 +239,87 @@ def relax_field_strictness(apis_root: Path) -> None:
         new_text = re.sub(r",\s*strict=True", "", new_text)
         if new_text != text:
             path.write_text(new_text, encoding="utf-8")
+
+
+def fix_file_response_types(apis_root: Path) -> None:
+    """Replace invalid `file` response annotations with `Any`."""
+
+    for path in apis_root.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        if "-> file" not in text and '{"model": file' not in text:
+            continue
+        new_text = re.sub(r"->\s*file\b", "-> Any", text)
+        new_text = re.sub(r'{"model":\s*file\b', '{"model": Any', new_text)
+        if new_text != text and "Any" not in new_text:
+            new_text = re.sub(
+                r"from typing import ([^\n]+)",
+                lambda m: _inject_any_import(m.group(0), m.group(1)),
+                new_text,
+                count=1,
+            )
+        if new_text != text:
+            path.write_text(new_text, encoding="utf-8")
+
+
+def fix_file_upload_params(apis_root: Path) -> None:
+    """Normalize file upload parameters to use UploadFile and File."""
+
+    type_pattern = "Union[StrictBytes, StrictStr, Tuple[StrictStr, StrictBytes]]"
+    for path in apis_root.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        if type_pattern not in text:
+            continue
+        new_text = text.replace(type_pattern, "UploadFile")
+        new_text = re.sub(r"(UploadFile\s*=\s*)Form\(", r"\1File(", new_text)
+
+        if "UploadFile" in new_text and "from fastapi import" in new_text:
+            new_text = _ensure_fastapi_imports(new_text, ["File", "UploadFile"])
+        if (
+            "UploadFile" in new_text
+            and "from fastapi import UploadFile" not in new_text
+            and "from fastapi import (" not in new_text
+        ):
+            new_text = _inject_fastapi_uploadfile_import(new_text)
+
+        if new_text != text:
+            path.write_text(new_text, encoding="utf-8")
+
+
+def _inject_any_import(statement: str, imports: str) -> str:
+    items = [item.strip() for item in imports.split(",")]
+    if "Any" not in items:
+        items.append("Any")
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        if item and item not in seen:
+            ordered.append(item)
+            seen.add(item)
+    return f"from typing import {', '.join(ordered)}"
+
+
+def _ensure_fastapi_imports(text: str, names: list[str]) -> str:
+    pattern = re.compile(r"from fastapi import \(\s*(?:#.*)?\r?\n(?P<body>[^)]+)\)", re.MULTILINE)
+    match = pattern.search(text)
+    if not match:
+        return text
+    body = match.group("body")
+    existing = {line.strip().strip(",") for line in body.splitlines() if line.strip()}
+    additions = [name for name in names if name not in existing]
+    if not additions:
+        return text
+    insert_lines = "".join(f"    {name},\n" for name in additions)
+    new_body = body + insert_lines
+    return text[: match.start("body")] + new_body + text[match.end("body") :]
+
+
+def _inject_fastapi_uploadfile_import(text: str) -> str:
+    pattern = re.compile(r"(from typing[^\n]*\n)")
+    match = pattern.search(text)
+    if match:
+        insert_at = match.end(1)
+        return text[:insert_at] + "from fastapi import UploadFile\n" + text[insert_at:]
+    return "from fastapi import UploadFile\n" + text
 
 
 if __name__ == "__main__":

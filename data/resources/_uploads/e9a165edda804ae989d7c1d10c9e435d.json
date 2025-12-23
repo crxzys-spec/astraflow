@@ -1,0 +1,19 @@
+{
+  "upload_id": "e9a165edda804ae989d7c1d10c9e435d",
+  "filename": "[\u685c\u90fd\u5b57\u5e55\u7ec4][\u30d4\u30f3\u30af\u30d1\u30a4\u30ca\u30c3\u30d7\u30eb]\u30aa\u30ca\u30db\u6559\u5ba4 \uff5e\u5973\u5b50\u5168\u54e1\u598a\u5a20\u8a08\u753b\uff5e THE ANIMATION.cht-thumb.jpg",
+  "size_bytes": 92705,
+  "mime_type": "image/jpeg",
+  "sha256": "99be469da1650d816f230dfc16a6798973d17026f911972920e8bded94ed47fb",
+  "chunk_size": 8388608,
+  "uploaded_bytes": 92705,
+  "next_part": 1,
+  "total_parts": 1,
+  "status": "completed",
+  "resource_id": "ab922f8fb8e444dab91d928f3572d28c",
+  "metadata": null,
+  "created_at": "2025-12-22T15:50:59.138898+00:00",
+  "updated_at": "2025-12-22T15:50:59.245676+00:00",
+  "completed_parts": [
+    0
+  ]
+}

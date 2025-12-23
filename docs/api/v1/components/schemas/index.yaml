@@ -110,6 +110,164 @@ RunArtifact:
       type: object
       additionalProperties: true
       nullable: true
+Resource:
+  type: object
+  required:
+  - resourceId
+  - provider
+  - type
+  - filename
+  - sizeBytes
+  - createdAt
+  properties:
+    resourceId:
+      type: string
+    provider:
+      type: string
+    type:
+      type: string
+    filename:
+      type: string
+    mimeType:
+      type: string
+      nullable: true
+    sizeBytes:
+      type: integer
+      minimum: 0
+    sha256:
+      type: string
+      nullable: true
+    createdAt:
+      type: string
+      format: date-time
+    expiresAt:
+      type: string
+      format: date-time
+      nullable: true
+    metadata:
+      type: object
+      additionalProperties: true
+      nullable: true
+    downloadUrl:
+      type: string
+      nullable: true
+ResourceUploadInitRequest:
+  type: object
+  required:
+  - filename
+  - sizeBytes
+  properties:
+    filename:
+      type: string
+    sizeBytes:
+      type: integer
+      minimum: 0
+    mimeType:
+      type: string
+      nullable: true
+    sha256:
+      type: string
+      nullable: true
+    chunkSize:
+      type: integer
+      minimum: 1
+      nullable: true
+    metadata:
+      type: object
+      additionalProperties: true
+      nullable: true
+ResourceUploadSession:
+  type: object
+  required:
+  - uploadId
+  - filename
+  - sizeBytes
+  - chunkSize
+  - uploadedBytes
+  - nextPart
+  - totalParts
+  - status
+  - createdAt
+  - updatedAt
+  properties:
+    uploadId:
+      type: string
+    filename:
+      type: string
+    sizeBytes:
+      type: integer
+      minimum: 0
+    mimeType:
+      type: string
+      nullable: true
+    sha256:
+      type: string
+      nullable: true
+    chunkSize:
+      type: integer
+      minimum: 1
+    uploadedBytes:
+      type: integer
+      minimum: 0
+    nextPart:
+      type: integer
+      minimum: 0
+    totalParts:
+      type: integer
+      minimum: 1
+    completedParts:
+      type: array
+      items:
+        type: integer
+        minimum: 0
+    status:
+      type: string
+      enum:
+      - pending
+      - completed
+      - aborted
+    resourceId:
+      type: string
+      nullable: true
+    metadata:
+      type: object
+      additionalProperties: true
+      nullable: true
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+ResourceUploadPart:
+  type: object
+  required:
+  - uploadId
+  - partNumber
+  - uploadedBytes
+  - nextPart
+  - status
+  properties:
+    uploadId:
+      type: string
+    partNumber:
+      type: integer
+      minimum: 0
+    receivedBytes:
+      type: integer
+      minimum: 0
+      nullable: true
+    uploadedBytes:
+      type: integer
+      minimum: 0
+    nextPart:
+      type: integer
+      minimum: 0
+    status:
+      type: string
+      enum:
+      - pending
+      - completed
 RunArtifactList:
   type: array
   items:
@@ -832,6 +990,15 @@ WorkflowNode:
         x:
           type: number
         y:
+          type: number
+    layout:
+      type: object
+      description: Optional UI layout hints for the builder.
+      additionalProperties: false
+      properties:
+        width:
+          type: number
+        height:
           type: number
     parameters:
       type: object

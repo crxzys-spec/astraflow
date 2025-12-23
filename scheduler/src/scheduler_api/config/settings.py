@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import ClassVar, Literal, Set
 
-from pydantic import Field, PositiveInt
+from pydantic import Field, NonNegativeInt, PositiveInt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,6 +26,18 @@ class SchedulerApiSettings(BaseSettings):
     log_level: Literal["critical", "error", "warning", "info", "debug", "trace"] = Field(
         default="info",
         description="Log level for scheduler API / uvicorn.",
+    )
+    resource_provider: Literal["local"] = Field(
+        default="local",
+        description="Resource storage provider (local only for now).",
+    )
+    resource_dir: Path = Field(
+        default=Path(__file__).resolve().parents[4] / "scheduler" / "data" / "resources",
+        description="Local directory used for uploaded resources.",
+    )
+    resource_upload_ttl_seconds: NonNegativeInt = Field(
+        default=86400,
+        description="TTL for upload sessions in seconds (0 disables cleanup).",
     )
 
 

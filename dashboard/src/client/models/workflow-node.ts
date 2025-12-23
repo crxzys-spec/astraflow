@@ -24,6 +24,9 @@ import type { NodeUI } from './node-ui';
 import type { WorkflowMiddleware } from './workflow-middleware';
 // May contain unused imports in some cases
 // @ts-ignore
+import type { WorkflowNodeLayout } from './workflow-node-layout';
+// May contain unused imports in some cases
+// @ts-ignore
 import type { WorkflowNodePosition } from './workflow-node-position';
 // May contain unused imports in some cases
 // @ts-ignore
@@ -64,6 +67,7 @@ export interface WorkflowNode {
      */
     'tags'?: Array<string>;
     'position': WorkflowNodePosition;
+    'layout'?: WorkflowNodeLayout;
     /**
      * Default parameter payload seeded from the manifest schema.
      */

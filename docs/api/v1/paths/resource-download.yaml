@@ -1,0 +1,16 @@
+get:
+  tags: [Resources]
+  summary: Download resource
+  operationId: downloadResource
+  parameters:
+    - $ref: '../components/parameters.yaml#/ResourceId'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

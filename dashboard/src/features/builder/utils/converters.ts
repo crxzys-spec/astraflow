@@ -622,6 +622,10 @@ export const workflowDefinitionToDraft = (
           x: node.position?.x ?? 0,
           y: node.position?.y ?? 0,
         },
+        layout:
+          node.layout && (typeof node.layout.width === "number" || typeof node.layout.height === "number")
+            ? { width: node.layout.width, height: node.layout.height }
+            : undefined,
         dependencies: [],
         middlewares: Array.isArray(node.middlewares)
           ? node.middlewares.map((middleware) => middlewareToDraft(middleware))
@@ -720,6 +724,10 @@ export const workflowDraftToDefinition = (
         label: node.label,
 
         position: { x: node.position.x, y: node.position.y },
+        layout:
+          node.layout && (typeof node.layout.width === "number" || typeof node.layout.height === "number")
+            ? { width: node.layout.width, height: node.layout.height }
+            : undefined,
 
         parameters: clone(node.parameters),
 

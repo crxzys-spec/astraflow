@@ -11,7 +11,8 @@
         "workflow.container",
         "system.loop_middleware",
         "system.case_middleware",
-        "system.input_generator"
+        "system.input_generator",
+        "system.upload_test"
       ]
     }
   ],
@@ -468,6 +469,159 @@
             "options": {
               "typePath": "/parameters/type",
               "options": ["number", "float", "string", "text", "textarea", "boolean"]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "system.upload_test",
+      "status": "published",
+      "category": "System",
+      "label": "Upload Tester",
+      "description": "Upload files via the file-upload widget and echo stored metadata.",
+      "tags": [
+        "test",
+        "uploads"
+      ],
+      "adapter": "scheduler",
+      "handler": "upload_test",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "resources": {
+              "type": "array",
+              "description": "Uploaded resources selected in the UI.",
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "default": []
+            }
+          },
+          "required": [],
+          "additionalProperties": true
+        },
+        "results": {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "integer",
+              "description": "Number of uploaded resources."
+            },
+            "resourceIds": {
+              "type": "array",
+              "description": "Uploaded resource ids.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "filenames": {
+              "type": "array",
+              "description": "Uploaded filenames.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "sizes": {
+              "type": "array",
+              "description": "Uploaded file sizes.",
+              "items": {
+                "type": "integer"
+              }
+            },
+            "resources": {
+              "type": "array",
+              "description": "Raw resource metadata.",
+              "items": {
+                "type": "object"
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "resources",
+            "label": "Uploads",
+            "binding": {
+              "path": "/parameters/resources",
+              "mode": "write"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "count",
+            "label": "Count",
+            "binding": {
+              "path": "/results/count",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "resourceIds",
+            "label": "Resource Ids",
+            "binding": {
+              "path": "/results/resourceIds",
+              "mode": "read"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "uploads",
+            "label": "Upload Files",
+            "component": "file-upload",
+            "binding": {
+              "path": "/parameters/resources",
+              "mode": "two_way"
+            },
+            "options": {
+              "multiple": true,
+              "maxFiles": 10,
+              "maxBytes": 1073741824,
+              "chunkParallel": 4,
+              "maxParallel": 5,
+              "helperText": "Upload files to attach to this node (max 1 GB each).",
+              "deleteOnRemove": true
+            }
+          },
+          {
+            "key": "count",
+            "label": "Uploaded Count",
+            "component": "number",
+            "binding": {
+              "path": "/results/count",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "resourceIds",
+            "label": "Resource Ids",
+            "component": "json",
+            "binding": {
+              "path": "/results/resourceIds",
+              "mode": "read"
+            },
+            "options": {
+              "rows": 4
+            }
+          },
+          {
+            "key": "resources",
+            "label": "Resource Metadata",
+            "component": "json",
+            "binding": {
+              "path": "/results/resources",
+              "mode": "read"
+            },
+            "options": {
+              "rows": 6
             }
           }
         ]

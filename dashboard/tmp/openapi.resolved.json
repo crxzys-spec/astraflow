@@ -31,6 +31,9 @@
       "name": "WorkflowPackages"
     },
     {
+      "name": "Resources"
+    },
+    {
       "name": "Workers"
     },
     {
@@ -631,6 +634,326 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WorkflowRef"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/resources": {
+      "post": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Upload resource",
+        "operationId": "uploadResource",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resource"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/v1/resources/uploads": {
+      "post": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Create resource upload session",
+        "operationId": "createResourceUpload",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceUploadInitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceUploadSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/v1/resources/uploads/{uploadId}": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Get resource upload session",
+        "operationId": "getResourceUpload",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceUploadSession"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Abort resource upload session",
+        "operationId": "deleteResourceUpload",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/resources/uploads/{uploadId}/parts/{partNumber}": {
+      "put": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Upload resource part",
+        "operationId": "uploadResourcePart",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "partNumber",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceUploadPart"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/resources/uploads/{uploadId}/complete": {
+      "post": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Complete resource upload",
+        "operationId": "completeResourceUpload",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resource"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{resourceId}": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Get resource metadata",
+        "operationId": "getResource",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resource"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Delete resource",
+        "operationId": "deleteResource",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{resourceId}/download": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Download resource",
+        "operationId": "downloadResource",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }
@@ -1401,6 +1724,217 @@
             "type": "object",
             "additionalProperties": true,
             "nullable": true
+          }
+        }
+      },
+      "Resource": {
+        "type": "object",
+        "required": [
+          "resourceId",
+          "provider",
+          "type",
+          "filename",
+          "sizeBytes",
+          "createdAt"
+        ],
+        "properties": {
+          "resourceId": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string",
+            "nullable": true
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "downloadUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ResourceUploadInitRequest": {
+        "type": "object",
+        "required": [
+          "filename",
+          "sizeBytes"
+        ],
+        "properties": {
+          "filename": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mimeType": {
+            "type": "string",
+            "nullable": true
+          },
+          "sha256": {
+            "type": "string",
+            "nullable": true
+          },
+          "chunkSize": {
+            "type": "integer",
+            "minimum": 1,
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          }
+        }
+      },
+      "ResourceUploadSession": {
+        "type": "object",
+        "required": [
+          "uploadId",
+          "filename",
+          "sizeBytes",
+          "chunkSize",
+          "uploadedBytes",
+          "nextPart",
+          "totalParts",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "uploadId": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mimeType": {
+            "type": "string",
+            "nullable": true
+          },
+          "sha256": {
+            "type": "string",
+            "nullable": true
+          },
+          "chunkSize": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "uploadedBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "nextPart": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalParts": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "completedParts": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "completed",
+              "aborted"
+            ]
+          },
+          "resourceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ResourceUploadPart": {
+        "type": "object",
+        "required": [
+          "uploadId",
+          "partNumber",
+          "uploadedBytes",
+          "nextPart",
+          "status"
+        ],
+        "properties": {
+          "uploadId": {
+            "type": "string"
+          },
+          "partNumber": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "receivedBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "uploadedBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "nextPart": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "completed"
+            ]
           }
         }
       },
@@ -2412,6 +2946,19 @@
                 "type": "number"
               },
               "y": {
+                "type": "number"
+              }
+            }
+          },
+          "layout": {
+            "type": "object",
+            "description": "Optional UI layout hints for the builder.",
+            "additionalProperties": false,
+            "properties": {
+              "width": {
+                "type": "number"
+              },
+              "height": {
                 "type": "number"
               }
             }
@@ -4389,6 +4936,14 @@
     "parameters": {
       "RunId": {
         "name": "runId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ResourceId": {
+        "name": "resourceId",
         "in": "path",
         "required": true,
         "schema": {

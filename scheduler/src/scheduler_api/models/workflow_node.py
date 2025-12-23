@@ -26,6 +26,7 @@ from uuid import UUID
 from scheduler_api.models.node_package import NodePackage
 from scheduler_api.models.node_ui import NodeUI
 from scheduler_api.models.workflow_middleware import WorkflowMiddleware
+from scheduler_api.models.workflow_node_layout import WorkflowNodeLayout
 from scheduler_api.models.workflow_node_position import WorkflowNodePosition
 from scheduler_api.models.workflow_node_schema import WorkflowNodeSchema
 from scheduler_api.models.workflow_node_state import WorkflowNodeState
@@ -48,13 +49,14 @@ class WorkflowNode(BaseModel):
     description: Optional[StrictStr] = Field(default=None, description="Longer description of the node behaviour.")
     tags: Optional[List[StrictStr]] = Field(default=None, description="Keywords for search/filter.")
     position: WorkflowNodePosition
+    layout: Optional[WorkflowNodeLayout] = None
     parameters: Optional[Dict[str, Any]] = Field(default=None, description="Default parameter payload seeded from the manifest schema.")
     results: Optional[Dict[str, Any]] = Field(default=None, description="Default results payload seeded from the manifest schema.")
     state: Optional[WorkflowNodeState] = None
     var_schema: Optional[WorkflowNodeSchema] = Field(default=None, alias="schema")
     ui: Optional[NodeUI] = None
     middlewares: Optional[List[WorkflowMiddleware]] = Field(default=None, description="Ordered list of middleware definitions attached to this node.")
-    __properties: ClassVar[List[str]] = ["id", "type", "role", "package", "status", "category", "label", "description", "tags", "position", "parameters", "results", "state", "schema", "ui", "middlewares"]
+    __properties: ClassVar[List[str]] = ["id", "type", "role", "package", "status", "category", "label", "description", "tags", "position", "layout", "parameters", "results", "state", "schema", "ui", "middlewares"]
 
     @field_validator('role')
     def role_validate_enum(cls, value):
@@ -116,6 +118,9 @@ class WorkflowNode(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of position
         if self.position:
             _dict['position'] = self.position.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of layout
+        if self.layout:
+            _dict['layout'] = self.layout.to_dict()
         # override the default output from pydantic by calling `to_dict()` of state
         if self.state:
             _dict['state'] = self.state.to_dict()
@@ -154,6 +159,7 @@ class WorkflowNode(BaseModel):
             "description": obj.get("description"),
             "tags": obj.get("tags"),
             "position": WorkflowNodePosition.from_dict(obj.get("position")) if obj.get("position") is not None else None,
+            "layout": WorkflowNodeLayout.from_dict(obj.get("layout")) if obj.get("layout") is not None else None,
             "parameters": obj.get("parameters"),
             "results": obj.get("results"),
             "state": WorkflowNodeState.from_dict(obj.get("state")) if obj.get("state") is not None else None,

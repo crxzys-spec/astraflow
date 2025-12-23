@@ -1,0 +1,19 @@
+post:
+  tags: [Resources]
+  summary: Create resource upload session
+  operationId: createResourceUpload
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/ResourceUploadInitRequest'
+  responses:
+    '201':
+      description: Created
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/ResourceUploadSession'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'

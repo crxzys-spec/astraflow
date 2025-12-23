@@ -12,6 +12,7 @@ tags:
 - name: Workflows
 - name: Packages
 - name: WorkflowPackages
+- name: Resources
 - name: Workers
 - name: Events
 - name: Audit
@@ -42,6 +43,20 @@ paths:
     $ref: ./paths/workflow-package-versions.yaml
   /api/v1/workflow-packages/{packageId}/clone:
     $ref: ./paths/workflow-package-clone.yaml
+  /api/v1/resources:
+    $ref: ./paths/resources.yaml
+  /api/v1/resources/uploads:
+    $ref: ./paths/resources-uploads.yaml
+  /api/v1/resources/uploads/{uploadId}:
+    $ref: ./paths/resources-upload-by-id.yaml
+  /api/v1/resources/uploads/{uploadId}/parts/{partNumber}:
+    $ref: ./paths/resources-upload-part.yaml
+  /api/v1/resources/uploads/{uploadId}/complete:
+    $ref: ./paths/resources-upload-complete.yaml
+  /api/v1/resources/{resourceId}:
+    $ref: ./paths/resource-by-id.yaml
+  /api/v1/resources/{resourceId}/download:
+    $ref: ./paths/resource-download.yaml
   /api/v1/workflows/{workflowId}/publish:
     $ref: ./paths/workflow-publish.yaml
   /api/v1/packages:

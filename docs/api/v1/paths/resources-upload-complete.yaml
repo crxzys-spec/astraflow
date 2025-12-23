@@ -1,0 +1,21 @@
+post:
+  tags: [Resources]
+  summary: Complete resource upload
+  operationId: completeResourceUpload
+  parameters:
+  - name: uploadId
+    in: path
+    required: true
+    schema:
+      type: string
+  responses:
+    '201':
+      description: Created
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/Resource'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

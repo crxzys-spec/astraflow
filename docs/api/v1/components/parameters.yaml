@@ -4,6 +4,12 @@ RunId:
   required: true
   schema:
     type: string
+ResourceId:
+  name: resourceId
+  in: path
+  required: true
+  schema:
+    type: string
 WorkflowId:
   name: workflowId
   in: path

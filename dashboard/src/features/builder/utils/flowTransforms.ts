@@ -54,6 +54,7 @@ export const buildFlowNodes = (workflow: WorkflowDraft, selectedNodeIds: string[
         adapter: node.adapter,
         handler: node.handler,
         widgets: node.ui?.widgets ?? [],
+        layout: node.layout,
         fallbackInputPorts: Array.from(fallbackInputPorts[node.id] ?? []),
         fallbackOutputPorts: Array.from(fallbackOutputPorts[node.id] ?? []),
         middlewares: node.middlewares ?? [],

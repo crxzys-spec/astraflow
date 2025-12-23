@@ -6,7 +6,7 @@ import "reactflow/dist/style.css";
 import WorkflowControls from "./WorkflowControls";
 import { useWorkflowStore } from "../store";
 import { buildFlowEdges, buildFlowNodes } from "../utils/flowTransforms.ts";
-import type { WorkflowEdgeDraft, XYPosition, WorkflowPaletteNode } from "../types.ts";
+import type { WorkflowEdgeDraft, WorkflowNodeLayout, XYPosition, WorkflowPaletteNode } from "../types.ts";
 import { WorkflowNode } from "../nodes";
 import { generateId } from "../utils/id.ts";
 import {
@@ -45,6 +45,7 @@ type WorkflowNodeData = {
   adapter?: string;
   handler?: string;
   widgets?: unknown[];
+  layout?: WorkflowNodeLayout;
   fallbackInputPorts?: string[];
   fallbackOutputPorts?: string[];
   middlewares?: unknown[];
@@ -78,6 +79,12 @@ const attachedMiddlewaresEqual = (
 ): boolean =>
   arraysShallowEqual(left, right, (a, b) => a.id === b.id && a.label === b.label && a.node === b.node && a.index === b.index);
 
+const layoutEqual = (left?: WorkflowNodeData["layout"], right?: WorkflowNodeData["layout"]): boolean => {
+  const a = left ?? {};
+  const b = right ?? {};
+  return a.width === b.width && a.height === b.height;
+};
+
 const nodeDataEqual = (left?: Node["data"], right?: Node["data"]): boolean => {
   if (left === right) {
     return true;
@@ -106,6 +113,7 @@ const nodeDataEqual = (left?: Node["data"], right?: Node["data"]): boolean => {
   }
   return (
     arraysShallowEqual(a.widgets, b.widgets) &&
+    layoutEqual(a.layout, b.layout) &&
     arraysShallowEqual(a.fallbackInputPorts, b.fallbackInputPorts) &&
     arraysShallowEqual(a.fallbackOutputPorts, b.fallbackOutputPorts) &&
     arraysShallowEqual(a.middlewares, b.middlewares) &&

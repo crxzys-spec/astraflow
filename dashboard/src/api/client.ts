@@ -9,7 +9,12 @@ const resolveBasePath = () => {
     return ""; // generated paths already include /api
   }
   try {
-    const parsed = new URL(envBase, typeof window !== "undefined" ? window.location.origin : envBase);
+    const origin = typeof window !== "undefined" ? window.location.origin : envBase;
+    const parsed = new URL(envBase, origin);
+    if (typeof window !== "undefined" && window.location.protocol === "https:" && parsed.protocol === "http:") {
+      console.warn("[api/client] Insecure API base under HTTPS, using relative base.");
+      return "";
+    }
     const path = parsed.pathname.replace(/\/+$/, "");
     return path === "/api" ? "" : path;
   } catch (error) {

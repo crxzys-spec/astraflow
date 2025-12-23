@@ -19,6 +19,7 @@ export * from './apis/auth-api';
 export * from './apis/catalog-api';
 export * from './apis/events-api';
 export * from './apis/packages-api';
+export * from './apis/resources-api';
 export * from './apis/runs-api';
 export * from './apis/users-api';
 export * from './apis/workers-api';

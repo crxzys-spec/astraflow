@@ -19,6 +19,7 @@ from scheduler_api.apis.auth_api import router as AuthApiRouter
 from scheduler_api.apis.catalog_api import router as CatalogApiRouter
 from scheduler_api.apis.events_api import router as EventsApiRouter
 from scheduler_api.apis.packages_api import router as PackagesApiRouter
+from scheduler_api.apis.resources_api import router as ResourcesApiRouter
 from scheduler_api.apis.runs_api import router as RunsApiRouter
 from scheduler_api.apis.users_api import router as UsersApiRouter
 from scheduler_api.apis.workers_api import router as WorkersApiRouter
@@ -36,6 +37,7 @@ app.include_router(AuthApiRouter)
 app.include_router(CatalogApiRouter)
 app.include_router(EventsApiRouter)
 app.include_router(PackagesApiRouter)
+app.include_router(ResourcesApiRouter)
 app.include_router(RunsApiRouter)
 app.include_router(UsersApiRouter)
 app.include_router(WorkersApiRouter)

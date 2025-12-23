@@ -15,6 +15,7 @@ Name | Type | Description | Notes
 **description** | **string** | Longer description of the node behaviour. | [optional] [default to undefined]
 **tags** | **Array&lt;string&gt;** | Keywords for search/filter. | [optional] [default to undefined]
 **position** | [**WorkflowNodePosition**](WorkflowNodePosition.md) |  | [default to undefined]
+**layout** | [**WorkflowNodeLayout**](WorkflowNodeLayout.md) |  | [optional] [default to undefined]
 **parameters** | **{ [key: string]: any; }** | Default parameter payload seeded from the manifest schema. | [optional] [default to undefined]
 **results** | **{ [key: string]: any; }** | Default results payload seeded from the manifest schema. | [optional] [default to undefined]
 **state** | [**WorkflowNodeState**](WorkflowNodeState.md) |  | [optional] [default to undefined]
@@ -38,6 +39,7 @@ const instance: WorkflowNode = {
     description,
     tags,
     position,
+    layout,
     parameters,
     results,
     state,

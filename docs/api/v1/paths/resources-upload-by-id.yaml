@@ -1,0 +1,34 @@
+get:
+  tags: [Resources]
+  summary: Get resource upload session
+  operationId: getResourceUpload
+  parameters:
+  - name: uploadId
+    in: path
+    required: true
+    schema:
+      type: string
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/ResourceUploadSession'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'
+delete:
+  tags: [Resources]
+  summary: Abort resource upload session
+  operationId: deleteResourceUpload
+  parameters:
+  - name: uploadId
+    in: path
+    required: true
+    schema:
+      type: string
+  responses:
+    '204':
+      description: Deleted
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

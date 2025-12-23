@@ -1,0 +1,25 @@
+post:
+  tags: [Resources]
+  summary: Upload resource
+  operationId: uploadResource
+  requestBody:
+    required: true
+    content:
+      multipart/form-data:
+        schema:
+          type: object
+          required:
+          - file
+          properties:
+            file:
+              type: string
+              format: binary
+  responses:
+    '201':
+      description: Created
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/Resource'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'

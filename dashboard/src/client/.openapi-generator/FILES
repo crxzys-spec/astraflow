@@ -6,6 +6,7 @@ apis/auth-api.ts
 apis/catalog-api.ts
 apis/events-api.ts
 apis/packages-api.ts
+apis/resources-api.ts
 apis/runs-api.ts
 apis/users-api.ts
 apis/workers-api.ts
@@ -69,6 +70,11 @@ docs/PackageManifest.md
 docs/PackageSummary.md
 docs/PackagesApi.md
 docs/ResetUserPasswordRequest.md
+docs/Resource.md
+docs/ResourceUploadInitRequest.md
+docs/ResourceUploadPart.md
+docs/ResourceUploadSession.md
+docs/ResourcesApi.md
 docs/ResultError.md
 docs/Run.md
 docs/RunArtifact.md
@@ -118,6 +124,7 @@ docs/WorkflowList.md
 docs/WorkflowMetadata.md
 docs/WorkflowMiddleware.md
 docs/WorkflowNode.md
+docs/WorkflowNodeLayout.md
 docs/WorkflowNodePosition.md
 docs/WorkflowNodeSchema.md
 docs/WorkflowNodeState.md
@@ -189,6 +196,10 @@ models/package-list.ts
 models/package-manifest.ts
 models/package-summary.ts
 models/reset-user-password-request.ts
+models/resource-upload-init-request.ts
+models/resource-upload-part.ts
+models/resource-upload-session.ts
+models/resource.ts
 models/result-error.ts
 models/run-artifact.ts
 models/run-list.ts
@@ -233,6 +244,7 @@ models/workflow-edge.ts
 models/workflow-list.ts
 models/workflow-metadata.ts
 models/workflow-middleware.ts
+models/workflow-node-layout.ts
 models/workflow-node-position.ts
 models/workflow-node-schema.ts
 models/workflow-node-state.ts

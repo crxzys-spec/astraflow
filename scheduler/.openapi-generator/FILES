@@ -18,6 +18,8 @@ src/scheduler_api/apis/events_api.py
 src/scheduler_api/apis/events_api_base.py
 src/scheduler_api/apis/packages_api.py
 src/scheduler_api/apis/packages_api_base.py
+src/scheduler_api/apis/resources_api.py
+src/scheduler_api/apis/resources_api_base.py
 src/scheduler_api/apis/runs_api.py
 src/scheduler_api/apis/runs_api_base.py
 src/scheduler_api/apis/users_api.py
@@ -80,6 +82,10 @@ src/scheduler_api/models/package_list.py
 src/scheduler_api/models/package_manifest.py
 src/scheduler_api/models/package_summary.py
 src/scheduler_api/models/reset_user_password_request.py
+src/scheduler_api/models/resource.py
+src/scheduler_api/models/resource_upload_init_request.py
+src/scheduler_api/models/resource_upload_part.py
+src/scheduler_api/models/resource_upload_session.py
 src/scheduler_api/models/result_error.py
 src/scheduler_api/models/run.py
 src/scheduler_api/models/run_artifact.py
@@ -126,6 +132,7 @@ src/scheduler_api/models/workflow_list.py
 src/scheduler_api/models/workflow_metadata.py
 src/scheduler_api/models/workflow_middleware.py
 src/scheduler_api/models/workflow_node.py
+src/scheduler_api/models/workflow_node_layout.py
 src/scheduler_api/models/workflow_node_position.py
 src/scheduler_api/models/workflow_node_schema.py
 src/scheduler_api/models/workflow_node_state.py

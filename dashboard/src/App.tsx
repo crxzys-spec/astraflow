@@ -10,8 +10,6 @@ import UsersPage from "./features/admin/pages/UsersPage";
 import WorkersPage from "./features/admin/pages/WorkersPage";
 import LoginPage from "./features/auth/pages/LoginPage";
 import AccountPage from "./features/account/pages/AccountPage";
-import PersonalPanelPage from "./features/account/pages/PersonalPanelPage";
-import ResourceCenterPage from "./features/account/pages/ResourceCenterPage";
 import { useAuthStore } from "@store/authSlice";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RunSseSubscriptions } from "./lib/sse/RunSseSubscriptions";
@@ -36,16 +34,6 @@ const baseNavItems: NavItem[] = [
     to: "/packages",
     label: "Package Center",
     match: (pathname) => pathname === "/packages"
-  },
-  {
-    to: "/resources",
-    label: "Resource Center",
-    match: (pathname) => pathname === "/resources"
-  },
-  {
-    to: "/personal",
-    label: "Personal Panel",
-    match: (pathname) => pathname === "/personal" || pathname === "/account"
   }
 ];
 
@@ -103,9 +91,9 @@ const AuthHeader = () => {
     navigate("/packages?tab=mine");
   };
 
-  const handlePersonalNavigate = () => {
+  const handleAccountNavigate = () => {
     setOpen(false);
-    navigate("/personal");
+    navigate("/account");
   };
 
   const handleLogoutClick = () => {
@@ -129,7 +117,7 @@ const AuthHeader = () => {
       </button>
       {open && (
         <div className="auth-menu" role="menu">
-          <button className="auth-menu__item" type="button" onClick={handlePersonalNavigate}>
+          <button className="auth-menu__item" type="button" onClick={handleAccountNavigate}>
             Personal Panel
           </button>
           {canViewPackages && (
@@ -306,26 +294,6 @@ function App() {
             }
           />
           <Route
-            path="/personal"
-            element={
-              <RequireAuth>
-                <DashboardRoute>
-                  <PersonalPanelPage />
-                </DashboardRoute>
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/resources"
-            element={
-              <RequireAuth>
-                <DashboardRoute>
-                  <ResourceCenterPage />
-                </DashboardRoute>
-              </RequireAuth>
-            }
-          />
-          <Route
             path="/workflows/:workflowId"
             element={
               <RequireAuth>
@@ -334,16 +302,16 @@ function App() {
             }
           />
           <Route
-          path="/packages"
-          element={
-            <RequireAuth>
-              <DashboardRoute>
-                <PackageCenterPage />
-              </DashboardRoute>
-            </RequireAuth>
-          }
-        />
-        <Route path="/store" element={<Navigate to="/packages" replace />} />
+            path="/packages"
+            element={
+              <RequireAuth>
+                <DashboardRoute>
+                  <PackageCenterPage />
+                </DashboardRoute>
+              </RequireAuth>
+            }
+          />
+          <Route path="/store" element={<Navigate to="/packages" replace />} />
           <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
           <Route
             path="/admin/users"

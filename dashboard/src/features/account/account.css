@@ -24,10 +24,6 @@
   min-height: 0;
 }
 
-.account-layout--single {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .account-sidebar {
   position: sticky;
   top: var(--account-header-offset);

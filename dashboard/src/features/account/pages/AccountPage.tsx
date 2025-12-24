@@ -57,12 +57,6 @@ type PreviewEntry = {
 
 type AccountSection = "profile" | "resources";
 
-type AccountPageVariant = "full" | "profile" | "resources";
-
-type AccountPageProps = {
-  variant?: AccountPageVariant;
-};
-
 const isAbortError = (value: unknown) => {
   const code = (value as { code?: string })?.code;
   const name = (value as { name?: string })?.name;
@@ -96,7 +90,7 @@ const inferPreviewKind = (resource: Resource): PreviewKind | null => {
   return null;
 };
 
-const AccountPage = ({ variant = "full" }: AccountPageProps) => {
+const AccountPage = () => {
   const user = useAuthStore((state) => state.user);
   const updateUser = useAuthStore((state) => state.updateUser);
   const [profile, setProfile] = useState<UserSummary | null>(user ?? null);
@@ -127,17 +121,6 @@ const AccountPage = ({ variant = "full" }: AccountPageProps) => {
   const previewControllersRef = useRef(new Map<string, AbortController>());
   const previewsRef = useRef(previews);
   const [activeSection, setActiveSection] = useState<AccountSection>("profile");
-  const isFullView = variant === "full";
-  const activeView: AccountSection =
-    variant === "resources" ? "resources" : variant === "profile" ? "profile" : activeSection;
-  const pageTitle =
-    variant === "resources" ? "Resource Center" : variant === "profile" ? "Personal Panel" : "Account";
-  const pageSubtitle =
-    variant === "resources"
-      ? "Upload, organize, and manage your resources."
-      : variant === "profile"
-        ? "Review your profile details and access roles."
-        : "Manage your profile and personal resources.";
 
   useEffect(() => {
     if (user) {
@@ -181,13 +164,9 @@ const AccountPage = ({ variant = "full" }: AccountPageProps) => {
   );
 
   useEffect(() => {
-    if (variant !== "resources") {
-      loadProfile();
-    }
-    if (variant !== "profile") {
-      loadResources();
-    }
-  }, [loadProfile, loadResources, variant]);
+    loadProfile();
+    loadResources();
+  }, [loadProfile, loadResources]);
 
   useEffect(() => {
     previewsRef.current = previews;
@@ -478,34 +457,32 @@ const AccountPage = ({ variant = "full" }: AccountPageProps) => {
   return (
     <div className="account-page">
       <div className="account-header">
-        <h2>{pageTitle}</h2>
-        <p className="text-subtle">{pageSubtitle}</p>
+        <h2>Account</h2>
+        <p className="text-subtle">Manage your profile and personal resources.</p>
       </div>
 
-      <div className={`account-layout${isFullView ? "" : " account-layout--single"}`}>
-        {isFullView && (
-          <aside className="account-sidebar">
-            <nav className="account-menu">
-              <button
-                type="button"
-                className={`account-menu__button${activeSection === "profile" ? " is-active" : ""}`}
-                onClick={() => setActiveSection("profile")}
-              >
-                Personal Panel
-              </button>
-              <button
-                type="button"
-                className={`account-menu__button${activeSection === "resources" ? " is-active" : ""}`}
-                onClick={() => setActiveSection("resources")}
-              >
-                Resource Center
-              </button>
-            </nav>
-          </aside>
-        )}
+      <div className="account-layout">
+        <aside className="account-sidebar">
+          <nav className="account-menu">
+            <button
+              type="button"
+              className={`account-menu__button${activeSection === "profile" ? " is-active" : ""}`}
+              onClick={() => setActiveSection("profile")}
+            >
+              Personal Panel
+            </button>
+            <button
+              type="button"
+              className={`account-menu__button${activeSection === "resources" ? " is-active" : ""}`}
+              onClick={() => setActiveSection("resources")}
+            >
+              Resource Center
+            </button>
+          </nav>
+        </aside>
 
         <section className="account-content">
-          {activeView === "profile" && (
+          {activeSection === "profile" && (
             <div className="card">
               <header className="card__header">
                 <h3>Profile</h3>
@@ -573,7 +550,7 @@ const AccountPage = ({ variant = "full" }: AccountPageProps) => {
             </div>
           )}
 
-          {activeView === "resources" && (
+          {activeSection === "resources" && (
             <div className="card">
               <header className="card__header">
                 <h3>Resource Library</h3>

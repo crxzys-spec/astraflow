@@ -34,11 +34,12 @@ class ResourceUploadInitRequest(BaseModel):
     """ # noqa: E501
     filename: StrictStr
     size_bytes: Annotated[int, Field(strict=True, ge=0)] = Field(alias="sizeBytes")
+    provider: Optional[StrictStr] = None
     mime_type: Optional[StrictStr] = Field(default=None, alias="mimeType")
     sha256: Optional[StrictStr] = None
     chunk_size: Optional[Annotated[int, Field(strict=True, ge=1)]] = Field(default=None, alias="chunkSize")
     metadata: Optional[Dict[str, Any]] = None
-    __properties: ClassVar[List[str]] = ["filename", "sizeBytes", "mimeType", "sha256", "chunkSize", "metadata"]
+    __properties: ClassVar[List[str]] = ["filename", "sizeBytes", "provider", "mimeType", "sha256", "chunkSize", "metadata"]
 
     model_config = {
         "populate_by_name": True,
@@ -111,6 +112,7 @@ class ResourceUploadInitRequest(BaseModel):
         _obj = cls.model_validate({
             "filename": obj.get("filename"),
             "sizeBytes": obj.get("sizeBytes"),
+            "provider": obj.get("provider"),
             "mimeType": obj.get("mimeType"),
             "sha256": obj.get("sha256"),
             "chunkSize": obj.get("chunkSize"),

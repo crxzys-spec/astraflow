@@ -57,6 +57,10 @@ paths:
     $ref: ./paths/resource-by-id.yaml
   /api/v1/resources/{resourceId}/download:
     $ref: ./paths/resource-download.yaml
+  /api/v1/resource-grants:
+    $ref: ./paths/resource-grants.yaml
+  /api/v1/resource-grants/{grantId}:
+    $ref: ./paths/resource-grant-by-id.yaml
   /api/v1/workflows/{workflowId}/publish:
     $ref: ./paths/workflow-publish.yaml
   /api/v1/packages:
@@ -75,6 +79,8 @@ paths:
     $ref: ./paths/events.yaml
   /api/v1/users:
     $ref: ./paths/users.yaml
+  /api/v1/users/me:
+    $ref: ./paths/user-me.yaml
   /api/v1/users/{userId}/password:
     $ref: ./paths/user-password.yaml
   /api/v1/users/{userId}/roles:

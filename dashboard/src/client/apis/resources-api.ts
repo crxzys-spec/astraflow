@@ -24,6 +24,16 @@ import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError
 // @ts-ignore
 import type { Resource } from '../models';
 // @ts-ignore
+import type { ResourceGrant } from '../models';
+// @ts-ignore
+import type { ResourceGrantCreateRequest } from '../models';
+// @ts-ignore
+import type { ResourceGrantList } from '../models';
+// @ts-ignore
+import type { ResourceGrantScope } from '../models';
+// @ts-ignore
+import type { ResourceList } from '../models';
+// @ts-ignore
 import type { ResourceUploadInitRequest } from '../models';
 // @ts-ignore
 import type { ResourceUploadPart } from '../models';
@@ -66,6 +76,46 @@ export const ResourcesApiAxiosParamCreator = function (configuration?: Configura
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Create resource grant
+         * @param {ResourceGrantCreateRequest} resourceGrantCreateRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createResourceGrant: async (resourceGrantCreateRequest: ResourceGrantCreateRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'resourceGrantCreateRequest' is not null or undefined
+            assertParamExists('createResourceGrant', 'resourceGrantCreateRequest', resourceGrantCreateRequest)
+            const localVarPath = `/api/v1/resource-grants`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(resourceGrantCreateRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -124,6 +174,44 @@ export const ResourcesApiAxiosParamCreator = function (configuration?: Configura
             assertParamExists('deleteResource', 'resourceId', resourceId)
             const localVarPath = `/api/v1/resources/{resourceId}`
                 .replace(`{${"resourceId"}}`, encodeURIComponent(String(resourceId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Delete resource grant
+         * @param {string} grantId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteResourceGrant: async (grantId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'grantId' is not null or undefined
+            assertParamExists('deleteResourceGrant', 'grantId', grantId)
+            const localVarPath = `/api/v1/resource-grants/{grantId}`
+                .replace(`{${"grantId"}}`, encodeURIComponent(String(grantId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -266,6 +354,44 @@ export const ResourcesApiAxiosParamCreator = function (configuration?: Configura
         },
         /**
          * 
+         * @summary Get resource grant
+         * @param {string} grantId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getResourceGrant: async (grantId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'grantId' is not null or undefined
+            assertParamExists('getResourceGrant', 'grantId', grantId)
+            const localVarPath = `/api/v1/resource-grants/{grantId}`
+                .replace(`{${"grantId"}}`, encodeURIComponent(String(grantId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Get resource upload session
          * @param {string} uploadId 
          * @param {*} [options] Override http request option.
@@ -304,12 +430,131 @@ export const ResourcesApiAxiosParamCreator = function (configuration?: Configura
         },
         /**
          * 
-         * @summary Upload resource
-         * @param {File} file 
+         * @summary List resource grants
+         * @param {string} [workflowId] 
+         * @param {string} [packageName] 
+         * @param {string} [packageVersion] 
+         * @param {string} [resourceKey] 
+         * @param {ResourceGrantScope} [scope] 
+         * @param {string} [resourceId] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        uploadResource: async (file: File, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        listResourceGrants: async (workflowId?: string, packageName?: string, packageVersion?: string, resourceKey?: string, scope?: ResourceGrantScope, resourceId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/resource-grants`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            if (workflowId !== undefined) {
+                localVarQueryParameter['workflowId'] = workflowId;
+            }
+
+            if (packageName !== undefined) {
+                localVarQueryParameter['packageName'] = packageName;
+            }
+
+            if (packageVersion !== undefined) {
+                localVarQueryParameter['packageVersion'] = packageVersion;
+            }
+
+            if (resourceKey !== undefined) {
+                localVarQueryParameter['resourceKey'] = resourceKey;
+            }
+
+            if (scope !== undefined) {
+                localVarQueryParameter['scope'] = scope;
+            }
+
+            if (resourceId !== undefined) {
+                localVarQueryParameter['resourceId'] = resourceId;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary List resources
+         * @param {number} [limit] 
+         * @param {string} [cursor] 
+         * @param {string} [search] 
+         * @param {string} [ownerId] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listResources: async (limit?: number, cursor?: string, search?: string, ownerId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/resources`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            if (limit !== undefined) {
+                localVarQueryParameter['limit'] = limit;
+            }
+
+            if (cursor !== undefined) {
+                localVarQueryParameter['cursor'] = cursor;
+            }
+
+            if (search !== undefined) {
+                localVarQueryParameter['search'] = search;
+            }
+
+            if (ownerId !== undefined) {
+                localVarQueryParameter['ownerId'] = ownerId;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Upload resource
+         * @param {File} file 
+         * @param {string} [provider] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadResource: async (file: File, provider?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'file' is not null or undefined
             assertParamExists('uploadResource', 'file', file)
             const localVarPath = `/api/v1/resources`;
@@ -330,6 +575,10 @@ export const ResourcesApiAxiosParamCreator = function (configuration?: Configura
             await setBearerAuthToObject(localVarHeaderParameter, configuration)
 
 
+            if (provider !== undefined) { 
+                localVarFormParams.append('provider', provider as any);
+            }
+    
             if (file !== undefined) { 
                 localVarFormParams.append('file', file as any);
             }
@@ -424,6 +673,19 @@ export const ResourcesApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Create resource grant
+         * @param {ResourceGrantCreateRequest} resourceGrantCreateRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createResourceGrant(resourceGrantCreateRequest: ResourceGrantCreateRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ResourceGrant>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createResourceGrant(resourceGrantCreateRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ResourcesApi.createResourceGrant']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Create resource upload session
          * @param {ResourceUploadInitRequest} resourceUploadInitRequest 
          * @param {*} [options] Override http request option.
@@ -446,6 +708,19 @@ export const ResourcesApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.deleteResource(resourceId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ResourcesApi.deleteResource']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Delete resource grant
+         * @param {string} grantId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteResourceGrant(grantId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteResourceGrant(grantId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ResourcesApi.deleteResourceGrant']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -489,6 +764,19 @@ export const ResourcesApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Get resource grant
+         * @param {string} grantId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getResourceGrant(grantId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ResourceGrant>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getResourceGrant(grantId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ResourcesApi.getResourceGrant']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Get resource upload session
          * @param {string} uploadId 
          * @param {*} [options] Override http request option.
@@ -502,13 +790,48 @@ export const ResourcesApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @summary Upload resource
-         * @param {File} file 
+         * @summary List resource grants
+         * @param {string} [workflowId] 
+         * @param {string} [packageName] 
+         * @param {string} [packageVersion] 
+         * @param {string} [resourceKey] 
+         * @param {ResourceGrantScope} [scope] 
+         * @param {string} [resourceId] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async uploadResource(file: File, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Resource>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.uploadResource(file, options);
+        async listResourceGrants(workflowId?: string, packageName?: string, packageVersion?: string, resourceKey?: string, scope?: ResourceGrantScope, resourceId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ResourceGrantList>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listResourceGrants(workflowId, packageName, packageVersion, resourceKey, scope, resourceId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ResourcesApi.listResourceGrants']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary List resources
+         * @param {number} [limit] 
+         * @param {string} [cursor] 
+         * @param {string} [search] 
+         * @param {string} [ownerId] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listResources(limit?: number, cursor?: string, search?: string, ownerId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ResourceList>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listResources(limit, cursor, search, ownerId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ResourcesApi.listResources']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Upload resource
+         * @param {File} file 
+         * @param {string} [provider] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async uploadResource(file: File, provider?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Resource>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.uploadResource(file, provider, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ResourcesApi.uploadResource']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -549,6 +872,16 @@ export const ResourcesApiFactory = function (configuration?: Configuration, base
         },
         /**
          * 
+         * @summary Create resource grant
+         * @param {ResourceGrantCreateRequest} resourceGrantCreateRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createResourceGrant(resourceGrantCreateRequest: ResourceGrantCreateRequest, options?: RawAxiosRequestConfig): AxiosPromise<ResourceGrant> {
+            return localVarFp.createResourceGrant(resourceGrantCreateRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Create resource upload session
          * @param {ResourceUploadInitRequest} resourceUploadInitRequest 
          * @param {*} [options] Override http request option.
@@ -566,6 +899,16 @@ export const ResourcesApiFactory = function (configuration?: Configuration, base
          */
         deleteResource(resourceId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.deleteResource(resourceId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Delete resource grant
+         * @param {string} grantId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteResourceGrant(grantId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.deleteResourceGrant(grantId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -599,6 +942,16 @@ export const ResourcesApiFactory = function (configuration?: Configuration, base
         },
         /**
          * 
+         * @summary Get resource grant
+         * @param {string} grantId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getResourceGrant(grantId: string, options?: RawAxiosRequestConfig): AxiosPromise<ResourceGrant> {
+            return localVarFp.getResourceGrant(grantId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Get resource upload session
          * @param {string} uploadId 
          * @param {*} [options] Override http request option.
@@ -609,13 +962,42 @@ export const ResourcesApiFactory = function (configuration?: Configuration, base
         },
         /**
          * 
-         * @summary Upload resource
-         * @param {File} file 
+         * @summary List resource grants
+         * @param {string} [workflowId] 
+         * @param {string} [packageName] 
+         * @param {string} [packageVersion] 
+         * @param {string} [resourceKey] 
+         * @param {ResourceGrantScope} [scope] 
+         * @param {string} [resourceId] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        uploadResource(file: File, options?: RawAxiosRequestConfig): AxiosPromise<Resource> {
-            return localVarFp.uploadResource(file, options).then((request) => request(axios, basePath));
+        listResourceGrants(workflowId?: string, packageName?: string, packageVersion?: string, resourceKey?: string, scope?: ResourceGrantScope, resourceId?: string, options?: RawAxiosRequestConfig): AxiosPromise<ResourceGrantList> {
+            return localVarFp.listResourceGrants(workflowId, packageName, packageVersion, resourceKey, scope, resourceId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary List resources
+         * @param {number} [limit] 
+         * @param {string} [cursor] 
+         * @param {string} [search] 
+         * @param {string} [ownerId] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listResources(limit?: number, cursor?: string, search?: string, ownerId?: string, options?: RawAxiosRequestConfig): AxiosPromise<ResourceList> {
+            return localVarFp.listResources(limit, cursor, search, ownerId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Upload resource
+         * @param {File} file 
+         * @param {string} [provider] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadResource(file: File, provider?: string, options?: RawAxiosRequestConfig): AxiosPromise<Resource> {
+            return localVarFp.uploadResource(file, provider, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -649,6 +1031,17 @@ export class ResourcesApi extends BaseAPI {
 
     /**
      * 
+     * @summary Create resource grant
+     * @param {ResourceGrantCreateRequest} resourceGrantCreateRequest 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public createResourceGrant(resourceGrantCreateRequest: ResourceGrantCreateRequest, options?: RawAxiosRequestConfig) {
+        return ResourcesApiFp(this.configuration).createResourceGrant(resourceGrantCreateRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary Create resource upload session
      * @param {ResourceUploadInitRequest} resourceUploadInitRequest 
      * @param {*} [options] Override http request option.
@@ -667,6 +1060,17 @@ export class ResourcesApi extends BaseAPI {
      */
     public deleteResource(resourceId: string, options?: RawAxiosRequestConfig) {
         return ResourcesApiFp(this.configuration).deleteResource(resourceId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Delete resource grant
+     * @param {string} grantId 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public deleteResourceGrant(grantId: string, options?: RawAxiosRequestConfig) {
+        return ResourcesApiFp(this.configuration).deleteResourceGrant(grantId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -704,6 +1108,17 @@ export class ResourcesApi extends BaseAPI {
 
     /**
      * 
+     * @summary Get resource grant
+     * @param {string} grantId 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getResourceGrant(grantId: string, options?: RawAxiosRequestConfig) {
+        return ResourcesApiFp(this.configuration).getResourceGrant(grantId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary Get resource upload session
      * @param {string} uploadId 
      * @param {*} [options] Override http request option.
@@ -715,13 +1130,44 @@ export class ResourcesApi extends BaseAPI {
 
     /**
      * 
-     * @summary Upload resource
-     * @param {File} file 
+     * @summary List resource grants
+     * @param {string} [workflowId] 
+     * @param {string} [packageName] 
+     * @param {string} [packageVersion] 
+     * @param {string} [resourceKey] 
+     * @param {ResourceGrantScope} [scope] 
+     * @param {string} [resourceId] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public uploadResource(file: File, options?: RawAxiosRequestConfig) {
-        return ResourcesApiFp(this.configuration).uploadResource(file, options).then((request) => request(this.axios, this.basePath));
+    public listResourceGrants(workflowId?: string, packageName?: string, packageVersion?: string, resourceKey?: string, scope?: ResourceGrantScope, resourceId?: string, options?: RawAxiosRequestConfig) {
+        return ResourcesApiFp(this.configuration).listResourceGrants(workflowId, packageName, packageVersion, resourceKey, scope, resourceId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary List resources
+     * @param {number} [limit] 
+     * @param {string} [cursor] 
+     * @param {string} [search] 
+     * @param {string} [ownerId] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public listResources(limit?: number, cursor?: string, search?: string, ownerId?: string, options?: RawAxiosRequestConfig) {
+        return ResourcesApiFp(this.configuration).listResources(limit, cursor, search, ownerId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Upload resource
+     * @param {File} file 
+     * @param {string} [provider] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public uploadResource(file: File, provider?: string, options?: RawAxiosRequestConfig) {
+        return ResourcesApiFp(this.configuration).uploadResource(file, provider, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

@@ -13,12 +13,17 @@
  */
 
 
+// May contain unused imports in some cases
+// @ts-ignore
+import type { ResourceVisibility } from './resource-visibility';
 
 export interface Resource {
     'resourceId': string;
     'provider': string;
     'type': string;
     'filename': string;
+    'ownerId'?: string | null;
+    'visibility'?: ResourceVisibility;
     'mimeType'?: string | null;
     'sizeBytes': number;
     'sha256'?: string | null;
@@ -27,4 +32,6 @@ export interface Resource {
     'metadata'?: { [key: string]: any; } | null;
     'downloadUrl'?: string | null;
 }
+
+
 

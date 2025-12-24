@@ -40,6 +40,7 @@ class UploadSession:
     upload_id: str
     filename: str
     size_bytes: int
+    provider: Optional[str]
     mime_type: Optional[str]
     sha256: Optional[str]
     chunk_size: int
@@ -58,6 +59,7 @@ class UploadSession:
             "uploadId": self.upload_id,
             "filename": self.filename,
             "sizeBytes": self.size_bytes,
+            "provider": self.provider,
             "mimeType": self.mime_type,
             "sha256": self.sha256,
             "chunkSize": self.chunk_size,
@@ -77,6 +79,7 @@ class UploadSession:
             "upload_id": self.upload_id,
             "filename": self.filename,
             "size_bytes": self.size_bytes,
+            "provider": self.provider,
             "mime_type": self.mime_type,
             "sha256": self.sha256,
             "chunk_size": self.chunk_size,
@@ -97,6 +100,7 @@ class UploadSession:
             upload_id=str(payload["upload_id"]),
             filename=str(payload["filename"]),
             size_bytes=int(payload["size_bytes"]),
+            provider=payload.get("provider"),
             mime_type=payload.get("mime_type"),
             sha256=payload.get("sha256"),
             chunk_size=int(payload["chunk_size"]),
@@ -132,6 +136,7 @@ class UploadSessionStore:
         *,
         filename: str,
         size_bytes: int,
+        provider: Optional[str] = None,
         mime_type: Optional[str],
         sha256: Optional[str],
         chunk_size: Optional[int],
@@ -148,6 +153,7 @@ class UploadSessionStore:
             upload_id=upload_id,
             filename=filename,
             size_bytes=size_bytes,
+            provider=provider,
             mime_type=mime_type,
             sha256=sha256,
             chunk_size=resolved_chunk,

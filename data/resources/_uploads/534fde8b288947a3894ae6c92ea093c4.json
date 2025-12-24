@@ -1,0 +1,23 @@
+{
+  "upload_id": "534fde8b288947a3894ae6c92ea093c4",
+  "filename": "vo_NTAQ007_9_wayob_01.wav",
+  "size_bytes": 595500,
+  "provider": "local",
+  "mime_type": "audio/wav",
+  "sha256": "96efc2d4ec97c0bb0c352c42fa66cd5149b8b8a8155a683b096ae5536053d233",
+  "chunk_size": 8388608,
+  "uploaded_bytes": 595500,
+  "next_part": 1,
+  "total_parts": 1,
+  "status": "completed",
+  "resource_id": "eb9d0398b36c476db618716f6fd21b93",
+  "metadata": {
+    "ownerId": "5c2e198a-a660-43db-aaa5-1008b44587fd",
+    "visibility": "private"
+  },
+  "created_at": "2025-12-24T06:37:15.987952+00:00",
+  "updated_at": "2025-12-24T06:37:16.107460+00:00",
+  "completed_parts": [
+    0
+  ]
+}

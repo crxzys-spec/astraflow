@@ -1,5 +1,15 @@
 import type { AxiosProgressEvent } from "axios";
-import type { Resource, ResourceUploadInitRequest, ResourceUploadPart, ResourceUploadSession } from "../client/models";
+import type {
+  Resource,
+  ResourceGrant,
+  ResourceGrantCreateRequest,
+  ResourceGrantList,
+  ResourceGrantScope,
+  ResourceList,
+  ResourceUploadInitRequest,
+  ResourceUploadPart,
+  ResourceUploadSession,
+} from "../client/models";
 import { apiAxios, createApi } from "../api/client";
 import { apiRequest } from "../api/fetcher";
 import { ResourcesApi } from "../client/apis/resources-api";
@@ -21,6 +31,7 @@ type UploadResourceOptions = {
   chunkConcurrency?: number;
   preserveSession?: boolean;
   deduplicate?: boolean;
+  provider?: string;
 };
 
 type UploadCacheEntry = {
@@ -30,6 +41,7 @@ type UploadCacheEntry = {
   chunkSize: number;
   updatedAt: number;
   sha256?: string;
+  provider?: string;
 };
 
 type UploadCache = Record<string, UploadCacheEntry>;
@@ -96,7 +108,8 @@ const clearUploadCacheEntry = (fingerprint: string) => {
   }
 };
 
-const buildUploadFingerprint = (file: File) => `${file.name}:${file.size}:${file.lastModified}`;
+const buildUploadFingerprint = (file: File, provider?: string) =>
+  `${provider ?? "default"}:${file.name}:${file.size}:${file.lastModified}`;
 
 const resolveChunkSize = (value?: number) => {
   if (!value || !Number.isFinite(value) || value <= 0) {
@@ -142,6 +155,7 @@ const createUploadSession = async (
     mimeType: file.type || undefined,
     sha256: sha256 || undefined,
     chunkSize,
+    provider: options.provider || undefined,
   };
   const response = await apiRequest<ResourceUploadSession>(
     (config) => resourcesApi.createResourceUpload(payload, config),
@@ -169,6 +183,7 @@ const cacheUploadSession = (fingerprint: string, session: ResourceUploadSession)
     chunkSize: session.chunkSize,
     updatedAt: Date.now(),
     sha256: session.sha256 ?? undefined,
+    provider: session.provider ?? undefined,
   });
 };
 
@@ -184,10 +199,15 @@ const resolveResumeSession = async (
   file: File,
   fingerprint: string,
   sha256: string | undefined,
+  provider: string | undefined,
   options: UploadResourceOptions,
 ): Promise<ResourceUploadSession | null> => {
   const cached = getUploadCacheEntry(fingerprint);
   if (!cached) {
+    return null;
+  }
+  if (provider && cached.provider && cached.provider !== provider) {
+    clearUploadCacheEntry(fingerprint);
     return null;
   }
   if (sha256 && cached.sha256 && cached.sha256 !== sha256) {
@@ -205,6 +225,10 @@ const resolveResumeSession = async (
       return null;
     }
     if (sha256 && session.sha256 && session.sha256 !== sha256) {
+      clearUploadCacheEntry(fingerprint);
+      return null;
+    }
+    if (provider && session.provider && session.provider !== provider) {
       clearUploadCacheEntry(fingerprint);
       return null;
     }
@@ -229,11 +253,17 @@ export const uploadResource = async (
     1,
     Math.floor(options.chunkConcurrency ?? DEFAULT_CHUNK_CONCURRENCY),
   );
-  const fingerprint = buildUploadFingerprint(file);
+  const fingerprint = buildUploadFingerprint(file, options.provider);
   const fileSha256 = await resolveFileSha256(file, options);
   let session: ResourceUploadSession | null = null;
   try {
-    session = await resolveResumeSession(file, fingerprint, fileSha256, { ...options, timeoutMs });
+    session = await resolveResumeSession(
+      file,
+      fingerprint,
+      fileSha256,
+      options.provider,
+      { ...options, timeoutMs },
+    );
     if (!session) {
       session = await createUploadSession(file, requestedChunkSize, fileSha256, { ...options, timeoutMs });
     }
@@ -363,8 +393,55 @@ export const deleteResource = async (resourceId: string): Promise<void> => {
   await apiRequest<void>(() => resourcesApi.deleteResource(resourceId));
 };
 
-export const abortUploadForFile = async (file: File): Promise<void> => {
-  const fingerprint = buildUploadFingerprint(file);
+export const listResources = async (params: {
+  limit?: number;
+  cursor?: string;
+  search?: string;
+  ownerId?: string;
+}): Promise<Resource[]> => {
+  const response = await apiRequest<ResourceList>((config) =>
+    resourcesApi.listResources(params.limit, params.cursor, params.search, params.ownerId, config),
+  );
+  return response.data.items ?? [];
+};
+
+export const listResourceGrants = async (params: {
+  workflowId?: string;
+  packageName?: string;
+  packageVersion?: string;
+  resourceKey?: string;
+  scope?: ResourceGrantScope;
+  resourceId?: string;
+}): Promise<ResourceGrant[]> => {
+  const response = await apiRequest<ResourceGrantList>((config) =>
+    resourcesApi.listResourceGrants(
+      params.workflowId,
+      params.packageName,
+      params.packageVersion,
+      params.resourceKey,
+      params.scope,
+      params.resourceId,
+      config,
+    ),
+  );
+  return response.data.items ?? [];
+};
+
+export const createResourceGrant = async (
+  payload: ResourceGrantCreateRequest,
+): Promise<ResourceGrant> => {
+  const response = await apiRequest<ResourceGrant>((config) =>
+    resourcesApi.createResourceGrant(payload, config),
+  );
+  return response.data;
+};
+
+export const deleteResourceGrant = async (grantId: string): Promise<void> => {
+  await apiRequest<void>((config) => resourcesApi.deleteResourceGrant(grantId, config));
+};
+
+export const abortUploadForFile = async (file: File, provider?: string): Promise<void> => {
+  const fingerprint = buildUploadFingerprint(file, provider);
   const cached = getUploadCacheEntry(fingerprint);
   if (!cached) {
     return;
@@ -426,4 +503,8 @@ export const resourcesGateway = {
   fetchBlob: fetchResourceBlob,
   abortUpload: abortUploadForFile,
   delete: deleteResource,
+  listResources,
+  listGrants: listResourceGrants,
+  createGrant: createResourceGrant,
+  deleteGrant: deleteResourceGrant,
 };

@@ -645,6 +645,49 @@
       }
     },
     "/api/v1/resources": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "List resources",
+        "operationId": "listResources",
+        "parameters": [
+          {
+            "$ref": "#/components/x-parameters/PageLimit"
+          },
+          {
+            "$ref": "#/components/x-parameters/PageCursor"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ownerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceList"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "Resources"
@@ -661,6 +704,9 @@
                   "file"
                 ],
                 "properties": {
+                  "provider": {
+                    "type": "string"
+                  },
                   "file": {
                     "type": "string",
                     "format": "binary"
@@ -957,6 +1003,158 @@
                 }
               }
             }
+          },
+          "404": {
+            "$ref": "#/components/x-responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/resource-grants": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "List resource grants",
+        "operationId": "listResourceGrants",
+        "parameters": [
+          {
+            "name": "workflowId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "packageName",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "packageVersion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resourceKey",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ResourceGrantScope"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceGrantList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Create resource grant",
+        "operationId": "createResourceGrant",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceGrantCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceGrant"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/x-responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/v1/resource-grants/{grantId}": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Get resource grant",
+        "operationId": "getResourceGrant",
+        "parameters": [
+          {
+            "$ref": "#/components/x-parameters/ResourceGrantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceGrant"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/x-responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Resources"
+        ],
+        "summary": "Delete resource grant",
+        "operationId": "deleteResourceGrant",
+        "parameters": [
+          {
+            "$ref": "#/components/x-parameters/ResourceGrantId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
           },
           "404": {
             "$ref": "#/components/x-responses/NotFound"
@@ -1363,6 +1561,56 @@
         }
       }
     },
+    "/api/v1/users/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get current user profile",
+        "operationId": "getUserProfile",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSummary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update current user profile",
+        "operationId": "updateUserProfile",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/{userId}/password": {
       "post": {
         "tags": [
@@ -1582,6 +1830,14 @@
       },
       "ResourceId": {
         "name": "resourceId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ResourceGrantId": {
+        "name": "grantId",
         "in": "path",
         "required": true,
         "schema": {
@@ -1958,6 +2214,14 @@
           "filename": {
             "type": "string"
           },
+          "ownerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/ResourceVisibility",
+            "nullable": true
+          },
           "mimeType": {
             "type": "string",
             "nullable": true
@@ -1990,6 +2254,32 @@
           }
         }
       },
+      "ResourceList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Resource"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ResourceVisibility": {
+        "type": "string",
+        "enum": [
+          "private",
+          "public",
+          "owner"
+        ]
+      },
       "ResourceUploadInitRequest": {
         "type": "object",
         "required": [
@@ -2003,6 +2293,9 @@
           "sizeBytes": {
             "type": "integer",
             "minimum": 0
+          },
+          "provider": {
+            "type": "string"
           },
           "mimeType": {
             "type": "string",
@@ -2048,6 +2341,9 @@
           "sizeBytes": {
             "type": "integer",
             "minimum": 0
+          },
+          "provider": {
+            "type": "string"
           },
           "mimeType": {
             "type": "string",
@@ -2143,6 +2439,133 @@
               "pending",
               "completed"
             ]
+          }
+        }
+      },
+      "ResourceGrantScope": {
+        "type": "string",
+        "enum": [
+          "workflow",
+          "global"
+        ]
+      },
+      "ResourceGrantAction": {
+        "type": "string",
+        "enum": [
+          "read",
+          "write",
+          "use"
+        ]
+      },
+      "ResourceGrant": {
+        "type": "object",
+        "required": [
+          "grantId",
+          "resourceId",
+          "packageName",
+          "resourceKey",
+          "scope",
+          "actions",
+          "createdAt"
+        ],
+        "properties": {
+          "grantId": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "packageName": {
+            "type": "string"
+          },
+          "packageVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "resourceKey": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ResourceGrantScope"
+          },
+          "workflowId": {
+            "type": "string",
+            "nullable": true
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceGrantAction"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          }
+        }
+      },
+      "ResourceGrantCreateRequest": {
+        "type": "object",
+        "required": [
+          "resourceId",
+          "packageName",
+          "resourceKey",
+          "scope"
+        ],
+        "properties": {
+          "resourceId": {
+            "type": "string"
+          },
+          "packageName": {
+            "type": "string"
+          },
+          "packageVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "resourceKey": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ResourceGrantScope"
+          },
+          "workflowId": {
+            "type": "string",
+            "nullable": true
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceGrantAction"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          }
+        }
+      },
+      "ResourceGrantList": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceGrant"
+            }
           }
         }
       },
@@ -2523,6 +2946,18 @@
           }
         }
       },
+      "UpdateUserProfileRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "displayName"
+        ],
+        "properties": {
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
       "WorkflowList": {
         "type": "object",
         "required": [
@@ -2657,6 +3092,9 @@
             "items": {
               "$ref": "#/components/schemas/ManifestNode"
             }
+          },
+          "requirements": {
+            "$ref": "#/components/schemas/ManifestRequirements"
           },
           "resources": {
             "type": "array",
@@ -2927,6 +3365,54 @@
           "sha256": {
             "type": "string",
             "pattern": "^[A-Fa-f0-9]{64}$"
+          }
+        }
+      },
+      "ManifestRequirements": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManifestResourceRequirement"
+            }
+          }
+        }
+      },
+      "ManifestResourceRequirement": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "type"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [
+              "read"
+            ]
+          },
+          "required": {
+            "type": "boolean",
+            "default": true
+          },
+          "description": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
           }
         }
       },

@@ -27,9 +27,13 @@ class SchedulerApiSettings(BaseSettings):
         default="info",
         description="Log level for scheduler API / uvicorn.",
     )
-    resource_provider: Literal["local"] = Field(
+    resource_provider: str = Field(
         default="local",
-        description="Resource storage provider (local only for now).",
+        description="Default resource storage provider.",
+    )
+    resource_providers: list[str] = Field(
+        default_factory=lambda: ["local", "db"],
+        description="Allowed resource storage providers.",
     )
     resource_dir: Path = Field(
         default=Path(__file__).resolve().parents[4] / "scheduler" / "data" / "resources",

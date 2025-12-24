@@ -6,9 +6,11 @@ All URIs are relative to *https://scheduler.example.com*
 |------------- | ------------- | -------------|
 |[**addUserRole**](#adduserrole) | **POST** /api/v1/users/{userId}/roles | Assign role to user|
 |[**createUser**](#createuser) | **POST** /api/v1/users | Create a new user|
+|[**getUserProfile**](#getuserprofile) | **GET** /api/v1/users/me | Get current user profile|
 |[**listUsers**](#listusers) | **GET** /api/v1/users | List users and their roles|
 |[**removeUserRole**](#removeuserrole) | **DELETE** /api/v1/users/{userId}/roles/{role} | Remove role from user|
 |[**resetUserPassword**](#resetuserpassword) | **POST** /api/v1/users/{userId}/password | Reset user password|
+|[**updateUserProfile**](#updateuserprofile) | **PATCH** /api/v1/users/me | Update current user profile|
 |[**updateUserStatus**](#updateuserstatus) | **PATCH** /api/v1/users/{userId}/status | Toggle user active state|
 
 # **addUserRole**
@@ -113,6 +115,49 @@ const { status, data } = await apiInstance.createUser(
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 |**201** | Created |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getUserProfile**
+> UserSummary getUserProfile()
+
+
+### Example
+
+```typescript
+import {
+    UsersApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new UsersApi(configuration);
+
+const { status, data } = await apiInstance.getUserProfile();
+```
+
+### Parameters
+This endpoint does not have any parameters.
+
+
+### Return type
+
+**UserSummary**
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
@@ -263,6 +308,57 @@ void (empty response body)
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 |**204** | Password updated |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **updateUserProfile**
+> UserSummary updateUserProfile(updateUserProfileRequest)
+
+
+### Example
+
+```typescript
+import {
+    UsersApi,
+    Configuration,
+    UpdateUserProfileRequest
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new UsersApi(configuration);
+
+let updateUserProfileRequest: UpdateUserProfileRequest; //
+
+const { status, data } = await apiInstance.updateUserProfile(
+    updateUserProfileRequest
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **updateUserProfileRequest** | **UpdateUserProfileRequest**|  | |
+
+
+### Return type
+
+**UserSummary**
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | Updated |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

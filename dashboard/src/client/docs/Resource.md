@@ -9,6 +9,8 @@ Name | Type | Description | Notes
 **provider** | **string** |  | [default to undefined]
 **type** | **string** |  | [default to undefined]
 **filename** | **string** |  | [default to undefined]
+**ownerId** | **string** |  | [optional] [default to undefined]
+**visibility** | [**ResourceVisibility**](ResourceVisibility.md) |  | [optional] [default to undefined]
 **mimeType** | **string** |  | [optional] [default to undefined]
 **sizeBytes** | **number** |  | [default to undefined]
 **sha256** | **string** |  | [optional] [default to undefined]
@@ -27,6 +29,8 @@ const instance: Resource = {
     provider,
     type,
     filename,
+    ownerId,
+    visibility,
     mimeType,
     sizeBytes,
     sha256,

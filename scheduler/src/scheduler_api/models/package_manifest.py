@@ -27,6 +27,7 @@ from scheduler_api.models.manifest_adapter import ManifestAdapter
 from scheduler_api.models.manifest_hooks import ManifestHooks
 from scheduler_api.models.manifest_node import ManifestNode
 from scheduler_api.models.manifest_python_config import ManifestPythonConfig
+from scheduler_api.models.manifest_requirements import ManifestRequirements
 from scheduler_api.models.manifest_resource import ManifestResource
 from scheduler_api.models.manifest_signature import ManifestSignature
 try:
@@ -45,10 +46,11 @@ class PackageManifest(BaseModel):
     adapters: Annotated[List[ManifestAdapter], Field(min_length=1)]
     python: ManifestPythonConfig
     nodes: Annotated[List[ManifestNode], Field(min_length=1)]
+    requirements: Optional[ManifestRequirements] = None
     resources: Optional[List[ManifestResource]] = None
     hooks: Optional[ManifestHooks] = None
     signature: Optional[ManifestSignature] = None
-    __properties: ClassVar[List[str]] = ["schemaVersion", "name", "version", "description", "adapters", "python", "nodes", "resources", "hooks", "signature"]
+    __properties: ClassVar[List[str]] = ["schemaVersion", "name", "version", "description", "adapters", "python", "nodes", "requirements", "resources", "hooks", "signature"]
 
     @field_validator('schema_version')
     def schema_version_validate_regular_expression(cls, value):
@@ -125,6 +127,9 @@ class PackageManifest(BaseModel):
                 if _item:
                     _items.append(_item.to_dict())
             _dict['nodes'] = _items
+        # override the default output from pydantic by calling `to_dict()` of requirements
+        if self.requirements:
+            _dict['requirements'] = self.requirements.to_dict()
         # override the default output from pydantic by calling `to_dict()` of each item in resources (list)
         _items = []
         if self.resources:
@@ -157,6 +162,7 @@ class PackageManifest(BaseModel):
             "adapters": [ManifestAdapter.from_dict(_item) for _item in obj.get("adapters")] if obj.get("adapters") is not None else None,
             "python": ManifestPythonConfig.from_dict(obj.get("python")) if obj.get("python") is not None else None,
             "nodes": [ManifestNode.from_dict(_item) for _item in obj.get("nodes")] if obj.get("nodes") is not None else None,
+            "requirements": ManifestRequirements.from_dict(obj.get("requirements")) if obj.get("requirements") is not None else None,
             "resources": [ManifestResource.from_dict(_item) for _item in obj.get("resources")] if obj.get("resources") is not None else None,
             "hooks": ManifestHooks.from_dict(obj.get("hooks")) if obj.get("hooks") is not None else None,
             "signature": ManifestSignature.from_dict(obj.get("signature")) if obj.get("signature") is not None else None

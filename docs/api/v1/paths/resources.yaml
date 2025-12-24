@@ -1,3 +1,28 @@
+get:
+  tags: [Resources]
+  summary: List resources
+  operationId: listResources
+  parameters:
+    - $ref: '../components/parameters.yaml#/PageLimit'
+    - $ref: '../components/parameters.yaml#/PageCursor'
+    - name: search
+      in: query
+      required: false
+      schema:
+        type: string
+    - name: ownerId
+      in: query
+      required: false
+      schema:
+        type: string
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/ResourceList'
+
 post:
   tags: [Resources]
   summary: Upload resource
@@ -11,6 +36,8 @@ post:
           required:
           - file
           properties:
+            provider:
+              type: string
             file:
               type: string
               format: binary

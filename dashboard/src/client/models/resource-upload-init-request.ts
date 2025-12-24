@@ -17,6 +17,7 @@
 export interface ResourceUploadInitRequest {
     'filename': string;
     'sizeBytes': number;
+    'provider'?: string;
     'mimeType'?: string | null;
     'sha256'?: string | null;
     'chunkSize'?: number | null;

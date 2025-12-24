@@ -14,6 +14,9 @@ type WidgetOptions = {
   chunkParallel?: number;
   helperText?: string;
   deleteOnRemove?: boolean;
+  providers?: string[];
+  provider?: string;
+  providerLabel?: string;
 };
 
 type UploadEntry = {
@@ -122,6 +125,18 @@ export const FileUploadWidget = ({ widget, value, onChange, readOnly }: WidgetRe
   const chunkParallel = chunkParallelRaw ? Math.max(1, Math.floor(chunkParallelRaw)) : undefined;
   const helperText = typeof options.helperText === "string" ? options.helperText : undefined;
   const deleteOnRemove = Boolean(options.deleteOnRemove);
+  const providerLabel = typeof options.providerLabel === "string" ? options.providerLabel : "Storage";
+  const providerOptions = Array.isArray(options.providers)
+    ? options.providers.map((entry) => entry.trim()).filter((entry) => entry.length > 0)
+    : [];
+  const defaultProvider =
+    (typeof options.provider === "string" ? options.provider.trim() : "") ||
+    providerOptions[0] ||
+    "local";
+  const availableProviders = providerOptions.length ? providerOptions : [defaultProvider];
+  const resolvedDefaultProvider = availableProviders.includes(defaultProvider)
+    ? defaultProvider
+    : availableProviders[0];
   const { pushMessage } = useMessageCenter();
 
   const resources = useMemo(() => normalizeResources(value), [value]);
@@ -132,11 +147,13 @@ export const FileUploadWidget = ({ widget, value, onChange, readOnly }: WidgetRe
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
   const uploadFilesRef = useRef(new Map<string, File>());
+  const uploadProvidersRef = useRef(new Map<string, string>());
   const uploadControllersRef = useRef(new Map<string, AbortController>());
   const abortReasonsRef = useRef(new Map<string, "paused" | "cancelled">());
   const previewControllersRef = useRef(new Map<string, AbortController>());
   const previewsRef = useRef(previews);
   const activeUploadsRef = useRef(0);
+  const [selectedProvider, setSelectedProvider] = useState(resolvedDefaultProvider);
 
   const applyChange = (next: Resource[]) => {
     if (allowMultiple) {
@@ -188,6 +205,7 @@ export const FileUploadWidget = ({ widget, value, onChange, readOnly }: WidgetRe
   };
 
   const startUpload = async (key: string, file: File): Promise<Resource | null> => {
+    const provider = uploadProvidersRef.current.get(key) ?? selectedProvider;
     updateUploadEntry(key, { status: "uploading", error: undefined });
     const controller = new AbortController();
     uploadControllersRef.current.set(key, controller);
@@ -198,9 +216,11 @@ export const FileUploadWidget = ({ widget, value, onChange, readOnly }: WidgetRe
         signal: controller.signal,
         preserveSession: true,
         chunkConcurrency: chunkParallel,
+        provider,
       });
       removeUploadEntry(key);
       uploadFilesRef.current.delete(key);
+      uploadProvidersRef.current.delete(key);
       return resource;
     } catch (uploadError) {
       if (isAbortError(uploadError)) {
@@ -236,15 +256,17 @@ export const FileUploadWidget = ({ widget, value, onChange, readOnly }: WidgetRe
   const handleCancelUpload = async (key: string) => {
     const controller = uploadControllersRef.current.get(key);
     const file = uploadFilesRef.current.get(key);
+    const provider = uploadProvidersRef.current.get(key);
     if (controller) {
       abortReasonsRef.current.set(key, "cancelled");
       controller.abort();
     }
     uploadControllersRef.current.delete(key);
     uploadFilesRef.current.delete(key);
+    uploadProvidersRef.current.delete(key);
     removeUploadEntry(key);
     if (file) {
-      await resourcesGateway.abortUpload(file);
+      await resourcesGateway.abortUpload(file, provider);
     }
   };
 
@@ -291,6 +313,7 @@ export const FileUploadWidget = ({ widget, value, onChange, readOnly }: WidgetRe
     }));
     queue.forEach(({ file, key }) => {
       uploadFilesRef.current.set(key, file);
+      uploadProvidersRef.current.set(key, selectedProvider);
     });
     addUploadEntries(
       queue.map(({ file, key }) => ({
@@ -461,6 +484,10 @@ export const FileUploadWidget = ({ widget, value, onChange, readOnly }: WidgetRe
   }, [previews]);
 
   useEffect(() => {
+    setSelectedProvider(resolvedDefaultProvider);
+  }, [resolvedDefaultProvider]);
+
+  useEffect(() => {
     const resourceIds = new Set(resources.map((item) => item.resourceId));
     setPreviews((prev) => {
       let changed = false;
@@ -499,6 +526,23 @@ export const FileUploadWidget = ({ widget, value, onChange, readOnly }: WidgetRe
     <div className="wf-widget wf-widget--file-upload">
       <div className="wf-widget__label">
         <span>{widget.label}</span>
+        {availableProviders.length > 0 && (
+          <label className="wf-widget__provider">
+            <span>{providerLabel}</span>
+            <select
+              className="wf-widget__select"
+              value={selectedProvider}
+              onChange={(event) => setSelectedProvider(event.target.value)}
+              disabled={readOnly || isUploading}
+            >
+              {availableProviders.map((provider) => (
+                <option key={provider} value={provider}>
+                  {provider}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label
           className={dropzoneClassName}
           onDragEnter={handleDragEnter}

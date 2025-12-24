@@ -1,0 +1,353 @@
+{
+  "schemaVersion": "1.0.0",
+  "name": "llm",
+  "version": "1.0.0",
+  "description": "LLM connectors for cloud and local providers (OpenAI-compatible, Anthropic, Google Gemini, Ollama).",
+  "adapters": [
+    {
+      "name": "llm",
+      "entrypoint": "adapters.llm",
+      "capabilities": [
+        "llm.chat"
+      ]
+    }
+  ],
+  "python": {
+    "requires": ">=3.10,<3.12",
+    "dependencies": []
+  },
+  "requirements": {
+    "resources": [
+      {
+        "key": "openai_api_key",
+        "type": "secret",
+        "actions": [
+          "read"
+        ],
+        "required": false,
+        "description": "API key for OpenAI hosted models."
+      },
+      {
+        "key": "openai_compatible_api_key",
+        "type": "secret",
+        "actions": [
+          "read"
+        ],
+        "required": false,
+        "description": "API key for OpenAI-compatible providers."
+      },
+      {
+        "key": "anthropic_api_key",
+        "type": "secret",
+        "actions": [
+          "read"
+        ],
+        "required": false,
+        "description": "API key for Anthropic models."
+      },
+      {
+        "key": "google_api_key",
+        "type": "secret",
+        "actions": [
+          "read"
+        ],
+        "required": false,
+        "description": "API key for Google Gemini models."
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "type": "llm.chat",
+      "status": "published",
+      "category": "LLM",
+      "label": "LLM Chat",
+      "description": "Call cloud or local LLM chat APIs with a unified payload.",
+      "tags": [
+        "llm",
+        "chat",
+        "openai",
+        "anthropic",
+        "gemini",
+        "ollama"
+      ],
+      "adapter": "llm",
+      "handler": "chat",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "description": "Target provider (openai, openai_compatible, anthropic, google, ollama).",
+              "enum": [
+                "openai",
+                "openai_compatible",
+                "anthropic",
+                "google",
+                "ollama"
+              ],
+              "default": "openai"
+            },
+            "model": {
+              "type": "string",
+              "description": "Model identifier, e.g. gpt-4o-mini, claude-3-5-sonnet, gemini-1.5-flash, llama3."
+            },
+            "prompt": {
+              "type": "string",
+              "description": "Single-turn user prompt (ignored when messages are provided).",
+              "default": ""
+            },
+            "system": {
+              "type": "string",
+              "description": "Optional system instruction.",
+              "default": ""
+            },
+            "messages": {
+              "type": "array",
+              "description": "Optional chat message list (role/content).",
+              "items": {
+                "type": "object",
+                "required": [
+                  "role",
+                  "content"
+                ],
+                "properties": {
+                  "role": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "baseUrl": {
+              "type": "string",
+              "description": "Override provider base URL (useful for OpenAI-compatible servers or Ollama)."
+            },
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2,
+              "default": 0.7
+            },
+            "topP": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "maxTokens": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "stop": {
+              "description": "Optional stop sequences.",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "timeoutSeconds": {
+              "type": "number",
+              "minimum": 1,
+              "default": 60
+            }
+          },
+          "required": [
+            "model"
+          ]
+        },
+        "results": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "succeeded",
+                "failed"
+              ]
+            },
+            "text": {
+              "type": "string"
+            },
+            "provider": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "usage": {
+              "type": "object"
+            },
+            "raw": {
+              "type": "object"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        }
+      },
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "prompt",
+            "label": "Prompt",
+            "binding": {
+              "path": "/parameters/prompt",
+              "mode": "write"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "text",
+            "label": "Text",
+            "binding": {
+              "path": "/results/text",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "raw",
+            "label": "Raw",
+            "binding": {
+              "path": "/results/raw",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "usage",
+            "label": "Usage",
+            "binding": {
+              "path": "/results/usage",
+              "mode": "read"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "provider",
+            "label": "Provider",
+            "component": "options",
+            "binding": {
+              "path": "/parameters/provider",
+              "mode": "write"
+            },
+            "options": {
+              "options": [
+                "openai",
+                "openai_compatible",
+                "anthropic",
+                "google",
+                "ollama"
+              ]
+            }
+          },
+          {
+            "key": "model",
+            "label": "Model",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/model",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "system",
+            "label": "System",
+            "component": "textarea",
+            "binding": {
+              "path": "/parameters/system",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "prompt",
+            "label": "Prompt",
+            "component": "textarea",
+            "binding": {
+              "path": "/parameters/prompt",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "messages",
+            "label": "Messages",
+            "component": "json",
+            "binding": {
+              "path": "/parameters/messages",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "baseUrl",
+            "label": "Base URL",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/baseUrl",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "temperature",
+            "label": "Temperature",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/temperature",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "topP",
+            "label": "Top P",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/topP",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "maxTokens",
+            "label": "Max Tokens",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/maxTokens",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "stop",
+            "label": "Stop",
+            "component": "json",
+            "binding": {
+              "path": "/parameters/stop",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "timeoutSeconds",
+            "label": "Timeout (s)",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/timeoutSeconds",
+              "mode": "write"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

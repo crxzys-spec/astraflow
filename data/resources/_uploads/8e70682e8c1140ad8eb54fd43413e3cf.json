@@ -1,0 +1,23 @@
+{
+  "upload_id": "8e70682e8c1140ad8eb54fd43413e3cf",
+  "filename": "DSC03862.JPG",
+  "size_bytes": 6062531,
+  "provider": "local",
+  "mime_type": "image/jpeg",
+  "sha256": "8632caf92c4c45f26205794e4126d5d6eda297845d8a3fc8a2befb97a09cb37c",
+  "chunk_size": 8388608,
+  "uploaded_bytes": 6062531,
+  "next_part": 1,
+  "total_parts": 1,
+  "status": "completed",
+  "resource_id": "ea9f2f0d3bee40a4bac684da317712f5",
+  "metadata": {
+    "ownerId": "5c2e198a-a660-43db-aaa5-1008b44587fd",
+    "visibility": "private"
+  },
+  "created_at": "2025-12-24T06:36:18.402788+00:00",
+  "updated_at": "2025-12-24T06:36:18.625177+00:00",
+  "completed_parts": [
+    0
+  ]
+}

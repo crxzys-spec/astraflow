@@ -12,6 +12,7 @@ Name | Type | Description | Notes
 **adapters** | [**Array&lt;ManifestAdapter&gt;**](ManifestAdapter.md) |  | [default to undefined]
 **python** | [**ManifestPythonConfig**](ManifestPythonConfig.md) |  | [default to undefined]
 **nodes** | [**Array&lt;ManifestNode&gt;**](ManifestNode.md) |  | [default to undefined]
+**requirements** | [**ManifestRequirements**](ManifestRequirements.md) |  | [optional] [default to undefined]
 **resources** | [**Array&lt;ManifestResource&gt;**](ManifestResource.md) |  | [optional] [default to undefined]
 **hooks** | [**ManifestHooks**](ManifestHooks.md) |  | [optional] [default to undefined]
 **signature** | [**ManifestSignature**](ManifestSignature.md) |  | [optional] [default to undefined]
@@ -29,6 +30,7 @@ const instance: PackageManifest = {
     adapters,
     python,
     nodes,
+    requirements,
     resources,
     hooks,
     signature,

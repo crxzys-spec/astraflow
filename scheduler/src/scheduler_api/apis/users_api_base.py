@@ -6,6 +6,7 @@ from pydantic import StrictStr
 from typing import Any
 from scheduler_api.models.create_user_request import CreateUserRequest
 from scheduler_api.models.reset_user_password_request import ResetUserPasswordRequest
+from scheduler_api.models.update_user_profile_request import UpdateUserProfileRequest
 from scheduler_api.models.update_user_status_request import UpdateUserStatusRequest
 from scheduler_api.models.user_list import UserList
 from scheduler_api.models.user_role_request import UserRoleRequest
@@ -27,6 +28,19 @@ class BaseUsersApi:
     async def create_user(
         self,
         create_user_request: CreateUserRequest,
+    ) -> UserSummary:
+        ...
+
+
+    async def get_user_profile(
+        self,
+    ) -> UserSummary:
+        ...
+
+
+    async def update_user_profile(
+        self,
+        update_user_profile_request: UpdateUserProfileRequest,
     ) -> UserSummary:
         ...
 

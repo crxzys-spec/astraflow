@@ -722,8 +722,23 @@ const WorkflowBuilderPage = () => {
     [setToolbar]
   );
 
+  const metadataModal = (
+    <MetadataModal
+      isOpen={isMetadataModalOpen}
+      form={metadataForm}
+      onClose={closeMetadataModal}
+      onSubmit={handleMetadataSubmit}
+      onChange={(changes) => setMetadataForm((prev) => ({ ...prev, ...changes }))}
+    />
+  );
+
   if (!workflow) {
-    return <div className="card">Initializing builder...</div>;
+    return (
+      <>
+        <div className="card">Initializing builder...</div>
+        {metadataModal}
+      </>
+    );
   }
 
   const paletteHandleStyle = { left: `calc(1.5rem + ${paletteWidth}px - 0.4rem)` };
@@ -876,13 +891,7 @@ const WorkflowBuilderPage = () => {
         {selectedRunId && (
           <RunDetailPage runIdOverride={selectedRunId} onClose={() => setSelectedRunId(null)} />
         )}
-        <MetadataModal
-          isOpen={isMetadataModalOpen}
-          form={metadataForm}
-          onClose={closeMetadataModal}
-          onSubmit={handleMetadataSubmit}
-          onChange={(changes) => setMetadataForm((prev) => ({ ...prev, ...changes }))}
-        />
+        {metadataModal}
         <PublishModal
           isOpen={isPublishModalOpen}
           form={publishForm}

@@ -45,6 +45,7 @@ export interface PackageManifest {
    * @minItems 1
    */
   nodes: [Node, ...Node[]];
+  requirements?: ManifestRequirements;
   /**
    * Static assets bundled with the package.
    */
@@ -97,6 +98,10 @@ export interface Node {
    * Fully qualified node type (package scoped).
    */
   type: string;
+  /**
+   * Execution role of the node.
+   */
+  role?: 'node' | 'container' | 'middleware';
   /**
    * Lifecycle state of the node.
    */
@@ -165,10 +170,25 @@ export interface Binding {
   prefix?: string;
   scope?: BindingScope;
 }
+/**
+ * Canonical representation of the binding prefix for cross-workflow or subgraph references.
+ */
 export interface BindingScope {
+  /**
+   * local = current workflow, subgraph = inline subgraph alias.
+   */
   kind?: 'local' | 'subgraph';
+  /**
+   * Ordered list of inline subgraph aliases traversed by the prefix.
+   */
   subgraphAliases?: string[];
+  /**
+   * Explicit target node identifier (used for '#node' prefixes).
+   */
   nodeId?: string;
+  /**
+   * Raw prefix string captured before parsing (mirrors Binding.prefix).
+   */
   prefix?: string;
 }
 export interface Widget {
@@ -189,6 +209,43 @@ export interface Widget {
    * Component options (schema depends on component).
    */
   options?: {
+    [k: string]: unknown;
+  };
+}
+/**
+ * External resources required by the package at runtime.
+ */
+export interface ManifestRequirements {
+  /**
+   * Resource requirements declared by the package.
+   */
+  resources?: ResourceRequirement[];
+}
+export interface ResourceRequirement {
+  /**
+   * Stable key used to bind resources for this requirement.
+   */
+  key: string;
+  /**
+   * Required resource type (file, text, secret, json, url).
+   */
+  type: string;
+  /**
+   * Allowed actions for the resource (read, write, use).
+   */
+  actions?: string[];
+  /**
+   * Whether the resource must be bound before execution.
+   */
+  required?: boolean;
+  /**
+   * Human-readable explanation of why the resource is needed.
+   */
+  description?: string;
+  /**
+   * Additional requirement metadata.
+   */
+  metadata?: {
     [k: string]: unknown;
   };
 }

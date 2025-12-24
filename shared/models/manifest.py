@@ -41,6 +41,12 @@ class PythonConfig(BaseModel):
     )
 
 
+class Role(Enum):
+    node = 'node'
+    container = 'container'
+    middleware = 'middleware'
+
+
 class Status(Enum):
     draft = 'draft'
     published = 'published'
@@ -53,15 +59,28 @@ class Mode(Enum):
     two_way = 'two_way'
 
 
-class Binding(BaseModel):
+class Kind(Enum):
+    local = 'local'
+    subgraph = 'subgraph'
+
+
+class BindingScope(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
-    path: str = Field(
-        ..., description='JSON pointer style path targeted by the binding.'
+    kind: Optional[Kind] = Field(
+        None, description='local = current workflow, subgraph = inline subgraph alias.'
     )
-    mode: Optional[Mode] = Field(
-        'write', description='Binding mode that describes read/write behaviour.'
+    subgraphAliases: Optional[list[str]] = Field(
+        None,
+        description='Ordered list of inline subgraph aliases traversed by the prefix.',
+    )
+    nodeId: Optional[str] = Field(
+        None, description="Explicit target node identifier (used for '#node' prefixes)."
+    )
+    prefix: Optional[str] = Field(
+        None,
+        description='Raw prefix string captured before parsing (mirrors Binding.prefix).',
     )
 
 
@@ -75,6 +94,30 @@ class Resource(BaseModel):
     )
     sha256: Optional[constr(pattern=r'^[A-Fa-f0-9]{64}$')] = Field(
         None, description='Optional checksum of the resource content.'
+    )
+
+
+class ResourceRequirement(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    key: str = Field(
+        ..., description='Stable key used to bind resources for this requirement.'
+    )
+    type: str = Field(
+        ..., description='Required resource type (file, text, secret, json, url).'
+    )
+    actions: Optional[list[str]] = Field(
+        ['read'], description='Allowed actions for the resource (read, write, use).'
+    )
+    required: Optional[bool] = Field(
+        True, description='Whether the resource must be bound before execution.'
+    )
+    description: Optional[str] = Field(
+        None, description='Human-readable explanation of why the resource is needed.'
+    )
+    metadata: Optional[dict[str, Any]] = Field(
+        None, description='Additional requirement metadata.'
     )
 
 
@@ -106,6 +149,32 @@ class Signature(BaseModel):
 class JsonSchema(RootModel[Union[dict[str, Any], bool]]):
     root: Union[dict[str, Any], bool] = Field(
         ..., description='Embedded JSON Schema definition.'
+    )
+
+
+class Binding(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    path: str = Field(
+        ..., description='JSON pointer style path targeted by the binding.'
+    )
+    mode: Optional[Mode] = Field(
+        'write', description='Binding mode that describes read/write behaviour.'
+    )
+    prefix: Optional[str] = Field(
+        None,
+        description="Optional textual prefix (e.g. '@subgraphA.#nodeY') that scopes the binding before resolving the JSON pointer.",
+    )
+    scope: Optional[BindingScope] = None
+
+
+class ManifestRequirements(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    resources: Optional[list[ResourceRequirement]] = Field(
+        [], description='Resource requirements declared by the package.'
     )
 
 
@@ -147,6 +216,7 @@ class Node(BaseModel):
     type: constr(pattern=r'^[A-Za-z0-9_.-]+$') = Field(
         ..., description='Fully qualified node type (package scoped).'
     )
+    role: Optional[Role] = Field(None, description='Execution role of the node.')
     status: Status = Field(..., description='Lifecycle state of the node.')
     category: str = Field(
         ..., description='Grouping category displayed in the builder palette.'
@@ -168,14 +238,6 @@ class Node(BaseModel):
     )
     config: Optional[dict[str, Any]] = Field(
         {}, description='Optional static configuration forwarded to the handler.'
-    )
-    role: Optional[str] = Field(
-        None,
-        description='Execution role of the node (node, container, middleware).',
-    )
-    middlewares: Optional[list[str]] = Field(
-        None,
-        description='Ordered list of middleware node IDs attached to this node.',
     )
     schema_: JsonSchema = Field(
         ...,
@@ -207,6 +269,9 @@ class PackageManifest(BaseModel):
         ...,
         description='Node definitions surfaced to the builder and scheduler.',
         min_length=1,
+    )
+    requirements: Optional[ManifestRequirements] = Field(
+        None, description='External resources required by the package at runtime.'
     )
     resources: Optional[list[Resource]] = Field(
         [], description='Static assets bundled with the package.'

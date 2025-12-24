@@ -27,6 +27,7 @@ from pydantic import StrictStr
 from typing import Any
 from scheduler_api.models.create_user_request import CreateUserRequest
 from scheduler_api.models.reset_user_password_request import ResetUserPasswordRequest
+from scheduler_api.models.update_user_profile_request import UpdateUserProfileRequest
 from scheduler_api.models.update_user_status_request import UpdateUserStatusRequest
 from scheduler_api.models.user_list import UserList
 from scheduler_api.models.user_role_request import UserRoleRequest
@@ -77,6 +78,45 @@ async def create_user(
     if not BaseUsersApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseUsersApi.subclasses[0]().create_user(create_user_request)
+
+
+@router.get(
+    "/api/v1/users/me",
+    responses={
+        200: {"model": UserSummary, "description": "OK"},
+    },
+    tags=["Users"],
+    summary="Get current user profile",
+    response_model_by_alias=True,
+)
+async def get_user_profile(
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> UserSummary:
+    if not BaseUsersApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseUsersApi.subclasses[0]().get_user_profile()
+
+
+@router.patch(
+    "/api/v1/users/me",
+    responses={
+        200: {"model": UserSummary, "description": "Updated"},
+    },
+    tags=["Users"],
+    summary="Update current user profile",
+    response_model_by_alias=True,
+)
+async def update_user_profile(
+    update_user_profile_request: UpdateUserProfileRequest = Body(None, description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> UserSummary:
+    if not BaseUsersApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseUsersApi.subclasses[0]().update_user_profile(update_user_profile_request)
 
 
 @router.post(

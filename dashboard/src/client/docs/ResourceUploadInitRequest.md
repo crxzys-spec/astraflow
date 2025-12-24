@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **filename** | **string** |  | [default to undefined]
 **sizeBytes** | **number** |  | [default to undefined]
+**provider** | **string** |  | [optional] [default to undefined]
 **mimeType** | **string** |  | [optional] [default to undefined]
 **sha256** | **string** |  | [optional] [default to undefined]
 **chunkSize** | **number** |  | [optional] [default to undefined]
@@ -20,6 +21,7 @@ import { ResourceUploadInitRequest } from './api';
 const instance: ResourceUploadInitRequest = {
     filename,
     sizeBytes,
+    provider,
     mimeType,
     sha256,
     chunkSize,

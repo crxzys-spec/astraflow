@@ -1,0 +1,28 @@
+get:
+  tags: [Users]
+  summary: Get current user profile
+  operationId: getUserProfile
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/UserSummary'
+patch:
+  tags: [Users]
+  summary: Update current user profile
+  operationId: updateUserProfile
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/UpdateUserProfileRequest'
+  responses:
+    '200':
+      description: Updated
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/UserSummary'

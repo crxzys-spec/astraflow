@@ -42,6 +42,7 @@ export const useWorkflowDraft = (
   const updateNodeStates = useWorkflowStore((state) => state.updateNodeStates);
   const hasHydrated = useRef(false);
   const lastHydrateAt = useRef<number>(0);
+  const metadataPromptedRef = useRef(false);
 
   const isNewSession = !workflowId || workflowId === "new";
   const workflowKey = !isNewSession ? workflowId : undefined;
@@ -113,6 +114,7 @@ export const useWorkflowDraft = (
   useEffect(() => {
     resetWorkflow();
     hasHydrated.current = false;
+    metadataPromptedRef.current = false;
   }, [workflowId, resetWorkflow]);
 
   useEffect(() => {
@@ -120,15 +122,6 @@ export const useWorkflowDraft = (
       hasHydrated.current = false;
     }
   }, [workflow]);
-
-  useEffect(() => {
-    if (isNewSession && !workflow) {
-      const localId = workflowId && workflowId !== "new" ? workflowId : "wf-local";
-      const localName =
-        workflowId && workflowId !== "new" ? `Workflow ${workflowId}` : "Local Builder Session";
-      loadWorkflow(createEmptyWorkflow(localId, localName));
-    }
-  }, [isNewSession, workflow, workflowId, loadWorkflow]);
 
   useEffect(() => {
     const definition = workflowQuery.workflow;
@@ -192,33 +185,64 @@ export const useWorkflowDraft = (
   }, [notFound, resetWorkflow]);
 
   const openMetadataModal = useCallback(() => {
-    if (!workflow) {
-      return;
-    }
     setMetadataForm({
-      name: workflow.metadata?.name ?? "",
-      description: workflow.metadata?.description ?? "",
+      name: workflow?.metadata?.name ?? "",
+      description: workflow?.metadata?.description ?? "",
     });
     setMetadataModalOpen(true);
   }, [workflow]);
 
+  useEffect(() => {
+    if (!isNewSession || metadataPromptedRef.current) {
+      return;
+    }
+    metadataPromptedRef.current = true;
+    openMetadataModal();
+  }, [isNewSession, openMetadataModal]);
+
   const closeMetadataModal = useCallback(() => {
     setMetadataModalOpen(false);
-  }, []);
+    if (!workflow && isNewSession) {
+      resetWorkflow();
+      navigate("/workflows");
+    }
+  }, [isNewSession, navigate, resetWorkflow, workflow]);
 
   const handleMetadataSubmit = useCallback(
     (event?: FormEvent<HTMLFormElement>) => {
       event?.preventDefault();
+      const trimmedName = metadataForm.name.trim();
+      const trimmedDescription = metadataForm.description.trim();
       if (!workflow) {
+        if (!isNewSession) {
+          return;
+        }
+        const localId = workflowId && workflowId !== "new" ? workflowId : "wf-local";
+        const localName =
+          workflowId && workflowId !== "new" ? `Workflow ${workflowId}` : "Local Builder Session";
+        const draft = createEmptyWorkflow(localId, trimmedName || localName);
+        if (trimmedDescription) {
+          draft.metadata = { ...draft.metadata, description: trimmedDescription };
+        }
+        loadWorkflow(draft);
+        setMetadataModalOpen(false);
         return;
       }
       updateWorkflowMetadata({
-        name: metadataForm.name.trim() || undefined,
-        description: metadataForm.description.trim() || undefined,
+        name: trimmedName || undefined,
+        description: trimmedDescription || undefined,
       });
       setMetadataModalOpen(false);
     },
-    [metadataForm.description, metadataForm.name, updateWorkflowMetadata, workflow]
+    [
+      isNewSession,
+      loadWorkflow,
+      metadataForm.description,
+      metadataForm.name,
+      updateWorkflowMetadata,
+      workflow,
+      workflowId,
+    ]
   );
 
   const handleSaveWorkflow = useCallback(

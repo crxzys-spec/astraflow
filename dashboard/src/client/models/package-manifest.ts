@@ -27,6 +27,9 @@ import type { ManifestNode } from './manifest-node';
 import type { ManifestPythonConfig } from './manifest-python-config';
 // May contain unused imports in some cases
 // @ts-ignore
+import type { ManifestRequirements } from './manifest-requirements';
+// May contain unused imports in some cases
+// @ts-ignore
 import type { ManifestResource } from './manifest-resource';
 // May contain unused imports in some cases
 // @ts-ignore
@@ -52,6 +55,7 @@ export interface PackageManifest {
     'adapters': Array<ManifestAdapter>;
     'python': ManifestPythonConfig;
     'nodes': Array<ManifestNode>;
+    'requirements'?: ManifestRequirements;
     'resources'?: Array<ManifestResource>;
     'hooks'?: ManifestHooks;
     'signature'?: ManifestSignature;

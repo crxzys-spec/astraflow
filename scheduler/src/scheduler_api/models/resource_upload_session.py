@@ -36,6 +36,7 @@ class ResourceUploadSession(BaseModel):
     upload_id: StrictStr = Field(alias="uploadId")
     filename: StrictStr
     size_bytes: Annotated[int, Field(strict=True, ge=0)] = Field(alias="sizeBytes")
+    provider: Optional[StrictStr] = None
     mime_type: Optional[StrictStr] = Field(default=None, alias="mimeType")
     sha256: Optional[StrictStr] = None
     chunk_size: Annotated[int, Field(strict=True, ge=1)] = Field(alias="chunkSize")
@@ -48,7 +49,7 @@ class ResourceUploadSession(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime = Field(alias="updatedAt")
-    __properties: ClassVar[List[str]] = ["uploadId", "filename", "sizeBytes", "mimeType", "sha256", "chunkSize", "uploadedBytes", "nextPart", "totalParts", "completedParts", "status", "resourceId", "metadata", "createdAt", "updatedAt"]
+    __properties: ClassVar[List[str]] = ["uploadId", "filename", "sizeBytes", "provider", "mimeType", "sha256", "chunkSize", "uploadedBytes", "nextPart", "totalParts", "completedParts", "status", "resourceId", "metadata", "createdAt", "updatedAt"]
 
     @field_validator('status')
     def status_validate_enum(cls, value):
@@ -129,6 +130,7 @@ class ResourceUploadSession(BaseModel):
             "uploadId": obj.get("uploadId"),
             "filename": obj.get("filename"),
             "sizeBytes": obj.get("sizeBytes"),
+            "provider": obj.get("provider"),
             "mimeType": obj.get("mimeType"),
             "sha256": obj.get("sha256"),
             "chunkSize": obj.get("chunkSize"),

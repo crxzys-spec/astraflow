@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **uploadId** | **string** |  | [default to undefined]
 **filename** | **string** |  | [default to undefined]
 **sizeBytes** | **number** |  | [default to undefined]
+**provider** | **string** |  | [optional] [default to undefined]
 **mimeType** | **string** |  | [optional] [default to undefined]
 **sha256** | **string** |  | [optional] [default to undefined]
 **chunkSize** | **number** |  | [default to undefined]
@@ -30,6 +31,7 @@ const instance: ResourceUploadSession = {
     uploadId,
     filename,
     sizeBytes,
+    provider,
     mimeType,
     sha256,
     chunkSize,

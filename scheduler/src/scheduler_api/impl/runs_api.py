@@ -22,7 +22,7 @@ from scheduler_api.models.start_run_request_workflow_nodes_inner import (
 from scheduler_api.models.workflow import Workflow
 
 from ..core.biz.facade import biz_facade
-from ..core.biz.engine import status
+from ..core.biz.engine import status as engine_status
 
 LOGGER = logging.getLogger(__name__)
 
@@ -143,7 +143,10 @@ class RunsApiImpl(BaseRunsApi):
                 runId=run_id or "",
                 nodeId=node_id or "",
                 middlewareId=middleware_id or "",
-                error={"code": "next_cancelled", "message": status.get_next_error_message("next_cancelled")},
+                error={
+                    "code": "next_cancelled",
+                    "message": engine_status.get_next_error_message("next_cancelled"),
+                },
             )
             envelope = WsEnvelope(
                 type="biz.exec.next.response",

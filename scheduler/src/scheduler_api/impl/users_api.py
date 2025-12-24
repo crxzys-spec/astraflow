@@ -5,52 +5,63 @@ from sqlalchemy import select
 
 from scheduler_api.apis.users_api_base import BaseUsersApi
 from scheduler_api.audit import record_audit_event
+from scheduler_api.auth.context import get_current_token
 from scheduler_api.auth.roles import require_roles
 from scheduler_api.auth.service import hash_password
 from scheduler_api.db.models import RoleRecord, UserRecord, UserRoleRecord
 from scheduler_api.db.session import SessionLocal
-from scheduler_api.models.add_user_role_request import AddUserRoleRequest
-from scheduler_api.models.auth_login200_response_user import AuthLogin200ResponseUser
-from scheduler_api.models.create_user201_response import CreateUser201Response
 from scheduler_api.models.create_user_request import CreateUserRequest
-from scheduler_api.models.list_users200_response import ListUsers200Response
 from scheduler_api.models.reset_user_password_request import ResetUserPasswordRequest
+from scheduler_api.models.update_user_profile_request import UpdateUserProfileRequest
 from scheduler_api.models.update_user_status_request import UpdateUserStatusRequest
+from scheduler_api.models.user_list import UserList
+from scheduler_api.models.user_role_request import UserRoleRequest
+from scheduler_api.models.user_summary import UserSummary
 
 
 ADMIN_ROLE = ("admin",)
 
 
+def _require_authenticated() -> str:
+    token = get_current_token()
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden", "message": "Authentication required."},
+        )
+    return token.sub
+
+
+def _build_user_summary(session, user: UserRecord) -> UserSummary:
+    role_rows = session.execute(
+        select(RoleRecord.name)
+        .join(UserRoleRecord, UserRoleRecord.role_id == RoleRecord.id)
+        .where(UserRoleRecord.user_id == user.id)
+        .order_by(RoleRecord.name)
+    ).scalars()
+    return UserSummary(
+        user_id=user.id,
+        username=user.username,
+        display_name=user.display_name,
+        roles=list(role_rows),
+        is_active=user.is_active,
+    )
+
+
 class UsersApiImpl(BaseUsersApi):
     async def list_users(
         self,
-    ) -> ListUsers200Response:
+    ) -> UserList:
         require_roles(*ADMIN_ROLE)
         with SessionLocal() as session:
             users = session.execute(select(UserRecord).order_by(UserRecord.username)).scalars().all()
-            items: list[AuthLogin200ResponseUser] = []
-            for user in users:
-                role_rows = session.execute(
-                    select(RoleRecord.name)
-                    .join(UserRoleRecord, UserRoleRecord.role_id == RoleRecord.id)
-                    .where(UserRoleRecord.user_id == user.id)
-                    .order_by(RoleRecord.name)
-                ).scalars()
-                items.append(
-                    AuthLogin200ResponseUser(
-                        user_id=user.id,
-                        username=user.username,
-                        display_name=user.display_name,
-                        roles=list(role_rows),
-                        is_active=user.is_active,
-                    )
-                )
-        return ListUsers200Response(items=items)
+            items = [_build_user_summary(session, user) for user in users]
+        return UserList(items=items)
 
     async def create_user(
         self,
         create_user_request: CreateUserRequest,
-    ) -> CreateUser201Response:
+    ) -> UserSummary:
         token = require_roles(*ADMIN_ROLE)
         if create_user_request is None:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Request body is required")
@@ -93,12 +104,40 @@ class UsersApiImpl(BaseUsersApi):
             metadata={"username": user.username, "roles": requested_roles},
         )
 
-        return CreateUser201Response(
-            user_id=user.id,
-            username=user.username,
-            display_name=user.display_name,
-            roles=requested_roles,
-        )
+        with SessionLocal() as session:
+            refreshed = session.get(UserRecord, user.id)
+            if refreshed is None:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"User '{user.id}' not found.")
+            return _build_user_summary(session, refreshed)
+
+    async def get_user_profile(
+        self,
+    ) -> UserSummary:
+        user_id = _require_authenticated()
+        with SessionLocal() as session:
+            user = session.get(UserRecord, user_id)
+            if not user:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"User '{user_id}' not found.")
+            return _build_user_summary(session, user)
+
+    async def update_user_profile(
+        self,
+        update_user_profile_request: UpdateUserProfileRequest,
+    ) -> UserSummary:
+        user_id = _require_authenticated()
+        if update_user_profile_request is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Request body is required")
+        display_name = update_user_profile_request.display_name
+        if not display_name or not str(display_name).strip():
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="displayName is required")
+        with SessionLocal() as session:
+            user = session.get(UserRecord, user_id)
+            if not user:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"User '{user_id}' not found.")
+            user.display_name = str(display_name).strip()
+            session.commit()
+            session.refresh(user)
+            return _build_user_summary(session, user)
 
     async def reset_user_password(
         self,
@@ -125,21 +164,21 @@ class UsersApiImpl(BaseUsersApi):
     async def add_user_role(
         self,
         userId: str,
-        add_user_role_request: AddUserRoleRequest,
+        user_role_request: UserRoleRequest,
     ) -> None:
         token = require_roles(*ADMIN_ROLE)
-        if add_user_role_request is None:
+        if user_role_request is None:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Request body is required")
         with SessionLocal() as session:
             user = session.get(UserRecord, userId)
             if not user:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"User '{userId}' not found.")
             role = session.execute(
-                select(RoleRecord).where(RoleRecord.name == add_user_role_request.role)
+                select(RoleRecord).where(RoleRecord.name == user_role_request.role)
             ).scalar_one_or_none()
             if not role:
                 raise HTTPException(
-                    status.HTTP_404_NOT_FOUND, detail=f"Role '{add_user_role_request.role}' not found."
+                    status.HTTP_404_NOT_FOUND, detail=f"Role '{user_role_request.role}' not found."
                 )
             existing = session.execute(
                 select(UserRoleRecord).where(
@@ -155,7 +194,7 @@ class UsersApiImpl(BaseUsersApi):
             action="user.role.add",
             target_type="user",
             target_id=userId,
-            metadata={"role": add_user_role_request.role},
+            metadata={"role": user_role_request.role},
         )
 
     async def remove_user_role(

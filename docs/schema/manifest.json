@@ -52,6 +52,10 @@
       },
       "minItems": 1
     },
+    "requirements": {
+      "$ref": "#/$defs/ManifestRequirements",
+      "description": "External resources required by the package at runtime."
+    },
     "resources": {
       "type": "array",
       "description": "Static assets bundled with the package.",
@@ -147,6 +151,15 @@
           "type": "string",
           "description": "Fully qualified node type (package scoped).",
           "pattern": "^[A-Za-z0-9_.-]+$"
+        },
+        "role": {
+          "type": "string",
+          "description": "Execution role of the node.",
+          "enum": [
+            "node",
+            "container",
+            "middleware"
+          ]
         },
         "status": {
           "type": "string",
@@ -362,6 +375,62 @@
           "type": "string",
           "description": "Optional checksum of the resource content.",
           "pattern": "^[A-Fa-f0-9]{64}$"
+        }
+      }
+    },
+    "ManifestRequirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "resources": {
+          "type": "array",
+          "description": "Resource requirements declared by the package.",
+          "items": {
+            "$ref": "#/$defs/ResourceRequirement"
+          },
+          "default": []
+        }
+      }
+    },
+    "ResourceRequirement": {
+      "type": "object",
+      "required": [
+        "key",
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Stable key used to bind resources for this requirement."
+        },
+        "type": {
+          "type": "string",
+          "description": "Required resource type (file, text, secret, json, url)."
+        },
+        "actions": {
+          "type": "array",
+          "description": "Allowed actions for the resource (read, write, use).",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "read"
+          ]
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether the resource must be bound before execution.",
+          "default": true
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable explanation of why the resource is needed."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Additional requirement metadata.",
+          "additionalProperties": true
         }
       }
     },

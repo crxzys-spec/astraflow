@@ -24,6 +24,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
+from scheduler_api.models.resource_visibility import ResourceVisibility
 try:
     from typing import Self
 except ImportError:
@@ -37,6 +38,8 @@ class Resource(BaseModel):
     provider: StrictStr
     type: StrictStr
     filename: StrictStr
+    owner_id: Optional[StrictStr] = Field(default=None, alias="ownerId")
+    visibility: Optional[ResourceVisibility] = None
     mime_type: Optional[StrictStr] = Field(default=None, alias="mimeType")
     size_bytes: Annotated[int, Field(strict=True, ge=0)] = Field(alias="sizeBytes")
     sha256: Optional[StrictStr] = None
@@ -44,7 +47,7 @@ class Resource(BaseModel):
     expires_at: Optional[datetime] = Field(default=None, alias="expiresAt")
     metadata: Optional[Dict[str, Any]] = None
     download_url: Optional[StrictStr] = Field(default=None, alias="downloadUrl")
-    __properties: ClassVar[List[str]] = ["resourceId", "provider", "type", "filename", "mimeType", "sizeBytes", "sha256", "createdAt", "expiresAt", "metadata", "downloadUrl"]
+    __properties: ClassVar[List[str]] = ["resourceId", "provider", "type", "filename", "ownerId", "visibility", "mimeType", "sizeBytes", "sha256", "createdAt", "expiresAt", "metadata", "downloadUrl"]
 
     model_config = {
         "populate_by_name": True,
@@ -83,6 +86,11 @@ class Resource(BaseModel):
             },
             exclude_none=True,
         )
+        # set to None if owner_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.owner_id is None and "owner_id" in self.model_fields_set:
+            _dict['ownerId'] = None
+
         # set to None if mime_type (nullable) is None
         # and model_fields_set contains the field
         if self.mime_type is None and "mime_type" in self.model_fields_set:
@@ -124,6 +132,8 @@ class Resource(BaseModel):
             "provider": obj.get("provider"),
             "type": obj.get("type"),
             "filename": obj.get("filename"),
+            "ownerId": obj.get("ownerId"),
+            "visibility": obj.get("visibility"),
             "mimeType": obj.get("mimeType"),
             "sizeBytes": obj.get("sizeBytes"),
             "sha256": obj.get("sha256"),

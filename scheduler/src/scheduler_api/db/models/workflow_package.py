@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..base import Base
@@ -52,6 +52,7 @@ class WorkflowPackageVersionRecord(Base):
     __tablename__ = "workflow_package_versions"
     __table_args__ = (
         UniqueConstraint("package_id", "version", name="uq_package_version"),
+        Index("ix_workflow_package_versions_package_id", "package_id"),
     )
 
     id: Mapped[str] = mapped_column(String(128), primary_key=True)

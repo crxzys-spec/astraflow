@@ -9,6 +9,9 @@ import AuditLogPage from "./features/admin/pages/AuditLogPage";
 import UsersPage from "./features/admin/pages/UsersPage";
 import WorkersPage from "./features/admin/pages/WorkersPage";
 import LoginPage from "./features/auth/pages/LoginPage";
+import AccountPage from "./features/account/pages/AccountPage";
+import PersonalPanelPage from "./features/account/pages/PersonalPanelPage";
+import ResourceCenterPage from "./features/account/pages/ResourceCenterPage";
 import { useAuthStore } from "@store/authSlice";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RunSseSubscriptions } from "./lib/sse/RunSseSubscriptions";
@@ -33,6 +36,16 @@ const baseNavItems: NavItem[] = [
     to: "/packages",
     label: "Package Center",
     match: (pathname) => pathname === "/packages"
+  },
+  {
+    to: "/resources",
+    label: "Resource Center",
+    match: (pathname) => pathname === "/resources"
+  },
+  {
+    to: "/personal",
+    label: "Personal Panel",
+    match: (pathname) => pathname === "/personal" || pathname === "/account"
   }
 ];
 
@@ -90,6 +103,11 @@ const AuthHeader = () => {
     navigate("/packages?tab=mine");
   };
 
+  const handlePersonalNavigate = () => {
+    setOpen(false);
+    navigate("/personal");
+  };
+
   const handleLogoutClick = () => {
     setOpen(false);
     handleLogout();
@@ -111,6 +129,9 @@ const AuthHeader = () => {
       </button>
       {open && (
         <div className="auth-menu" role="menu">
+          <button className="auth-menu__item" type="button" onClick={handlePersonalNavigate}>
+            Personal Panel
+          </button>
           {canViewPackages && (
             <button className="auth-menu__item" type="button" onClick={handleMyPackagesNavigate}>
               My Packages
@@ -270,6 +291,36 @@ function App() {
               <RequireAuth>
                 <DashboardRoute>
                   <WorkflowsPage />
+                </DashboardRoute>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/account"
+            element={
+              <RequireAuth>
+                <DashboardRoute>
+                  <AccountPage />
+                </DashboardRoute>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/personal"
+            element={
+              <RequireAuth>
+                <DashboardRoute>
+                  <PersonalPanelPage />
+                </DashboardRoute>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/resources"
+            element={
+              <RequireAuth>
+                <DashboardRoute>
+                  <ResourceCenterPage />
                 </DashboardRoute>
               </RequireAuth>
             }

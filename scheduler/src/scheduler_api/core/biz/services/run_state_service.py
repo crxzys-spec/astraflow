@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from scheduler_api.models.list_runs200_response import ListRuns200Response
 from scheduler_api.models.start_run_request import StartRunRequest
@@ -15,6 +15,8 @@ from shared.models.biz.exec.feedback import ExecFeedbackPayload
 from shared.models.biz.exec.next.request import ExecMiddlewareNextRequest
 from shared.models.biz.exec.next.response import ExecMiddlewareNextResponse
 from scheduler_api.models.start_run_request_workflow import StartRunRequestWorkflow
+from scheduler_api.catalog import PackageCatalogError, catalog
+from scheduler_api.resources import ResourceNotFoundError, get_resource_grant_store, get_resource_provider_for
 from ..domain.models import DispatchRequest, FrameRuntimeState, NodeState, RunRecord, FINAL_STATUSES, _utc_now
 from ..domain.bindings import _merge_result_updates
 from ..domain.graph import apply_edge_bindings, apply_frame_edge_bindings, apply_middleware_output_bindings
@@ -35,6 +37,110 @@ from ..engine.updates import (
 )
 
 LOGGER = logging.getLogger(__name__)
+
+RESOURCE_BINDINGS_KEY = "__resourceBindings"
+RESOURCE_BINDING_ERRORS_KEY = "__resourceBindingErrors"
+MAX_INLINE_RESOURCE_BYTES = 64 * 1024
+INLINE_RESOURCE_TYPES = {"secret", "token", "api_key", "apikey", "key", "credential"}
+
+
+def _should_inline_value(requirement: Any) -> bool:
+    req_type = str(getattr(requirement, "type", "") or "").strip().lower()
+    metadata = getattr(requirement, "metadata", None) or {}
+    if isinstance(metadata, dict):
+        if metadata.get("inline") is True or metadata.get("exposeValue") is True:
+            return True
+    return req_type in INLINE_RESOURCE_TYPES
+
+
+def _is_required(requirement: Any) -> bool:
+    required = getattr(requirement, "required", True)
+    return required is not False
+
+
+def _select_grant(
+    grants: List[Any],
+    *,
+    package_version: Optional[str],
+) -> Optional[Any]:
+    if not grants:
+        return None
+    eligible = [
+        grant
+        for grant in grants
+        if not getattr(grant, "package_version", None)
+        or getattr(grant, "package_version", None) == package_version
+    ]
+    if not eligible:
+        return None
+    return max(eligible, key=_grant_created_at)
+
+
+def _grant_created_at(grant: Any) -> datetime:
+    value = getattr(grant, "created_at", None)
+    if isinstance(value, datetime):
+        return value
+    return datetime.min.replace(tzinfo=timezone.utc)
+
+
+def _read_resource_value(provider, resource_id: str) -> Optional[str]:
+    path, stored = provider.open(resource_id)
+    if stored.size_bytes and stored.size_bytes > MAX_INLINE_RESOURCE_BYTES:
+        return None
+    data = path.read_bytes()
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        text = data.decode("utf-8", "ignore")
+    return text.strip() if text else None
+
+
+def _load_package_requirements(
+    package_name: str,
+    package_version: str,
+    cache: Dict[Tuple[str, str], List[Any]],
+) -> List[Any]:
+    if not package_name or not package_version:
+        return []
+    key = (package_name, package_version)
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+    try:
+        manifest = catalog.get_manifest(package_name, package_version)
+    except PackageCatalogError:
+        cache[key] = []
+        return []
+    requirements = []
+    if manifest and getattr(manifest, "requirements", None):
+        requirements = list(getattr(manifest.requirements, "resources", []) or [])
+    cache[key] = requirements
+    return requirements
+
+
+def _resolve_grant(
+    store,
+    *,
+    workflow_id: str,
+    package_name: str,
+    package_version: Optional[str],
+    resource_key: str,
+) -> Optional[Any]:
+    workflow_grants = store.list(
+        workflow_id=workflow_id,
+        package_name=package_name,
+        resource_key=resource_key,
+        scope="workflow",
+    )
+    selected = _select_grant(workflow_grants, package_version=package_version)
+    if selected:
+        return selected
+    global_grants = store.list(
+        package_name=package_name,
+        resource_key=resource_key,
+        scope="global",
+    )
+    return _select_grant(global_grants, package_version=package_version)
 
 
 class RunStateService:
@@ -93,6 +199,7 @@ class RunStateService:
 
     async def collect_ready_nodes(self, run_id: Optional[str] = None) -> List[DispatchRequest]:
         state_events: List[Tuple[RunRecord, NodeState]] = []
+        workflow_ids: Dict[str, str] = {}
         async with self._lock:
             records: Iterable[RunRecord]
             if run_id:
@@ -104,6 +211,7 @@ class RunStateService:
             for record in records:
                 if not record or record.status in FINAL_STATUSES:
                     continue
+                workflow_ids[record.run_id] = record.workflow.id
                 active_frame = current_frame(record)
                 if active_frame:
                     requests.extend(self._collect_ready_for_frame(record, active_frame, state_events))
@@ -113,6 +221,8 @@ class RunStateService:
         if state_events:
             tasks = emit.build_state_event_tasks(self._emitter, state_events)
             await asyncio.gather(*tasks)
+        if requests and workflow_ids:
+            self._apply_resource_bindings(requests, workflow_ids=workflow_ids)
         return requests
 
     async def mark_dispatched(
@@ -359,6 +469,8 @@ class RunStateService:
             final_statuses=FINAL_STATUSES,
         )
         await asyncio.gather(*tasks)
+        if outcome.ready and record:
+            self._apply_resource_bindings(outcome.ready, workflow_ids={record.run_id: record.workflow.id})
         return outcome.record_snapshot, outcome.ready, outcome.next_responses
 
     async def record_feedback(
@@ -411,6 +523,8 @@ class RunStateService:
         publish_tasks = emit.build_next_request_tasks(self._emitter, outcome)
         if publish_tasks:
             await asyncio.gather(*publish_tasks)
+        if outcome.ready and record:
+            self._apply_resource_bindings(outcome.ready, workflow_ids={record.run_id: record.workflow.id})
         return outcome.ready, None
 
     async def resolve_next_response_worker(self, request_id: str) -> Optional[str]:
@@ -503,6 +617,105 @@ class RunStateService:
         if start_index + len(window) < len(filtered_list):
             next_cursor = filtered_list[start_index + len(window) - 1].run_id
         return ListRuns200Response(items=items, nextCursor=next_cursor)
+
+    def _apply_resource_bindings(
+        self,
+        requests: List[DispatchRequest],
+        *,
+        workflow_ids: Dict[str, str],
+    ) -> None:
+        if not requests:
+            return
+        grant_store = get_resource_grant_store()
+        requirements_cache: Dict[Tuple[str, str], List[Any]] = {}
+        provider_cache: Dict[str, Any] = {}
+        resource_cache: Dict[str, Any] = {}
+        for request in requests:
+            workflow_id = workflow_ids.get(request.run_id)
+            if not workflow_id:
+                continue
+            requirements = _load_package_requirements(
+                request.package_name,
+                request.package_version,
+                requirements_cache,
+            )
+            if not requirements:
+                continue
+            bindings: Dict[str, Any] = {}
+            errors: List[Dict[str, Any]] = []
+            for requirement in requirements:
+                resource_key = getattr(requirement, "key", None)
+                if not resource_key:
+                    continue
+                grant = _resolve_grant(
+                    grant_store,
+                    workflow_id=workflow_id,
+                    package_name=request.package_name,
+                    package_version=request.package_version,
+                    resource_key=str(resource_key),
+                )
+                if not grant:
+                    if _is_required(requirement):
+                        errors.append({"key": str(resource_key), "error": "missing_grant"})
+                    continue
+                resource_id = str(getattr(grant, "resource_id", "") or "")
+                if not resource_id:
+                    continue
+                try:
+                    stored = resource_cache.get(resource_id)
+                    if stored is None:
+                        provider = provider_cache.get(resource_id)
+                        if provider is None:
+                            provider = get_resource_provider_for(resource_id)
+                            provider_cache[resource_id] = provider
+                        stored = provider.get(resource_id)
+                        resource_cache[resource_id] = stored
+                except (ResourceNotFoundError, ValueError):
+                    errors.append(
+                        {"key": str(resource_key), "error": "resource_not_found", "resourceId": resource_id}
+                    )
+                    continue
+                binding: Dict[str, Any] = {
+                    "resourceId": stored.resource_id,
+                    "type": stored.type,
+                    "filename": stored.filename,
+                    "mimeType": stored.mime_type,
+                    "sizeBytes": stored.size_bytes,
+                    "metadata": stored.metadata or {},
+                }
+                if _should_inline_value(requirement):
+                    try:
+                        provider = provider_cache.get(stored.resource_id)
+                        if provider is None:
+                            provider = get_resource_provider_for(stored.resource_id)
+                            provider_cache[stored.resource_id] = provider
+                        value = _read_resource_value(provider, stored.resource_id)
+                    except (ResourceNotFoundError, ValueError):
+                        value = None
+                    if value is None:
+                        errors.append(
+                            {
+                                "key": str(resource_key),
+                                "error": "resource_value_unavailable",
+                                "resourceId": stored.resource_id,
+                            }
+                        )
+                    else:
+                        binding["value"] = value
+                bindings[str(resource_key)] = binding
+
+            if not bindings and not errors:
+                continue
+            request.parameters = copy.deepcopy(request.parameters) if request.parameters else {}
+            if bindings:
+                existing = request.parameters.get(RESOURCE_BINDINGS_KEY)
+                if isinstance(existing, dict):
+                    merged = {**existing, **bindings}
+                else:
+                    merged = bindings
+                request.parameters[RESOURCE_BINDINGS_KEY] = merged
+            if errors:
+                request.parameters[RESOURCE_BINDING_ERRORS_KEY] = errors
 
     def _collect_ready_for_record(
         self,

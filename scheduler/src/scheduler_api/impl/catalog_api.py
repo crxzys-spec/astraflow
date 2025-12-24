@@ -27,6 +27,18 @@ def _coerce_status(status_obj, default: str = "draft") -> str:
     return default
 
 
+def _coerce_role(role_obj) -> Optional[str]:
+    """Normalize role enums/strings to the accepted ManifestNode values."""
+    value = getattr(role_obj, "value", role_obj)
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = value.lower()
+    if value in ("node", "container", "middleware"):
+        return value
+    return None
+
+
 def _convert_manifest_node(node) -> ManifestNode | None:
     """Convert a shared manifest Node into the public ManifestNode shape."""
     def _make_json_schema(payload):
@@ -65,7 +77,7 @@ def _convert_manifest_node(node) -> ManifestNode | None:
             ui_model = ManifestNodeUI.from_dict(ui_payload)
         return ManifestNode(
             type=node.type,
-            role=getattr(node, "role", None),
+            role=_coerce_role(getattr(node, "role", None)),
             status=_coerce_status(getattr(node, "status", "")),
             category=node.category,
             label=node.label or node.type,
@@ -86,7 +98,7 @@ def _convert_manifest_node(node) -> ManifestNode | None:
         try:
             return ManifestNode(
                 type=getattr(node, "type", "unknown"),
-                role=getattr(node, "role", None),
+                role=_coerce_role(getattr(node, "role", None)),
                 status=_coerce_status(getattr(node, "status", "draft") or "draft"),
                 category=getattr(node, "category", "default"),
                 label=getattr(node, "label", getattr(node, "type", "unknown")),
@@ -176,7 +188,7 @@ def _build_catalog_nodes() -> List[CatalogNode]:
                         type=node_type,
                         label=node_dict.get("label") or node_type,
                         category=node_dict.get("category"),
-                        role=node_dict.get("role"),
+                        role=_coerce_role(node_dict.get("role")),
                         description=node_dict.get("description"),
                         tags=node_dict.get("tags"),
                         status=_coerce_status(node_dict.get("status", "") or ""),
@@ -195,7 +207,7 @@ def _build_catalog_nodes() -> List[CatalogNode]:
                 if template is None:
                     template = ManifestNode(
                         type=node_type,
-                        role=node_dict.get("role"),
+                        role=_coerce_role(node_dict.get("role")),
                         status=_coerce_status(node_dict.get("status", "draft") or "draft"),
                         category=node_dict.get("category", "default"),
                         label=node_dict.get("label") or node_type,

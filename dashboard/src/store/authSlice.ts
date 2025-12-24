@@ -14,6 +14,7 @@ interface AuthState {
   initialized: boolean;
   hydrate: () => void;
   login: (token: string, user: UserSummary) => void;
+  updateUser: (user: UserSummary) => void;
   logout: () => void;
   hasRole: (roles: string | string[]) => boolean;
 }
@@ -52,6 +53,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token, user }));
     setAuthToken(token);
     set({ token, user, initialized: true });
+  },
+  updateUser: (user) => {
+    const token = get().token ?? getAxiosToken();
+    if (token) {
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token, user }));
+    }
+    set({ user });
   },
   logout: () => {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);

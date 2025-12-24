@@ -587,6 +587,9 @@
               "maxBytes": 1073741824,
               "chunkParallel": 4,
               "maxParallel": 5,
+              "providers": ["local"],
+              "provider": "local",
+              "providerLabel": "Storage",
               "helperText": "Upload files to attach to this node (max 1 GB each).",
               "deleteOnRemove": true
             }
@@ -634,6 +637,5 @@
     "uninstall": []
   }
 }
-
 
 

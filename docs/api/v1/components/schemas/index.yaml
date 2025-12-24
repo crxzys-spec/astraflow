@@ -128,6 +128,12 @@ Resource:
       type: string
     filename:
       type: string
+    ownerId:
+      type: string
+      nullable: true
+    visibility:
+      $ref: '#/ResourceVisibility'
+      nullable: true
     mimeType:
       type: string
       nullable: true
@@ -151,6 +157,24 @@ Resource:
     downloadUrl:
       type: string
       nullable: true
+ResourceList:
+  type: object
+  required:
+  - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/Resource'
+    nextCursor:
+      type: string
+      nullable: true
+ResourceVisibility:
+  type: string
+  enum:
+  - private
+  - public
+  - owner
 ResourceUploadInitRequest:
   type: object
   required:
@@ -162,6 +186,8 @@ ResourceUploadInitRequest:
     sizeBytes:
       type: integer
       minimum: 0
+    provider:
+      type: string
     mimeType:
       type: string
       nullable: true
@@ -197,6 +223,8 @@ ResourceUploadSession:
     sizeBytes:
       type: integer
       minimum: 0
+    provider:
+      type: string
     mimeType:
       type: string
       nullable: true
@@ -268,6 +296,97 @@ ResourceUploadPart:
       enum:
       - pending
       - completed
+ResourceGrantScope:
+  type: string
+  enum:
+  - workflow
+  - global
+ResourceGrantAction:
+  type: string
+  enum:
+  - read
+  - write
+  - use
+ResourceGrant:
+  type: object
+  required:
+  - grantId
+  - resourceId
+  - packageName
+  - resourceKey
+  - scope
+  - actions
+  - createdAt
+  properties:
+    grantId:
+      type: string
+    resourceId:
+      type: string
+    packageName:
+      type: string
+    packageVersion:
+      type: string
+      nullable: true
+    resourceKey:
+      type: string
+    scope:
+      $ref: '#/ResourceGrantScope'
+    workflowId:
+      type: string
+      nullable: true
+    actions:
+      type: array
+      items:
+        $ref: '#/ResourceGrantAction'
+    createdAt:
+      type: string
+      format: date-time
+    createdBy:
+      type: string
+      nullable: true
+    metadata:
+      type: object
+      additionalProperties: true
+      nullable: true
+ResourceGrantCreateRequest:
+  type: object
+  required:
+  - resourceId
+  - packageName
+  - resourceKey
+  - scope
+  properties:
+    resourceId:
+      type: string
+    packageName:
+      type: string
+    packageVersion:
+      type: string
+      nullable: true
+    resourceKey:
+      type: string
+    scope:
+      $ref: '#/ResourceGrantScope'
+    workflowId:
+      type: string
+      nullable: true
+    actions:
+      type: array
+      items:
+        $ref: '#/ResourceGrantAction'
+    metadata:
+      type: object
+      additionalProperties: true
+      nullable: true
+ResourceGrantList:
+  type: object
+  required:
+  - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/ResourceGrant'
 RunArtifactList:
   type: array
   items:
@@ -540,6 +659,14 @@ UpdateUserStatusRequest:
   properties:
     isActive:
       type: boolean
+UpdateUserProfileRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - displayName
+  properties:
+    displayName:
+      type: string
 WorkflowList:
   type: object
   required:
@@ -637,6 +764,8 @@ PackageManifest:
       minItems: 1
       items:
         $ref: '#/ManifestNode'
+    requirements:
+      $ref: '#/ManifestRequirements'
     resources:
       type: array
       items:
@@ -828,6 +957,39 @@ ManifestResource:
     sha256:
       type: string
       pattern: '^[A-Fa-f0-9]{64}$'
+ManifestRequirements:
+  type: object
+  additionalProperties: false
+  properties:
+    resources:
+      type: array
+      items:
+        $ref: '#/ManifestResourceRequirement'
+ManifestResourceRequirement:
+  type: object
+  additionalProperties: false
+  required:
+  - key
+  - type
+  properties:
+    key:
+      type: string
+    type:
+      type: string
+    actions:
+      type: array
+      items:
+        type: string
+      default:
+      - read
+    required:
+      type: boolean
+      default: true
+    description:
+      type: string
+    metadata:
+      type: object
+      additionalProperties: true
 ManifestHooks:
   type: object
   additionalProperties: false

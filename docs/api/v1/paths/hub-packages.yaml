@@ -1,0 +1,67 @@
+get:
+  tags: [HubPackages]
+  summary: List hub packages
+  operationId: listHubPackages
+  parameters:
+  - name: q
+    in: query
+    description: Search query
+    schema:
+      type: string
+  - name: tag
+    in: query
+    description: Filter by tag
+    schema:
+      type: string
+  - name: owner
+    in: query
+    description: Filter by owner id
+    schema:
+      type: string
+  - name: page
+    in: query
+    description: 1-based page index
+    schema:
+      type: integer
+      minimum: 1
+      default: 1
+  - name: pageSize
+    in: query
+    description: Page size
+    schema:
+      type: integer
+      minimum: 1
+      maximum: 200
+      default: 20
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/HubPackageListResponse'
+post:
+  tags: [HubPackages]
+  summary: Publish a package archive to Hub
+  operationId: publishHubPackage
+  requestBody:
+    required: true
+    content:
+      multipart/form-data:
+        schema:
+          $ref: '../components/schemas/index.yaml#/HubPackagePublishRequest'
+  responses:
+    '201':
+      description: Created
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/HubPackageVersionDetail'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+    '401':
+      $ref: '../components/responses.yaml#/Unauthorized'
+    '403':
+      $ref: '../components/responses.yaml#/Forbidden'
+    '409':
+      $ref: '../components/responses.yaml#/Conflict'

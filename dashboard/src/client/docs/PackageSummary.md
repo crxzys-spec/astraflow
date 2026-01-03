@@ -10,6 +10,10 @@ Name | Type | Description | Notes
 **latestVersion** | **string** |  | [optional] [default to undefined]
 **defaultVersion** | **string** |  | [optional] [default to undefined]
 **versions** | **Array&lt;string&gt;** |  | [default to undefined]
+**distTags** | **{ [key: string]: string; }** |  | [optional] [default to undefined]
+**ownerId** | **string** |  | [optional] [default to undefined]
+**visibility** | [**PublishedPackageVisibility**](PublishedPackageVisibility.md) |  | [optional] [default to undefined]
+**state** | [**PublishedPackageState**](PublishedPackageState.md) |  | [optional] [default to undefined]
 
 ## Example
 
@@ -22,6 +26,10 @@ const instance: PackageSummary = {
     latestVersion,
     defaultVersion,
     versions,
+    distTags,
+    ownerId,
+    visibility,
+    state,
 };
 ```
 

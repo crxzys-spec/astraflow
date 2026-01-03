@@ -129,7 +129,7 @@ const WorkersPage = () => {
   if (!isAdmin) {
     return (
       <div className="admin-view">
-        <div className="card stack">
+        <div className="card stack admin-panel">
           <h2>Worker Fleet</h2>
           <p className="text-subtle">Only administrators can view connected workers.</p>
         </div>
@@ -141,11 +141,14 @@ const WorkersPage = () => {
 
   return (
     <div className="admin-view">
-      <div className="card stack">
-        <header className="card__header worker-header">
+      <div className="card stack admin-panel">
+        <header className="card__header worker-header admin-panel__header">
           <div>
+            <span className="admin-panel__eyebrow">Administration</span>
             <h2>Worker Fleet</h2>
-            <p className="text-subtle">Inspect connection health, queues, and installed packages.</p>
+            <p className="text-subtle admin-panel__description">
+              Inspect connection health, queues, and installed packages.
+            </p>
           </div>
           <div className="builder-actions builder-actions--buttons">
             <button className="btn btn--ghost" type="button" onClick={clearFilters}>
@@ -157,26 +160,26 @@ const WorkersPage = () => {
           </div>
         </header>
 
-        <div className="worker-stats">
+        <div className="admin-section admin-section--stats worker-stats">
           <div className="worker-stat">
-            <span>Total</span>
+            <span className="worker-stat__label">Total</span>
             <span className="worker-stat__value">{stats.total}</span>
           </div>
           <div className="worker-stat">
-            <span>Connected</span>
+            <span className="worker-stat__label">Connected</span>
             <span className="worker-stat__value">{stats.connected}</span>
           </div>
           <div className="worker-stat">
-            <span>Registered</span>
+            <span className="worker-stat__label">Registered</span>
             <span className="worker-stat__value">{stats.registered}</span>
           </div>
           <div className="worker-stat">
-            <span>Healthy</span>
+            <span className="worker-stat__label">Healthy</span>
             <span className="worker-stat__value">{stats.healthy}</span>
           </div>
         </div>
 
-        <form className="card card--surface stack">
+        <form className="admin-section admin-section--filters">
           <div className="builder-grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}>
             <label className="stack">
               <span>Search</span>
@@ -249,7 +252,7 @@ const WorkersPage = () => {
         </form>
 
         {status === "error" && (
-          <div className="card stack">
+          <div className="admin-section admin-section--notice stack">
             <p className="error">Unable to load workers: {error?.message ?? "Unknown error"}</p>
             <button className="btn" type="button" onClick={() => void refetch()}>
               Retry
@@ -257,114 +260,116 @@ const WorkersPage = () => {
           </div>
         )}
 
-        <div className="card card--surface stack">
-          <table className="data-table worker-table">
-            <thead>
-              <tr>
-                <th>Worker</th>
-                <th>Status</th>
-                <th>Heartbeat</th>
-                <th>Queues</th>
-                <th>Packages</th>
-                <th>Metrics</th>
-              </tr>
-            </thead>
-            <tbody>
-              {status === "loading" ? (
+        <div className="admin-section admin-section--table">
+          <div className="admin-table-wrap">
+            <table className="data-table worker-table admin-table">
+              <thead>
                 <tr>
-                  <td colSpan={6}>Loading workers...</td>
+                  <th>Worker</th>
+                  <th>Status</th>
+                  <th>Heartbeat</th>
+                  <th>Queues</th>
+                  <th>Packages</th>
+                  <th>Metrics</th>
                 </tr>
-              ) : visibleItems.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>No workers match the current filters.</td>
-                </tr>
-              ) : (
-                visibleItems.map((worker) => {
-                  const heartbeat = worker.heartbeat;
-                  const metrics = heartbeat?.metrics;
-                  const packages = summarizePackages(worker);
-                  return (
-                    <tr key={worker.id}>
-                      <td>
-                        <div className="worker-cell">
-                          <span className="worker-cell__title">{worker.id}</span>
-                          <span className="text-subtle">
-                            {worker.hostname ?? "unknown host"} / {worker.version ?? "unknown version"}
-                          </span>
-                          <span className="text-subtle">
-                            {worker.tenant ?? "default"} / {worker.instanceId ?? "instance unknown"}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="worker-tag-list">
-                          <span className={`badge ${worker.connected ? "badge--success" : "badge--muted"}`}>
-                            {worker.connected ? "Connected" : "Offline"}
-                          </span>
-                          <span className={`badge ${worker.registered ? "badge--info" : "badge--muted"}`}>
-                            {worker.registered ? "Registered" : "Unregistered"}
-                          </span>
-                          <span
-                            className={`badge ${
-                              heartbeat?.healthy ? "badge--success" : heartbeat ? "badge--warning" : "badge--muted"
-                            }`}
-                          >
-                            {heartbeat?.healthy ? "Healthy" : heartbeat ? "Unhealthy" : "Unknown"}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="worker-cell">
-                          <span>{formatAge(worker.lastHeartbeatAt)}</span>
-                          <span className="text-subtle">
-                            {worker.lastHeartbeatAt ? new Date(worker.lastHeartbeatAt).toLocaleString() : "-"}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        {worker.queues.length ? (
-                          <div className="worker-tag-list">
-                            {worker.queues.map((queue) => (
-                              <span key={queue} className="chip">
-                                {queue}
-                              </span>
-                            ))}
+              </thead>
+              <tbody>
+                {status === "loading" ? (
+                  <tr>
+                    <td colSpan={6}>Loading workers...</td>
+                  </tr>
+                ) : visibleItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>No workers match the current filters.</td>
+                  </tr>
+                ) : (
+                  visibleItems.map((worker) => {
+                    const heartbeat = worker.heartbeat;
+                    const metrics = heartbeat?.metrics;
+                    const packages = summarizePackages(worker);
+                    return (
+                      <tr key={worker.id}>
+                        <td>
+                          <div className="worker-cell">
+                            <span className="worker-cell__title">{worker.id}</span>
+                            <span className="text-subtle">
+                              {worker.hostname ?? "unknown host"} / {worker.version ?? "unknown version"}
+                            </span>
+                            <span className="text-subtle">
+                              {worker.tenant ?? "default"} / {worker.instanceId ?? "instance unknown"}
+                            </span>
                           </div>
-                        ) : (
-                          <span className="text-subtle">No queues</span>
-                        )}
-                      </td>
-                      <td>
-                        {packages.chips.length ? (
+                        </td>
+                        <td>
                           <div className="worker-tag-list">
-                            {packages.chips.map((pkg) => (
-                              <span key={pkg} className="chip">
-                                {pkg}
-                              </span>
-                            ))}
-                            {packages.extra > 0 && (
-                              <span className="chip">+{packages.extra}</span>
-                            )}
+                            <span className={`badge ${worker.connected ? "badge--success" : "badge--muted"}`}>
+                              {worker.connected ? "Connected" : "Offline"}
+                            </span>
+                            <span className={`badge ${worker.registered ? "badge--info" : "badge--muted"}`}>
+                              {worker.registered ? "Registered" : "Unregistered"}
+                            </span>
+                            <span
+                              className={`badge ${
+                                heartbeat?.healthy ? "badge--success" : heartbeat ? "badge--warning" : "badge--muted"
+                              }`}
+                            >
+                              {heartbeat?.healthy ? "Healthy" : heartbeat ? "Unhealthy" : "Unknown"}
+                            </span>
                           </div>
-                        ) : (
-                          <span className="text-subtle">No packages</span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="worker-metrics">
-                          <span>CPU: {formatPct(metrics?.cpuPct)}</span>
-                          <span>Mem: {formatPct(metrics?.memPct)}</span>
-                          <span>Disk: {formatPct(metrics?.diskPct)}</span>
-                          <span>Inflight: {formatMetric(metrics?.inflight)}</span>
-                          <span>Latency: {formatLatency(metrics?.latencyMs)}</span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                        </td>
+                        <td>
+                          <div className="worker-cell">
+                            <span>{formatAge(worker.lastHeartbeatAt)}</span>
+                            <span className="text-subtle">
+                              {worker.lastHeartbeatAt ? new Date(worker.lastHeartbeatAt).toLocaleString() : "-"}
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          {worker.queues.length ? (
+                            <div className="worker-tag-list">
+                              {worker.queues.map((queue) => (
+                                <span key={queue} className="chip">
+                                  {queue}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-subtle">No queues</span>
+                          )}
+                        </td>
+                        <td>
+                          {packages.chips.length ? (
+                            <div className="worker-tag-list">
+                              {packages.chips.map((pkg) => (
+                                <span key={pkg} className="chip">
+                                  {pkg}
+                                </span>
+                              ))}
+                              {packages.extra > 0 && (
+                                <span className="chip">+{packages.extra}</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-subtle">No packages</span>
+                          )}
+                        </td>
+                        <td>
+                          <div className="worker-metrics">
+                            <span>CPU: {formatPct(metrics?.cpuPct)}</span>
+                            <span>Mem: {formatPct(metrics?.memPct)}</span>
+                            <span>Disk: {formatPct(metrics?.diskPct)}</span>
+                            <span>Inflight: {formatMetric(metrics?.inflight)}</span>
+                            <span>Latency: {formatLatency(metrics?.latencyMs)}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

@@ -1,0 +1,25 @@
+get:
+  tags: [HubPackages]
+  summary: Download hub package archive
+  operationId: downloadHubPackageArchive
+  parameters:
+  - name: packageName
+    in: path
+    required: true
+    schema:
+      type: string
+  - name: version
+    in: query
+    description: Optional version to download
+    schema:
+      type: string
+  responses:
+    '200':
+      description: OK
+      content:
+        application/zip:
+          schema:
+            type: string
+            format: binary
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

@@ -7,6 +7,7 @@ All URIs are relative to *https://scheduler.example.com*
 |[**cloneWorkflowPackage**](#cloneworkflowpackage) | **POST** /api/v1/workflow-packages/{packageId}/clone | Clone a workflow package version into the caller\&#39;s workspace|
 |[**deleteWorkflowPackage**](#deleteworkflowpackage) | **DELETE** /api/v1/workflow-packages/{packageId} | Delete a workflow package|
 |[**getWorkflowPackage**](#getworkflowpackage) | **GET** /api/v1/workflow-packages/{packageId} | Get a workflow package detail|
+|[**getWorkflowPackageDefinition**](#getworkflowpackagedefinition) | **GET** /api/v1/workflow-packages/{packageId}/versions/{versionId}/definition | Get a workflow package definition snapshot|
 |[**listWorkflowPackageVersions**](#listworkflowpackageversions) | **GET** /api/v1/workflow-packages/{packageId}/versions | List versions for a workflow package|
 |[**listWorkflowPackages**](#listworkflowpackages) | **GET** /api/v1/workflow-packages | List published workflow packages|
 |[**publishWorkflow**](#publishworkflow) | **POST** /api/v1/workflows/{workflowId}/publish | Publish a workflow draft to the Store|
@@ -164,6 +165,61 @@ const { status, data } = await apiInstance.getWorkflowPackage(
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 |**200** | OK |  -  |
+|**404** | Resource not found |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getWorkflowPackageDefinition**
+> Workflow getWorkflowPackageDefinition()
+
+
+### Example
+
+```typescript
+import {
+    WorkflowPackagesApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new WorkflowPackagesApi(configuration);
+
+let packageId: string; // (default to undefined)
+let versionId: string; // (default to undefined)
+
+const { status, data } = await apiInstance.getWorkflowPackageDefinition(
+    packageId,
+    versionId
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **packageId** | [**string**] |  | defaults to undefined|
+| **versionId** | [**string**] |  | defaults to undefined|
+
+
+### Return type
+
+**Workflow**
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+|**403** | Authenticated but lacks required permissions |  -  |
 |**404** | Resource not found |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

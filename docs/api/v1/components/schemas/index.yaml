@@ -296,97 +296,6 @@ ResourceUploadPart:
       enum:
       - pending
       - completed
-ResourceGrantScope:
-  type: string
-  enum:
-  - workflow
-  - global
-ResourceGrantAction:
-  type: string
-  enum:
-  - read
-  - write
-  - use
-ResourceGrant:
-  type: object
-  required:
-  - grantId
-  - resourceId
-  - packageName
-  - resourceKey
-  - scope
-  - actions
-  - createdAt
-  properties:
-    grantId:
-      type: string
-    resourceId:
-      type: string
-    packageName:
-      type: string
-    packageVersion:
-      type: string
-      nullable: true
-    resourceKey:
-      type: string
-    scope:
-      $ref: '#/ResourceGrantScope'
-    workflowId:
-      type: string
-      nullable: true
-    actions:
-      type: array
-      items:
-        $ref: '#/ResourceGrantAction'
-    createdAt:
-      type: string
-      format: date-time
-    createdBy:
-      type: string
-      nullable: true
-    metadata:
-      type: object
-      additionalProperties: true
-      nullable: true
-ResourceGrantCreateRequest:
-  type: object
-  required:
-  - resourceId
-  - packageName
-  - resourceKey
-  - scope
-  properties:
-    resourceId:
-      type: string
-    packageName:
-      type: string
-    packageVersion:
-      type: string
-      nullable: true
-    resourceKey:
-      type: string
-    scope:
-      $ref: '#/ResourceGrantScope'
-    workflowId:
-      type: string
-      nullable: true
-    actions:
-      type: array
-      items:
-        $ref: '#/ResourceGrantAction'
-    metadata:
-      type: object
-      additionalProperties: true
-      nullable: true
-ResourceGrantList:
-  type: object
-  required:
-  - items
-  properties:
-    items:
-      type: array
-      items:
-        $ref: '#/ResourceGrant'
 RunArtifactList:
   type: array
   items:
@@ -707,6 +616,17 @@ PackageSummary:
       type: array
       items:
         type: string
+    distTags:
+      $ref: '#/PackageDistTags'
+    ownerId:
+      type: string
+      nullable: true
+    visibility:
+      $ref: '#/PublishedPackageVisibility'
+      nullable: true
+    state:
+      $ref: '#/PublishedPackageState'
+      nullable: true
 PackageDetail:
   type: object
   additionalProperties: false
@@ -725,6 +645,301 @@ PackageDetail:
         type: string
     manifest:
       $ref: '#/PackageManifest'
+    status:
+      $ref: '#/PackageVersionStatus'
+    distTags:
+      $ref: '#/PackageDistTags'
+    archiveSha256:
+      type: string
+      nullable: true
+    archiveSizeBytes:
+      type: integer
+      format: int64
+      nullable: true
+    ownerId:
+      type: string
+      nullable: true
+    visibility:
+      $ref: '#/PublishedPackageVisibility'
+      nullable: true
+    state:
+      $ref: '#/PublishedPackageState'
+      nullable: true
+PackageVersionStatus:
+  type: string
+  enum:
+  - active
+  - deprecated
+  - yanked
+PackageDistTags:
+  type: object
+  additionalProperties:
+    type: string
+
+PublishedPackageVisibility:
+  type: string
+  enum:
+  - private
+  - internal
+  - public
+
+PublishedPackageState:
+  type: string
+  enum:
+  - reserved
+  - active
+
+PublishedPackageRegistry:
+  type: object
+  additionalProperties: false
+  required:
+  - name
+  - ownerId
+  - visibility
+  - state
+  - createdAt
+  - updatedAt
+  properties:
+    name:
+      type: string
+    ownerId:
+      type: string
+    visibility:
+      $ref: '#/PublishedPackageVisibility'
+    state:
+      $ref: '#/PublishedPackageState'
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+    createdBy:
+      type: string
+      nullable: true
+    updatedBy:
+      type: string
+      nullable: true
+
+PublishedPackageGcRequest:
+  type: object
+  additionalProperties: false
+  properties:
+    packageName:
+      type: string
+      description: Limit garbage collection to a specific package.
+    maxVersions:
+      type: integer
+      format: int32
+      description: Override the max versions to keep per package.
+    dryRun:
+      type: boolean
+      description: When true, report the versions that would be removed without deleting them.
+
+PublishedPackageGcItem:
+  type: object
+  additionalProperties: false
+  required:
+  - name
+  - version
+  properties:
+    name:
+      type: string
+    version:
+      type: string
+    sizeBytes:
+      type: integer
+      format: int64
+      nullable: true
+    archivePath:
+      type: string
+      nullable: true
+
+PublishedPackageGcResult:
+  type: object
+  additionalProperties: false
+  required:
+  - items
+  - totalBytes
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/PublishedPackageGcItem'
+    totalBytes:
+      type: integer
+      format: int64
+
+PublishedPackageReserveRequest:
+  type: object
+  additionalProperties: false
+  properties:
+    visibility:
+      $ref: '#/PublishedPackageVisibility'
+      description: Desired visibility (private/internal/public).
+
+PublishedPackageVisibilityRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - visibility
+  properties:
+    visibility:
+      $ref: '#/PublishedPackageVisibility'
+      description: Desired visibility (private/internal/public).
+
+PublishedPackageTransferRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - newOwnerId
+  properties:
+    newOwnerId:
+      type: string
+PublishedPackageTagRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - version
+  properties:
+    version:
+      type: string
+      description: Package version to associate with the tag.
+PublishedPackageStatusRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - status
+  properties:
+    status:
+      $ref: '#/PackageVersionStatus'
+PackagePermission:
+  type: object
+  additionalProperties: false
+  required:
+  - permissionId
+  - packageName
+  - permissionKey
+  - types
+  - actions
+  - createdAt
+  properties:
+    permissionId:
+      type: string
+    ownerId:
+      type: string
+    packageName:
+      type: string
+    permissionKey:
+      type: string
+    types:
+      type: array
+      items:
+        type: string
+    providers:
+      type: array
+      items:
+        type: string
+    actions:
+      type: array
+      items:
+        type: string
+    createdAt:
+      type: string
+      format: date-time
+PackagePermissionCreateRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - packageName
+  - permissionKey
+  - types
+  - actions
+  properties:
+    packageName:
+      type: string
+    permissionKey:
+      type: string
+    types:
+      type: array
+      items:
+        type: string
+    providers:
+      type: array
+      items:
+        type: string
+    actions:
+      type: array
+      items:
+        type: string
+PackagePermissionList:
+  type: object
+  additionalProperties: false
+  required:
+  - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/PackagePermission'
+PackageVaultItem:
+  type: object
+  additionalProperties: false
+  required:
+  - itemId
+  - packageName
+  - key
+  - value
+  - updatedAt
+  properties:
+    itemId:
+      type: string
+    ownerId:
+      type: string
+    packageName:
+      type: string
+    key:
+      type: string
+    value:
+      type: string
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+PackageVaultUpsertRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - packageName
+  - items
+  properties:
+    packageName:
+      type: string
+    items:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required:
+        - key
+        - value
+        properties:
+          key:
+            type: string
+          value:
+            type: string
+PackageVaultList:
+  type: object
+  additionalProperties: false
+  required:
+  - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/PackageVaultItem'
 PackageManifest:
   type: object
   additionalProperties: false
@@ -963,8 +1178,88 @@ ManifestRequirements:
   properties:
     resources:
       type: array
+      description: Resource requirements declared by the package. Deprecated in favor of permissions/vault.
       items:
         $ref: '#/ManifestResourceRequirement'
+      default: []
+    permissions:
+      type: array
+      description: Package permissions requested to access user resources.
+      items:
+        $ref: '#/ManifestPermissionRequirement'
+      default: []
+    vault:
+      type: array
+      description: Package-owned secret entries stored in the user's vault.
+      items:
+        $ref: '#/ManifestVaultRequirement'
+      default: []
+ManifestPermissionRequirement:
+  type: object
+  additionalProperties: false
+  required:
+  - key
+  - types
+  properties:
+    key:
+      type: string
+      description: Stable permission identifier used for grants.
+    types:
+      type: array
+      description: Resource types covered by this permission (file, image, audio, video, kv, secret, etc.).
+      items:
+        type: string
+      minItems: 1
+    providers:
+      type: array
+      description: Optional storage providers this permission applies to.
+      items:
+        type: string
+    actions:
+      type: array
+      description: Allowed actions for the permission (read, write, use).
+      items:
+        type: string
+      default:
+      - read
+    required:
+      type: boolean
+      description: Whether the permission must be granted before execution.
+      default: true
+    description:
+      type: string
+      description: Human-readable explanation of why the permission is needed.
+    metadata:
+      type: object
+      description: Additional permission metadata.
+      additionalProperties: true
+ManifestVaultRequirement:
+  type: object
+  additionalProperties: false
+  required:
+  - key
+  - type
+  properties:
+    key:
+      type: string
+      description: Stable key used to store and retrieve the vault value.
+    label:
+      type: string
+      description: Display label for the vault entry.
+    type:
+      type: string
+      description: Vault value type (secret, string, json).
+    required:
+      type: boolean
+      description: Whether the vault entry must be provided before execution.
+      default: true
+    description:
+      type: string
+      description: Human-readable explanation of the vault entry.
+    metadata:
+      type: object
+      description: Additional vault metadata.
+      additionalProperties: true
 ManifestResourceRequirement:
   type: object
   additionalProperties: false
@@ -2005,6 +2300,13 @@ WorkerCommand:
         type: string
       version:
         type: string
+      url:
+        type: string
+        format: uri
+        description: Optional archive URL; defaults to the published package archive.
+      sha256:
+        type: string
+        description: Optional SHA-256 checksum of the archive.
     required:
     - type
     - name
@@ -2430,6 +2732,94 @@ WorkflowPublishResponse:
     version:
       type: string
 
+RegistryPackageDependency:
+  type: object
+  additionalProperties: false
+  required:
+  - name
+  - version
+  properties:
+    name:
+      type: string
+    version:
+      type: string
+
+RegistryAccountLink:
+  type: object
+  additionalProperties: false
+  required:
+  - userId
+  - registryUserId
+  properties:
+    userId:
+      type: string
+    registryUserId:
+      type: string
+    registryUsername:
+      type: string
+      nullable: true
+
+RegistryAccountLinkRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - registryUserId
+  properties:
+    registryUserId:
+      type: string
+    registryUsername:
+      type: string
+      nullable: true
+
+RegistryWorkflowImportRequest:
+  type: object
+  additionalProperties: false
+  required:
+  - packageId
+  properties:
+    packageId:
+      type: string
+      description: Registry workflow package id.
+    versionId:
+      type: string
+      description: Specific registry version id to import.
+    version:
+      type: string
+      description: Version string to import when versionId is omitted.
+    name:
+      type: string
+      description: Optional override for the imported workflow name.
+
+RegistryWorkflowImportResponse:
+  type: object
+  additionalProperties: false
+  required:
+  - workflowId
+  - packageId
+  - versionId
+  - dependencies
+  - pulledPackages
+  properties:
+    workflowId:
+      type: string
+      format: uuid
+    packageId:
+      type: string
+    versionId:
+      type: string
+    dependencies:
+      type: array
+      items:
+        $ref: '#/RegistryPackageDependency'
+    pulledPackages:
+      type: array
+      items:
+        $ref: '#/RegistryPackageDependency'
+    missingPackages:
+      type: array
+      items:
+        $ref: '#/RegistryPackageDependency'
+
 WorkflowPreview:
   type: object
   additionalProperties: false
@@ -2498,4 +2888,458 @@ CatalogNodeSearchResponse:
       type: array
       items:
         $ref: '#/CatalogNode'
+
+HubVisibility:
+  type: string
+  enum:
+  - private
+  - internal
+  - public
+
+HubPageMeta:
+  type: object
+  required:
+  - page
+  - pageSize
+  - total
+  - totalPages
+  properties:
+    page:
+      type: integer
+    pageSize:
+      type: integer
+    total:
+      type: integer
+    totalPages:
+      type: integer
+
+HubPackageSummary:
+  type: object
+  required:
+  - name
+  properties:
+    name:
+      type: string
+    latestVersion:
+      type: string
+      nullable: true
+    description:
+      type: string
+      nullable: true
+    tags:
+      type: array
+      items:
+        type: string
+      nullable: true
+    ownerId:
+      type: string
+      nullable: true
+    ownerName:
+      type: string
+      nullable: true
+    updatedAt:
+      type: string
+      format: date-time
+      nullable: true
+    visibility:
+      $ref: '#/HubVisibility'
+      nullable: true
+
+HubPackageDetail:
+  type: object
+  required:
+  - name
+  properties:
+    name:
+      type: string
+    description:
+      type: string
+      nullable: true
+    readme:
+      type: string
+      nullable: true
+    versions:
+      type: array
+      items:
+        type: string
+    distTags:
+      type: object
+      additionalProperties:
+        type: string
+      nullable: true
+    tags:
+      type: array
+      items:
+        type: string
+      nullable: true
+    ownerId:
+      type: string
+      nullable: true
+    ownerName:
+      type: string
+      nullable: true
+    updatedAt:
+      type: string
+      format: date-time
+      nullable: true
+    visibility:
+      $ref: '#/HubVisibility'
+      nullable: true
+
+HubPackageListResponse:
+  type: object
+  required:
+  - items
+  - meta
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/HubPackageSummary'
+    meta:
+      $ref: '#/HubPageMeta'
+
+HubPackageVersionDetail:
+  type: object
+  required:
+  - name
+  - version
+  properties:
+    name:
+      type: string
+    version:
+      type: string
+    description:
+      type: string
+      nullable: true
+    readme:
+      type: string
+      nullable: true
+    tags:
+      type: array
+      items:
+        type: string
+      nullable: true
+    distTags:
+      type: object
+      additionalProperties:
+        type: string
+      nullable: true
+    archiveSha256:
+      type: string
+      nullable: true
+    archiveSizeBytes:
+      type: integer
+      format: int64
+      nullable: true
+    ownerId:
+      type: string
+      nullable: true
+    ownerName:
+      type: string
+      nullable: true
+    visibility:
+      $ref: '#/HubVisibility'
+      nullable: true
+    publishedAt:
+      type: string
+      format: date-time
+      nullable: true
+    updatedAt:
+      type: string
+      format: date-time
+      nullable: true
+
+HubPackagePublishRequest:
+  type: object
+  required:
+  - file
+  properties:
+    file:
+      type: string
+      format: binary
+    visibility:
+      $ref: '#/HubVisibility'
+    summary:
+      type: string
+    readme:
+      type: string
+    tags:
+      type: array
+      items:
+        type: string
+
+HubPackageInstallRequest:
+  type: object
+  properties:
+    version:
+      type: string
+
+HubPackageInstallResponse:
+  type: object
+  required:
+  - name
+  - version
+  - installed
+  properties:
+    name:
+      type: string
+    version:
+      type: string
+    installed:
+      type: boolean
+
+HubPackageDependency:
+  type: object
+  additionalProperties: false
+  required:
+  - name
+  - version
+  properties:
+    name:
+      type: string
+    version:
+      type: string
+
+HubWorkflowSummary:
+  type: object
+  required:
+  - id
+  - name
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    summary:
+      type: string
+      nullable: true
+    description:
+      type: string
+      nullable: true
+    tags:
+      type: array
+      items:
+        type: string
+      nullable: true
+    ownerId:
+      type: string
+      nullable: true
+    ownerName:
+      type: string
+      nullable: true
+    updatedAt:
+      type: string
+      format: date-time
+      nullable: true
+    latestVersion:
+      type: string
+      nullable: true
+    previewImage:
+      type: string
+      nullable: true
+    visibility:
+      $ref: '#/HubVisibility'
+      nullable: true
+
+HubWorkflowDetail:
+  type: object
+  required:
+  - id
+  - name
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    summary:
+      type: string
+      nullable: true
+    description:
+      type: string
+      nullable: true
+    tags:
+      type: array
+      items:
+        type: string
+      nullable: true
+    ownerId:
+      type: string
+      nullable: true
+    ownerName:
+      type: string
+      nullable: true
+    updatedAt:
+      type: string
+      format: date-time
+      nullable: true
+    previewImage:
+      type: string
+      nullable: true
+    visibility:
+      $ref: '#/HubVisibility'
+      nullable: true
+
+HubWorkflowListResponse:
+  type: object
+  required:
+  - items
+  - meta
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/HubWorkflowSummary'
+    meta:
+      $ref: '#/HubPageMeta'
+
+HubWorkflowDefinition:
+  type: object
+  additionalProperties: true
+
+HubWorkflowPublishRequest:
+  type: object
+  required:
+  - name
+  - version
+  - definition
+  properties:
+    workflowId:
+      type: string
+    name:
+      type: string
+    version:
+      type: string
+    summary:
+      type: string
+    description:
+      type: string
+    tags:
+      type: array
+      items:
+        type: string
+    visibility:
+      $ref: '#/HubVisibility'
+    previewImage:
+      type: string
+    dependencies:
+      type: array
+      items:
+        $ref: '#/HubPackageDependency'
+    definition:
+      $ref: '#/HubWorkflowDefinition'
+
+HubWorkflowPublishResponse:
+  type: object
+  required:
+  - workflowId
+  - versionId
+  - version
+  properties:
+    workflowId:
+      type: string
+    versionId:
+      type: string
+    version:
+      type: string
+
+HubWorkflowVersionSummary:
+  type: object
+  required:
+  - id
+  - version
+  properties:
+    id:
+      type: string
+    version:
+      type: string
+    publishedAt:
+      type: string
+      format: date-time
+      nullable: true
+    changelog:
+      type: string
+      nullable: true
+
+HubWorkflowVersionDetail:
+  type: object
+  required:
+  - id
+  - version
+  properties:
+    id:
+      type: string
+    version:
+      type: string
+    summary:
+      type: string
+      nullable: true
+    description:
+      type: string
+      nullable: true
+    tags:
+      type: array
+      items:
+        type: string
+      nullable: true
+    previewImage:
+      type: string
+      nullable: true
+    dependencies:
+      type: array
+      items:
+        $ref: '#/HubPackageDependency'
+      nullable: true
+    publishedAt:
+      type: string
+      format: date-time
+      nullable: true
+    publisherId:
+      type: string
+      nullable: true
+
+HubWorkflowVersionList:
+  type: object
+  required:
+  - items
+  - meta
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/HubWorkflowVersionSummary'
+    meta:
+      $ref: '#/HubPageMeta'
+
+HubWorkflowImportRequest:
+  type: object
+  properties:
+    versionId:
+      type: string
+    version:
+      type: string
+    name:
+      type: string
+
+HubWorkflowImportResponse:
+  type: object
+  required:
+  - workflowId
+  - workflowSourceId
+  - versionId
+  properties:
+    workflowId:
+      type: string
+    workflowSourceId:
+      type: string
+    versionId:
+      type: string
+    dependencies:
+      type: array
+      items:
+        $ref: '#/HubPackageDependency'
+    pulledPackages:
+      type: array
+      items:
+        $ref: '#/HubPackageDependency'
 

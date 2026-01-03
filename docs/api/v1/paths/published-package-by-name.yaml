@@ -1,0 +1,30 @@
+get:
+  tags: [PublishedPackages]
+  summary: Get published package detail
+  operationId: getPublishedPackage
+  parameters:
+    - name: packageName
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: version
+      in: query
+      required: false
+      description: Specific package version to retrieve. Defaults to the latest available version.
+      schema:
+        type: string
+  responses:
+    '200':
+      description: OK
+      headers:
+        X-Package-Archive-Sha256:
+          description: SHA256 of the stored package archive
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/PackageDetail'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

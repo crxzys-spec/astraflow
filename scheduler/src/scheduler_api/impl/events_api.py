@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import HTTPException, status
+from scheduler_api.http.errors import bad_request
 from fastapi.responses import StreamingResponse
 
 from scheduler_api.apis.events_api_base import BaseEventsApi
 from scheduler_api.auth.roles import RUN_VIEW_ROLES, require_roles
 
-from scheduler_api.sse import (
+from scheduler_api.infra.sse import (
     SseConnection,
     SubscriptionFilter,
     connection_registry,
@@ -27,10 +27,7 @@ class EventsApiImpl(BaseEventsApi):
     ) -> StreamingResponse:
         require_roles(*RUN_VIEW_ROLES)
         if not client_session_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="clientSessionId is required",
-            )
+            raise bad_request("clientSessionId is required")
 
         subscription = SubscriptionFilter()
         connection = SseConnection(

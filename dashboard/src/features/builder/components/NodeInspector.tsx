@@ -1,21 +1,17 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { nanoid } from "nanoid";
 import { useWorkflowStore } from "../store";
 import { formatBindingDisplay, resolveBindingPath } from "../utils/binding";
 import type { NodePortDefinition, WorkflowDraft, WorkflowNodeDraft } from "../types";
 import { widgetRegistry, registerBuiltinWidgets } from "../widgets";
 import {
-  ResourceGrantAction,
-  ResourceGrantScope,
   UIBindingModeEnum,
-  type ManifestResourceRequirement,
+  type ManifestPermissionRequirement,
+  type ManifestVaultRequirement,
   type PackageDetail,
-  type Resource,
-  type ResourceGrant,
   type UIBindingModeEnum as UIBindingMode,
 } from "../../../client/models";
 import { getPackage } from "../../../services/packages";
-import { resourcesGateway } from "../../../services/resources";
 
 registerBuiltinWidgets();
 
@@ -95,21 +91,6 @@ const NodeMeta = ({ node, onLabelChange }: { node: WorkflowNodeDraft; onLabelCha
       </div>
     </div>
   );
-};
-
-const normalizeGrantActions = (actions?: string[]): ResourceGrantAction[] => {
-  const allowed = new Set(Object.values(ResourceGrantAction));
-  const normalized = (actions ?? [])
-    .map((action) => action?.toString().trim().toLowerCase())
-    .filter((action): action is ResourceGrantAction => Boolean(action && allowed.has(action as ResourceGrantAction)));
-  return normalized.length ? normalized : [ResourceGrantAction.Read];
-};
-
-const formatResourceSize = (size?: number | null): string => {
-  if (size == null) {
-    return "";
-  }
-  return `${size.toLocaleString()} bytes`;
 };
 
 type PortOrigin = "declared" | "inferred";
@@ -209,49 +190,20 @@ export const NodeInspector = () => {
   const [packageDetail, setPackageDetail] = useState<PackageDetail | null>(null);
   const [packageLoading, setPackageLoading] = useState(false);
   const [packageError, setPackageError] = useState<string | null>(null);
-  const [grants, setGrants] = useState<ResourceGrant[]>([]);
-  const [grantLoading, setGrantLoading] = useState(false);
-  const [grantError, setGrantError] = useState<string | null>(null);
-  const [grantStatus, setGrantStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [grantInputs, setGrantInputs] = useState<Record<string, string>>({});
-  const [grantScopes, setGrantScopes] = useState<Record<string, ResourceGrantScope>>({});
-  const [grantSecrets, setGrantSecrets] = useState<Record<string, string>>({});
-  const [grantSecretNames, setGrantSecretNames] = useState<Record<string, string>>({});
-  const [grantSecretProviders, setGrantSecretProviders] = useState<Record<string, string>>({});
-  const [resourceOptions, setResourceOptions] = useState<Resource[]>([]);
-  const [resourceLoading, setResourceLoading] = useState(false);
-  const [resourceError, setResourceError] = useState<string | null>(null);
-  const [resourcePickerKey, setResourcePickerKey] = useState<string | null>(null);
-  const [resourceSearch, setResourceSearch] = useState("" as string);
 
   useEffect(() => {
     setInlineStatus(null);
   }, [node?.id]);
 
-  useEffect(() => {
-    setGrantStatus(null);
-    setGrantError(null);
-    setGrantInputs({});
-    setGrantScopes({});
-    setGrantSecrets({});
-    setGrantSecretNames({});
-    setGrantSecretProviders({});
-  }, [node?.id]);
-
-  useEffect(() => {
-    setResourceOptions([]);
-    setResourceError(null);
-    setResourceSearch("");
-    setResourcePickerKey(null);
-  }, [node?.id]);
-
-  const requirements = useMemo<ManifestResourceRequirement[]>(() => {
-    return packageDetail?.manifest?.requirements?.resources ?? [];
+  const vaultRequirements = useMemo<ManifestVaultRequirement[]>(() => {
+    return packageDetail?.manifest?.requirements?.vault ?? [];
   }, [packageDetail]);
 
-  const workflowId = rootWorkflow?.id;
+  const permissionRequirements = useMemo<ManifestPermissionRequirement[]>(() => {
+    return packageDetail?.manifest?.requirements?.permissions ?? [];
+  }, [packageDetail]);
+
   const packageName = node?.packageName;
-  const packageVersion = packageDetail?.version ?? node?.packageVersion;
 
   useEffect(() => {
     let isActive = true;
@@ -290,68 +242,6 @@ export const NodeInspector = () => {
     };
   }, [packageName, node?.packageVersion]);
 
-  const refreshGrants = useCallback(async () => {
-    if (!packageName) {
-      setGrants([]);
-      return;
-    }
-    setGrantLoading(true);
-    setGrantError(null);
-    try {
-      const requests: Promise<ResourceGrant[]>[] = [
-        resourcesGateway.listGrants({
-          packageName,
-          packageVersion,
-          scope: ResourceGrantScope.Global,
-        }),
-      ];
-      if (workflowId) {
-        requests.push(
-          resourcesGateway.listGrants({
-            workflowId,
-            packageName,
-            packageVersion,
-            scope: ResourceGrantScope.Workflow,
-          }),
-        );
-      }
-      const results = await Promise.all(requests);
-      setGrants(results.flat());
-    } catch (error) {
-      console.error("Failed to load resource grants", error);
-      setGrants([]);
-      setGrantError("Unable to load resource grants.");
-    } finally {
-      setGrantLoading(false);
-    }
-  }, [packageName, packageVersion, workflowId]);
-
-  useEffect(() => {
-    if (!packageName) {
-      setGrants([]);
-      return;
-    }
-    refreshGrants();
-  }, [packageName, refreshGrants]);
-
-  const loadResources = useCallback(async (searchValue?: string) => {
-    setResourceLoading(true);
-    setResourceError(null);
-    try {
-      const items = await resourcesGateway.listResources({
-        limit: 20,
-        search: searchValue?.trim() ? searchValue.trim() : undefined,
-        ownerId: "me",
-      });
-      setResourceOptions(items);
-    } catch (error) {
-      console.error("Failed to load resources", error);
-      setResourceOptions([]);
-      setResourceError("Unable to load resources.");
-    } finally {
-      setResourceLoading(false);
-    }
-  }, []);
 
   const ports = useMemo(() => {
     if (!node) {
@@ -720,7 +610,9 @@ export const NodeInspector = () => {
 
   const resultData = node.results ?? {};
   const hasResultData = Object.keys(resultData).length > 0;
-  const requirementsReady = requirements.length > 0;
+  const hasVaultRequirements = vaultRequirements.length > 0;
+  const hasPermissionRequirements = permissionRequirements.length > 0;
+  const requirementsReady = hasVaultRequirements || hasPermissionRequirements;
   const requirementsBlocked = Boolean(packageError) || (!packageName && !packageLoading);
 
   return (
@@ -1081,412 +973,81 @@ export const NodeInspector = () => {
       {(requirementsReady || packageLoading || packageError) && (
         <div className="card inspector__panel">
           <header className="card__header">
-            <h3>Resource Requirements</h3>
+            <h3>Package Access</h3>
           </header>
           <div className="inspector__section">
             {packageLoading && <p className="text-subtle inspector__payload-empty">Loading requirements...</p>}
             {packageError && <p className="error">{packageError}</p>}
             {!packageLoading && !packageError && !requirementsReady && requirementsBlocked && (
-              <p className="text-subtle inspector__payload-empty">No resource requirements declared.</p>
-            )}
-            {grantError && <p className="error">{grantError}</p>}
-            {grantStatus && (
-              <p className={grantStatus.type === "error" ? "error" : "text-subtle"}>{grantStatus.message}</p>
+              <p className="text-subtle inspector__payload-empty">No package requirements declared.</p>
             )}
             {requirementsReady && (
               <div className="inspector__requirements">
-                {requirements.map((requirement) => {
-                  const requirementActions = normalizeGrantActions(requirement.actions);
-                  const requirementRequired = requirement.required !== false;
-                  const scopeValue = grantScopes[requirement.key] ?? ResourceGrantScope.Workflow;
-                  const inputValue = grantInputs[requirement.key] ?? "";
-                  const isSecret = requirement.type?.toLowerCase() === "secret";
-                  const secretValue = grantSecrets[requirement.key] ?? "";
-                  const secretName = grantSecretNames[requirement.key] ?? "";
-                  const rawSecretProviders = Array.isArray(requirement.metadata?.providers)
-                    ? requirement.metadata?.providers
-                    : [];
-                  const normalizedSecretProviders = rawSecretProviders
-                    .map((entry) => entry.toString().trim())
-                    .filter((entry) => entry.length > 0);
-                  const secretDefaultProvider =
-                    (typeof requirement.metadata?.provider === "string"
-                      ? requirement.metadata?.provider.trim()
-                      : "") ||
-                    normalizedSecretProviders[0] ||
-                    "local";
-                  const secretProviders = normalizedSecretProviders.length
-                    ? normalizedSecretProviders
-                    : [secretDefaultProvider];
-                  const secretProviderLabel =
-                    typeof requirement.metadata?.providerLabel === "string"
-                      ? requirement.metadata?.providerLabel
-                      : "Storage";
-                  const secretProvider =
-                    grantSecretProviders[requirement.key] ?? secretDefaultProvider;
-                  const grantsForKey = grants.filter((grant) => grant.resourceKey === requirement.key);
-                  const isPickerOpen = resourcePickerKey === requirement.key;
-                  const canGrant =
-                    Boolean(inputValue.trim()) &&
-                    !grantLoading &&
-                    (scopeValue !== ResourceGrantScope.Workflow || Boolean(workflowId));
-                  const canCreateSecretGrant =
-                    isSecret &&
-                    Boolean(secretValue.trim()) &&
-                    !grantLoading &&
-                    (scopeValue !== ResourceGrantScope.Workflow || Boolean(workflowId));
-
-                  const handleGrant = async () => {
-                    if (!packageName || !inputValue.trim()) {
-                      return;
-                    }
-                    if (scopeValue === ResourceGrantScope.Workflow && !workflowId) {
-                      setGrantStatus({ type: "error", message: "Workflow ID is required for workflow grants." });
-                      return;
-                    }
-                    setGrantLoading(true);
-                    setGrantStatus(null);
-                    try {
-                      await resourcesGateway.createGrant({
-                        resourceId: inputValue.trim(),
-                        packageName,
-                        packageVersion: packageVersion ?? undefined,
-                        resourceKey: requirement.key,
-                        scope: scopeValue,
-                        workflowId: scopeValue === ResourceGrantScope.Workflow ? workflowId : undefined,
-                        actions: requirementActions,
-                      });
-                      setGrantInputs((prev) => ({ ...prev, [requirement.key]: "" }));
-                      await refreshGrants();
-                      setGrantStatus({ type: "success", message: "Grant created." });
-                    } catch (error) {
-                      console.error("Failed to create resource grant", error);
-                      setGrantStatus({ type: "error", message: "Failed to create grant." });
-                    } finally {
-                      setGrantLoading(false);
-                    }
-                  };
-
-                  const handleRevoke = async (grantId: string) => {
-                    setGrantLoading(true);
-                    setGrantStatus(null);
-                    try {
-                      await resourcesGateway.deleteGrant(grantId);
-                      await refreshGrants();
-                      setGrantStatus({ type: "success", message: "Grant revoked." });
-                    } catch (error) {
-                      console.error("Failed to revoke resource grant", error);
-                      setGrantStatus({ type: "error", message: "Failed to revoke grant." });
-                    } finally {
-                      setGrantLoading(false);
-                    }
-                  };
-
-                  const handleCreateSecretGrant = async () => {
-                    if (!packageName) {
-                      return;
-                    }
-                    if (scopeValue === ResourceGrantScope.Workflow && !workflowId) {
-                      setGrantStatus({ type: "error", message: "Workflow ID is required for workflow grants." });
-                      return;
-                    }
-                    const trimmedSecret = secretValue.trim();
-                    if (!trimmedSecret) {
-                      return;
-                    }
-                    setGrantLoading(true);
-                    setGrantStatus(null);
-                    try {
-                      const baseName = secretName.trim() || requirement.key || "secret";
-                      const filename = baseName.endsWith(".txt") ? baseName : `${baseName}.txt`;
-                      const file = new File([trimmedSecret], filename, { type: "text/plain" });
-                      const resource = await resourcesGateway.upload(file, {
-                        provider: secretProvider,
-                      });
-                      await resourcesGateway.createGrant({
-                        resourceId: resource.resourceId,
-                        packageName,
-                        packageVersion: packageVersion ?? undefined,
-                        resourceKey: requirement.key,
-                        scope: scopeValue,
-                        workflowId: scopeValue === ResourceGrantScope.Workflow ? workflowId : undefined,
-                        actions: requirementActions,
-                      });
-                      setGrantInputs((prev) => ({ ...prev, [requirement.key]: resource.resourceId }));
-                      setGrantSecrets((prev) => ({ ...prev, [requirement.key]: "" }));
-                      setGrantSecretNames((prev) => ({ ...prev, [requirement.key]: "" }));
-                      await refreshGrants();
-                      if (resourcePickerKey === requirement.key) {
-                        await loadResources(resourceSearch);
-                      }
-                      setGrantStatus({ type: "success", message: "Secret uploaded and granted." });
-                    } catch (error) {
-                      console.error("Failed to upload secret for grant", error);
-                      setGrantStatus({ type: "error", message: "Failed to upload secret." });
-                    } finally {
-                      setGrantLoading(false);
-                    }
-                  };
-
-                  return (
-                    <div key={requirement.key} className="inspector__requirement">
-                      <div className="inspector__requirement-header">
-                        <div className="inspector__requirement-title">
-                          <span className="inspector__pill inspector__pill--solid">{requirement.key}</span>
-                          <span className="inspector__pill inspector__pill--muted">{requirement.type}</span>
+                {hasVaultRequirements && (
+                  <div className="inspector__requirement-block">
+                    <h4>Vault entries</h4>
+                    {vaultRequirements.map((requirement) => {
+                      const requirementRequired = requirement.required !== false;
+                      return (
+                        <div key={requirement.key} className="inspector__requirement">
+                          <div className="inspector__requirement-header">
+                            <div className="inspector__requirement-title">
+                              <span className="inspector__pill inspector__pill--solid">{requirement.key}</span>
+                              <span className="inspector__pill inspector__pill--muted">{requirement.type}</span>
+                            </div>
+                            <span
+                              className={`inspector__badge ${
+                                requirementRequired ? "inspector__badge--status" : "inspector__badge--muted"
+                              }`}
+                            >
+                              {requirementRequired ? "Required" : "Optional"}
+                            </span>
+                          </div>
+                          {requirement.description && (
+                            <p className="inspector__requirement-description">{requirement.description}</p>
+                          )}
                         </div>
-                        <span
-                          className={`inspector__badge ${requirementRequired ? "inspector__badge--status" : "inspector__badge--muted"}`}
-                        >
-                          {requirementRequired ? "Required" : "Optional"}
-                        </span>
-                      </div>
-                      {requirement.description && (
-                        <p className="inspector__requirement-description">{requirement.description}</p>
-                      )}
-                      <div className="inspector__requirement-meta">
-                        <span className="inspector__field-label">Actions</span>
-                        <span className="inspector__field-value">
-                          {requirementActions.join(", ")}
-                        </span>
-                      </div>
-                      <div className="inspector__grant-list">
-                        {grantLoading && grantsForKey.length === 0 && (
-                          <p className="text-subtle inspector__payload-empty">Loading grants...</p>
-                        )}
-                        {grantsForKey.length ? (
-                          grantsForKey.map((grant) => (
-                            <div key={grant.grantId} className="inspector__grant-item">
-                              <div className="inspector__grant-item-meta">
-                                <span className="inspector__pill inspector__pill--muted">
-                                  {grant.scope}
-                                </span>
-                                <span className="inspector__field-value inspector__field-value--mono">
-                                  {grant.resourceId}
-                                </span>
-                                <span className="inspector__pill">
-                                  {(grant.actions ?? []).join(", ")}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                className="btn btn--ghost inspector__grant-button"
-                                onClick={() => handleRevoke(grant.grantId)}
-                                disabled={grantLoading}
-                              >
-                                Revoke
-                              </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {hasPermissionRequirements && (
+                  <div className="inspector__requirement-block">
+                    <h4>Permissions</h4>
+                    {permissionRequirements.map((requirement) => {
+                      const requirementRequired = requirement.required !== false;
+                      const actions = requirement.actions?.length ? requirement.actions.join(", ") : "read";
+                      const types = requirement.types?.length ? requirement.types.join(", ") : "-";
+                      return (
+                        <div key={requirement.key} className="inspector__requirement">
+                          <div className="inspector__requirement-header">
+                            <div className="inspector__requirement-title">
+                              <span className="inspector__pill inspector__pill--solid">{requirement.key}</span>
+                              <span className="inspector__pill inspector__pill--muted">{types}</span>
                             </div>
-                          ))
-                        ) : (
-                          <p className="text-subtle inspector__payload-empty">No grants yet.</p>
-                        )}
-                      </div>
-                      <div className="inspector__grant-form">
-                        <label className="inspector__inline-input">
-                          <span>Resource ID</span>
-                          <input
-                            className="inspector__port-input"
-                            type="text"
-                            value={inputValue}
-                            placeholder="resource_id"
-                            onChange={(event) =>
-                              setGrantInputs((prev) => ({
-                                ...prev,
-                                [requirement.key]: event.target.value,
-                              }))
-                            }
-                          />
-                        </label>
-                        {isSecret && (
-                          <div className="inspector__resource-picker">
-                            <label className="inspector__inline-input">
-                              <span>Secret value</span>
-                              <input
-                                className="inspector__port-input"
-                                type="password"
-                                value={secretValue}
-                                placeholder="Paste API key"
-                                onChange={(event) =>
-                                  setGrantSecrets((prev) => ({
-                                    ...prev,
-                                    [requirement.key]: event.target.value,
-                                  }))
-                                }
-                              />
-                            </label>
-                            <label className="inspector__inline-input">
-                              <span>Resource name</span>
-                              <input
-                                className="inspector__port-input"
-                                type="text"
-                                value={secretName}
-                                placeholder={`${requirement.key}.txt`}
-                                onChange={(event) =>
-                                  setGrantSecretNames((prev) => ({
-                                    ...prev,
-                                    [requirement.key]: event.target.value,
-                                  }))
-                                }
-                              />
-                            </label>
-                            <label className="inspector__inline-input">
-                              <span>{secretProviderLabel}</span>
-                              <select
-                                className="inspector__port-select"
-                                value={secretProvider}
-                                onChange={(event) =>
-                                  setGrantSecretProviders((prev) => ({
-                                    ...prev,
-                                    [requirement.key]: event.target.value,
-                                  }))
-                                }
-                              >
-                                {secretProviders.map((provider) => (
-                                  <option key={provider} value={provider}>
-                                    {provider}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <div className="inspector__grant-actions">
-                              <button
-                                type="button"
-                                className="btn btn--ghost inspector__grant-button"
-                                onClick={handleCreateSecretGrant}
-                                disabled={!canCreateSecretGrant}
-                              >
-                                Upload &amp; grant
-                              </button>
-                            </div>
+                            <span
+                              className={`inspector__badge ${
+                                requirementRequired ? "inspector__badge--status" : "inspector__badge--muted"
+                              }`}
+                            >
+                              {requirementRequired ? "Required" : "Optional"}
+                            </span>
                           </div>
-                        )}
-                        <div className="inspector__grant-browse">
-                          <button
-                            type="button"
-                            className="btn btn--ghost inspector__grant-button"
-                            onClick={() => {
-                              if (isPickerOpen) {
-                                setResourcePickerKey(null);
-                                return;
-                              }
-                              setResourcePickerKey(requirement.key);
-                              if (!resourceOptions.length) {
-                                loadResources(resourceSearch);
-                              }
-                            }}
-                          >
-                            {isPickerOpen ? "Hide resources" : "Browse resources"}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn--ghost inspector__grant-button"
-                            onClick={() => loadResources(resourceSearch)}
-                            disabled={resourceLoading}
-                          >
-                            Refresh
-                          </button>
+                          {requirement.description && (
+                            <p className="inspector__requirement-description">{requirement.description}</p>
+                          )}
+                          <div className="inspector__requirement-meta">
+                            <span className="inspector__field-label">Actions</span>
+                            <span className="inspector__field-value">{actions}</span>
+                          </div>
                         </div>
-                        {isPickerOpen && (
-                          <div className="inspector__resource-picker">
-                            <label className="inspector__inline-input">
-                              <span>Search</span>
-                              <input
-                                className="inspector__port-input"
-                                type="text"
-                                value={resourceSearch}
-                                placeholder="filename or id"
-                                onChange={(event) => setResourceSearch(event.target.value)}
-                              />
-                            </label>
-                            <div className="inspector__grant-browse">
-                              <button
-                                type="button"
-                                className="btn btn--ghost inspector__grant-button"
-                                onClick={() => loadResources(resourceSearch)}
-                                disabled={resourceLoading}
-                              >
-                                Search
-                              </button>
-                            </div>
-                            {resourceError && <p className="error">{resourceError}</p>}
-                            {resourceLoading && (
-                              <p className="text-subtle inspector__payload-empty">Loading resources...</p>
-                            )}
-                            {!resourceLoading && resourceOptions.length === 0 && (
-                              <p className="text-subtle inspector__payload-empty">No resources found.</p>
-                            )}
-                            {!resourceLoading && resourceOptions.length > 0 && (
-                              <div className="inspector__resource-list">
-                                {resourceOptions.map((resource) => (
-                                  <div key={resource.resourceId} className="inspector__resource-item">
-                                    <div className="inspector__resource-meta">
-                                      <span className="inspector__pill inspector__pill--muted">
-                                        {resource.filename || resource.resourceId}
-                                      </span>
-                                      <span className="inspector__field-value inspector__field-value--mono">
-                                        {resource.resourceId}
-                                      </span>
-                                      {resource.sizeBytes != null && (
-                                        <span className="inspector__pill">
-                                          {formatResourceSize(resource.sizeBytes)}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <button
-                                      type="button"
-                                      className="btn btn--ghost inspector__grant-button"
-                                      onClick={() => {
-                                        setGrantInputs((prev) => ({
-                                          ...prev,
-                                          [requirement.key]: resource.resourceId,
-                                        }));
-                                        setResourcePickerKey(null);
-                                      }}
-                                    >
-                                      Use
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <label className="inspector__inline-input">
-                          <span>Scope</span>
-                          <select
-                            className="inspector__port-select"
-                            value={scopeValue}
-                            onChange={(event) =>
-                              setGrantScopes((prev) => ({
-                                ...prev,
-                                [requirement.key]: event.target.value as ResourceGrantScope,
-                              }))
-                            }
-                          >
-                            <option value={ResourceGrantScope.Workflow}>Workflow</option>
-                            <option value={ResourceGrantScope.Global}>Global</option>
-                          </select>
-                        </label>
-                        {scopeValue === ResourceGrantScope.Workflow && (
-                          <div className="inspector__field-value inspector__field-value--mono">
-                            Workflow: {workflowId ?? "-"}
-                          </div>
-                        )}
-                      </div>
-                      <div className="inspector__grant-actions">
-                        <button
-                          type="button"
-                          className="btn btn--ghost inspector__grant-button"
-                          onClick={handleGrant}
-                          disabled={!canGrant}
-                        >
-                          Grant access
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                )}
+                <p className="text-subtle inspector__payload-hint">
+                  Manage package access in Account &gt; Package Vault.
+                </p>
               </div>
             )}
           </div>
@@ -1524,7 +1085,7 @@ export const NodeInspector = () => {
                           aria-label="Move middleware up"
                           disabled={idx === 0}
                         >
-                          ▲
+                          Up
                         </button>
                         <button
                           type="button"
@@ -1534,7 +1095,7 @@ export const NodeInspector = () => {
                           aria-label="Move middleware down"
                           disabled={idx === node.middlewares!.length - 1}
                         >
-                          ▼
+                          Down
                         </button>
                         <button
                           type="button"
@@ -1543,7 +1104,7 @@ export const NodeInspector = () => {
                           title="Remove middleware"
                           aria-label="Remove middleware"
                         >
-                          ✕
+                          &times;
                         </button>
                       </div>
                     </li>
@@ -1591,6 +1152,8 @@ export const NodeInspector = () => {
 };
 
 export default NodeInspector;
+
+
 
 
 

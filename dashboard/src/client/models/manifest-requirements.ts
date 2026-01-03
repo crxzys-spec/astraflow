@@ -15,9 +15,26 @@
 
 // May contain unused imports in some cases
 // @ts-ignore
+import type { ManifestPermissionRequirement } from './manifest-permission-requirement';
+// May contain unused imports in some cases
+// @ts-ignore
 import type { ManifestResourceRequirement } from './manifest-resource-requirement';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { ManifestVaultRequirement } from './manifest-vault-requirement';
 
 export interface ManifestRequirements {
+    /**
+     * Resource requirements declared by the package. Deprecated in favor of permissions/vault.
+     */
     'resources'?: Array<ManifestResourceRequirement>;
+    /**
+     * Package permissions requested to access user resources.
+     */
+    'permissions'?: Array<ManifestPermissionRequirement>;
+    /**
+     * Package-owned secret entries stored in the user\'s vault.
+     */
+    'vault'?: Array<ManifestVaultRequirement>;
 }
 

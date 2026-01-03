@@ -97,6 +97,53 @@ class Resource(BaseModel):
     )
 
 
+class PermissionRequirement(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    key: str = Field(..., description='Stable permission identifier used for grants.')
+    types: list[str] = Field(
+        ...,
+        description='Resource types covered by this permission (file, image, audio, video, kv, secret, etc.).',
+        min_length=1,
+    )
+    providers: Optional[list[str]] = Field(
+        None, description='Optional storage providers this permission applies to.'
+    )
+    actions: Optional[list[str]] = Field(
+        ['read'], description='Allowed actions for the permission (read, write, use).'
+    )
+    required: Optional[bool] = Field(
+        True, description='Whether the permission must be granted before execution.'
+    )
+    description: Optional[str] = Field(
+        None, description='Human-readable explanation of why the permission is needed.'
+    )
+    metadata: Optional[dict[str, Any]] = Field(
+        None, description='Additional permission metadata.'
+    )
+
+
+class VaultRequirement(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    key: str = Field(
+        ..., description='Stable key used to store and retrieve the vault value.'
+    )
+    label: Optional[str] = Field(None, description='Display label for the vault entry.')
+    type: str = Field(..., description='Vault value type (secret, string, json).')
+    required: Optional[bool] = Field(
+        True, description='Whether the vault entry must be provided before execution.'
+    )
+    description: Optional[str] = Field(
+        None, description='Human-readable explanation of the vault entry.'
+    )
+    metadata: Optional[dict[str, Any]] = Field(
+        None, description='Additional vault metadata.'
+    )
+
+
 class ResourceRequirement(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -174,7 +221,14 @@ class ManifestRequirements(BaseModel):
         extra='forbid',
     )
     resources: Optional[list[ResourceRequirement]] = Field(
-        [], description='Resource requirements declared by the package.'
+        [],
+        description='Resource requirements declared by the package. Deprecated in favor of permissions/vault.',
+    )
+    permissions: Optional[list[PermissionRequirement]] = Field(
+        [], description='Package permissions requested to access user resources.'
+    )
+    vault: Optional[list[VaultRequirement]] = Field(
+        [], description="Package-owned secret entries stored in the user's vault."
     )
 
 

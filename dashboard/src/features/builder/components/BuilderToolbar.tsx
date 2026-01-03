@@ -1,3 +1,5 @@
+import WorkflowControls from "./WorkflowControls";
+
 type BuilderToolbarProps = {
   canEditWorkflow: boolean;
   canPublishWorkflow: boolean;
@@ -57,7 +59,8 @@ export const BuilderToolbar = ({
         </span>
       )}
     </div>
-    <div className="builder-actions builder-actions--buttons">
+    <div className="builder-actions builder-actions--buttons builder-toolbar__actions">
+      <WorkflowControls />
       {canEditWorkflow && (
         <button className="btn btn--ghost" type="button" onClick={onSave} disabled={persistPending}>
           <span className="btn__icon" aria-hidden="true">

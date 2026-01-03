@@ -1,0 +1,36 @@
+get:
+  tags: [PackagePermissions]
+  summary: List package permissions
+  operationId: listPackagePermissions
+  parameters:
+    - name: packageName
+      in: query
+      required: false
+      schema:
+        type: string
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/PackagePermissionList'
+post:
+  tags: [PackagePermissions]
+  summary: Grant package permissions
+  operationId: createPackagePermission
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/PackagePermissionCreateRequest'
+  responses:
+    '201':
+      description: Created
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/PackagePermission'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'

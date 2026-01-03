@@ -12,6 +12,7 @@ import { SubgraphJumpWidget } from "../components/SubgraphJumpWidget";
 import { OptionSelectWidget } from "../components/OptionSelectWidget";
 import { TypedInputWidget } from "../components/TypedInputWidget";
 import { FileUploadWidget } from "../components/FileUploadWidget";
+import { MarkdownWidget } from "../components/MarkdownWidget";
 
 let registered = false;
 
@@ -34,6 +35,7 @@ export const registerBuiltinWidgets = () => {
   widgetRegistry.register("options", { component: OptionSelectWidget });
   widgetRegistry.register("typed-input", { component: TypedInputWidget });
   widgetRegistry.register("file-upload", { component: FileUploadWidget });
+  widgetRegistry.register("markdown", { component: MarkdownWidget });
   widgetRegistry.register("section", { component: SectionWidget });
   widgetRegistry.register("fallback", { component: FallbackWidget });
 };

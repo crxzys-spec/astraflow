@@ -1,9 +1,11 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
+import { ReactFlowProvider } from "reactflow";
 import AppShell, { type NavItem } from "./components/AppShell";
 import RunsPage from "./pages/RunsPage";
 import RunDetailPage from "./pages/RunDetailPage";
 import WorkflowBuilderPage from "./features/builder/pages/WorkflowBuilderPage";
 import WorkflowsPage from "./pages/WorkflowsPage";
+import HubWorkflowsPage from "./pages/HubWorkflowsPage";
 import PackageCenterPage from "./features/packages/pages/PackageCenterPage";
 import AuditLogPage from "./features/admin/pages/AuditLogPage";
 import UsersPage from "./features/admin/pages/UsersPage";
@@ -29,6 +31,11 @@ const baseNavItems: NavItem[] = [
     to: "/workflows",
     label: "Workflows",
     match: (pathname) => pathname === "/workflows"
+  },
+  {
+    to: "/hub/workflows",
+    label: "Hub Library",
+    match: (pathname) => pathname.startsWith("/hub/workflows")
   },
   {
     to: "/packages",
@@ -228,9 +235,11 @@ const WorkflowBuilderRoute = () => {
   }, [workflowId]);
 
   return (
-    <AppShell navItems={builderNav} variant="builder" rightSlot={<AuthHeader />}>
-      <WorkflowBuilderPage />
-    </AppShell>
+    <ReactFlowProvider>
+      <AppShell navItems={builderNav} variant="builder" rightSlot={<AuthHeader />}>
+        <WorkflowBuilderPage />
+      </AppShell>
+    </ReactFlowProvider>
   );
 };
 
@@ -279,6 +288,16 @@ function App() {
               <RequireAuth>
                 <DashboardRoute>
                   <WorkflowsPage />
+                </DashboardRoute>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/hub/workflows"
+            element={
+              <RequireAuth>
+                <DashboardRoute>
+                  <HubWorkflowsPage />
                 </DashboardRoute>
               </RequireAuth>
             }

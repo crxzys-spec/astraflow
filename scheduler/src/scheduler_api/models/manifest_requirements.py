@@ -20,9 +20,11 @@ import json
 
 
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
+from scheduler_api.models.manifest_permission_requirement import ManifestPermissionRequirement
 from scheduler_api.models.manifest_resource_requirement import ManifestResourceRequirement
+from scheduler_api.models.manifest_vault_requirement import ManifestVaultRequirement
 try:
     from typing import Self
 except ImportError:
@@ -32,8 +34,10 @@ class ManifestRequirements(BaseModel):
     """
     ManifestRequirements
     """ # noqa: E501
-    resources: Optional[List[ManifestResourceRequirement]] = None
-    __properties: ClassVar[List[str]] = ["resources"]
+    resources: Optional[List[ManifestResourceRequirement]] = Field(default=None, description="Resource requirements declared by the package. Deprecated in favor of permissions/vault.")
+    permissions: Optional[List[ManifestPermissionRequirement]] = Field(default=None, description="Package permissions requested to access user resources.")
+    vault: Optional[List[ManifestVaultRequirement]] = Field(default=None, description="Package-owned secret entries stored in the user's vault.")
+    __properties: ClassVar[List[str]] = ["resources", "permissions", "vault"]
 
     model_config = {
         "populate_by_name": True,
@@ -79,6 +83,20 @@ class ManifestRequirements(BaseModel):
                 if _item:
                     _items.append(_item.to_dict())
             _dict['resources'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in permissions (list)
+        _items = []
+        if self.permissions:
+            for _item in self.permissions:
+                if _item:
+                    _items.append(_item.to_dict())
+            _dict['permissions'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in vault (list)
+        _items = []
+        if self.vault:
+            for _item in self.vault:
+                if _item:
+                    _items.append(_item.to_dict())
+            _dict['vault'] = _items
         return _dict
 
     @classmethod
@@ -91,7 +109,9 @@ class ManifestRequirements(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "resources": [ManifestResourceRequirement.from_dict(_item) for _item in obj.get("resources")] if obj.get("resources") is not None else None
+            "resources": [ManifestResourceRequirement.from_dict(_item) for _item in obj.get("resources")] if obj.get("resources") is not None else None,
+            "permissions": [ManifestPermissionRequirement.from_dict(_item) for _item in obj.get("permissions")] if obj.get("permissions") is not None else None,
+            "vault": [ManifestVaultRequirement.from_dict(_item) for _item in obj.get("vault")] if obj.get("vault") is not None else None
         })
         return _obj
 

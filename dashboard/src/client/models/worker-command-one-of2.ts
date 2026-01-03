@@ -18,6 +18,14 @@ export interface WorkerCommandOneOf2 {
     'type': WorkerCommandOneOf2TypeEnum;
     'name': string;
     'version'?: string;
+    /**
+     * Optional archive URL; defaults to the published package archive.
+     */
+    'url'?: string;
+    /**
+     * Optional SHA-256 checksum of the archive.
+     */
+    'sha256'?: string;
 }
 
 export const WorkerCommandOneOf2TypeEnum = {

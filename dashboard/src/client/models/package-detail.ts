@@ -16,11 +16,29 @@
 // May contain unused imports in some cases
 // @ts-ignore
 import type { PackageManifest } from './package-manifest';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { PackageVersionStatus } from './package-version-status';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { PublishedPackageState } from './published-package-state';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { PublishedPackageVisibility } from './published-package-visibility';
 
 export interface PackageDetail {
     'name': string;
     'version': string;
     'availableVersions'?: Array<string>;
     'manifest': PackageManifest;
+    'status'?: PackageVersionStatus;
+    'distTags'?: { [key: string]: string; };
+    'archiveSha256'?: string | null;
+    'archiveSizeBytes'?: number | null;
+    'ownerId'?: string | null;
+    'visibility'?: PublishedPackageVisibility;
+    'state'?: PublishedPackageState;
 }
+
+
 

@@ -1,0 +1,29 @@
+post:
+  tags: [PublishedPackages]
+  summary: Reserve a published package name
+  operationId: reservePublishedPackage
+  parameters:
+    - name: packageName
+      in: path
+      required: true
+      schema:
+        type: string
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/PublishedPackageReserveRequest'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/PublishedPackageRegistry'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+    '403':
+      $ref: '../components/responses.yaml#/Forbidden'
+    '409':
+      $ref: '../components/responses.yaml#/Conflict'

@@ -22,6 +22,8 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from scheduler_api.models.published_package_state import PublishedPackageState
+from scheduler_api.models.published_package_visibility import PublishedPackageVisibility
 try:
     from typing import Self
 except ImportError:
@@ -36,7 +38,11 @@ class PackageSummary(BaseModel):
     latest_version: Optional[StrictStr] = Field(default=None, alias="latestVersion")
     default_version: Optional[StrictStr] = Field(default=None, alias="defaultVersion")
     versions: List[StrictStr]
-    __properties: ClassVar[List[str]] = ["name", "description", "latestVersion", "defaultVersion", "versions"]
+    dist_tags: Optional[Dict[str, StrictStr]] = Field(default=None, alias="distTags")
+    owner_id: Optional[StrictStr] = Field(default=None, alias="ownerId")
+    visibility: Optional[PublishedPackageVisibility] = None
+    state: Optional[PublishedPackageState] = None
+    __properties: ClassVar[List[str]] = ["name", "description", "latestVersion", "defaultVersion", "versions", "distTags", "ownerId", "visibility", "state"]
 
     model_config = {
         "populate_by_name": True,
@@ -75,6 +81,11 @@ class PackageSummary(BaseModel):
             },
             exclude_none=True,
         )
+        # set to None if owner_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.owner_id is None and "owner_id" in self.model_fields_set:
+            _dict['ownerId'] = None
+
         return _dict
 
     @classmethod
@@ -91,7 +102,11 @@ class PackageSummary(BaseModel):
             "description": obj.get("description"),
             "latestVersion": obj.get("latestVersion"),
             "defaultVersion": obj.get("defaultVersion"),
-            "versions": obj.get("versions")
+            "versions": obj.get("versions"),
+            "distTags": obj.get("distTags"),
+            "ownerId": obj.get("ownerId"),
+            "visibility": obj.get("visibility"),
+            "state": obj.get("state")
         })
         return _obj
 

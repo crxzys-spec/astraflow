@@ -1,8 +1,13 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useWorkflowPackages, useWorkflowPackagesStore } from "../../../store/workflowPackagesSlice";
-import type { WorkflowPackageSummary } from "../../../client/models";
+import { useHubPackages } from "../../../store/hubPackagesSlice";
+import type { HubPackageSummaryModel } from "../../../services/hubPackages";
+import { installHubPackage } from "../../../services/hubPackages";
+import { listPackages } from "../../../services/packages";
+import type { PackageSummary } from "../../../client/models";
 import { useAuthStore } from "@store/authSlice";
+import { useMessageCenter } from "../../../components/MessageCenter";
+import { getHubBrowseUrl, getHubItemUrl } from "../../../lib/hubLinks";
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (error && typeof error === "object" && "response" in error) {
@@ -39,35 +44,42 @@ const PackageCard = ({
   pkg,
   actionSlot,
 }: {
-  pkg: WorkflowPackageSummary;
+  pkg: HubPackageSummaryModel;
   actionSlot?: ReactNode;
 }) => {
-  const latestVersion = pkg.latestVersion;
-  const previewImage = pkg.previewImage ?? pkg.latestVersion?.previewImage ?? null;
-  const visibilityLabel = pkg.visibility.charAt(0).toUpperCase() + pkg.visibility.slice(1);
+  const visibilityValue = pkg.visibility ?? "public";
+  const visibilityLabel = visibilityValue.charAt(0).toUpperCase() + visibilityValue.slice(1);
   const ownerDisplay = pkg.ownerName ?? pkg.ownerId ?? "Unassigned";
-  const latestVersionLabel = latestVersion?.version ?? "?";
-  const description = pkg.summary ?? "No description provided.";
+  const latestVersionLabel = pkg.latestVersion ?? "latest";
+  const packageName = pkg.name;
+  const description = pkg.description ?? "No description provided.";
   return (
     <article className="card card--surface workflow-card workflow-card--accent">
       <div className="workflow-card__media">
-        <div
-          className={`workflow-card__preview ${previewImage ? "" : "workflow-card__preview--empty"}`}
-        >
-          {previewImage ? (
-            <img src={previewImage} alt={`${pkg.displayName} preview`} loading="lazy" />
-          ) : (
-            <div className="workflow-card__preview-placeholder">Snapshot pending</div>
-          )}
+        <div className="workflow-card__preview workflow-card__preview--empty">
+          <div className="workflow-card__preview-placeholder">
+            <div className="workflow-card__placeholder-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <rect x="3" y="4" width="18" height="14" rx="2" />
+                <path d="M7 9h10" />
+                <path d="M7 13h6" />
+              </svg>
+            </div>
+            <div className="workflow-card__placeholder-copy">
+              <span className="workflow-card__placeholder-title">Preview on Hub</span>
+              <span className="workflow-card__placeholder-subtitle">
+                Readme and versions are available on Hub.
+              </span>
+            </div>
+          </div>
         </div>
         <header className="workflow-card__header">
           <div className="workflow-card__identity">
             <small className="workflow-card__eyebrow">Package</small>
-            <h3>{pkg.displayName}</h3>
+            <h3>{packageName}</h3>
             <p className="workflow-card__owner">@{ownerDisplay}</p>
           </div>
           <div className="workflow-card__chips workflow-card__chips--header">
-            <span className="chip chip--self">self</span>
             <span className="chip chip--ghost">v{latestVersionLabel}</span>
             <span className="chip chip--ghost">{visibilityLabel}</span>
           </div>
@@ -82,8 +94,60 @@ const PackageCard = ({
         )}
         <footer className="workflow-card__footer">
           <div className="workflow-card__signature">
-            <span>Package ID</span>
-            <code>{pkg.id}</code>
+            <span>Package</span>
+            <code>{pkg.name}</code>
+          </div>
+        </footer>
+      </div>
+    </article>
+  );
+};
+
+const LocalPackageCard = ({ pkg }: { pkg: PackageSummary }) => {
+  const visibilityValue = pkg.visibility ?? "internal";
+  const visibilityLabel = visibilityValue.charAt(0).toUpperCase() + visibilityValue.slice(1);
+  const ownerDisplay = pkg.ownerId ?? "Local";
+  const latestVersionLabel = pkg.latestVersion ?? pkg.defaultVersion ?? pkg.versions?.[0] ?? "local";
+  const packageName = pkg.name;
+  const description = pkg.description ?? "Installed in this workspace.";
+  return (
+    <article className="card card--surface workflow-card workflow-card--accent">
+      <div className="workflow-card__media">
+        <div className="workflow-card__preview workflow-card__preview--empty">
+          <div className="workflow-card__preview-placeholder">
+            <div className="workflow-card__placeholder-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <rect x="3" y="4" width="18" height="14" rx="2" />
+                <path d="M7 9h10" />
+                <path d="M7 13h6" />
+              </svg>
+            </div>
+            <div className="workflow-card__placeholder-copy">
+              <span className="workflow-card__placeholder-title">Installed locally</span>
+              <span className="workflow-card__placeholder-subtitle">
+                Available to all workflows in this workspace.
+              </span>
+            </div>
+          </div>
+        </div>
+        <header className="workflow-card__header">
+          <div className="workflow-card__identity">
+            <small className="workflow-card__eyebrow">Local package</small>
+            <h3>{packageName}</h3>
+            <p className="workflow-card__owner">@{ownerDisplay}</p>
+          </div>
+          <div className="workflow-card__chips workflow-card__chips--header">
+            <span className="chip chip--ghost">v{latestVersionLabel}</span>
+            <span className="chip chip--ghost">{visibilityLabel}</span>
+          </div>
+        </header>
+      </div>
+      <div className="workflow-card__body">
+        <p className="workflow-card__description">{description}</p>
+        <footer className="workflow-card__footer">
+          <div className="workflow-card__signature">
+            <span>Package</span>
+            <code>{pkg.name}</code>
           </div>
         </footer>
       </div>
@@ -94,12 +158,20 @@ const PackageCard = ({
 const PackageCenterPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const canClone = useAuthStore((state) => state.hasRole(["admin", "workflow.editor"]));
+  const canInstall = useAuthStore((state) => state.hasRole(["admin", "workflow.editor"]));
   const canViewOwnPackages = useAuthStore((state) =>
     state.hasRole(["admin", "workflow.editor", "workflow.viewer"])
   );
-  type PackageCenterTab = "public" | "mine";
-  const paramTab = searchParams.get("tab") === "mine" ? "mine" : "public";
+  const canViewLocalPackages = useAuthStore((state) =>
+    state.hasRole(["admin", "workflow.editor", "workflow.viewer"])
+  );
+  const user = useAuthStore((state) => state.user);
+  const { pushMessage } = useMessageCenter();
+  const hubBrowseUrl = getHubBrowseUrl("packages");
+  type PackageCenterTab = "public" | "mine" | "local";
+  const rawTab = searchParams.get("tab");
+  const paramTab: PackageCenterTab =
+    rawTab === "mine" || rawTab === "local" ? rawTab : "public";
   const [activeTab, setActiveTab] = useState<PackageCenterTab>(paramTab);
 
   useEffect(() => {
@@ -110,7 +182,10 @@ const PackageCenterPage = () => {
     if (activeTab === "mine" && !canViewOwnPackages) {
       setSearchParams({}, { replace: true });
     }
-  }, [activeTab, canViewOwnPackages, setSearchParams]);
+    if (activeTab === "local" && !canViewLocalPackages) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [activeTab, canViewLocalPackages, canViewOwnPackages, setSearchParams]);
 
   const handleTabChange = (next: PackageCenterTab) => {
     if (next === activeTab) {
@@ -118,16 +193,18 @@ const PackageCenterPage = () => {
     }
     setSearchParams(next === "public" ? {} : { tab: next }, { replace: true });
   };
-  const [activeCloneId, setActiveCloneId] = useState<string | null>(null);
-  const [cloneError, setCloneError] = useState<string | null>(null);
-  const [deletePackageError, setDeletePackageError] = useState<string | null>(null);
-  const [deletingPackageId, setDeletingPackageId] = useState<string | null>(null);
+  const [activeInstallName, setActiveInstallName] = useState<string | null>(null);
+  const [installError, setInstallError] = useState<string | null>(null);
+  const [localPackages, setLocalPackages] = useState<PackageSummary[]>([]);
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  const publicPackagesQuery = useWorkflowPackages({ visibility: "public" }, { enabled: true });
-  const myPackagesQuery = useWorkflowPackages({ owner: "me" }, { enabled: canViewOwnPackages });
-
-  const clonePackage = useWorkflowPackagesStore((state) => state.clonePackage);
-  const deletePackage = useWorkflowPackagesStore((state) => state.deletePackage);
+  const ownerFilter = user?.userId ?? null;
+  const publicPackagesQuery = useHubPackages({ pageSize: 48 }, { enabled: true });
+  const myPackagesQuery = useHubPackages(
+    { owner: ownerFilter ?? undefined, pageSize: 48 },
+    { enabled: canViewOwnPackages && Boolean(ownerFilter) },
+  );
 
   const publicPackages = publicPackagesQuery.items ?? [];
   const publicErrorMessage =
@@ -135,53 +212,75 @@ const PackageCenterPage = () => {
   const myPackages = myPackagesQuery.items ?? [];
   const myErrorMessage = (myPackagesQuery.error as { message?: string } | undefined)?.message ?? null;
 
-  const handleClone = (pkg: WorkflowPackageSummary) => {
-    if (!canClone) {
-      setCloneError("You need workflow.editor access to clone packages.");
+  const handleInstall = (pkg: HubPackageSummaryModel) => {
+    if (!canInstall) {
+      setInstallError("You need workflow.editor access to install packages.");
       return;
     }
-    const payload = pkg.latestVersion?.id
-      ? { versionId: pkg.latestVersion.id, workflowName: pkg.displayName }
-      : { workflowName: pkg.displayName };
-    setActiveCloneId(pkg.id);
-    setCloneError(null);
-    clonePackage(pkg.id, payload)
+    const payload = pkg.latestVersion ? { version: pkg.latestVersion } : undefined;
+    setActiveInstallName(pkg.name);
+    setInstallError(null);
+    installHubPackage(pkg.name, payload)
       .then((response) => {
-        const workflowId = response?.workflowId;
-        if (workflowId) {
-          navigate(`/workflows/${workflowId}`);
-        }
+        pushMessage({
+          tone: "success",
+          content: `Installed ${response.name}@${response.version}.`,
+        });
       })
       .catch((error) => {
-        setCloneError(getErrorMessage(error, "Failed to clone workflow."));
+        setInstallError(getErrorMessage(error, "Failed to install package."));
       })
       .finally(() => {
-        setActiveCloneId(null);
+        setActiveInstallName(null);
       });
   };
 
-  const handleDeletePackage = async (pkg: WorkflowPackageSummary) => {
-    if (!window.confirm(`Delete package "${pkg.displayName}"? This hides it from the Package Center.`)) {
-      return;
-    }
-    setDeletePackageError(null);
-    setDeletingPackageId(pkg.id);
+  const loadLocalPackages = useCallback(async () => {
+    setLocalLoading(true);
+    setLocalError(null);
     try {
-      await deletePackage(pkg.id);
-      await Promise.all([myPackagesQuery.refetch(), publicPackagesQuery.refetch()]);
+      const items = await listPackages();
+      setLocalPackages(items);
     } catch (error) {
-      setDeletePackageError(getErrorMessage(error, "Failed to delete package."));
+      setLocalError(getErrorMessage(error, "Failed to load local packages."));
     } finally {
-      setDeletingPackageId(null);
+      setLocalLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "local" && canViewLocalPackages) {
+      void loadLocalPackages();
+    }
+  }, [activeTab, canViewLocalPackages, loadLocalPackages]);
+
+  const renderActions = (pkg: HubPackageSummaryModel, variant: "primary" | "ghost") => {
+    const hubItemUrl = getHubItemUrl("packages", pkg.name) ?? hubBrowseUrl;
+    return (
+      <>
+        <button
+          className={`btn ${variant === "primary" ? "btn--primary" : "btn--ghost"}`}
+          type="button"
+          onClick={() => handleInstall(pkg)}
+          disabled={!canInstall || activeInstallName === pkg.name}
+        >
+          {activeInstallName === pkg.name ? "Installing..." : "Install"}
+        </button>
+        {hubItemUrl && (
+          <a className="btn btn--ghost" href={hubItemUrl} target="_blank" rel="noreferrer">
+            View in Hub
+          </a>
+        )}
+      </>
+    );
   };
 
   const renderPublicTab = () => (
     <>
-      {cloneError && (
+      {installError && (
         <div className="card card--error">
-          <p className="error">{cloneError}</p>
-          <button className="btn" type="button" onClick={() => setCloneError(null)}>
+          <p className="error">{installError}</p>
+          <button className="btn" type="button" onClick={() => setInstallError(null)}>
             Dismiss
           </button>
         </div>
@@ -189,13 +288,13 @@ const PackageCenterPage = () => {
 
       {publicPackagesQuery.isLoading && (
         <div className="card card--surface">
-          <p>Loading published workflows...</p>
+          <p>Loading hub packages...</p>
         </div>
       )}
       {publicPackagesQuery.isError && (
         <div className="card card--error">
           <p className="error">
-            Unable to load published workflows: {publicErrorMessage ?? "Unknown error"}
+            Unable to load hub packages: {publicErrorMessage ?? "Unknown error"}
           </p>
           <button className="btn" type="button" onClick={() => publicPackagesQuery.refetch()}>
             Retry
@@ -206,7 +305,7 @@ const PackageCenterPage = () => {
         !publicPackagesQuery.isError &&
         publicPackages.length === 0 && (
           <div className="card card--surface">
-            <p>No published workflows available yet.</p>
+            <p>No hub packages available yet.</p>
           </div>
         )}
       {!publicPackagesQuery.isLoading &&
@@ -215,20 +314,7 @@ const PackageCenterPage = () => {
           <div className="workflow-grid-shell">
             <div className="workflow-grid">
               {publicPackages.map((pkg) => (
-                <PackageCard
-                  key={pkg.id}
-                  pkg={pkg}
-                  actionSlot={
-                    <button
-                      className="btn btn--primary"
-                      type="button"
-                      onClick={() => handleClone(pkg)}
-                      disabled={!canClone || activeCloneId === pkg.id}
-                    >
-                      {activeCloneId === pkg.id ? "Cloning..." : "Clone"}
-                    </button>
-                  }
-                />
+                <PackageCard key={pkg.name} pkg={pkg} actionSlot={renderActions(pkg, "primary")} />
               ))}
             </div>
           </div>
@@ -241,6 +327,13 @@ const PackageCenterPage = () => {
       return (
         <div className="card card--surface">
           <p>You need workflow.viewer or workflow.editor access to view your published packages.</p>
+        </div>
+      );
+    }
+    if (!ownerFilter) {
+      return (
+        <div className="card card--surface">
+          <p>Sign in to filter hub packages by owner.</p>
         </div>
       );
     }
@@ -269,50 +362,71 @@ const PackageCenterPage = () => {
       );
     }
     return (
-      <>
-        {deletePackageError && (
-          <div className="card card--error">
-            <p className="error">Unable to delete package: {deletePackageError}</p>
-            <button className="btn" type="button" onClick={() => setDeletePackageError(null)}>
-              Dismiss
-            </button>
-          </div>
-        )}
-        <div className="workflow-grid-shell">
-          <div className="workflow-grid">
-            {myPackages.map((pkg) => {
-              const isDeleting = deletingPackageId === pkg.id;
-              return (
-                <PackageCard
-                  key={pkg.id}
-                  pkg={pkg}
-                  actionSlot={
-                    <button
-                      className="btn btn--ghost"
-                      type="button"
-                      onClick={() => handleDeletePackage(pkg)}
-                      disabled={Boolean(deletingPackageId)}
-                    >
-                      {isDeleting ? "Deleting..." : "Delete"}
-                    </button>
-                  }
-                />
-              );
-            })}
-          </div>
+      <div className="workflow-grid-shell">
+        <div className="workflow-grid">
+          {myPackages.map((pkg) => (
+            <PackageCard key={pkg.name} pkg={pkg} actionSlot={renderActions(pkg, "ghost")} />
+          ))}
         </div>
-      </>
+      </div>
     );
   };
 
-  const heading = activeTab === "public" ? "Package Center" : "My Packages";
+  const renderLocalTab = () => {
+    if (!canViewLocalPackages) {
+      return (
+        <div className="card card--surface">
+          <p>You need workflow.viewer or workflow.editor access to view local packages.</p>
+        </div>
+      );
+    }
+    if (localLoading) {
+      return (
+        <div className="card card--surface">
+          <p>Loading local packages...</p>
+        </div>
+      );
+    }
+    if (localError) {
+      return (
+        <div className="card card--error">
+          <p className="error">{localError}</p>
+          <button className="btn" type="button" onClick={() => void loadLocalPackages()}>
+            Retry
+          </button>
+        </div>
+      );
+    }
+    if (localPackages.length === 0) {
+      return (
+        <div className="card card--surface">
+          <p>No local packages installed yet.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="workflow-grid-shell">
+        <div className="workflow-grid">
+          {localPackages.map((pkg) => (
+            <LocalPackageCard key={pkg.name} pkg={pkg} />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const heading =
+    activeTab === "public" ? "Package Center" : activeTab === "mine" ? "My Packages" : "Installed Packages";
   const subheading =
     activeTab === "public"
-      ? "Discover published workflows and clone them into your workspace."
-      : "Review packages you have published to the Package Center.";
+      ? "Discover hub packages and install them into your workspace."
+      : activeTab === "mine"
+        ? "Review hub packages that match your owner profile."
+        : "Review packages available in this workspace.";
 
   const publicCount = publicPackages?.length ?? 0;
   const myCount = myPackages?.length ?? 0;
+  const localCount = localPackages?.length ?? 0;
 
   return (
     <div className="card stack package-center-panel">
@@ -331,9 +445,21 @@ const PackageCenterPage = () => {
                 {canViewOwnPackages ? myCount : "Locked"}
               </span>
             </span>
+            <span className="package-center-stat">
+              Installed
+              <span className="package-center-stat__value">
+                {canViewLocalPackages ? localCount : "Locked"}
+              </span>
+            </span>
           </div>
         </div>
         <div className="package-center-hero__actions">
+          {hubBrowseUrl && (
+            <a className="btn btn--ghost" href={hubBrowseUrl} target="_blank" rel="noreferrer">
+              Open Hub
+              <ArrowUpRightIcon />
+            </a>
+          )}
           <button
             type="button"
             className="btn btn--ghost"
@@ -362,8 +488,19 @@ const PackageCenterPage = () => {
         >
           My Packages
         </button>
+        <button
+          type="button"
+          className={`package-center-tab ${activeTab === "local" ? "package-center-tab--active" : ""}`}
+          onClick={() => handleTabChange("local")}
+          disabled={!canViewLocalPackages}
+          title={!canViewLocalPackages ? "Requires workflow.viewer access." : undefined}
+        >
+          Installed
+        </button>
       </div>
-      <div className="package-center-content">{activeTab === "public" ? renderPublicTab() : renderMyTab()}</div>
+      <div className="package-center-content">
+        {activeTab === "public" ? renderPublicTab() : activeTab === "mine" ? renderMyTab() : renderLocalTab()}
+      </div>
     </div>
   );
 };

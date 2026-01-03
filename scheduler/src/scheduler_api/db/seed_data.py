@@ -6,7 +6,8 @@ import json
 from typing import Any, Dict
 
 from scheduler_api.db.models import WorkflowRecord
-from scheduler_api.db.session import SessionLocal
+from scheduler_api.db.session import run_in_session
+from scheduler_api.repo.workflows import WorkflowRepository
 
 
 DEMO_WORKFLOW_ID = "857f2a71-2c02-443f-bfca-4dd0e7f0a8db"
@@ -902,8 +903,10 @@ DEMO_WORKFLOW_DEFINITION["id"] = DEMO_WORKFLOW_ID
 def seed_demo_workflow() -> None:
     """Insert the demo workflow if it is missing."""
 
-    with SessionLocal() as session:
-        existing = session.get(WorkflowRecord, DEMO_WORKFLOW_ID)
+    repo = WorkflowRepository()
+
+    def _seed(session) -> None:
+        existing = repo.get(DEMO_WORKFLOW_ID, session=session)
         metadata = DEMO_WORKFLOW_DEFINITION["metadata"]
         structure = {
             key: value
@@ -929,8 +932,7 @@ def seed_demo_workflow() -> None:
                 environment=metadata.get("environment"),
                 tags=json.dumps(metadata.get("tags")) if metadata.get("tags") else None,
             )
-            session.add(record)
-            session.commit()
+            repo.save(record, session=session)
             return
 
         has_changes = (
@@ -949,7 +951,9 @@ def seed_demo_workflow() -> None:
             existing.description = description
             existing.environment = metadata.get("environment")
             existing.tags = json.dumps(metadata.get("tags")) if metadata.get("tags") else None
-        session.commit()
+        return None
+
+    run_in_session(_seed)
 
 
 __all__ = ["seed_demo_workflow", "DEMO_WORKFLOW_ID", "DEMO_WORKFLOW_DEFINITION"]

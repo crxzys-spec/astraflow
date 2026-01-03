@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from scheduler_api.auth.context import set_current_token
 from scheduler_api.auth.service import decode_access_token
+from scheduler_api.http.errors import unauthorized
 from scheduler_api.models.extra_models import TokenModel
 
 
@@ -24,10 +25,7 @@ async def get_token_bearerAuth(
     """
 
     if credentials is None or not credentials.credentials:
-        raise HTTPException(
-            status.HTTP_401_UNAUTHORIZED,
-            detail={"error": "unauthorized", "message": "Missing bearer token"},
-        )
+        raise unauthorized("Missing bearer token")
 
     token_value = credentials.credentials
     token_model = await _resolve_token(token_value)

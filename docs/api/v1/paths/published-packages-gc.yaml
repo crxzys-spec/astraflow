@@ -1,0 +1,21 @@
+post:
+  tags: [PublishedPackages]
+  summary: Garbage collect published package versions
+  operationId: gcPublishedPackages
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/PublishedPackageGcRequest'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/PublishedPackageGcResult'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+    '403':
+      $ref: '../components/responses.yaml#/Forbidden'

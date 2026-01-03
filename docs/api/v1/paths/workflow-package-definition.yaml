@@ -1,0 +1,26 @@
+get:
+  tags: [WorkflowPackages]
+  summary: Get a workflow package definition snapshot
+  operationId: getWorkflowPackageDefinition
+  parameters:
+    - name: packageId
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: versionId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/Workflow'
+    '403':
+      $ref: '../components/responses.yaml#/Forbidden'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import HTTPException, status
+from scheduler_api.http.errors import forbidden
 
 from scheduler_api.auth.context import get_current_token
 from scheduler_api.models.extra_models import TokenModel
@@ -17,13 +17,7 @@ AUDIT_VIEW_ROLES = {"admin"}
 def require_roles(*required: str) -> TokenModel:
     token = get_current_token()
     if token is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"error": "forbidden", "message": "Authentication required."},
-        )
+        raise forbidden("Authentication required.")
     if not set(token.roles).intersection(required):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"error": "forbidden", "message": "Insufficient role to perform this action."},
-        )
+        raise forbidden("Insufficient role to perform this action.")
     return token

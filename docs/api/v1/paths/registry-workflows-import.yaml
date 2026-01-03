@@ -1,0 +1,21 @@
+post:
+  tags: [Registry]
+  summary: Import a registry workflow into the platform
+  operationId: importRegistryWorkflow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/RegistryWorkflowImportRequest'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/RegistryWorkflowImportResponse'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

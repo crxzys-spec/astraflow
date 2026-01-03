@@ -1,0 +1,36 @@
+get:
+  tags: [PackageVault]
+  summary: List package vault entries
+  operationId: listPackageVault
+  parameters:
+    - name: packageName
+      in: query
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/PackageVaultList'
+put:
+  tags: [PackageVault]
+  summary: Upsert package vault entries
+  operationId: upsertPackageVault
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/PackageVaultUpsertRequest'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/PackageVaultList'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'

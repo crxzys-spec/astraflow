@@ -9,12 +9,13 @@ from uuid import uuid4
 
 import bcrypt
 import jwt
-from fastapi import HTTPException, status
-from sqlalchemy import select
+
+from scheduler_api.http.errors import unauthorized
 
 from scheduler_api.audit import record_audit_event
-from scheduler_api.db.models import RoleRecord, UserRecord, UserRoleRecord
-from scheduler_api.db.session import AsyncSessionLocal, SessionLocal
+from scheduler_api.db.models import UserRecord
+from scheduler_api.db.session import run_in_session
+from scheduler_api.repo.users import AsyncUserRepository, UserRepository
 
 
 JWT_ALGORITHM = os.getenv("SCHEDULER_JWT_ALGORITHM", "HS256")
@@ -43,29 +44,28 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
-def _get_user_with_roles(username: str) -> Optional[AuthenticatedUser]:
-    with SessionLocal() as session:
-        user = session.execute(
-            select(UserRecord).where(UserRecord.username == username)
-        ).scalar_one_or_none()
+_user_repo = UserRepository()
+_async_user_repo = AsyncUserRepository()
+
+
+def _get_user_with_roles(username: str) -> Optional[tuple[UserRecord, list[str]]]:
+    def _fetch(session) -> Optional[tuple[UserRecord, list[str]]]:
+        user = _user_repo.get_by_username(username, session=session)
         if not user:
             return None
-        role_rows = session.execute(
-            select(RoleRecord.name)
-            .join(UserRoleRecord, UserRoleRecord.role_id == RoleRecord.id)
-            .where(UserRoleRecord.user_id == user.id)
-        ).scalars()
-        roles = list(role_rows)
-        return AuthenticatedUser(user, roles)
+        roles = _user_repo.list_role_names(user.id, session=session)
+        return user, roles
+
+    return run_in_session(_fetch)
 
 
-def _unauthorized(message: str = "Invalid credentials") -> HTTPException:
-    return HTTPException(status.HTTP_401_UNAUTHORIZED, detail={"error": "unauthorized", "message": message})
+def _unauthorized(message: str = "Invalid credentials"):
+    return unauthorized(message)
 
 
 def authenticate_user(username: str, password: str) -> AuthenticatedUser:
-    user = _get_user_with_roles(username)
-    if not user:
+    result = _get_user_with_roles(username)
+    if not result:
         record_audit_event(
             actor_id=None,
             action="auth.login.failure",
@@ -74,9 +74,8 @@ def authenticate_user(username: str, password: str) -> AuthenticatedUser:
             metadata={"reason": "user_not_found"},
         )
         raise _unauthorized()
-    with SessionLocal() as session:
-        db_user = session.get(UserRecord, user.user_id)
-    if db_user is None or not db_user.is_active:
+    user_record, roles = result
+    if not user_record.is_active:
         record_audit_event(
             actor_id=None,
             action="auth.login.failure",
@@ -85,7 +84,7 @@ def authenticate_user(username: str, password: str) -> AuthenticatedUser:
             metadata={"reason": "inactive"},
         )
         raise _unauthorized()
-    if not verify_password(password, db_user.password_hash):
+    if not verify_password(password, user_record.password_hash):
         record_audit_event(
             actor_id=None,
             action="auth.login.failure",
@@ -94,6 +93,7 @@ def authenticate_user(username: str, password: str) -> AuthenticatedUser:
             metadata={"reason": "invalid_password"},
         )
         raise _unauthorized()
+    user = AuthenticatedUser(user_record, roles)
     record_audit_event(
         actor_id=user.user_id,
         action="auth.login.success",
@@ -127,14 +127,10 @@ async def decode_access_token(token: str) -> AuthenticatedUser:
     user_id = payload.get("sub")
     if not user_id:
         raise _unauthorized("Invalid token")
-    async with AsyncSessionLocal() as session:
-        user = await session.get(UserRecord, user_id)
-        if not user or not user.is_active:
-            raise _unauthorized("Invalid token")
-        role_rows = await session.execute(
-            select(RoleRecord.name)
-            .join(UserRoleRecord, UserRoleRecord.role_id == RoleRecord.id)
-            .where(UserRoleRecord.user_id == user.id)
-        )
-        roles = list(role_rows.scalars())
-        return AuthenticatedUser(user, roles)
+    result = await _async_user_repo.get_with_roles_by_id(user_id)
+    if not result:
+        raise _unauthorized("Invalid token")
+    user, roles = result
+    if not user.is_active:
+        raise _unauthorized("Invalid token")
+    return AuthenticatedUser(user, roles)

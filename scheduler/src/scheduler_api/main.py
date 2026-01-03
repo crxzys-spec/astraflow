@@ -18,7 +18,13 @@ from scheduler_api.apis.audit_api import router as AuditApiRouter
 from scheduler_api.apis.auth_api import router as AuthApiRouter
 from scheduler_api.apis.catalog_api import router as CatalogApiRouter
 from scheduler_api.apis.events_api import router as EventsApiRouter
+from scheduler_api.apis.hub_packages_api import router as HubPackagesApiRouter
+from scheduler_api.apis.hub_workflows_api import router as HubWorkflowsApiRouter
+from scheduler_api.apis.package_permissions_api import router as PackagePermissionsApiRouter
+from scheduler_api.apis.package_vault_api import router as PackageVaultApiRouter
 from scheduler_api.apis.packages_api import router as PackagesApiRouter
+from scheduler_api.apis.published_packages_api import router as PublishedPackagesApiRouter
+from scheduler_api.apis.registry_api import router as RegistryApiRouter
 from scheduler_api.apis.resources_api import router as ResourcesApiRouter
 from scheduler_api.apis.runs_api import router as RunsApiRouter
 from scheduler_api.apis.users_api import router as UsersApiRouter
@@ -36,7 +42,13 @@ app.include_router(AuditApiRouter)
 app.include_router(AuthApiRouter)
 app.include_router(CatalogApiRouter)
 app.include_router(EventsApiRouter)
+app.include_router(HubPackagesApiRouter)
+app.include_router(HubWorkflowsApiRouter)
+app.include_router(PackagePermissionsApiRouter)
+app.include_router(PackageVaultApiRouter)
 app.include_router(PackagesApiRouter)
+app.include_router(PublishedPackagesApiRouter)
+app.include_router(RegistryApiRouter)
 app.include_router(ResourcesApiRouter)
 app.include_router(RunsApiRouter)
 app.include_router(UsersApiRouter)

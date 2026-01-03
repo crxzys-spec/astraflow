@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo } from "react";
+import type { CSSProperties } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@store/authSlice";
 import { useToolbarStore } from "../features/builder/hooks/useToolbar";
-import { useWorkflows, useWorkflowsStore } from "../store/workflowsSlice";
+import { useWorkflows } from "../store/workflowsSlice";
+import type { WorkflowModel } from "../services/workflows";
+import { getHubBrowseUrl } from "../lib/hubLinks";
 
 const WorkflowsPage = () => {
-  const workflowsQuery = useWorkflows(undefined, { enabled: true });
+  const workflowsQuery = useWorkflows({ limit: 48 }, { enabled: true });
   const canCreateWorkflow = useAuthStore((state) => state.hasRole(["admin", "workflow.editor"]));
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deletingWorkflowId, setDeletingWorkflowId] = useState<string | null>(null);
-  const [previewMap, setPreviewMap] = useState<Record<string, string | null>>({});
-  const deleteWorkflow = useWorkflowsStore((state) => state.deleteWorkflow);
+  const navigate = useNavigate();
+  const hubBrowseUrl = getHubBrowseUrl("workflows");
 
   const workflows = workflowsQuery.items ?? [];
   const isLoading = workflowsQuery.isLoading;
@@ -22,194 +22,225 @@ const WorkflowsPage = () => {
       ?.data?.message;
 
   const setToolbar = useToolbarStore((state) => state.setContent);
+  const workflowStats = useMemo(() => {
+    const owners = new Set<string>();
+    const tags = new Set<string>();
+    workflows.forEach((workflow) => {
+      const ownerDisplay = workflow.metadata?.ownerName ?? workflow.metadata?.ownerId;
+      if (ownerDisplay) {
+        owners.add(ownerDisplay);
+      }
+      const workflowTags = workflow.metadata?.tags ?? workflow.tags ?? [];
+      workflowTags.forEach((tag) => tags.add(tag));
+    });
+    return {
+      total: workflows.length,
+      owners: owners.size,
+      tags: tags.size,
+    };
+  }, [workflows]);
 
-  const toolbarContent = useMemo(() => {
-    if (!canCreateWorkflow) {
-      return null;
-    }
-    return (
+  const toolbarContent = useMemo(
+    () => (
       <div className="toolbar-buttons">
-        <Link className="btn btn--ghost" to="/workflows/new">
-          <span className="btn__icon" aria-hidden="true">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path d="M10 4v12" />
-              <path d="M4 10h12" />
-            </svg>
-          </span>
-          Create
+        <Link className="btn btn--ghost" to="/hub/workflows">
+          Hub Library
         </Link>
+        {canCreateWorkflow && (
+          <Link className="btn btn--ghost" to="/workflows/new">
+            <span className="btn__icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <path d="M10 4v12" />
+                <path d="M4 10h12" />
+              </svg>
+            </span>
+            Create
+          </Link>
+        )}
       </div>
-    );
-  }, [canCreateWorkflow]);
+    ),
+    [canCreateWorkflow],
+  );
 
   useEffect(() => {
     setToolbar(toolbarContent);
     return () => setToolbar(null);
   }, [toolbarContent, setToolbar]);
 
-  useEffect(() => {
-    const idsNeedingPreview = workflows
-      .map((w) => w.id)
-      .filter((id) => previewMap[id] === undefined);
-    if (!idsNeedingPreview.length) {
-      return;
-    }
-    let cancelled = false;
-    idsNeedingPreview.forEach((id) => {
-      axios
-        .get<{ previewImage?: string | null }>(`/api/v1/workflows/${id}/preview`)
-        .then((res) => {
-          if (cancelled) return;
-          setPreviewMap((prev) => ({ ...prev, [id]: res.data?.previewImage ?? null }));
-        })
-        .catch(() => {
-          if (cancelled) return;
-          setPreviewMap((prev) => ({ ...prev, [id]: null }));
-        });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [workflows, previewMap]);
-
-  const handleDelete = async (workflowId: string, workflowName: string) => {
-    if (!window.confirm(`Delete workflow "${workflowName}"? This action can be undone by re-saving.`)) {
-      return;
-    }
-    setDeleteError(null);
-    setDeletingWorkflowId(workflowId);
-    try {
-      await deleteWorkflow(workflowId);
-      await workflowsQuery.refetch();
-    } catch (error) {
-      const defaultMessage = "Failed to delete workflow.";
-      const responseMessage =
-        (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setDeleteError(responseMessage ?? (error as Error | undefined)?.message ?? defaultMessage);
-    } finally {
-      setDeletingWorkflowId(null);
-    }
+  const handleOpen = (workflow: WorkflowModel) => {
+    navigate(`/workflows/${workflow.id}`);
   };
 
   return (
-    <div className="card stack package-center-panel">
-      <header className="card__header">
-        <div>
-          <h2>Workflows</h2>
-          <p className="text-subtle">
-            Browse workflow definitions and open them in the interactive builder.
-          </p>
-        </div>
-      </header>
-      <div className="package-center-content">
-      {deleteError && (
-        <div className="card card--error">
-          <p className="error">Unable to delete workflow: {deleteError}</p>
-        </div>
-      )}
-      {isLoading && (
-        <div className="card card--surface">
-          <p>Loading workflows...</p>
-        </div>
-      )}
-
-      {isError && (
-        <div className="card card--error">
-          <p className="error">Unable to load workflows: {errorMessage ?? "Unknown error"}</p>
-          <button className="btn" type="button" onClick={() => workflowsQuery.refetch()}>
-            Retry
-          </button>
-        </div>
-      )}
-
-      {!isLoading && !isError && workflows.length === 0 && (
-        <div className="card card--surface">
-          <p>No workflows found. Use “Create Workflow” to start a new definition.</p>
-        </div>
-      )}
-
-      {!isLoading && !isError && workflows.length > 0 && (
-        <div className="workflow-grid-shell">
-          <div className="workflow-grid">
-            {workflows.map((workflow) => {
-            const metadata = workflow.metadata ?? { name: workflow.id, namespace: "default" };
-            const tags = metadata.tags ?? [];
-            const namespace = metadata.namespace ?? "default";
-            const description = metadata.description ?? "No description provided.";
-            const ownerDisplay = metadata.ownerName ?? metadata.ownerId ?? "Unassigned";
-            const environment = metadata.environment ?? "default";
-            const previewImage = previewMap[workflow.id] ?? workflow.previewImage ?? null;
-            return (
-              <article key={workflow.id} className="card card--surface workflow-card workflow-card--accent">
-                <div className="workflow-card__media">
-                  <div
-                    className={`workflow-card__preview ${
-                      previewImage ? "" : "workflow-card__preview--empty"
-                    }`}
-                  >
-                    {previewImage ? (
-                      <img
-                        src={previewImage}
-                        alt={`${metadata.name ?? workflow.id} preview`}
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="workflow-card__preview-placeholder">Snapshot pending</div>
-                    )}
-                  </div>
-                  <header className="workflow-card__header">
-                    <div className="workflow-card__identity">
-                      <small className="workflow-card__eyebrow">Workflow</small>
-                      <h3>{metadata.name ?? workflow.id}</h3>
-                      <p className="workflow-card__owner">@{ownerDisplay}</p>
-                    </div>
-                  </header>
-                </div>
-                <div className="workflow-card__body">
-                  <p className="workflow-card__description">{description}</p>
-                  <div className="workflow-card__chips workflow-card__chips--body">
-                    <span className="chip chip--ghost">{namespace}</span>
-                    <span className="chip chip--ghost">{environment}</span>
-                  </div>
-                  <div className="workflow-card__actions-row">
-                    <div className="workflow-card__action-buttons">
-                      <button
-                        className="btn btn--ghost"
-                        type="button"
-                        disabled={deletingWorkflowId === workflow.id}
-                        onClick={() => handleDelete(workflow.id, metadata.name ?? workflow.id)}
-                      >
-                        <span className="btn__icon" aria-hidden="true">🗑</span>
-                        {deletingWorkflowId === workflow.id ? "Deleting..." : "Delete"}
-                      </button>
-                      <Link className="btn btn--primary" to={`/workflows/${workflow.id}`}>
-                        <span className="btn__icon" aria-hidden="true">⟲</span>
-                        Open Builder
-                      </Link>
-                    </div>
-                  </div>
-                  <footer className="workflow-card__footer">
-                    {tags.length > 0 ? (
-                      <div className="workflow-card__tags">
-                        {tags.map((tag) => (
-                          <span key={tag} className="chip">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    ) : <span />}
-                    <div className="workflow-card__signature">
-                      <span>Workflow ID</span>
-                      <code>{workflow.id}</code>
-                    </div>
-                  </footer>
-                </div>
-              </article>
-            );
-            })}
+    <div className="card stack package-center-panel workflows-panel">
+      <div className="workflow-deck">
+        <div className="workflow-deck__rail">
+          <div className="workflow-deck__intro">
+            <p className="workflow-deck__eyebrow">Workflow Library</p>
+            <p className="workflow-deck__subtitle">
+              Manage local workflows and open them in the interactive builder.
+            </p>
+          </div>
+          <div className="workflow-deck__stats">
+            <div className="workflow-deck__stat">
+              <span className="workflow-deck__stat-label">Total</span>
+              <strong>{isLoading ? "--" : workflowStats.total}</strong>
+              <span className="workflow-deck__stat-sublabel">Local workflows</span>
+            </div>
+            <div className="workflow-deck__stat">
+              <span className="workflow-deck__stat-label">Owners</span>
+              <strong>{isLoading ? "--" : workflowStats.owners}</strong>
+              <span className="workflow-deck__stat-sublabel">Maintainers</span>
+            </div>
+            <div className="workflow-deck__stat">
+              <span className="workflow-deck__stat-label">Tags</span>
+              <strong>{isLoading ? "--" : workflowStats.tags}</strong>
+              <span className="workflow-deck__stat-sublabel">Categories</span>
+            </div>
           </div>
         </div>
-      )}
+        <div className="package-center-content workflow-deck__content">
+          {hubBrowseUrl && (
+            <div className="card card--surface">
+              <p className="text-subtle">
+                Looking for shared workflows?{" "}
+                <a href={hubBrowseUrl} target="_blank" rel="noreferrer">
+                  Browse on Hub
+                </a>
+                .
+              </p>
+            </div>
+          )}
+          {isLoading && (
+            <div className="card card--surface">
+              <p>Loading local workflows...</p>
+            </div>
+          )}
+
+          {isError && (
+            <div className="card card--error">
+              <p className="error">Unable to load workflows: {errorMessage ?? "Unknown error"}</p>
+              <button className="btn" type="button" onClick={() => workflowsQuery.refetch()}>
+                Retry
+              </button>
+            </div>
+          )}
+
+          {!isLoading && !isError && workflows.length === 0 && (
+            <div className="card card--surface">
+              <p>No local workflows found yet.</p>
+            </div>
+          )}
+
+          {!isLoading && !isError && workflows.length > 0 && (
+            <div className="workflow-grid-shell">
+              <div className="workflow-grid">
+                {workflows.map((workflow, index) => {
+                  const tags = workflow.metadata?.tags ?? workflow.tags ?? [];
+                  const visibleTags = tags.slice(0, 3);
+                  const extraTagCount = Math.max(0, tags.length - visibleTags.length);
+                  const description = workflow.metadata?.description ?? "No description yet.";
+                  const ownerDisplay =
+                    workflow.metadata?.ownerName ?? workflow.metadata?.ownerId ?? "Unassigned";
+                  const previewImage = workflow.previewImage ?? null;
+                  const workflowName = workflow.metadata?.name ?? workflow.id;
+                  const namespaceLabel = workflow.metadata?.namespace ?? "default";
+                  const idShort =
+                    workflow.id.length > 12
+                      ? `${workflow.id.slice(0, 8)}...${workflow.id.slice(-4)}`
+                      : workflow.id;
+                  const cardStyle = { "--stagger": index } as CSSProperties;
+                  return (
+                    <article
+                      key={workflow.id}
+                      className="card card--surface workflow-card workflow-card--accent"
+                      style={cardStyle}
+                    >
+                      <div className="workflow-card__media">
+                        <div
+                          className={`workflow-card__preview ${
+                            previewImage ? "" : "workflow-card__preview--empty"
+                          }`}
+                        >
+                          {previewImage ? (
+                            <img
+                              src={previewImage}
+                              alt={`${workflowName} preview`}
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="workflow-card__preview-placeholder">
+                              <div className="workflow-card__placeholder-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                                  <rect x="3" y="4" width="18" height="14" rx="2" />
+                                  <path d="M7 9h10" />
+                                  <path d="M7 13h6" />
+                                </svg>
+                              </div>
+                              <div className="workflow-card__placeholder-copy">
+                                <span className="workflow-card__placeholder-title">Snapshot pending</span>
+                                <span className="workflow-card__placeholder-subtitle">
+                                  Run the workflow to capture a preview.
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <header className="workflow-card__header">
+                          <div className="workflow-card__identity">
+                            <small className="workflow-card__eyebrow">Local workflow</small>
+                            <h3>{workflowName}</h3>
+                            <p className="workflow-card__owner">@{ownerDisplay}</p>
+                          </div>
+                          <div className="workflow-card__chips workflow-card__chips--header">
+                            <span className="chip workflow-pill">{namespaceLabel}</span>
+                            <span className="chip workflow-pill">Local</span>
+                          </div>
+                        </header>
+                      </div>
+                      <div className="workflow-card__body">
+                        <p className="workflow-card__description">{description}</p>
+                        {tags.length > 0 ? (
+                          <div className="workflow-card__tags">
+                            {visibleTags.map((tag) => (
+                              <span key={tag} className="workflow-tag">
+                                {tag}
+                              </span>
+                            ))}
+                            {extraTagCount > 0 && (
+                              <span className="workflow-tag workflow-tag--ghost">
+                                +{extraTagCount} more
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="workflow-card__tags workflow-card__tags--empty">
+                            No tags yet
+                          </div>
+                        )}
+                        <div className="workflow-card__actions-row">
+                          <div className="workflow-card__action-buttons">
+                            <button
+                              className="btn workflow-btn workflow-btn--ghost"
+                              type="button"
+                              onClick={() => handleOpen(workflow)}
+                            >
+                              Open Builder
+                            </button>
+                          </div>
+                          <div className="workflow-card__signature" title={workflow.id}>
+                            <span>ID</span>
+                            <code>{idShort}</code>
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

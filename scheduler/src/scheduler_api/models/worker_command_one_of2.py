@@ -20,7 +20,7 @@ import json
 
 
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 try:
     from typing import Self
@@ -34,7 +34,9 @@ class WorkerCommandOneOf2(BaseModel):
     type: Optional[Any]
     name: StrictStr
     version: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["type", "name", "version"]
+    url: Optional[StrictStr] = Field(default=None, description="Optional archive URL; defaults to the published package archive.")
+    sha256: Optional[StrictStr] = Field(default=None, description="Optional SHA-256 checksum of the archive.")
+    __properties: ClassVar[List[str]] = ["type", "name", "version", "url", "sha256"]
 
     model_config = {
         "populate_by_name": True,
@@ -92,7 +94,9 @@ class WorkerCommandOneOf2(BaseModel):
         _obj = cls.model_validate({
             "type": obj.get("type"),
             "name": obj.get("name"),
-            "version": obj.get("version")
+            "version": obj.get("version"),
+            "url": obj.get("url"),
+            "sha256": obj.get("sha256")
         })
         return _obj
 

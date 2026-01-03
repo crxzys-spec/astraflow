@@ -1,34 +1,42 @@
 import clsx from "clsx";
 import { memo, useCallback } from "react";
-import { Panel, useReactFlow, useStore, useStoreApi } from "reactflow";
+import { useFlowControlsStore } from "../hooks/useFlowControls";
 
 const WorkflowControls = memo(() => {
-  const { zoomIn, zoomOut, fitView } = useReactFlow();
-  const store = useStoreApi();
-  const minZoomReached = useStore((state) => state.transform[2] <= state.minZoom);
-  const maxZoomReached = useStore((state) => state.transform[2] >= state.maxZoom);
-  const isInteractive = useStore(
-    (state) => state.nodesDraggable || state.nodesConnectable || state.elementsSelectable
-  );
+  const zoomIn = useFlowControlsStore((state) => state.zoomIn);
+  const zoomOut = useFlowControlsStore((state) => state.zoomOut);
+  const fitView = useFlowControlsStore((state) => state.fitView);
+  const toggleInteractive = useFlowControlsStore((state) => state.toggleInteractive);
+  const minZoomReached = useFlowControlsStore((state) => state.minZoomReached);
+  const maxZoomReached = useFlowControlsStore((state) => state.maxZoomReached);
+  const isInteractive = useFlowControlsStore((state) => state.isInteractive);
+  const isReady = useFlowControlsStore((state) => state.ready);
 
-  const toggleInteractive = useCallback(() => {
-    const next = !isInteractive;
-    store.setState({
-      nodesDraggable: next,
-      nodesConnectable: next,
-      elementsSelectable: next,
-    });
-  }, [isInteractive, store]);
+  const handleZoomIn = useCallback(() => {
+    zoomIn?.();
+  }, [zoomIn]);
+
+  const handleZoomOut = useCallback(() => {
+    zoomOut?.();
+  }, [zoomOut]);
+
+  const handleFitView = useCallback(() => {
+    fitView?.();
+  }, [fitView]);
+
+  const handleToggleInteractive = useCallback(() => {
+    toggleInteractive?.();
+  }, [toggleInteractive]);
 
   return (
-    <Panel position="top-right" className="react-flow__controls workflow-controls">
+    <div className="workflow-controls workflow-controls--toolbar" role="group" aria-label="Canvas controls">
       <button
         type="button"
         className="workflow-controls__btn"
         aria-label="Zoom in"
         title="Zoom in"
-        onClick={() => zoomIn()}
-        disabled={maxZoomReached}
+        onClick={handleZoomIn}
+        disabled={!isReady || maxZoomReached}
       >
         <span aria-hidden className="workflow-controls__icon workflow-controls__icon--plus" />
       </button>
@@ -37,8 +45,8 @@ const WorkflowControls = memo(() => {
         className="workflow-controls__btn"
         aria-label="Zoom out"
         title="Zoom out"
-        onClick={() => zoomOut()}
-        disabled={minZoomReached}
+        onClick={handleZoomOut}
+        disabled={!isReady || minZoomReached}
       >
         <span aria-hidden className="workflow-controls__icon workflow-controls__icon--minus" />
       </button>
@@ -47,7 +55,8 @@ const WorkflowControls = memo(() => {
         className="workflow-controls__btn"
         aria-label="Fit view"
         title="Fit view"
-        onClick={() => fitView({ padding: 0.2 })}
+        onClick={handleFitView}
+        disabled={!isReady}
       >
         <span aria-hidden className="workflow-controls__icon workflow-controls__icon--frame" />
       </button>
@@ -58,11 +67,12 @@ const WorkflowControls = memo(() => {
         })}
         aria-label="Toggle interactivity"
         title="Toggle interactivity"
-        onClick={toggleInteractive}
+        onClick={handleToggleInteractive}
+        disabled={!isReady}
       >
         <span aria-hidden className="workflow-controls__icon workflow-controls__icon--interactive" />
       </button>
-    </Panel>
+    </div>
   );
 });
 

@@ -22,6 +22,8 @@ import { DUMMY_BASE_URL, assertParamExists, setApiKeyToObject, setBasicAuthToObj
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError, operationServerMap } from '../base';
 // @ts-ignore
+import type { Workflow } from '../models';
+// @ts-ignore
 import type { WorkflowPackageCloneRequest } from '../models';
 // @ts-ignore
 import type { WorkflowPackageDetail } from '../models';
@@ -132,6 +134,48 @@ export const WorkflowPackagesApiAxiosParamCreator = function (configuration?: Co
             assertParamExists('getWorkflowPackage', 'packageId', packageId)
             const localVarPath = `/api/v1/workflow-packages/{packageId}`
                 .replace(`{${"packageId"}}`, encodeURIComponent(String(packageId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get a workflow package definition snapshot
+         * @param {string} packageId 
+         * @param {string} versionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getWorkflowPackageDefinition: async (packageId: string, versionId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'packageId' is not null or undefined
+            assertParamExists('getWorkflowPackageDefinition', 'packageId', packageId)
+            // verify required parameter 'versionId' is not null or undefined
+            assertParamExists('getWorkflowPackageDefinition', 'versionId', versionId)
+            const localVarPath = `/api/v1/workflow-packages/{packageId}/versions/{versionId}/definition`
+                .replace(`{${"packageId"}}`, encodeURIComponent(String(packageId)))
+                .replace(`{${"versionId"}}`, encodeURIComponent(String(versionId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -350,6 +394,20 @@ export const WorkflowPackagesApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Get a workflow package definition snapshot
+         * @param {string} packageId 
+         * @param {string} versionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getWorkflowPackageDefinition(packageId: string, versionId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Workflow>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getWorkflowPackageDefinition(packageId, versionId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['WorkflowPackagesApi.getWorkflowPackageDefinition']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary List versions for a workflow package
          * @param {string} packageId 
          * @param {*} [options] Override http request option.
@@ -434,6 +492,17 @@ export const WorkflowPackagesApiFactory = function (configuration?: Configuratio
         },
         /**
          * 
+         * @summary Get a workflow package definition snapshot
+         * @param {string} packageId 
+         * @param {string} versionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getWorkflowPackageDefinition(packageId: string, versionId: string, options?: RawAxiosRequestConfig): AxiosPromise<Workflow> {
+            return localVarFp.getWorkflowPackageDefinition(packageId, versionId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary List versions for a workflow package
          * @param {string} packageId 
          * @param {*} [options] Override http request option.
@@ -506,6 +575,18 @@ export class WorkflowPackagesApi extends BaseAPI {
      */
     public getWorkflowPackage(packageId: string, options?: RawAxiosRequestConfig) {
         return WorkflowPackagesApiFp(this.configuration).getWorkflowPackage(packageId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get a workflow package definition snapshot
+     * @param {string} packageId 
+     * @param {string} versionId 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getWorkflowPackageDefinition(packageId: string, versionId: string, options?: RawAxiosRequestConfig) {
+        return WorkflowPackagesApiFp(this.configuration).getWorkflowPackageDefinition(packageId, versionId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

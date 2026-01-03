@@ -106,7 +106,7 @@ const UsersPage = () => {
   if (!isAdmin) {
     return (
       <div className="admin-view">
-        <div className="card stack">
+        <div className="card stack admin-panel">
           <h2>User Management</h2>
           <p className="text-subtle">
             Only administrators can provision accounts. Contact your AstraFlow administrator to request access.
@@ -244,11 +244,14 @@ const UsersPage = () => {
 
   return (
     <div className="admin-view">
-      <div className="card stack admin-user-card">
-        <header className="card__header">
+      <div className="card stack admin-user-card admin-panel">
+        <header className="card__header admin-panel__header">
           <div>
+            <span className="admin-panel__eyebrow">Administration</span>
             <h2>User Management</h2>
-            <p className="text-subtle">Manage accounts, roles, and passwords across the platform.</p>
+            <p className="text-subtle admin-panel__description">
+              Manage accounts, roles, and passwords across the platform.
+            </p>
           </div>
           <div className="users-layout__actions">
             <button className="btn btn--ghost" type="button" onClick={() => setCreateModalOpen(true)}>
@@ -271,55 +274,57 @@ const UsersPage = () => {
           </div>
         )}
 
-        <div className="users-table-wrapper">
-          <table className="data-table users-table">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Display name</th>
-                <th>Roles</th>
-                <th>Status</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {usersStatus === "loading" ? (
+        <div className="admin-section admin-section--table">
+          <div className="users-table-wrapper admin-table-wrap">
+            <table className="data-table users-table admin-table">
+              <thead>
                 <tr>
-                  <td colSpan={4}>Loading users...</td>
+                  <th>Username</th>
+                  <th>Display name</th>
+                  <th>Roles</th>
+                  <th>Status</th>
+                  <th />
                 </tr>
-              ) : users.length === 0 ? (
-                <tr>
-                  <td colSpan={4}>No users found. Use "Create User" to add one.</td>
-                </tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.userId}>
-                    <td>{user.username}</td>
-                    <td>{user.displayName}</td>
-                    <td>{user.roles.join(", ") || "None"}</td>
-                    <td>
-                      <span className={`badge ${user.isActive ? "badge--success" : "badge--muted"}`}>
-                        {user.isActive ? "Active" : "Disabled"}
-                      </span>
-                    </td>
-                    <td className="users-table__actions">
-                      <button
-                        className="btn btn--ghost"
-                        type="button"
-                        onClick={() => {
-                          setSelectedUserId(user.userId);
-                          setManageModalOpen(true);
-                          setNewPassword("");
-                        }}
-                      >
-                        Manage
-                      </button>
-                    </td>
+              </thead>
+              <tbody>
+                {usersStatus === "loading" ? (
+                  <tr>
+                    <td colSpan={4}>Loading users...</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : users.length === 0 ? (
+                  <tr>
+                    <td colSpan={4}>No users found. Use "Create User" to add one.</td>
+                  </tr>
+                ) : (
+                  users.map((user) => (
+                    <tr key={user.userId}>
+                      <td>{user.username}</td>
+                      <td>{user.displayName}</td>
+                      <td>{user.roles.join(", ") || "None"}</td>
+                      <td>
+                        <span className={`badge ${user.isActive ? "badge--success" : "badge--muted"}`}>
+                          {user.isActive ? "Active" : "Disabled"}
+                        </span>
+                      </td>
+                      <td className="users-table__actions admin-table__actions">
+                        <button
+                          className="btn btn--ghost"
+                          type="button"
+                          onClick={() => {
+                            setSelectedUserId(user.userId);
+                            setManageModalOpen(true);
+                            setNewPassword("");
+                          }}
+                        >
+                          Manage
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -463,4 +468,3 @@ const UsersPage = () => {
 };
 
 export default UsersPage;
-

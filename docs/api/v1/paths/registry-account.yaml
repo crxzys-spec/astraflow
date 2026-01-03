@@ -1,0 +1,41 @@
+get:
+  tags: [Registry]
+  summary: Get linked registry account
+  operationId: getRegistryAccount
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/RegistryAccountLink'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'
+post:
+  tags: [Registry]
+  summary: Link registry account
+  operationId: linkRegistryAccount
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/RegistryAccountLinkRequest'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/RegistryAccountLink'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+delete:
+  tags: [Registry]
+  summary: Unlink registry account
+  operationId: unlinkRegistryAccount
+  responses:
+    '204':
+      description: Deleted
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

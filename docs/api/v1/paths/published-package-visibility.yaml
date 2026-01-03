@@ -1,0 +1,29 @@
+patch:
+  tags: [PublishedPackages]
+  summary: Update published package visibility
+  operationId: updatePublishedPackageVisibility
+  parameters:
+    - name: packageName
+      in: path
+      required: true
+      schema:
+        type: string
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/PublishedPackageVisibilityRequest'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/PublishedPackageRegistry'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+    '403':
+      $ref: '../components/responses.yaml#/Forbidden'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

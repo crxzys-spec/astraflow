@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from fastapi import HTTPException, status
+from scheduler_api.http.errors import internal_error, not_found
 
 from scheduler_api.apis.packages_api_base import BasePackagesApi
 from scheduler_api.auth.roles import WORKFLOW_VIEW_ROLES, require_roles
-from scheduler_api.catalog import (
+from scheduler_api.infra.catalog import (
     PackageCatalogError,
     PackageNotFoundError,
     PackageVersionNotFoundError,
@@ -41,11 +41,11 @@ class PackagesApiImpl(BasePackagesApi):
         try:
             detail = catalog.get_package_detail(packageName, version)
         except PackageNotFoundError as exc:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+            raise not_found(str(exc), error="package_not_found") from exc
         except PackageVersionNotFoundError as exc:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+            raise not_found(str(exc), error="package_version_not_found") from exc
         except PackageCatalogError as exc:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+            raise internal_error(str(exc), error="package_catalog_error") from exc
 
         manifest_dict = detail["manifest"].model_dump(by_alias=True, exclude_none=True, mode="json")
         # Ensure schemas are serialized to plain dicts/bools (avoid BaseModel.schema method leaks)

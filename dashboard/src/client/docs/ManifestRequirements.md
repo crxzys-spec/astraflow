@@ -5,7 +5,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**resources** | [**Array&lt;ManifestResourceRequirement&gt;**](ManifestResourceRequirement.md) |  | [optional] [default to undefined]
+**resources** | [**Array&lt;ManifestResourceRequirement&gt;**](ManifestResourceRequirement.md) | Resource requirements declared by the package. Deprecated in favor of permissions/vault. | [optional] [default to undefined]
+**permissions** | [**Array&lt;ManifestPermissionRequirement&gt;**](ManifestPermissionRequirement.md) | Package permissions requested to access user resources. | [optional] [default to undefined]
+**vault** | [**Array&lt;ManifestVaultRequirement&gt;**](ManifestVaultRequirement.md) | Package-owned secret entries stored in the user\&#39;s vault. | [optional] [default to undefined]
 
 ## Example
 
@@ -14,6 +16,8 @@ import { ManifestRequirements } from './api';
 
 const instance: ManifestRequirements = {
     resources,
+    permissions,
+    vault,
 };
 ```
 

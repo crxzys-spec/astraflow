@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import AsyncIterator, Iterator
+from typing import AsyncIterator, Awaitable, Callable, Iterator, TypeVar
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
@@ -114,6 +114,34 @@ async def get_async_session() -> AsyncIterator[AsyncSession]:
         yield session
 
 
+T = TypeVar("T")
+AsyncT = TypeVar("AsyncT")
+
+
+def run_in_session(func: Callable[[Session], T]) -> T:
+    """Run a unit of work inside a managed sync session."""
+    with SessionLocal() as session:
+        try:
+            result = func(session)
+            session.commit()
+            return result
+        except Exception:
+            session.rollback()
+            raise
+
+
+async def run_in_session_async(func: Callable[[AsyncSession], Awaitable[AsyncT]]) -> AsyncT:
+    """Run a unit of work inside a managed async session."""
+    async with AsyncSessionLocal() as session:
+        try:
+            result = await func(session)
+            await session.commit()
+            return result
+        except Exception:
+            await session.rollback()
+            raise
+
+
 __all__ = [
     "Base",
     "SessionLocal",
@@ -124,4 +152,6 @@ __all__ = [
     "get_async_session",
     "DATABASE_URL",
     "ASYNC_DATABASE_URL",
+    "run_in_session",
+    "run_in_session_async",
 ]

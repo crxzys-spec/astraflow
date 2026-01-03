@@ -6,7 +6,11 @@ import json
 from typing import Any, Mapping
 
 from scheduler_api.db.models import AuditEventRecord
-from scheduler_api.db.session import SessionLocal
+from scheduler_api.db.session import run_in_session
+from scheduler_api.repo.audit import AuditRepository
+
+
+_audit_repo = AuditRepository()
 
 
 def record_audit_event(
@@ -24,14 +28,16 @@ def record_audit_event(
         except (TypeError, ValueError):
             payload = json.dumps({"error": "serialization_failed"})
 
-    with SessionLocal() as session:
-        session.add(
+    def _create(session) -> None:
+        _audit_repo.create_event(
             AuditEventRecord(
                 actor_id=actor_id,
                 action=action,
                 target_type=target_type,
                 target_id=target_id,
                 details=payload,
-            )
+            ),
+            session=session,
         )
-        session.commit()
+
+    run_in_session(_create)

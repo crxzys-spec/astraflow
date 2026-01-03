@@ -1,7 +1,7 @@
 """add resources table
 
 Revision ID: 17f8f5e3a955
-Revises: 0af81a313e28
+Revises: 20251119_0010
 Create Date: 2025-12-23 23:44:32.829167
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '17f8f5e3a955'
-down_revision = '0af81a313e28'
+down_revision = '20251119_0010'
 branch_labels = None
 depends_on = None
 
@@ -46,4 +46,3 @@ def downgrade() -> None:
     op.drop_index('ix_resources_owner_id', table_name='resources')
     op.drop_table('resources')
     # ### end Alembic commands ###
-

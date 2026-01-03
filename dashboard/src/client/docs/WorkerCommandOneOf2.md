@@ -8,6 +8,8 @@ Name | Type | Description | Notes
 **type** | **string** |  | [default to undefined]
 **name** | **string** |  | [default to undefined]
 **version** | **string** |  | [optional] [default to undefined]
+**url** | **string** | Optional archive URL; defaults to the published package archive. | [optional] [default to undefined]
+**sha256** | **string** | Optional SHA-256 checksum of the archive. | [optional] [default to undefined]
 
 ## Example
 
@@ -18,6 +20,8 @@ const instance: WorkerCommandOneOf2 = {
     type,
     name,
     version,
+    url,
+    sha256,
 };
 ```
 

@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from typing import ClassVar, Dict, List, Tuple  # noqa: F401
+from typing import ClassVar, Dict, List, Tuple, Any  # noqa: F401
 from fastapi import UploadFile
 
 from pydantic import Field, StrictBytes, StrictStr
@@ -8,10 +8,6 @@ from typing import Any, Optional, Tuple, Union
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
 from scheduler_api.models.resource import Resource
-from scheduler_api.models.resource_grant import ResourceGrant
-from scheduler_api.models.resource_grant_create_request import ResourceGrantCreateRequest
-from scheduler_api.models.resource_grant_list import ResourceGrantList
-from scheduler_api.models.resource_grant_scope import ResourceGrantScope
 from scheduler_api.models.resource_list import ResourceList
 from scheduler_api.models.resource_upload_init_request import ResourceUploadInitRequest
 from scheduler_api.models.resource_upload_part import ResourceUploadPart
@@ -97,37 +93,4 @@ class BaseResourcesApi:
         self,
         resourceId: StrictStr,
     ) -> Any:
-        ...
-
-
-    async def list_resource_grants(
-        self,
-        workflow_id: Optional[StrictStr],
-        package_name: Optional[StrictStr],
-        package_version: Optional[StrictStr],
-        resource_key: Optional[StrictStr],
-        scope: Optional[ResourceGrantScope],
-        resource_id: Optional[StrictStr],
-    ) -> ResourceGrantList:
-        ...
-
-
-    async def create_resource_grant(
-        self,
-        resource_grant_create_request: ResourceGrantCreateRequest,
-    ) -> ResourceGrant:
-        ...
-
-
-    async def get_resource_grant(
-        self,
-        grantId: StrictStr,
-    ) -> ResourceGrant:
-        ...
-
-
-    async def delete_resource_grant(
-        self,
-        grantId: StrictStr,
-    ) -> None:
         ...

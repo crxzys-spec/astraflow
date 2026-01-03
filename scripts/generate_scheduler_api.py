@@ -92,6 +92,7 @@ def main() -> None:
     relax_field_strictness(api_src / "apis")
     fix_file_response_types(api_src / "apis")
     fix_file_upload_params(api_src / "apis")
+    ensure_any_imports(api_src / "apis")
     # Preserve the clean, resolved spec as the checked-in OpenAPI document
     (OUTPUT_DIR / "openapi.yaml").write_text(spec_yaml, encoding="utf-8")
 
@@ -285,8 +286,33 @@ def fix_file_upload_params(apis_root: Path) -> None:
             path.write_text(new_text, encoding="utf-8")
 
 
+def ensure_any_imports(apis_root: Path) -> None:
+    """Ensure typing.Any is imported when used in generated API modules."""
+
+    for path in apis_root.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        if "Any" not in text:
+            continue
+        if "from typing import" not in text:
+            continue
+        new_text = re.sub(
+            r"from typing import ([^\n]+)",
+            lambda m: _inject_any_import(m.group(0), m.group(1)),
+            text,
+            count=1,
+        )
+        if new_text != text:
+            path.write_text(new_text, encoding="utf-8")
+
+
 def _inject_any_import(statement: str, imports: str) -> str:
-    items = [item.strip() for item in imports.split(",")]
+    comment = ""
+    if "#" in statement:
+        statement, comment = statement.split("#", 1)
+        comment = "#" + comment.rstrip()
+    statement = statement.rstrip()
+    imports = statement.replace("from typing import", "").strip()
+    items = [item.strip() for item in imports.split(",") if item.strip()]
     if "Any" not in items:
         items.append("Any")
     ordered: list[str] = []
@@ -295,7 +321,10 @@ def _inject_any_import(statement: str, imports: str) -> str:
         if item and item not in seen:
             ordered.append(item)
             seen.add(item)
-    return f"from typing import {', '.join(ordered)}"
+    line = f"from typing import {', '.join(ordered)}"
+    if comment:
+        line = f"{line}  {comment}"
+    return line
 
 
 def _ensure_fastapi_imports(text: str, names: list[str]) -> str:

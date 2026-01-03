@@ -13,6 +13,12 @@
  */
 
 
+// May contain unused imports in some cases
+// @ts-ignore
+import type { PublishedPackageState } from './published-package-state';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { PublishedPackageVisibility } from './published-package-visibility';
 
 export interface PackageSummary {
     'name': string;
@@ -20,5 +26,11 @@ export interface PackageSummary {
     'latestVersion'?: string;
     'defaultVersion'?: string;
     'versions': Array<string>;
+    'distTags'?: { [key: string]: string; };
+    'ownerId'?: string | null;
+    'visibility'?: PublishedPackageVisibility;
+    'state'?: PublishedPackageState;
 }
+
+
 

@@ -4,7 +4,12 @@ from .workflow import WorkflowRecord
 from .workflow_package import WorkflowPackageRecord, WorkflowPackageVersionRecord
 from .user import RoleRecord, UserRecord, UserRoleRecord
 from .audit_event import AuditEventRecord
-from .resource_grant import ResourceGrantRecord
+from .package_dist_tag import PackageDistTagRecord
+from .package_index import PackageIndexRecord
+from .package_permission import PackagePermissionRecord
+from .package_vault import PackageVaultRecord
+from .package_registry import PackageRegistryRecord
+from .registry_account import RegistryAccountRecord
 from .resource import ResourceRecord
 from .resource_payload import ResourcePayloadRecord
 
@@ -16,7 +21,12 @@ __all__ = [
     "RoleRecord",
     "UserRoleRecord",
     "AuditEventRecord",
-    "ResourceGrantRecord",
+    "PackageDistTagRecord",
+    "PackagePermissionRecord",
+    "PackageIndexRecord",
+    "PackageRegistryRecord",
+    "RegistryAccountRecord",
+    "PackageVaultRecord",
     "ResourceRecord",
     "ResourcePayloadRecord",
 ]

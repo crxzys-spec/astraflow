@@ -678,8 +678,6 @@ export const workflowDefinitionToDraft = (
 
     tags: sanitizeTags(definition.tags),
 
-    previewImage: definition.previewImage ?? undefined,
-
     nodes,
 
     edges,
@@ -811,8 +809,6 @@ export const workflowDraftToDefinition = (
 
     tags: sanitizeTags(draft.tags),
 
-    previewImage: draft.previewImage ?? undefined,
-
     subgraphs,
 
   };
@@ -912,5 +908,6 @@ export const ensureUniqueNodeId = (
   return baseId;
 
 };
+
 
 

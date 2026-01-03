@@ -1,0 +1,65 @@
+get:
+  tags: [HubWorkflows]
+  summary: List hub workflows
+  operationId: listHubWorkflows
+  parameters:
+  - name: q
+    in: query
+    description: Search query
+    schema:
+      type: string
+  - name: tag
+    in: query
+    description: Filter by tag
+    schema:
+      type: string
+  - name: owner
+    in: query
+    description: Filter by owner id
+    schema:
+      type: string
+  - name: page
+    in: query
+    description: 1-based page index
+    schema:
+      type: integer
+      minimum: 1
+      default: 1
+  - name: pageSize
+    in: query
+    description: Page size
+    schema:
+      type: integer
+      minimum: 1
+      maximum: 200
+      default: 20
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/HubWorkflowListResponse'
+post:
+  tags: [HubWorkflows]
+  summary: Publish a workflow to Hub
+  operationId: publishHubWorkflow
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/HubWorkflowPublishRequest'
+  responses:
+    '201':
+      description: Created
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/HubWorkflowPublishResponse'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+    '401':
+      $ref: '../components/responses.yaml#/Unauthorized'
+    '403':
+      $ref: '../components/responses.yaml#/Forbidden'

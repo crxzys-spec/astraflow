@@ -1,0 +1,20 @@
+delete:
+  tags: [PackageVault]
+  summary: Delete package vault entry
+  operationId: deletePackageVaultItem
+  parameters:
+    - name: packageName
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: key
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    '204':
+      description: Deleted
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

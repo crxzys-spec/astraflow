@@ -1,10 +1,6 @@
 import type { AxiosProgressEvent } from "axios";
 import type {
   Resource,
-  ResourceGrant,
-  ResourceGrantCreateRequest,
-  ResourceGrantList,
-  ResourceGrantScope,
   ResourceList,
   ResourceUploadInitRequest,
   ResourceUploadPart,
@@ -32,6 +28,8 @@ type UploadResourceOptions = {
   preserveSession?: boolean;
   deduplicate?: boolean;
   provider?: string;
+  resourceType?: string;
+  metadata?: Record<string, any>;
 };
 
 type UploadCacheEntry = {
@@ -149,6 +147,10 @@ const createUploadSession = async (
   sha256: string | undefined,
   options: UploadResourceOptions,
 ): Promise<ResourceUploadSession> => {
+  const metadata = { ...(options.metadata ?? {}) };
+  if (options.resourceType) {
+    metadata.resourceType = options.resourceType;
+  }
   const payload: ResourceUploadInitRequest = {
     filename: file.name,
     sizeBytes: file.size,
@@ -156,6 +158,7 @@ const createUploadSession = async (
     sha256: sha256 || undefined,
     chunkSize,
     provider: options.provider || undefined,
+    metadata: Object.keys(metadata).length ? metadata : undefined,
   };
   const response = await apiRequest<ResourceUploadSession>(
     (config) => resourcesApi.createResourceUpload(payload, config),
@@ -405,41 +408,6 @@ export const listResources = async (params: {
   return response.data.items ?? [];
 };
 
-export const listResourceGrants = async (params: {
-  workflowId?: string;
-  packageName?: string;
-  packageVersion?: string;
-  resourceKey?: string;
-  scope?: ResourceGrantScope;
-  resourceId?: string;
-}): Promise<ResourceGrant[]> => {
-  const response = await apiRequest<ResourceGrantList>((config) =>
-    resourcesApi.listResourceGrants(
-      params.workflowId,
-      params.packageName,
-      params.packageVersion,
-      params.resourceKey,
-      params.scope,
-      params.resourceId,
-      config,
-    ),
-  );
-  return response.data.items ?? [];
-};
-
-export const createResourceGrant = async (
-  payload: ResourceGrantCreateRequest,
-): Promise<ResourceGrant> => {
-  const response = await apiRequest<ResourceGrant>((config) =>
-    resourcesApi.createResourceGrant(payload, config),
-  );
-  return response.data;
-};
-
-export const deleteResourceGrant = async (grantId: string): Promise<void> => {
-  await apiRequest<void>((config) => resourcesApi.deleteResourceGrant(grantId, config));
-};
-
 export const abortUploadForFile = async (file: File, provider?: string): Promise<void> => {
   const fingerprint = buildUploadFingerprint(file, provider);
   const cached = getUploadCacheEntry(fingerprint);
@@ -504,7 +472,4 @@ export const resourcesGateway = {
   abortUpload: abortUploadForFile,
   delete: deleteResource,
   listResources,
-  listGrants: listResourceGrants,
-  createGrant: createResourceGrant,
-  deleteGrant: deleteResourceGrant,
 };

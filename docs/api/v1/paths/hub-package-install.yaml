@@ -1,0 +1,25 @@
+post:
+  tags: [HubPackages]
+  summary: Install hub package into the local catalog
+  operationId: installHubPackage
+  parameters:
+  - name: packageName
+    in: path
+    required: true
+    schema:
+      type: string
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/HubPackageInstallRequest'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/HubPackageInstallResponse'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

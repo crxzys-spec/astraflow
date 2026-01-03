@@ -20,9 +20,12 @@ import json
 
 
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from scheduler_api.models.package_manifest import PackageManifest
+from scheduler_api.models.package_version_status import PackageVersionStatus
+from scheduler_api.models.published_package_state import PublishedPackageState
+from scheduler_api.models.published_package_visibility import PublishedPackageVisibility
 try:
     from typing import Self
 except ImportError:
@@ -36,7 +39,14 @@ class PackageDetail(BaseModel):
     version: StrictStr
     available_versions: Optional[List[StrictStr]] = Field(default=None, alias="availableVersions")
     manifest: PackageManifest
-    __properties: ClassVar[List[str]] = ["name", "version", "availableVersions", "manifest"]
+    status: Optional[PackageVersionStatus] = None
+    dist_tags: Optional[Dict[str, StrictStr]] = Field(default=None, alias="distTags")
+    archive_sha256: Optional[StrictStr] = Field(default=None, alias="archiveSha256")
+    archive_size_bytes: Optional[StrictInt] = Field(default=None, alias="archiveSizeBytes")
+    owner_id: Optional[StrictStr] = Field(default=None, alias="ownerId")
+    visibility: Optional[PublishedPackageVisibility] = None
+    state: Optional[PublishedPackageState] = None
+    __properties: ClassVar[List[str]] = ["name", "version", "availableVersions", "manifest", "status", "distTags", "archiveSha256", "archiveSizeBytes", "ownerId", "visibility", "state"]
 
     model_config = {
         "populate_by_name": True,
@@ -78,6 +88,21 @@ class PackageDetail(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of manifest
         if self.manifest:
             _dict['manifest'] = self.manifest.to_dict()
+        # set to None if archive_sha256 (nullable) is None
+        # and model_fields_set contains the field
+        if self.archive_sha256 is None and "archive_sha256" in self.model_fields_set:
+            _dict['archiveSha256'] = None
+
+        # set to None if archive_size_bytes (nullable) is None
+        # and model_fields_set contains the field
+        if self.archive_size_bytes is None and "archive_size_bytes" in self.model_fields_set:
+            _dict['archiveSizeBytes'] = None
+
+        # set to None if owner_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.owner_id is None and "owner_id" in self.model_fields_set:
+            _dict['ownerId'] = None
+
         return _dict
 
     @classmethod
@@ -93,7 +118,14 @@ class PackageDetail(BaseModel):
             "name": obj.get("name"),
             "version": obj.get("version"),
             "availableVersions": obj.get("availableVersions"),
-            "manifest": PackageManifest.from_dict(obj.get("manifest")) if obj.get("manifest") is not None else None
+            "manifest": PackageManifest.from_dict(obj.get("manifest")) if obj.get("manifest") is not None else None,
+            "status": obj.get("status"),
+            "distTags": obj.get("distTags"),
+            "archiveSha256": obj.get("archiveSha256"),
+            "archiveSizeBytes": obj.get("archiveSizeBytes"),
+            "ownerId": obj.get("ownerId"),
+            "visibility": obj.get("visibility"),
+            "state": obj.get("state")
         })
         return _obj
 

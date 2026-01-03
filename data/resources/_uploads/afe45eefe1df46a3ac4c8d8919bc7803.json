@@ -1,0 +1,24 @@
+{
+  "upload_id": "afe45eefe1df46a3ac4c8d8919bc7803",
+  "filename": "key-values.json",
+  "size_bytes": 30,
+  "provider": "local",
+  "mime_type": "application/json",
+  "sha256": "f595fc0865a911d6f68115edd9b5ba6919cdc6d9b80b870dd9e0f67a485f0507",
+  "chunk_size": 8388608,
+  "uploaded_bytes": 30,
+  "next_part": 1,
+  "total_parts": 1,
+  "status": "completed",
+  "resource_id": "e4e1f56c157841bbbb37503bac5beb5c",
+  "metadata": {
+    "resourceType": "kv",
+    "ownerId": "5c2e198a-a660-43db-aaa5-1008b44587fd",
+    "visibility": "private"
+  },
+  "created_at": "2025-12-24T11:53:43.496860+00:00",
+  "updated_at": "2025-12-24T11:53:43.615082+00:00",
+  "completed_parts": [
+    0
+  ]
+}

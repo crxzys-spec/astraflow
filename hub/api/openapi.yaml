@@ -1,0 +1,2648 @@
+openapi: 3.0.3
+info:
+  title: AstraFlow Hub API
+  version: 0.1.0
+  description: Public hub API for discovering packages and workflows.
+servers:
+- url: https://hub.astraflow.local
+  description: Local hub server
+- url: http://localhost:8310
+  description: Dev hub server
+tags:
+- name: Health
+  description: Service health checks
+- name: Packages
+  description: Discover and publish node packages
+- name: Workflows
+  description: Discover and publish workflows
+- name: Auth
+  description: Registration and login
+- name: Account
+  description: Account profile and identity
+- name: Orgs
+  description: Organization management
+- name: Teams
+  description: Team management
+- name: Tokens
+  description: Access tokens and publishing credentials
+- name: Audit
+  description: Audit events and activity logs
+paths:
+  /health:
+    get:
+      tags:
+      - Health
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+  /api/v1/packages:
+    get:
+      tags:
+      - Packages
+      summary: List packages
+      operationId: listPackages
+      parameters:
+      - name: q
+        in: query
+        description: Search query
+        schema:
+          type: string
+      - name: tag
+        in: query
+        description: Filter by tag
+        schema:
+          type: string
+      - name: owner
+        in: query
+        description: Filter by owner id
+        schema:
+          type: string
+      - name: page
+        in: query
+        description: 1-based page index
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: pageSize
+        in: query
+        description: Page size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageListResponse'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Packages
+      summary: Publish a package archive
+      operationId: publishPackage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PackagePublishRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageVersionDetail'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/packages/{name}:
+    get:
+      tags:
+      - Packages
+      summary: Get package detail
+      operationId: getPackage
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubPackageDetail'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /api/v1/packages/{name}/reserve:
+    post:
+      tags:
+      - Packages
+      summary: Reserve package name
+      operationId: reservePackage
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackageReserveRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageRegistry'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/packages/{name}/versions/{version}:
+    get:
+      tags:
+      - Packages
+      summary: Get package version detail
+      operationId: getPackageVersion
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageVersionDetail'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /api/v1/packages/{name}/archive:
+    get:
+      tags:
+      - Packages
+      summary: Download package archive
+      operationId: downloadPackageArchive
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: version
+        in: query
+        description: Optional version to download
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /api/v1/packages/{name}/tags/{tag}:
+    put:
+      tags:
+      - Packages
+      summary: Set package dist-tag
+      operationId: setPackageTag
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: tag
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackageTagRequest'
+      responses:
+        '204':
+          description: Updated
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+    delete:
+      tags:
+      - Packages
+      summary: Delete package dist-tag
+      operationId: deletePackageTag
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: tag
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/packages/{name}/visibility:
+    patch:
+      tags:
+      - Packages
+      summary: Update package visibility
+      operationId: updatePackageVisibility
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackageVisibilityRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageRegistry'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/packages/{name}/transfer:
+    post:
+      tags:
+      - Packages
+      summary: Transfer package ownership
+      operationId: transferPackage
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackageTransferRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageRegistry'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/workflows:
+    get:
+      tags:
+      - Workflows
+      summary: List workflows
+      operationId: listWorkflows
+      parameters:
+      - name: q
+        in: query
+        description: Search query
+        schema:
+          type: string
+      - name: tag
+        in: query
+        description: Filter by tag
+        schema:
+          type: string
+      - name: owner
+        in: query
+        description: Filter by owner id
+        schema:
+          type: string
+      - name: page
+        in: query
+        description: 1-based page index
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: pageSize
+        in: query
+        description: Page size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowListResponse'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Workflows
+      summary: Publish workflow
+      operationId: publishWorkflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowPublishRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPublishResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/workflows/{workflowId}:
+    get:
+      tags:
+      - Workflows
+      summary: Get workflow detail
+      operationId: getWorkflow
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubWorkflowDetail'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /api/v1/workflows/{workflowId}/versions:
+    get:
+      tags:
+      - Workflows
+      summary: List workflow versions
+      operationId: listWorkflowVersions
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        description: 1-based page index
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: pageSize
+        in: query
+        description: Page size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowVersionList'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /api/v1/workflows/{workflowId}/versions/{versionId}:
+    get:
+      tags:
+      - Workflows
+      summary: Get workflow version detail
+      operationId: getWorkflowVersion
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowVersionDetail'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /api/v1/workflows/{workflowId}/versions/{versionId}/definition:
+    get:
+      tags:
+      - Workflows
+      summary: Get workflow definition snapshot
+      operationId: getWorkflowDefinition
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowDefinition'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /api/v1/auth/register:
+    post:
+      tags:
+      - Auth
+      summary: Register a new account
+      operationId: registerAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/auth/login:
+    post:
+      tags:
+      - Auth
+      summary: Login with username and password
+      operationId: loginAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthLoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/account:
+    get:
+      tags:
+      - Account
+      summary: Get current account
+      operationId: getAccount
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - read
+  /api/v1/orgs:
+    get:
+      tags:
+      - Orgs
+      summary: List organizations
+      operationId: listOrganizations
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationList'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+    post:
+      tags:
+      - Orgs
+      summary: Create organization
+      operationId: createOrganization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/orgs/{orgId}:
+    get:
+      tags:
+      - Orgs
+      summary: Get organization
+      operationId: getOrganization
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+    patch:
+      tags:
+      - Orgs
+      summary: Update organization
+      operationId: updateOrganization
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/orgs/{orgId}/members:
+    get:
+      tags:
+      - Orgs
+      summary: List organization members
+      operationId: listOrganizationMembers
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationMemberList'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+    post:
+      tags:
+      - Orgs
+      summary: Add organization member
+      operationId: addOrganizationMember
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationMemberRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationMember'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/orgs/{orgId}/members/{userId}:
+    delete:
+      tags:
+      - Orgs
+      summary: Remove organization member
+      operationId: removeOrganizationMember
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/orgs/{orgId}/teams:
+    get:
+      tags:
+      - Teams
+      summary: List organization teams
+      operationId: listOrganizationTeams
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamList'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+    post:
+      tags:
+      - Teams
+      summary: Create team
+      operationId: createTeam
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/orgs/{orgId}/teams/{teamId}:
+    patch:
+      tags:
+      - Teams
+      summary: Update team
+      operationId: updateTeam
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: teamId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/orgs/{orgId}/teams/{teamId}/members:
+    get:
+      tags:
+      - Teams
+      summary: List team members
+      operationId: listTeamMembers
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: teamId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamMemberList'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+    post:
+      tags:
+      - Teams
+      summary: Add team member
+      operationId: addTeamMember
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: teamId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamMemberRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamMember'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/orgs/{orgId}/teams/{teamId}/members/{userId}:
+    delete:
+      tags:
+      - Teams
+      summary: Remove team member
+      operationId: removeTeamMember
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: teamId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/packages/{name}/permissions:
+    get:
+      tags:
+      - Packages
+      summary: List package permissions
+      operationId: listPackagePermissions
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackagePermissionList'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+    post:
+      tags:
+      - Packages
+      summary: Add package permission
+      operationId: addPackagePermission
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackagePermissionCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackagePermission'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/packages/{name}/permissions/{permissionId}:
+    patch:
+      tags:
+      - Packages
+      summary: Update package permission
+      operationId: updatePackagePermission
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: permissionId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackagePermissionUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackagePermission'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+    delete:
+      tags:
+      - Packages
+      summary: Remove package permission
+      operationId: deletePackagePermission
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: permissionId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/tokens:
+    get:
+      tags:
+      - Tokens
+      summary: List access tokens
+      operationId: listTokens
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenList'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/tokens/publish:
+    post:
+      tags:
+      - Tokens
+      summary: Create publish token
+      operationId: createPublishToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessTokenCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/tokens/{tokenId}:
+    delete:
+      tags:
+      - Tokens
+      summary: Revoke access token
+      operationId: revokeToken
+      parameters:
+      - name: tokenId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/audit:
+    get:
+      tags:
+      - Audit
+      summary: List audit events
+      operationId: listAuditEvents
+      parameters:
+      - name: actor
+        in: query
+        description: Filter by actor id
+        schema:
+          type: string
+      - name: action
+        in: query
+        description: Filter by action
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Max events to return
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventList'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - read
+components:
+  securitySchemes:
+    bearerAuth:
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: /api/v1/auth/login
+          scopes:
+            read: Read hub resources
+            publish: Publish or manage hub resources
+            admin: Administrative access
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+      required:
+      - error
+      - message
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        version:
+          type: string
+          example: 0.1.0
+        timestamp:
+          type: string
+          format: date-time
+      required:
+      - status
+      - version
+      - timestamp
+    PageMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+      required:
+      - page
+      - pageSize
+      - total
+      - totalPages
+    Visibility:
+      type: string
+      enum:
+      - public
+      - internal
+      - private
+    PackageDependency:
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+      required:
+      - name
+      - version
+    HubPackageSummary:
+      type: object
+      properties:
+        name:
+          type: string
+        latestVersion:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        ownerId:
+          type: string
+        ownerName:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+      required:
+      - name
+      - latestVersion
+    HubPackageDetail:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        readme:
+          type: string
+        versions:
+          type: array
+          items:
+            type: string
+        distTags:
+          type: object
+          additionalProperties:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+        ownerId:
+          type: string
+        ownerName:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+      required:
+      - name
+      - versions
+    PackageRegistry:
+      type: object
+      properties:
+        name:
+          type: string
+        ownerId:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - name
+      - ownerId
+      - visibility
+      - createdAt
+      - updatedAt
+    PackagePublishRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        summary:
+          type: string
+        readme:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+      - file
+    PackageReserveRequest:
+      type: object
+      properties:
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+    PackageTagRequest:
+      type: object
+      properties:
+        version:
+          type: string
+      required:
+      - version
+    PackageVisibilityRequest:
+      type: object
+      properties:
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+      required:
+      - visibility
+    PackageTransferRequest:
+      type: object
+      properties:
+        newOwnerId:
+          type: string
+      required:
+      - newOwnerId
+    PackageVersionDetail:
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        description:
+          type: string
+        readme:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        distTags:
+          type: object
+          additionalProperties:
+            type: string
+        archiveSha256:
+          type: string
+        archiveSizeBytes:
+          type: integer
+        ownerId:
+          type: string
+        ownerName:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        publishedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - name
+      - version
+    HubWorkflowSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        summary:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        ownerId:
+          type: string
+        ownerName:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        latestVersion:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+      required:
+      - id
+      - name
+    HubWorkflowDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        ownerId:
+          type: string
+        ownerName:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        previewImage:
+          type: string
+          description: Base64 preview image
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+      required:
+      - id
+      - name
+    WorkflowDefinition:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - schemaVersion
+      - metadata
+      - nodes
+      - edges
+      properties:
+        id:
+          type: string
+        schemaVersion:
+          type: string
+          pattern: ^[0-9]{4}-[0-9]{2}$
+        metadata:
+          $ref: '#/components/schemas/WorkflowMetadata'
+        nodes:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/WorkflowNode'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowEdge'
+        tags:
+          type: array
+          items:
+            type: string
+        previewImage:
+          type: string
+          nullable: true
+        subgraphs:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowSubgraph'
+    WorkflowMetadata:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        environment:
+          type: string
+        namespace:
+          type: string
+        originId:
+          type: string
+        ownerId:
+          type: string
+        ownerName:
+          type: string
+        createdBy:
+          type: string
+        updatedBy:
+          type: string
+    WorkflowNode:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - type
+      - package
+      - status
+      - category
+      - label
+      - position
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        package:
+          $ref: '#/components/schemas/NodePackage'
+        status:
+          type: string
+          enum:
+          - draft
+          - published
+          - deprecated
+        category:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        position:
+          $ref: '#/components/schemas/WorkflowNodePosition'
+        parameters:
+          type: object
+          additionalProperties: true
+        results:
+          type: object
+          additionalProperties: true
+        role:
+          type: string
+          enum:
+          - node
+          - container
+          - middleware
+        middlewares:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        schema:
+          type: object
+          additionalProperties: true
+        ui:
+          type: object
+          additionalProperties: true
+        state:
+          type: object
+          additionalProperties: true
+    WorkflowNodePosition:
+      type: object
+      additionalProperties: false
+      required:
+      - x
+      - y
+      properties:
+        x:
+          type: number
+        y:
+          type: number
+    NodePackage:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - version
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+    WorkflowEdge:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - source
+      - target
+      properties:
+        id:
+          type: string
+        source:
+          $ref: '#/components/schemas/EdgeEndpoint'
+        target:
+          $ref: '#/components/schemas/EdgeEndpoint'
+    EdgeEndpoint:
+      type: object
+      additionalProperties: false
+      required:
+      - node
+      - port
+      properties:
+        node:
+          type: string
+        port:
+          type: string
+    WorkflowSubgraph:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - definition
+      properties:
+        id:
+          type: string
+        definition:
+          $ref: '#/components/schemas/WorkflowDefinition'
+        metadata:
+          $ref: '#/components/schemas/WorkflowSubgraphMetadata'
+    WorkflowSubgraphMetadata:
+      type: object
+      additionalProperties: false
+      properties:
+        label:
+          type: string
+        description:
+          type: string
+        referenceWorkflowId:
+          type: string
+        referenceWorkflowName:
+          type: string
+        ownerId:
+          type: string
+        notes:
+          type: string
+    WorkflowPublishRequest:
+      type: object
+      properties:
+        workflowId:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        previewImage:
+          type: string
+        dependencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/PackageDependency'
+        definition:
+          $ref: '#/components/schemas/WorkflowDefinition'
+      required:
+      - name
+      - version
+      - definition
+    WorkflowPublishResponse:
+      type: object
+      properties:
+        workflowId:
+          type: string
+        versionId:
+          type: string
+        version:
+          type: string
+      required:
+      - workflowId
+      - versionId
+      - version
+    WorkflowVersionSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        version:
+          type: string
+        publishedAt:
+          type: string
+          format: date-time
+        changelog:
+          type: string
+      required:
+      - id
+      - version
+    WorkflowVersionDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        version:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        previewImage:
+          type: string
+        dependencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/PackageDependency'
+        publishedAt:
+          type: string
+          format: date-time
+        publisherId:
+          type: string
+      required:
+      - id
+      - version
+    WorkflowVersionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowVersionSummary'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+      required:
+      - items
+      - meta
+    AuthRegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+        displayName:
+          type: string
+        email:
+          type: string
+          format: email
+      required:
+      - username
+      - password
+    AuthLoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+      required:
+      - username
+      - password
+    AuthResponse:
+      type: object
+      properties:
+        account:
+          $ref: '#/components/schemas/Account'
+        token:
+          $ref: '#/components/schemas/AccessToken'
+      required:
+      - account
+      - token
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: string
+      required:
+      - id
+      - username
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        ownerId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - name
+      - slug
+      - ownerId
+      - createdAt
+      - updatedAt
+    OrganizationCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+      required:
+      - name
+      - slug
+    OrganizationUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+    OrganizationList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'
+      required:
+      - items
+    OrganizationMemberRole:
+      type: string
+      enum:
+      - owner
+      - admin
+      - member
+    OrganizationMember:
+      type: object
+      properties:
+        userId:
+          type: string
+        role:
+          $ref: '#/components/schemas/OrganizationMemberRole'
+        joinedAt:
+          type: string
+          format: date-time
+      required:
+      - userId
+      - role
+      - joinedAt
+    OrganizationMemberList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrganizationMember'
+      required:
+      - items
+    OrganizationMemberRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        role:
+          $ref: '#/components/schemas/OrganizationMemberRole'
+      required:
+      - userId
+      - role
+    Team:
+      type: object
+      properties:
+        id:
+          type: string
+        orgId:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - orgId
+      - name
+      - slug
+      - createdAt
+    TeamCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+      required:
+      - name
+      - slug
+    TeamUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+    TeamList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Team'
+      required:
+      - items
+    TeamMember:
+      type: object
+      properties:
+        userId:
+          type: string
+        addedAt:
+          type: string
+          format: date-time
+      required:
+      - userId
+      - addedAt
+    TeamMemberList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamMember'
+      required:
+      - items
+    TeamMemberRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+      required:
+      - userId
+    PackagePermissionRole:
+      type: string
+      enum:
+      - owner
+      - maintainer
+      - reader
+    PackagePermissionSubjectType:
+      type: string
+      enum:
+      - user
+      - team
+      - org
+    PackagePermission:
+      type: object
+      properties:
+        id:
+          type: string
+        packageName:
+          type: string
+        subjectType:
+          $ref: '#/components/schemas/PackagePermissionSubjectType'
+        subjectId:
+          type: string
+        role:
+          $ref: '#/components/schemas/PackagePermissionRole'
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - packageName
+      - subjectType
+      - subjectId
+      - role
+      - createdAt
+    PackagePermissionCreateRequest:
+      type: object
+      properties:
+        subjectType:
+          $ref: '#/components/schemas/PackagePermissionSubjectType'
+        subjectId:
+          type: string
+        role:
+          $ref: '#/components/schemas/PackagePermissionRole'
+      required:
+      - subjectType
+      - subjectId
+      - role
+    PackagePermissionUpdateRequest:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/PackagePermissionRole'
+      required:
+      - role
+    PackagePermissionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PackagePermission'
+      required:
+      - items
+    TokenScope:
+      type: string
+      enum:
+      - read
+      - publish
+      - admin
+    AccessToken:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        scopes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TokenScope'
+        packageName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        token:
+          type: string
+      required:
+      - id
+      - label
+      - scopes
+      - createdAt
+    AccessTokenCreateRequest:
+      type: object
+      properties:
+        label:
+          type: string
+        scopes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TokenScope'
+        packageName:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+      - label
+      - scopes
+    AccessTokenList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccessToken'
+      required:
+      - items
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        action:
+          type: string
+        actorId:
+          type: string
+        targetType:
+          type: string
+        targetId:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - action
+      - actorId
+      - createdAt
+    AuditEventList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+      required:
+      - items
+    PackageListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/HubPackageSummary'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+      required:
+      - items
+      - meta
+    WorkflowListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/HubWorkflowSummary'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+      required:
+      - items
+      - meta

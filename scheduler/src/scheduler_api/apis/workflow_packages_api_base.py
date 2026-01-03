@@ -1,11 +1,12 @@
 # coding: utf-8
 
-from typing import ClassVar, Dict, List, Tuple  # noqa: F401
+from typing import ClassVar, Dict, List, Tuple, Any  # noqa: F401
 
 from pydantic import Field, StrictStr
 from typing import Any, Optional
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
+from scheduler_api.models.workflow import Workflow
 from scheduler_api.models.workflow_package_clone_request import WorkflowPackageCloneRequest
 from scheduler_api.models.workflow_package_detail import WorkflowPackageDetail
 from scheduler_api.models.workflow_package_list import WorkflowPackageList
@@ -58,6 +59,14 @@ class BaseWorkflowPackagesApi:
         packageId: StrictStr,
         workflow_package_clone_request: Optional[WorkflowPackageCloneRequest],
     ) -> WorkflowRef:
+        ...
+
+
+    async def get_workflow_package_definition(
+        self,
+        packageId: StrictStr,
+        versionId: StrictStr,
+    ) -> Workflow:
         ...
 
 

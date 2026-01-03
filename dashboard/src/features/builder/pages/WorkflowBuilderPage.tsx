@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { useNavigate, useParams } from "react-router-dom";
-import { ReactFlowProvider } from "reactflow";
 import { useCatalogSearch } from "../../../hooks/useCatalogSearch";
 import type { CatalogNode } from "../../../client/models";
 import { WidgetRegistryProvider } from "..";
@@ -860,9 +859,7 @@ const WorkflowBuilderPage = () => {
   );
 
   const canvasNode = (
-    <ReactFlowProvider>
-      <WorkflowCanvas onNodeDrop={canEditWorkflow ? handleNodeDrop : undefined} />
-    </ReactFlowProvider>
+    <WorkflowCanvas onNodeDrop={canEditWorkflow ? handleNodeDrop : undefined} />
   );
 
   return (

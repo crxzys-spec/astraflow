@@ -1,12 +1,32 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+
 :root {
   color-scheme: dark;
-  font-family:
-    "Inter",
-    "Segoe UI",
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    sans-serif;
+  --font-sans: "Manrope", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Space Grotesk", "Manrope", "Segoe UI", system-ui, sans-serif;
+  --text-strong: #f8fafc;
+  --text: #e2e8f0;
+  --text-muted: rgba(148, 163, 184, 0.82);
+  --surface-0: #05070f;
+  --surface-1: rgba(8, 12, 22, 0.92);
+  --surface-2: rgba(12, 18, 30, 0.92);
+  --surface-3: rgba(15, 23, 42, 0.92);
+  --surface-border: rgba(148, 163, 184, 0.18);
+  --surface-border-strong: rgba(148, 163, 184, 0.32);
+  --surface-glow: rgba(20, 184, 166, 0.18);
+  --accent-cool: #2dd4bf;
+  --accent-warm: #f59e0b;
+  --accent-blue: #60a5fa;
+  --radius-xs: 0.4rem;
+  --radius-s: 0.6rem;
+  --radius-m: 0.9rem;
+  --radius-l: 1.2rem;
+  --radius-xl: 1.6rem;
+  --shadow-soft: 0 18px 40px rgba(2, 6, 23, 0.45);
+  --shadow-strong: 0 28px 70px rgba(2, 6, 23, 0.55);
+  --shadow-glow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --app-shell-header-height: 3.75rem;
+  font-family: var(--font-sans);
 }
 
 *,
@@ -24,18 +44,24 @@ body,
 
 body {
   margin: 0;
-  background: radial-gradient(
-    circle at top right,
-    #0f172a 0%,
-    #020617 55%,
-    #000510 100%
-  );
-  color: #e2e8f0;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(20, 184, 166, 0.16), transparent 45%),
+    radial-gradient(circle at 88% 6%, rgba(245, 158, 11, 0.14), transparent 45%),
+    radial-gradient(circle at 50% 85%, rgba(96, 165, 250, 0.08), transparent 55%),
+    var(--surface-0);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
 
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
 a {
-  color: #93c5fd;
+  color: var(--accent-blue);
   text-decoration: none;
 }
 

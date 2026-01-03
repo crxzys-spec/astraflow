@@ -1,8 +1,19 @@
 import clsx from "clsx";
 import type { ChangeEvent } from "react";
+import { useEffect, useMemo } from "react";
 import type { WidgetRendererProps } from "../registry";
+import { getBindingValue, resolveBindingPath } from "../../utils/binding";
 
 type OptionChoice = { value: string; label?: string } | string;
+
+type OptionSelectOptions = {
+  options?: OptionChoice[];
+  optionsByKey?: Record<string, OptionChoice[]>;
+  keyPath?: string;
+  fallback?: OptionChoice[];
+  autoSelectFirst?: boolean;
+  includeCurrent?: boolean;
+};
 
 const normalizeOptions = (choices?: OptionChoice[]): { value: string; label: string }[] => {
   if (!choices) {
@@ -21,32 +32,68 @@ const normalizeOptions = (choices?: OptionChoice[]): { value: string; label: str
     .filter((entry): entry is { value: string; label: string } => Boolean(entry));
 };
 
-export const OptionSelectWidget = ({ widget, value, onChange, readOnly }: WidgetRendererProps) => {
-  const choices = normalizeOptions((widget.options as { options?: OptionChoice[] } | undefined)?.options);
-  const current = typeof value === "string" ? value : "";
+export const OptionSelectWidget = ({ widget, node, value, onChange, readOnly }: WidgetRendererProps) => {
+  const config = (widget.options as OptionSelectOptions | undefined) ?? {};
+  const selectorPath = resolveBindingPath(config.keyPath ?? "");
+  const selectorValue =
+    selectorPath && node ? getBindingValue(node, selectorPath) : undefined;
+  const selectorKey =
+    selectorValue === undefined || selectorValue === null ? "" : String(selectorValue);
+  const baseChoices = normalizeOptions(
+    config.optionsByKey?.[selectorKey] ?? config.options ?? config.fallback,
+  );
+  const current = value === undefined || value === null ? "" : String(value);
+  const includeCurrent = config.includeCurrent ?? false;
+  const shouldAutoSelect = config.autoSelectFirst ?? Boolean(config.optionsByKey);
+  const choices = useMemo(() => {
+    if (!includeCurrent || !current) {
+      return baseChoices;
+    }
+    const exists = baseChoices.some((choice) => choice.value === current);
+    if (exists) {
+      return baseChoices;
+    }
+    return [...baseChoices, { value: current, label: `${current} (custom)` }];
+  }, [baseChoices, current, includeCurrent]);
 
   const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
     onChange(event.target.value);
   };
 
+  useEffect(() => {
+    if (!shouldAutoSelect || readOnly) {
+      return;
+    }
+    if (!baseChoices.length) {
+      return;
+    }
+    const inBase = baseChoices.some((choice) => choice.value === current);
+    if (!current || !inBase) {
+      onChange(baseChoices[0].value);
+    }
+  }, [baseChoices, config.autoSelectFirst, current, onChange, readOnly]);
+
+  const hasChoices = choices.length > 0;
+
   return (
-    <div className="widget widget--select">
-      <label className="widget__label" htmlFor={widget.key}>
+    <div className="wf-widget">
+      <label className="wf-widget__label" htmlFor={widget.key}>
         {widget.label}
+        <select
+          id={widget.key}
+          className={clsx("wf-widget__select", { "wf-widget__select--readonly": readOnly })}
+          value={current}
+          onChange={handleChange}
+          disabled={readOnly || !hasChoices}
+        >
+          {!hasChoices && <option value="">No options available</option>}
+          {choices.map((choice) => (
+            <option key={choice.value} value={choice.value}>
+              {choice.label}
+            </option>
+          ))}
+        </select>
       </label>
-      <select
-        id={widget.key}
-        className={clsx("widget__select", { "widget__select--readonly": readOnly })}
-        value={current}
-        onChange={handleChange}
-        disabled={readOnly}
-      >
-        {choices.map((choice) => (
-          <option key={choice.value} value={choice.value}>
-            {choice.label}
-          </option>
-        ))}
-      </select>
     </div>
   );
 };

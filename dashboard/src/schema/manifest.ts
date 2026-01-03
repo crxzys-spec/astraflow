@@ -217,9 +217,17 @@ export interface Widget {
  */
 export interface ManifestRequirements {
   /**
-   * Resource requirements declared by the package.
+   * Resource requirements declared by the package. Deprecated in favor of permissions/vault.
    */
   resources?: ResourceRequirement[];
+  /**
+   * Package permissions requested to access user resources.
+   */
+  permissions?: PermissionRequirement[];
+  /**
+   * Package-owned secret entries stored in the user's vault.
+   */
+  vault?: VaultRequirement[];
 }
 export interface ResourceRequirement {
   /**
@@ -244,6 +252,68 @@ export interface ResourceRequirement {
   description?: string;
   /**
    * Additional requirement metadata.
+   */
+  metadata?: {
+    [k: string]: unknown;
+  };
+}
+export interface PermissionRequirement {
+  /**
+   * Stable permission identifier used for grants.
+   */
+  key: string;
+  /**
+   * Resource types covered by this permission (file, image, audio, video, kv, secret, etc.).
+   *
+   * @minItems 1
+   */
+  types: [string, ...string[]];
+  /**
+   * Optional storage providers this permission applies to.
+   */
+  providers?: string[];
+  /**
+   * Allowed actions for the permission (read, write, use).
+   */
+  actions?: string[];
+  /**
+   * Whether the permission must be granted before execution.
+   */
+  required?: boolean;
+  /**
+   * Human-readable explanation of why the permission is needed.
+   */
+  description?: string;
+  /**
+   * Additional permission metadata.
+   */
+  metadata?: {
+    [k: string]: unknown;
+  };
+}
+export interface VaultRequirement {
+  /**
+   * Stable key used to store and retrieve the vault value.
+   */
+  key: string;
+  /**
+   * Display label for the vault entry.
+   */
+  label?: string;
+  /**
+   * Vault value type (secret, string, json).
+   */
+  type: string;
+  /**
+   * Whether the vault entry must be provided before execution.
+   */
+  required?: boolean;
+  /**
+   * Human-readable explanation of the vault entry.
+   */
+  description?: string;
+  /**
+   * Additional vault metadata.
    */
   metadata?: {
     [k: string]: unknown;

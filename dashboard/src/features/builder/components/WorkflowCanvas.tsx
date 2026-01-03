@@ -1,9 +1,14 @@
 import type { DragEvent, MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ReactFlow, { Background, applyNodeChanges, useReactFlow } from "reactflow";
+import ReactFlow, {
+  Background,
+  applyNodeChanges,
+  useReactFlow,
+  useStore,
+  useStoreApi
+} from "reactflow";
 import type { Connection, Edge, EdgeChange, EdgeTypes, Node, NodeChange, NodeTypes } from "reactflow";
 import "reactflow/dist/style.css";
-import WorkflowControls from "./WorkflowControls";
 import { useWorkflowStore } from "../store";
 import { buildFlowEdges, buildFlowNodes } from "../utils/flowTransforms.ts";
 import type { WorkflowEdgeDraft, WorkflowNodeLayout, XYPosition, WorkflowPaletteNode } from "../types.ts";
@@ -16,6 +21,7 @@ import {
   WORKFLOW_NODE_DRAG_VERSION_KEY
 } from "../constants.ts";
 import { getPackage } from "../../../services/packages";
+import { useFlowControlsStore } from "../hooks/useFlowControls";
 
 interface WorkflowCanvasProps {
   onNodeDrop?: (
@@ -143,7 +149,15 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   const addEdge = useWorkflowStore((state) => state.addEdge);
   const removeEdge = useWorkflowStore((state) => state.removeEdge);
   const convertSelectionToSubgraph = useWorkflowStore((state) => state.convertSelectionToSubgraph);
-  const { screenToFlowPosition, getEdges } = useReactFlow();
+  const { screenToFlowPosition, getEdges, zoomIn, zoomOut, fitView } = useReactFlow();
+  const flowStore = useStoreApi();
+  const minZoomReached = useStore((state) => state.transform[2] <= state.minZoom);
+  const maxZoomReached = useStore((state) => state.transform[2] >= state.maxZoom);
+  const isInteractive = useStore(
+    (state) => state.nodesDraggable || state.nodesConnectable || state.elementsSelectable
+  );
+  const setFlowControls = useFlowControlsStore((state) => state.setControls);
+  const clearFlowControls = useFlowControlsStore((state) => state.clear);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string>();
   const [contextMenu, setContextMenu] = useState<
     | { type: "node"; id: string; position: { x: number; y: number } }
@@ -172,6 +186,61 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
   const edges: Edge[] = useMemo(() => (workflow ? buildFlowEdges(workflow) : []), [workflow]);
   const pendingPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   const dragHistoryRecordedRef = useRef<boolean>(false);
+
+  const handleZoomIn = useCallback(() => {
+    zoomIn();
+  }, [zoomIn]);
+
+  const handleZoomOut = useCallback(() => {
+    zoomOut();
+  }, [zoomOut]);
+
+  const handleFitView = useCallback(() => {
+    fitView({ padding: 0.2 });
+  }, [fitView]);
+
+  const toggleInteractive = useCallback(() => {
+    const next = !isInteractive;
+    flowStore.setState({
+      nodesDraggable: next,
+      nodesConnectable: next,
+      elementsSelectable: next,
+    });
+  }, [flowStore, isInteractive]);
+
+  useEffect(() => {
+    if (!workflow) {
+      clearFlowControls();
+      return;
+    }
+    setFlowControls({
+      zoomIn: handleZoomIn,
+      zoomOut: handleZoomOut,
+      fitView: handleFitView,
+      toggleInteractive,
+      minZoomReached,
+      maxZoomReached,
+      isInteractive,
+    });
+  }, [
+    clearFlowControls,
+    handleFitView,
+    handleZoomIn,
+    handleZoomOut,
+    isInteractive,
+    maxZoomReached,
+    minZoomReached,
+    setFlowControls,
+    toggleInteractive,
+    workflow
+  ]);
+
+  useEffect(
+    () => () => {
+      clearFlowControls();
+    },
+    [clearFlowControls]
+  );
 
   useEffect(() => {
     // Incremental workflow updates can arrive frequently; merge them to avoid remounting every node.
@@ -585,7 +654,6 @@ const WorkflowCanvas = ({ onNodeDrop }: WorkflowCanvasProps) => {
         className="workflow-canvas__flow"
       >
         <Background gap={16} size={1} />
-        <WorkflowControls />
       </ReactFlow>
       {contextMenu && (
         <div

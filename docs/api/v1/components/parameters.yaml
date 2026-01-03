@@ -10,12 +10,6 @@ ResourceId:
   required: true
   schema:
     type: string
-ResourceGrantId:
-  name: grantId
-  in: path
-  required: true
-  schema:
-    type: string
 WorkflowId:
   name: workflowId
   in: path

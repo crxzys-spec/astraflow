@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import HTTPException, status
+from scheduler_api.http.errors import bad_request, not_found
 
 from scheduler_api.apis.runs_api_base import BaseRunsApi
 from scheduler_api.audit import record_audit_event
@@ -21,8 +21,8 @@ from scheduler_api.models.start_run_request_workflow_nodes_inner import (
 )
 from scheduler_api.models.workflow import Workflow
 
-from ..core.biz.facade import biz_facade
-from ..core.biz.engine import status as engine_status
+from scheduler_api.engine.facade import biz_facade
+from scheduler_api.engine import status as engine_status
 
 LOGGER = logging.getLogger(__name__)
 
@@ -56,10 +56,7 @@ class RunsApiImpl(BaseRunsApi):
     ) -> StartRun202Response:
         token = require_roles(*WORKFLOW_EDIT_ROLES)
         if start_run_request is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="start_run_request body is required",
-            )
+            raise bad_request("start_run_request body is required")
 
         # Convert the public request (Workflow1/UUID ids) into the internal model
         payload = start_run_request.model_dump(by_alias=True, exclude_none=True, mode="json")
@@ -73,6 +70,7 @@ class RunsApiImpl(BaseRunsApi):
             run_id=run_id,
             request=start_run_request,
             tenant=self.tenant,
+            owner_id=token.sub if token else None,
         )
         LOGGER.info(
             "Run %s queued with %d initial nodes", run_id, len(ready)
@@ -96,10 +94,7 @@ class RunsApiImpl(BaseRunsApi):
         require_roles(*RUN_VIEW_ROLES)
         record = await biz_facade.get_run(runId)
         if not record:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Run {runId} not found",
-            )
+            raise not_found(f"Run {runId} not found", error="run_not_found")
         return record.to_summary()
 
     async def cancel_run(
@@ -109,10 +104,7 @@ class RunsApiImpl(BaseRunsApi):
         token = require_roles(*WORKFLOW_EDIT_ROLES)
         record, cancelled_next = await biz_facade.cancel_run(runId)
         if not record:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Run {runId} not found",
-            )
+            raise not_found(f"Run {runId} not found", error="run_not_found")
         if cancelled_next:
             await self._notify_cancelled_next(cancelled_next, tenant=self.tenant)
         record_audit_event(
@@ -133,7 +125,7 @@ class RunsApiImpl(BaseRunsApi):
 
         from uuid import uuid4  # local import to avoid cycle
 
-        from scheduler_api.core.network import worker_gateway  # late import
+        from scheduler_api.infra.network import worker_gateway  # late import
         from shared.models.session import Role, Sender, WsEnvelope
         from shared.models.biz.exec.next.response import ExecMiddlewareNextResponse
 
@@ -167,10 +159,7 @@ class RunsApiImpl(BaseRunsApi):
         require_roles(*RUN_VIEW_ROLES)
         workflow = await biz_facade.get_workflow_with_state(runId)
         if not workflow:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Run {runId} not found",
-            )
+            raise not_found(f"Run {runId} not found", error="run_not_found")
         # Normalize to the public Workflow model to satisfy response validation and avoid
         # leaking internal BaseModel attributes (e.g. .schema method) into the payload.
         return Workflow.from_dict(workflow.to_dict())
@@ -182,7 +171,4 @@ class RunsApiImpl(BaseRunsApi):
         for node in workflow.nodes:
             if node.package and node.package.name and node.package.version:
                 return node
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Workflow must contain at least one node with package metadata",
-        )
+        raise bad_request("Workflow must contain at least one node with package metadata")

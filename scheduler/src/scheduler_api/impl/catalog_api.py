@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import List, Optional
 
 from scheduler_api.apis.catalog_api_base import BaseCatalogApi
-from scheduler_api.catalog import catalog
-from scheduler_api.catalog.package_catalog import _version_key
-from scheduler_api.core.network import worker_gateway
+from scheduler_api.infra.catalog import catalog
+from scheduler_api.infra.catalog.package_catalog import _version_key
+from scheduler_api.infra.network import worker_gateway
 from scheduler_api.models.catalog_node import CatalogNode
 from scheduler_api.models.catalog_node_search_response import CatalogNodeSearchResponse
 from scheduler_api.models.catalog_node_version import CatalogNodeVersion

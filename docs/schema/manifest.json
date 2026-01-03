@@ -384,11 +384,116 @@
       "properties": {
         "resources": {
           "type": "array",
-          "description": "Resource requirements declared by the package.",
+          "description": "Resource requirements declared by the package. Deprecated in favor of permissions/vault.",
           "items": {
             "$ref": "#/$defs/ResourceRequirement"
           },
           "default": []
+        },
+        "permissions": {
+          "type": "array",
+          "description": "Package permissions requested to access user resources.",
+          "items": {
+            "$ref": "#/$defs/PermissionRequirement"
+          },
+          "default": []
+        },
+        "vault": {
+          "type": "array",
+          "description": "Package-owned secret entries stored in the user's vault.",
+          "items": {
+            "$ref": "#/$defs/VaultRequirement"
+          },
+          "default": []
+        }
+      }
+    },
+    "PermissionRequirement": {
+      "type": "object",
+      "required": [
+        "key",
+        "types"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Stable permission identifier used for grants."
+        },
+        "types": {
+          "type": "array",
+          "description": "Resource types covered by this permission (file, image, audio, video, kv, secret, etc.).",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "providers": {
+          "type": "array",
+          "description": "Optional storage providers this permission applies to.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "description": "Allowed actions for the permission (read, write, use).",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "read"
+          ]
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether the permission must be granted before execution.",
+          "default": true
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable explanation of why the permission is needed."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Additional permission metadata.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "VaultRequirement": {
+      "type": "object",
+      "required": [
+        "key",
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Stable key used to store and retrieve the vault value."
+        },
+        "label": {
+          "type": "string",
+          "description": "Display label for the vault entry."
+        },
+        "type": {
+          "type": "string",
+          "description": "Vault value type (secret, string, json)."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether the vault entry must be provided before execution.",
+          "default": true
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable explanation of the vault entry."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Additional vault metadata.",
+          "additionalProperties": true
         }
       }
     },

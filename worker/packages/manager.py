@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
 import shutil
 import sys
@@ -47,6 +48,8 @@ class PackageManager:
         tmp_dir = Path(tempfile.mkdtemp(prefix="pkginstall-"))
         try:
             archive_path = self._download(url, tmp_dir)
+            if checksum:
+                self._verify_checksum(archive_path, checksum)
             package_dir = self.packages_root / name
             self._clear_directory(package_dir)
             self._extract_archive(archive_path, package_dir)
@@ -105,6 +108,23 @@ class PackageManager:
         LOGGER.debug("Downloading package archive from %s", url)
         urlretrieve(url, local_path)
         return local_path
+
+    @staticmethod
+    def _verify_checksum(archive_path: Path, checksum: str) -> None:
+        expected = checksum.strip().lower()
+        if expected.startswith("sha256:"):
+            expected = expected.split("sha256:", 1)[1]
+        if not expected:
+            return
+        digest = hashlib.sha256()
+        with archive_path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        actual = digest.hexdigest()
+        if actual != expected:
+            raise ValueError(
+                f"Package checksum mismatch: expected {expected}, got {actual}"
+            )
 
     def _clear_directory(self, target_dir: Path) -> None:
         if target_dir.exists():

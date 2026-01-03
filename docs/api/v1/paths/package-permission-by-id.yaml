@@ -1,0 +1,15 @@
+delete:
+  tags: [PackagePermissions]
+  summary: Revoke package permission
+  operationId: deletePackagePermission
+  parameters:
+    - name: permissionId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    '204':
+      description: Deleted
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

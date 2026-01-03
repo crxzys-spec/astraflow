@@ -5,8 +5,8 @@ from __future__ import annotations
 from fastapi.middleware.cors import CORSMiddleware
 
 from scheduler_api import main as generated_main
-from scheduler_api.catalog import catalog
-from scheduler_api.core import router as control_router
+from scheduler_api.infra.catalog import catalog
+from scheduler_api.infra.network.ws import router as control_router
 from scheduler_api.db.migrations import upgrade_database
 from scheduler_api.db.seed_data import seed_demo_workflow
 
@@ -28,7 +28,8 @@ app.include_router(control_router)
 
 
 @app.on_event("startup")
-def _startup() -> None:
+async def _startup() -> None:
     upgrade_database()
     catalog.reload()
     seed_demo_workflow()
+

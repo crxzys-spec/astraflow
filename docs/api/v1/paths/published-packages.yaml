@@ -1,0 +1,43 @@
+get:
+  tags: [PublishedPackages]
+  summary: List published packages
+  operationId: listPublishedPackages
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/PackageList'
+post:
+  tags: [PublishedPackages]
+  summary: Upload a published package archive
+  operationId: uploadPublishedPackage
+  requestBody:
+    required: true
+    content:
+      multipart/form-data:
+        schema:
+          type: object
+          required:
+          - file
+          properties:
+            file:
+              type: string
+              format: binary
+  responses:
+    '200':
+      description: OK
+      headers:
+        X-Package-Archive-Sha256:
+          description: SHA256 of the stored package archive
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/PackageDetail'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+    '409':
+      $ref: '../components/responses.yaml#/Conflict'

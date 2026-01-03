@@ -11,13 +11,19 @@ tags:
 - name: Auth
 - name: Workflows
 - name: Packages
+- name: PublishedPackages
 - name: WorkflowPackages
 - name: Resources
+- name: PackagePermissions
+- name: PackageVault
 - name: Workers
 - name: Events
 - name: Audit
 - name: Users
 - name: Catalog
+- name: Registry
+- name: HubPackages
+- name: HubWorkflows
 paths:
   /api/v1/auth/login:
     $ref: ./paths/auth-login.yaml
@@ -43,6 +49,8 @@ paths:
     $ref: ./paths/workflow-package-versions.yaml
   /api/v1/workflow-packages/{packageId}/clone:
     $ref: ./paths/workflow-package-clone.yaml
+  /api/v1/workflow-packages/{packageId}/versions/{versionId}/definition:
+    $ref: ./paths/workflow-package-definition.yaml
   /api/v1/resources:
     $ref: ./paths/resources.yaml
   /api/v1/resources/uploads:
@@ -57,18 +65,68 @@ paths:
     $ref: ./paths/resource-by-id.yaml
   /api/v1/resources/{resourceId}/download:
     $ref: ./paths/resource-download.yaml
-  /api/v1/resource-grants:
-    $ref: ./paths/resource-grants.yaml
-  /api/v1/resource-grants/{grantId}:
-    $ref: ./paths/resource-grant-by-id.yaml
+  /api/v1/package-permissions:
+    $ref: ./paths/package-permissions.yaml
+  /api/v1/package-permissions/{permissionId}:
+    $ref: ./paths/package-permission-by-id.yaml
+  /api/v1/package-vault:
+    $ref: ./paths/package-vault.yaml
+  /api/v1/package-vault/{packageName}/{key}:
+    $ref: ./paths/package-vault-item.yaml
   /api/v1/workflows/{workflowId}/publish:
     $ref: ./paths/workflow-publish.yaml
   /api/v1/packages:
     $ref: ./paths/packages.yaml
   /api/v1/packages/{packageName}:
     $ref: ./paths/package-by-name.yaml
+  /api/v1/published-packages:
+    $ref: ./paths/published-packages.yaml
+  /api/v1/published-packages/gc:
+    $ref: ./paths/published-packages-gc.yaml
+  /api/v1/published-packages/{packageName}:
+    $ref: ./paths/published-package-by-name.yaml
+  /api/v1/published-packages/{packageName}/registry:
+    $ref: ./paths/published-package-registry.yaml
+  /api/v1/published-packages/{packageName}/archive:
+    $ref: ./paths/published-package-archive.yaml
+  /api/v1/published-packages/{packageName}/reserve:
+    $ref: ./paths/published-package-reserve.yaml
+  /api/v1/published-packages/{packageName}/versions/{version}:
+    $ref: ./paths/published-package-version.yaml
+  /api/v1/published-packages/{packageName}/tags/{tag}:
+    $ref: ./paths/published-package-tag.yaml
+  /api/v1/published-packages/{packageName}/visibility:
+    $ref: ./paths/published-package-visibility.yaml
+  /api/v1/published-packages/{packageName}/transfer:
+    $ref: ./paths/published-package-transfer.yaml
   /api/v1/catalog/nodes/search:
     $ref: ./paths/catalog-nodes-search.yaml
+  /api/v1/registry/account:
+    $ref: ./paths/registry-account.yaml
+  /api/v1/registry/workflows/import:
+    $ref: ./paths/registry-workflows-import.yaml
+  /api/v1/hub/packages:
+    $ref: ./paths/hub-packages.yaml
+  /api/v1/hub/packages/{packageName}:
+    $ref: ./paths/hub-package-by-name.yaml
+  /api/v1/hub/packages/{packageName}/versions/{version}:
+    $ref: ./paths/hub-package-version.yaml
+  /api/v1/hub/packages/{packageName}/archive:
+    $ref: ./paths/hub-package-archive.yaml
+  /api/v1/hub/packages/{packageName}/install:
+    $ref: ./paths/hub-package-install.yaml
+  /api/v1/hub/workflows:
+    $ref: ./paths/hub-workflows.yaml
+  /api/v1/hub/workflows/{workflowId}:
+    $ref: ./paths/hub-workflow-by-id.yaml
+  /api/v1/hub/workflows/{workflowId}/versions:
+    $ref: ./paths/hub-workflow-versions.yaml
+  /api/v1/hub/workflows/{workflowId}/versions/{versionId}:
+    $ref: ./paths/hub-workflow-version.yaml
+  /api/v1/hub/workflows/{workflowId}/versions/{versionId}/definition:
+    $ref: ./paths/hub-workflow-definition.yaml
+  /api/v1/hub/workflows/{workflowId}/import:
+    $ref: ./paths/hub-workflow-import.yaml
   /api/v1/workers:
     $ref: ./paths/workers.yaml
   /api/v1/workers/{workerName}:

@@ -54,6 +54,36 @@
         "required": false,
         "description": "API key for Google Gemini models."
       }
+    ],
+    "vault": [
+      {
+        "key": "openai_api_key",
+        "label": "OpenAI API Key",
+        "type": "secret",
+        "required": false,
+        "description": "API key for OpenAI hosted models."
+      },
+      {
+        "key": "openai_compatible_api_key",
+        "label": "OpenAI-Compatible API Key",
+        "type": "secret",
+        "required": false,
+        "description": "API key for OpenAI-compatible providers."
+      },
+      {
+        "key": "anthropic_api_key",
+        "label": "Anthropic API Key",
+        "type": "secret",
+        "required": false,
+        "description": "API key for Anthropic models."
+      },
+      {
+        "key": "google_api_key",
+        "label": "Google API Key",
+        "type": "secret",
+        "required": false,
+        "description": "API key for Google Gemini models."
+      }
     ]
   },
   "nodes": [

@@ -1,0 +1,52 @@
+put:
+  tags: [PublishedPackages]
+  summary: Set published package dist-tag
+  operationId: setPublishedPackageTag
+  parameters:
+    - name: packageName
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: tag
+      in: path
+      required: true
+      schema:
+        type: string
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/PublishedPackageTagRequest'
+  responses:
+    '204':
+      description: Updated
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+    '403':
+      $ref: '../components/responses.yaml#/Forbidden'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'
+delete:
+  tags: [PublishedPackages]
+  summary: Delete published package dist-tag
+  operationId: deletePublishedPackageTag
+  parameters:
+    - name: packageName
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: tag
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    '204':
+      description: Deleted
+    '403':
+      $ref: '../components/responses.yaml#/Forbidden'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

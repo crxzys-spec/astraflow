@@ -1,0 +1,25 @@
+post:
+  tags: [HubWorkflows]
+  summary: Import a hub workflow into the local workspace
+  operationId: importHubWorkflow
+  parameters:
+  - name: workflowId
+    in: path
+    required: true
+    schema:
+      type: string
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/HubWorkflowImportRequest'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/HubWorkflowImportResponse'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

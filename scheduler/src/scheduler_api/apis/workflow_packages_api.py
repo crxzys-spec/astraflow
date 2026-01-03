@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from typing import Dict, List  # noqa: F401
+from typing import Dict, List, Any  # noqa: F401
 import importlib
 import pkgutil
 
@@ -27,6 +27,7 @@ from pydantic import Field, StrictStr
 from typing import Any, Optional
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
+from scheduler_api.models.workflow import Workflow
 from scheduler_api.models.workflow_package_clone_request import WorkflowPackageCloneRequest
 from scheduler_api.models.workflow_package_detail import WorkflowPackageDetail
 from scheduler_api.models.workflow_package_list import WorkflowPackageList
@@ -150,6 +151,29 @@ async def clone_workflow_package(
     if not BaseWorkflowPackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseWorkflowPackagesApi.subclasses[0]().clone_workflow_package(packageId, workflow_package_clone_request)
+
+
+@router.get(
+    "/api/v1/workflow-packages/{packageId}/versions/{versionId}/definition",
+    responses={
+        200: {"model": Workflow, "description": "OK"},
+        403: {"model": Error, "description": "Authenticated but lacks required permissions"},
+        404: {"model": Error, "description": "Resource not found"},
+    },
+    tags=["WorkflowPackages"],
+    summary="Get a workflow package definition snapshot",
+    response_model_by_alias=True,
+)
+async def get_workflow_package_definition(
+    packageId: StrictStr = Path(..., description=""),
+    versionId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> Workflow:
+    if not BaseWorkflowPackagesApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseWorkflowPackagesApi.subclasses[0]().get_workflow_package_definition(packageId, versionId)
 
 
 @router.post(

@@ -1,0 +1,19 @@
+get:
+  tags: [HubPackages]
+  summary: Get hub package detail
+  operationId: getHubPackage
+  parameters:
+  - name: packageName
+    in: path
+    required: true
+    schema:
+      type: string
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/HubPackageDetail'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

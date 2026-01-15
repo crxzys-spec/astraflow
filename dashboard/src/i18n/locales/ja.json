@@ -1,0 +1,606 @@
+{
+  "nav": {
+    "workflows": "ワークフロー",
+    "hubLibrary": "Hub ライブラリ",
+    "packageCenter": "パッケージセンター",
+    "builder": "ビルダー",
+    "localWorkflows": "ローカルワークフロー"
+  },
+  "auth": {
+    "personalPanel": "個人パネル",
+    "myPackages": "自分のパッケージ",
+    "adminConsole": "管理コンソール",
+    "logout": "ログアウト",
+    "checkingSession": "セッションを確認中…",
+    "adminAccessRequired": "管理者権限が必要です",
+    "adminAccessHint": "このセクションを表示するには管理者ロールが必要です。"
+  },
+  "admin": {
+    "title": "管理",
+    "subtitle": "アカウントとコンプライアンスを管理",
+    "users": "ユーザー",
+    "auditLog": "監査ログ",
+    "workers": "ワーカー",
+    "eyebrow": "管理",
+    "roles": {
+      "admin": {
+        "label": "管理者",
+        "helper": "スケジューラとユーザー管理へのフルアクセス。"
+      },
+      "editor": {
+        "label": "ワークフロー編集者",
+        "helper": "ワークフローを作成・更新し、実行を開始。"
+      },
+      "viewer": {
+        "label": "ワークフロービューア",
+        "helper": "ワークフロー定義への読み取り専用アクセス。"
+      },
+      "runViewer": {
+        "label": "実行ビューア",
+        "helper": "ワークフローを編集せずに実行テレメトリを確認。"
+      }
+    },
+    "usersPage": {
+      "accessDeniedTitle": "ユーザー管理",
+      "accessDeniedMessage": "管理者のみアカウントを作成できます。AstraFlow 管理者にアクセスを依頼してください。",
+      "title": "ユーザー管理",
+      "subtitle": "プラットフォーム全体のアカウント、ロール、パスワードを管理します。",
+      "actions": {
+        "createUser": "ユーザーを作成",
+        "refreshing": "更新中…",
+        "manage": "管理"
+      },
+      "table": {
+        "username": "ユーザー名",
+        "displayName": "表示名",
+        "roles": "ロール",
+        "status": "状態",
+        "loading": "ユーザーを読み込み中…",
+        "empty": "ユーザーが見つかりません。「ユーザーを作成」で追加できます。"
+      },
+      "roles": {
+        "none": "なし"
+      },
+      "status": {
+        "active": "有効",
+        "disabled": "無効"
+      },
+      "messages": {
+        "loadError": "ユーザーを読み込めません。",
+        "createSuccess": "ユーザー「{{username}}」を作成しました。",
+        "createError": "ユーザーを作成できません。",
+        "passwordRequired": "新しいパスワードが必要です。",
+        "fallbackUser": "ユーザー",
+        "passwordUpdated": "「{{username}}」のパスワードを更新しました。",
+        "passwordResetError": "パスワードをリセットできません。",
+        "roleAssigned": "ロールを付与しました。",
+        "roleAssignError": "ロールを付与できません。",
+        "roleRemoved": "ロールを削除しました。",
+        "roleRemoveError": "ロールを削除できません。",
+        "statusUpdated": "アカウント状態を更新しました。",
+        "statusUpdateError": "状態を更新できません。"
+      },
+      "createModal": {
+        "title": "ユーザーを作成",
+        "username": "ユーザー名",
+        "usernamePlaceholder": "username",
+        "displayName": "表示名",
+        "displayNamePlaceholder": "表示名",
+        "password": "一時パスワード",
+        "passwordPlaceholder": "********",
+        "rolesLabel": "初期ロール（任意）",
+        "creating": "作成中…"
+      },
+      "manageModal": {
+        "title": "{{name}} を管理",
+        "summary": "ユーザー名: {{username}} - ロール: {{roles}}",
+        "statusLabel": "状態:",
+        "disableAccount": "アカウントを無効化",
+        "enableAccount": "アカウントを有効化",
+        "resetPassword": "パスワードをリセット",
+        "newPasswordPlaceholder": "新しいパスワード",
+        "updating": "更新中…",
+        "updatePassword": "パスワードを更新"
+      }
+    },
+    "auditLogPage": {
+      "accessDeniedTitle": "監査イベント",
+      "accessDeniedMessage": "監査ログは管理者のみ閲覧できます。AstraFlow 管理者にアクセスを依頼してください。",
+      "title": "監査イベント",
+      "subtitle": "スケジューラが記録した最新の特権操作。",
+      "filters": {
+        "action": "操作",
+        "actorId": "操作者 ID",
+        "targetType": "対象タイプ",
+        "clear": "クリア",
+        "apply": "フィルターを適用"
+      },
+      "messages": {
+        "loadError": "監査イベントを読み込めません: {{message}}",
+        "loading": "監査イベントを読み込み中…",
+        "emptyFiltered": "選択したフィルターに一致する監査イベントがありません。",
+        "empty": "監査イベントはまだありません。",
+        "loadingMore": "読み込み中…",
+        "loadMore": "さらに読み込む"
+      },
+      "table": {
+        "time": "時間",
+        "action": "操作",
+        "actor": "操作者",
+        "target": "対象",
+        "metadata": "メタデータ"
+      }
+    },
+    "workersPage": {
+      "accessDeniedTitle": "ワーカーフリート",
+      "accessDeniedMessage": "接続済みワーカーは管理者のみ閲覧できます。",
+      "title": "ワーカーフリート",
+      "subtitle": "接続状態、キュー、インストール済みパッケージを確認します。",
+      "actions": {
+        "clearFilters": "フィルターをクリア",
+        "refreshing": "更新中…"
+      },
+      "stats": {
+        "total": "合計",
+        "connected": "接続済み",
+        "registered": "登録済み",
+        "healthy": "健全"
+      },
+      "filters": {
+        "search": "検索",
+        "searchPlaceholder": "ワーカー名、ホスト、テナント",
+        "queue": "キュー",
+        "queuePlaceholder": "default",
+        "connection": "接続",
+        "health": "ヘルス",
+        "package": "パッケージ",
+        "packagePlaceholder": "パッケージ名",
+        "packageStatus": "パッケージ状態",
+        "all": "すべて",
+        "connected": "接続済み",
+        "disconnected": "切断",
+        "healthy": "健全",
+        "unhealthy": "不健全または不明"
+      },
+      "packageStatus": {
+        "installed": "インストール済み",
+        "installing": "インストール中",
+        "uninstalling": "アンインストール中",
+        "removed": "削除済み",
+        "failed": "失敗",
+        "missing": "未検出",
+        "unknown": "不明"
+      },
+      "messages": {
+        "loadError": "ワーカーを読み込めません: {{message}}",
+        "loading": "ワーカーを読み込み中…",
+        "empty": "現在のフィルターに一致するワーカーがありません。",
+        "noQueues": "キューなし",
+        "noPackages": "パッケージなし"
+      },
+      "values": {
+        "unknownHost": "不明なホスト",
+        "unknownVersion": "不明なバージョン",
+        "defaultTenant": "デフォルト",
+        "unknownInstance": "インスタンス不明"
+      },
+      "status": {
+        "connected": "接続済み",
+        "offline": "オフライン",
+        "registered": "登録済み",
+        "unregistered": "未登録",
+        "healthy": "健全",
+        "unhealthy": "不健全",
+        "unknown": "不明"
+      },
+      "table": {
+        "worker": "ワーカー",
+        "status": "状態",
+        "heartbeat": "ハートビート",
+        "queues": "キュー",
+        "packages": "パッケージ",
+        "metrics": "メトリクス"
+      },
+      "metrics": {
+        "cpu": "CPU",
+        "mem": "メモリ",
+        "disk": "ディスク",
+        "inflight": "実行中",
+        "latency": "レイテンシ"
+      },
+      "age": {
+        "justNow": "たった今",
+        "seconds": "{{count}}秒前",
+        "minutes": "{{count}}分前",
+        "hours": "{{count}}時間前",
+        "days": "{{count}}日前"
+      }
+    }
+  },
+  "account": {
+    "kicker": "パーソナルコンソール",
+    "title": "アカウント",
+    "subtitle": "プロフィールと個人リソースを管理します。",
+    "stats": {
+      "resources": "リソース",
+      "packages": "パッケージ",
+      "roles": "ロール"
+    },
+    "menu": {
+      "profile": "個人パネル",
+      "resources": "リソースセンター",
+      "packages": "パッケージ保管庫"
+    },
+    "profile": {
+      "eyebrow": "プロフィール",
+      "title": "アイデンティティとアクセス",
+      "subtitle": "表示名を更新し、アカウントに割り当てられたアクセスを確認します。",
+      "displayName": "表示名",
+      "username": "ユーザー名",
+      "userId": "ユーザー ID",
+      "roles": "ロール",
+      "fallbackDisplayName": "AstraFlow ユーザー",
+      "fallbackUsername": "不明",
+      "fallbackUserId": "-",
+      "status": {
+        "label": "状態",
+        "active": "有効",
+        "disabled": "無効",
+        "checking": "確認中…"
+      },
+      "actions": {
+        "save": "変更を保存",
+        "saving": "保存中…"
+      },
+      "messages": {
+        "loadError": "プロフィールを読み込めません。",
+        "displayNameRequired": "表示名は必須です。",
+        "updated": "プロフィールを更新しました。",
+        "updateError": "プロフィールを更新できません。",
+        "empty": "プロフィールが読み込まれていません。"
+      }
+    },
+    "resources": {
+      "eyebrow": "リソース",
+      "title": "リソースライブラリ",
+      "subtitle": "ファイルをアップロードし、キー・バリュー資産を管理し、保存済みアーティファクトをプレビューします。",
+      "upload": {
+        "title": "ファイルをアップロード",
+        "subtitle": "ドラッグ & ドロップまたはクリックして参照。",
+        "provider": "プロバイダー",
+        "defaultProvider": "デフォルトプロバイダー",
+        "uploading": "アップロード中…",
+        "status": {
+          "queued": "待機中",
+          "failed": "失敗"
+        },
+        "remove": "削除"
+      },
+      "kv": {
+        "title": "キー・バリューリソース",
+        "subtitle": "ファイルをアップロードせずにシークレットや設定を保存します。",
+        "resourceName": "リソース名",
+        "resourceNamePlaceholder": "key-values.json",
+        "key": "キー",
+        "value": "値",
+        "keyPrimaryPlaceholder": "OPENAI_API_KEY",
+        "keyPlaceholder": "KEY",
+        "valuePlaceholder": "値",
+        "removeRow": "削除",
+        "addRow": "行を追加",
+        "create": "リソースを作成",
+        "hint": "上で選択したプロバイダーを使用します。"
+      },
+      "filters": {
+        "search": "検索",
+        "searchPlaceholder": "ファイル名または ID",
+        "provider": "プロバイダー",
+        "allProviders": "すべてのプロバイダー",
+        "type": "タイプ",
+        "allTypes": "すべてのタイプ"
+      },
+      "actions": {
+        "refreshing": "更新中…",
+        "download": "ダウンロード",
+        "delete": "削除"
+      },
+      "messages": {
+        "loadError": "リソースを読み込めません。",
+        "deleteConfirm": "このリソースを削除しますか？",
+        "deleteError": "リソースを削除できません。",
+        "uploadFailed": "アップロードに失敗しました。",
+        "duplicateKeys": "重複キー: {{keys}}",
+        "kvMissing": "少なくとも1つのキー・バリューペアを追加してください。",
+        "previewFailed": "プレビューの読み込みに失敗しました。",
+        "loading": "リソースを読み込み中…",
+        "empty": "リソースがありません。"
+      },
+      "table": {
+        "file": "ファイル",
+        "resourceId": "リソース ID",
+        "provider": "プロバイダー",
+        "type": "タイプ",
+        "size": "サイズ",
+        "created": "作成日",
+        "actions": "操作"
+      },
+      "preview": {
+        "loading": "読み込み中",
+        "show": "プレビュー",
+        "hide": "非表示",
+        "loadingDetail": "プレビューを読み込み中…",
+        "altFallback": "プレビュー"
+      }
+    },
+    "packages": {
+      "eyebrow": "パッケージ",
+      "title": "パッケージ保管庫",
+      "subtitle": "パッケージに必要なシークレットと権限を管理します。",
+      "listTitle": "パッケージ",
+      "listSubtitle": "アクセスを管理するパッケージを選択してください。",
+      "actions": {
+        "refreshing": "更新中…"
+      },
+      "messages": {
+        "loadError": "パッケージを読み込めません。",
+        "requirementsError": "パッケージ要件を読み込めません。",
+        "loading": "パッケージを読み込み中…",
+        "empty": "パッケージがありません。",
+        "selectPackage": "リストからパッケージを選択してアクセスを設定してください。",
+        "loadingRequirements": "パッケージ要件を読み込み中…",
+        "noRequirements": "このパッケージは保管庫エントリや権限を要求していません。"
+      },
+      "latest": "最新",
+      "requirement": {
+        "required": "必須",
+        "optional": "任意"
+      },
+      "vault": {
+        "title": "保管庫エントリ",
+        "subtitle": "パッケージごとのシークレットと設定。",
+        "actions": {
+          "save": "保存",
+          "saving": "保存中…",
+          "remove": "削除"
+        },
+        "jsonPlaceholder": "{}",
+        "messages": {
+          "loadError": "保管庫エントリを読み込めません。",
+          "missingRequired": "必須エントリが不足しています: {{keys}}",
+          "updated": "保管庫エントリを更新しました。",
+          "updateError": "保管庫を更新できません。",
+          "deleted": "保管庫エントリを削除しました。",
+          "deleteError": "保管庫エントリを削除できません。"
+        }
+      },
+      "permissions": {
+        "title": "権限",
+        "subtitle": "パッケージにリソースタイプへのアクセスを付与します。",
+        "defaultAction": "読み取り",
+        "actionsLabel": "操作: {{actions}}",
+        "actions": {
+          "grant": "付与",
+          "revoke": "取り消し"
+        },
+        "messages": {
+          "loadError": "権限を読み込めません。",
+          "granted": "権限を付与しました。",
+          "grantError": "権限を付与できません。",
+          "revoked": "権限を取り消しました。",
+          "revokeError": "権限を取り消せません。"
+        }
+      }
+    }
+  },
+  "login": {
+    "loadingSession": "セッションを読み込み中…",
+    "welcomeBack": "おかえりなさい",
+    "subtitle": "AstraFlow アカウントでサインイン",
+    "username": "ユーザー名",
+    "password": "パスワード",
+    "signIn": "サインイン",
+    "signingIn": "サインイン中…",
+    "loginFailed": "サインインに失敗しました",
+    "needAccount": "アカウントが必要ですか？AstraFlow 管理者に問い合わせてください。",
+    "devTokenDetected": "開発トークンを検出しました - ログインは JWT を保持します。"
+  },
+  "common": {
+    "create": "作成",
+    "openHub": "Hub を開く",
+    "retry": "再試行",
+    "dismiss": "閉じる",
+    "id": "ID",
+    "local": "ローカル",
+    "unassigned": "未割り当て",
+    "language": "言語",
+    "refresh": "更新",
+    "pageNotFound": "ページが見つかりません。",
+    "unknownError": "不明なエラー"
+  },
+  "workflows": {
+    "libraryTitle": "ワークフローライブラリ",
+    "librarySubtitle": "ローカルワークフローを管理し、インタラクティブビルダーで開きます。",
+    "stats": {
+      "totalLabel": "合計",
+      "totalSublabel": "ローカルワークフロー",
+      "ownersLabel": "オーナー",
+      "ownersSublabel": "メンテナー",
+      "tagsLabel": "タグ",
+      "tagsSublabel": "カテゴリ"
+    },
+    "hubHint": "共有ワークフローをお探しですか？",
+    "browseHub": "Hub で閲覧",
+    "loading": "ローカルワークフローを読み込み中…",
+    "loadFailed": "ワークフローの読み込みに失敗しました：{{message}}",
+    "empty": "ローカルワークフローがありません。",
+    "snapshotPending": "スナップショット待ち",
+    "snapshotHint": "ワークフローを実行してプレビューを取得してください。",
+    "localWorkflow": "ローカルワークフロー",
+    "noDescription": "説明はまだありません。",
+    "noTags": "タグはまだありません",
+    "moreTags": "+{{count}} 件",
+    "openBuilder": "ビルダーを開く",
+    "delete": "削除",
+    "deleting": "削除中…",
+    "deleteConfirm": "ワークフロー「{{name}}」を削除しますか？",
+    "deleteSuccess": "{{name}} を削除しました。",
+    "deleteFailed": "ワークフローの削除に失敗しました。",
+    "deletePermission": "ワークフローを削除するには workflow.editor 権限が必要です。"
+  },
+  "hubWorkflows": {
+    "libraryTitle": "Hub ライブラリ",
+    "librarySubtitle": "Hub の共有ワークフローを閲覧し、ローカルへインポートします。",
+    "stats": {
+      "totalLabel": "合計",
+      "totalSublabel": "Hub ワークフロー",
+      "ownersLabel": "オーナー",
+      "ownersSublabel": "メンテナー",
+      "tagsLabel": "タグ",
+      "tagsSublabel": "カテゴリ"
+    },
+    "loading": "Hub ワークフローを読み込み中…",
+    "loadFailed": "ワークフローの読み込みに失敗しました：{{message}}",
+    "empty": "Hub ワークフローがありません。",
+    "importError": "ワークフローのインポートに失敗しました：{{message}}",
+    "import": "インポート",
+    "importing": "インポート中…",
+    "viewInHub": "Hub で表示",
+    "openHub": "Hub を開く",
+    "localWorkflows": "ローカルワークフロー",
+    "previewTitle": "Hub でプレビュー",
+    "previewSubtitle": "Hub で完全なスナップショットと履歴を確認できます。",
+    "hubWorkflow": "Hub ワークフロー",
+    "noDescription": "説明はまだありません。",
+    "importFailed": "ワークフローのインポートに失敗しました。",
+    "importPermission": "ワークフローをインポートするには workflow.editor 権限が必要です。"
+  },
+  "runs": {
+    "title": "実行",
+    "subtitle": "直近の実行履歴",
+    "noPermission": "実行テレメトリを表示する権限がありません。",
+    "noPermissionDetail": "run.viewer または workflow.editor ロールを申請してください。",
+    "loading": "実行履歴を読み込み中…",
+    "loadFailed": "実行履歴の読み込みに失敗しました：{{message}}",
+    "showMiddleware": "ミドルウェア実行のみ表示",
+    "noRuns": "実行履歴がありません。",
+    "table": {
+      "runId": "実行 ID",
+      "status": "状態",
+      "clientId": "クライアント ID",
+      "started": "開始",
+      "finished": "終了",
+      "actions": "操作"
+    },
+    "stop": "停止"
+  },
+  "packages": {
+    "eyebrow": "パッケージ",
+    "heading": {
+      "public": "パッケージセンター",
+      "mine": "Hub アカウントのパッケージ",
+      "local": "インストール済みパッケージ"
+    },
+    "subheading": {
+      "public": "Hub パッケージを探してワークスペースにインストールします。",
+      "mine": "このスケジューラに紐づく Hub アカウントが所有するパッケージを確認します。",
+      "local": "このワークスペースで利用可能なパッケージを確認します。"
+    },
+    "stats": {
+      "public": "公開",
+      "hubAccount": "Hub アカウント",
+      "installed": "インストール済み",
+      "locked": "ロック",
+      "unavailable": "利用不可",
+      "loading": "..."
+    },
+    "tabs": {
+      "discover": "発見",
+      "hubAccount": "Hub アカウント",
+      "installed": "インストール済み"
+    },
+    "actions": {
+      "publishPackage": "パッケージを公開",
+      "createWorkflow": "ワークフローを作成",
+      "createWorkflowTitle": "公開用ワークフローを作成",
+      "install": "インストール",
+      "update": "更新",
+      "installed": "インストール済み",
+      "installing": "インストール中…",
+      "viewInHub": "Hub で表示",
+      "uninstall": "アンインストール",
+      "uninstalling": "アンインストール中…"
+    },
+    "permissions": {
+      "install": "パッケージをインストールするには workflow.editor 権限が必要です。",
+      "uninstall": "パッケージをアンインストールするには workflow.editor 権限が必要です。",
+      "viewMine": "Hub アカウントのパッケージを表示するには workflow.viewer または workflow.editor 権限が必要です。",
+      "viewLocal": "ローカルパッケージを表示するには workflow.viewer または workflow.editor 権限が必要です。",
+      "tabRequiresViewer": "workflow.viewer 権限が必要です。"
+    },
+    "errors": {
+      "missingOwner": "Hub パッケージの所有者が見つかりません。",
+      "localManaged": "ローカルパッケージはワークスペースで管理されており、ここでは削除できません。",
+      "install": "パッケージのインストールに失敗しました。",
+      "uninstall": "パッケージのアンインストールに失敗しました。",
+      "publish": "パッケージの公開に失敗しました。",
+      "loadLocal": "ローカルパッケージの読み込みに失敗しました。",
+      "loadHub": "Hub パッケージを読み込めませんでした：{{message}}",
+      "loadAccount": "Hub アカウントを読み込めませんでした：{{message}}",
+      "loadAccountFallback": "Hub アカウントの読み込みに失敗しました。",
+      "loadMine": "パッケージを読み込めませんでした：{{message}}"
+    },
+    "loading": {
+      "hubPackages": "Hub パッケージを読み込み中…",
+      "hubAccount": "Hub アカウントを読み込み中…",
+      "myPackages": "パッケージを読み込み中…",
+      "localPackages": "ローカルパッケージを読み込み中…"
+    },
+    "empty": {
+      "public": "Hub パッケージがありません。",
+      "mine": "この Hub アカウントにはパッケージがありません。",
+      "local": "ローカルパッケージがありません。",
+      "noAccount": "このワークスペースには Hub アクセスが設定されていません。"
+    },
+    "card": {
+      "previewHubTitle": "Hub でプレビュー",
+      "previewHubSubtitle": "README とバージョンは Hub で確認できます。",
+      "previewLocalTitle": "ローカルにインストール済み",
+      "previewLocalSubtitle": "このワークスペースのすべてのワークフローで利用できます。",
+      "hubPackage": "パッケージ",
+      "localPackage": "ローカルパッケージ",
+      "descriptionFallback": "説明はありません。",
+      "localDescriptionFallback": "このワークスペースにインストール済み。",
+      "linkedDescription": "Hub に連携済み：{{name}}@{{version}}。",
+      "signatureLabel": "パッケージ"
+    },
+    "visibility": {
+      "public": "公開",
+      "private": "非公開",
+      "internal": "内部",
+      "local": "ローカル"
+    },
+    "latest": "最新",
+    "localVersion": "ローカル",
+    "installSuccess": "インストールしました {{name}}@{{version}}。",
+    "uninstallSuccess": "アンインストールしました {{name}}@{{version}}。",
+    "allVersions": "すべて",
+    "publish": {
+      "title": "Hub にパッケージを公開",
+      "subtitle": "このワークスペースにインストール済みのパッケージを公開します。",
+      "close": "公開ダイアログを閉じる",
+      "packageLabel": "パッケージ",
+      "versionLabel": "バージョン",
+      "visibilityLabel": "公開範囲",
+      "tagsLabel": "タグ（カンマ区切り）",
+      "summaryLabel": "概要",
+      "readmeLabel": "Readme（任意）",
+      "noneReady": "公開できるローカルパッケージがありません。",
+      "selectPackage": "公開するローカルパッケージを選択してください。",
+      "selectVersion": "公開するバージョンを選択してください。",
+      "success": "公開しました {{name}}@{{version}}。",
+      "cancel": "キャンセル",
+      "publish": "公開",
+      "publishing": "公開中…"
+    }
+  }
+}

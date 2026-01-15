@@ -16,10 +16,12 @@
 // May contain unused imports in some cases
 // @ts-ignore
 import type { UIBinding } from './uibinding';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { LocalizedText } from './localized-text';
 
 export interface UIPort {
     'key': string;
-    'label': string;
+    'label': LocalizedText;
     'binding': UIBinding;
 }
-

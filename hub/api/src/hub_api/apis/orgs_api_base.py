@@ -7,6 +7,9 @@ from typing import Any
 from hub_api.models.error import Error
 from hub_api.models.organization import Organization
 from hub_api.models.organization_create_request import OrganizationCreateRequest
+from hub_api.models.organization_invite import OrganizationInvite
+from hub_api.models.organization_invite_create_request import OrganizationInviteCreateRequest
+from hub_api.models.organization_invite_list import OrganizationInviteList
 from hub_api.models.organization_list import OrganizationList
 from hub_api.models.organization_member import OrganizationMember
 from hub_api.models.organization_member_list import OrganizationMemberList
@@ -67,5 +70,44 @@ class BaseOrgsApi:
         self,
         orgId: StrictStr,
         userId: StrictStr,
+    ) -> None:
+        ...
+
+
+    async def list_organization_invites(
+        self,
+        orgId: StrictStr,
+    ) -> OrganizationInviteList:
+        ...
+
+
+    async def create_organization_invite(
+        self,
+        orgId: StrictStr,
+        organization_invite_create_request: OrganizationInviteCreateRequest,
+    ) -> OrganizationInvite:
+        ...
+
+
+    async def revoke_organization_invite(
+        self,
+        orgId: StrictStr,
+        inviteId: StrictStr,
+    ) -> None:
+        ...
+
+
+    async def accept_organization_invite(
+        self,
+        orgId: StrictStr,
+        inviteId: StrictStr,
+    ) -> OrganizationMember:
+        ...
+
+
+    async def decline_organization_invite(
+        self,
+        orgId: StrictStr,
+        inviteId: StrictStr,
     ) -> None:
         ...

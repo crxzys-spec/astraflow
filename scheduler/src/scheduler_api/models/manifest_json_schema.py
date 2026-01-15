@@ -20,7 +20,7 @@ import re  # noqa: F401
 
 
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, ValidationError, field_validator, model_serializer, model_validator
 from typing import Any, Dict, List, Optional
 from typing import Union, Any, List, TYPE_CHECKING, Optional, Dict
 from typing_extensions import Literal
@@ -47,6 +47,27 @@ class ManifestJsonSchema(BaseModel):
         "validate_assignment": True,
         "protected_namespaces": (),
     }
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_actual_instance(cls, value):
+        if isinstance(value, cls):
+            return value
+        if hasattr(value, "actual_instance"):
+            return {"actual_instance": getattr(value, "actual_instance")}
+        if hasattr(value, "root"):
+            return {"actual_instance": getattr(value, "root")}
+        if isinstance(value, dict):
+            if "actual_instance" in value:
+                return value
+            return {"actual_instance": value}
+        if isinstance(value, bool):
+            return {"actual_instance": value}
+        return value
+
+    @model_serializer(mode="plain")
+    def _serialize(self):
+        return self.actual_instance
 
 
     def __init__(self, *args, **kwargs) -> None:

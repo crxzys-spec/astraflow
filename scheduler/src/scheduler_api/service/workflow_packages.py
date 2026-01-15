@@ -11,7 +11,6 @@ from uuid import uuid4
 from sqlalchemy.exc import IntegrityError
 
 from scheduler_api.db.models import WorkflowPackageRecord, WorkflowPackageVersionRecord
-from scheduler_api.config.settings import get_api_settings
 from scheduler_api.models.clone_workflow_package_request import CloneWorkflowPackageRequest
 from scheduler_api.models.get_workflow_package200_response import GetWorkflowPackage200Response
 from scheduler_api.models.list_workflow_package_versions200_response import (
@@ -38,14 +37,6 @@ from scheduler_api.repo.workflow_packages import (
 )
 from scheduler_api.repo.workflows import WorkflowRepository
 from scheduler_api.service.workflows import WorkflowNotFoundError, WorkflowService
-from scheduler_api.service.registry_accounts import registry_account_service
-from scheduler_api.service.registry_client import (
-    RegistryActor,
-    RegistryClient,
-    RegistryClientError,
-    RegistryNotFoundError,
-)
-from scheduler_api.service.workflow_dependencies import extract_package_dependencies
 
 
 class WorkflowPackageError(Exception):
@@ -254,10 +245,6 @@ class WorkflowPackageService:
                 raise WorkflowPackageOwnerError("Cannot publish another user's workflow.")
 
             workflow_payload = self._workflows.hydrate_payload(workflow, session=session)
-            self._ensure_registry_dependencies(
-                workflow_payload,
-                actor_id=actor_id,
-            )
             metadata = workflow_payload.get("metadata") if isinstance(workflow_payload, dict) else None
             owner_display_name = None
             if isinstance(metadata, dict):
@@ -460,58 +447,6 @@ class WorkflowPackageService:
     def _slugify(value: str) -> str:
         slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
         return slug or uuid4().hex[:10]
-
-    def _resolve_registry_actor(self, actor_id: Optional[str]) -> RegistryActor | None:
-        if not actor_id:
-            return None
-        link = registry_account_service.get_by_user_id(actor_id)
-        return RegistryActor(
-            platform_user_id=actor_id,
-            registry_user_id=link.registry_user_id if link else None,
-            registry_username=link.registry_username if link else None,
-        )
-
-    def _ensure_registry_dependencies(
-        self,
-        workflow_payload: dict[str, object],
-        *,
-        actor_id: Optional[str],
-    ) -> None:
-        settings = get_api_settings()
-        if settings.registry_publish_dependency_policy != "block":
-            return
-        dependencies = extract_package_dependencies(workflow_payload)
-        if not dependencies:
-            return
-        if not settings.registry_base_url:
-            raise WorkflowPackageValidationError(
-                "registry_not_configured",
-                "Registry base URL is not configured.",
-            )
-        client = RegistryClient.from_settings()
-        actor = self._resolve_registry_actor(actor_id)
-        missing = []
-        for dependency in dependencies:
-            try:
-                client.get_package_detail(
-                    dependency.name,
-                    version=dependency.version,
-                    actor=actor,
-                )
-            except RegistryNotFoundError:
-                missing.append(dependency.to_dict())
-            except RegistryClientError as exc:
-                raise WorkflowPackageValidationError(
-                    "registry_error",
-                    str(exc),
-                ) from exc
-        if missing:
-            raise WorkflowPackageValidationError(
-                "missing_dependencies",
-                "Missing package dependencies.",
-                details={"missingPackages": missing},
-            )
-
 
 __all__ = [
     "WorkflowPackageService",

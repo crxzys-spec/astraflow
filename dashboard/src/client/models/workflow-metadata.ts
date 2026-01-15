@@ -14,9 +14,13 @@
 
 
 
+// May contain unused imports in some cases
+// @ts-ignore
+import type { LocalizedText } from './localized-text';
+
 export interface WorkflowMetadata {
-    'name': string;
-    'description'?: string;
+    'name': LocalizedText;
+    'description'?: LocalizedText;
     'tags'?: Array<string>;
     'environment'?: string;
     /**
@@ -44,4 +48,3 @@ export interface WorkflowMetadata {
      */
     'updatedBy'?: string;
 }
-

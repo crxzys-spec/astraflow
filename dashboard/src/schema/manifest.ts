@@ -29,9 +29,21 @@ export interface PackageManifest {
    */
   version: string;
   /**
+   * Optional human-readable package name.
+   */
+  displayName?:
+    | string
+    | {
+        [k: string]: string;
+      };
+  /**
    * Short summary of the package.
    */
-  description: string;
+  description:
+    | string
+    | {
+        [k: string]: string;
+      };
   /**
    * Adapter modules exposed by the package.
    *
@@ -71,7 +83,11 @@ export interface Adapter {
   /**
    * Adapter level description.
    */
-  description?: string;
+  description?:
+    | string
+    | {
+        [k: string]: string;
+      };
   /**
    * Idempotency guarantees of the adapter (e.g. per_request).
    */
@@ -109,15 +125,27 @@ export interface Node {
   /**
    * Grouping category displayed in the builder palette.
    */
-  category: string;
+  category:
+    | string
+    | {
+        [k: string]: string;
+      };
   /**
    * Human readable label rendered in the palette and inspector.
    */
-  label: string;
+  label:
+    | string
+    | {
+        [k: string]: string;
+      };
   /**
    * Extended description of the node behaviour.
    */
-  description?: string;
+  description?:
+    | string
+    | {
+        [k: string]: string;
+      };
   /**
    * Free-form tags for searching/filtering.
    */
@@ -152,7 +180,19 @@ export interface Port {
   /**
    * Display label for the port.
    */
-  label: string;
+  label:
+    | string
+    | {
+        [k: string]: string;
+      };
+  /**
+   * Optional helper text for the port.
+   */
+  description?:
+    | string
+    | {
+        [k: string]: string;
+      };
   binding: Binding;
 }
 export interface Binding {
@@ -199,7 +239,11 @@ export interface Widget {
   /**
    * Widget label.
    */
-  label: string;
+  label:
+    | string
+    | {
+        [k: string]: string;
+      };
   /**
    * Component type rendered by the dashboard.
    */
@@ -249,7 +293,11 @@ export interface ResourceRequirement {
   /**
    * Human-readable explanation of why the resource is needed.
    */
-  description?: string;
+  description?:
+    | string
+    | {
+        [k: string]: string;
+      };
   /**
    * Additional requirement metadata.
    */
@@ -283,7 +331,11 @@ export interface PermissionRequirement {
   /**
    * Human-readable explanation of why the permission is needed.
    */
-  description?: string;
+  description?:
+    | string
+    | {
+        [k: string]: string;
+      };
   /**
    * Additional permission metadata.
    */
@@ -299,7 +351,11 @@ export interface VaultRequirement {
   /**
    * Display label for the vault entry.
    */
-  label?: string;
+  label?:
+    | string
+    | {
+        [k: string]: string;
+      };
   /**
    * Vault value type (secret, string, json).
    */
@@ -311,7 +367,11 @@ export interface VaultRequirement {
   /**
    * Human-readable explanation of the vault entry.
    */
-  description?: string;
+  description?:
+    | string
+    | {
+        [k: string]: string;
+      };
   /**
    * Additional vault metadata.
    */

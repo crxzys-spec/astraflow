@@ -24,6 +24,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from scheduler_api.models.hub_visibility import HubVisibility
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -34,7 +35,7 @@ class HubPackageDetail(BaseModel):
     HubPackageDetail
     """ # noqa: E501
     name: StrictStr
-    description: Optional[StrictStr] = None
+    description: Optional[LocalizedText] = None
     readme: Optional[StrictStr] = None
     versions: Optional[List[StrictStr]] = None
     dist_tags: Optional[Dict[str, StrictStr]] = Field(default=None, alias="distTags")
@@ -82,11 +83,9 @@ class HubPackageDetail(BaseModel):
             },
             exclude_none=True,
         )
-        # set to None if description (nullable) is None
-        # and model_fields_set contains the field
-        if self.description is None and "description" in self.model_fields_set:
-            _dict['description'] = None
-
+        # override the default output from pydantic by calling `to_dict()` of description
+        if self.description:
+            _dict['description'] = self.description.to_dict()
         # set to None if readme (nullable) is None
         # and model_fields_set contains the field
         if self.readme is None and "readme" in self.model_fields_set:
@@ -130,7 +129,7 @@ class HubPackageDetail(BaseModel):
 
         _obj = cls.model_validate({
             "name": obj.get("name"),
-            "description": obj.get("description"),
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "readme": obj.get("readme"),
             "versions": obj.get("versions"),
             "distTags": obj.get("distTags"),

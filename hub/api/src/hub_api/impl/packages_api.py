@@ -22,6 +22,16 @@ from hub_api.services.packages_service import PackagesService
 _service = PackagesService()
 
 
+def _qualify_package_name(name: str, owner: str | None) -> str:
+    raw_name = name.strip()
+    if "/" in raw_name:
+        return raw_name
+    owner_value = (owner or "").strip()
+    if not owner_value:
+        return raw_name
+    return f"{owner_value}/{raw_name}"
+
+
 class PackagesApiImpl(BasePackagesApi):
     async def list_packages(
         self,
@@ -40,93 +50,139 @@ class PackagesApiImpl(BasePackagesApi):
         summary: str | None,
         readme: str | None,
         tags: list[str] | None,
+        owner_id: str | None,
     ) -> PackageVersionDetail:
-        return await _service.publish_package(file, visibility, summary, readme, tags)
+        return await _service.publish_package(
+            file,
+            visibility,
+            summary,
+            readme,
+            tags,
+            owner_id,
+        )
 
     async def get_package(
         self,
+        owner: str,
         name: str,
     ) -> HubPackageDetail:
-        return await _service.get_package(name)
+        qualified_name = _qualify_package_name(name, owner)
+        return await _service.get_package(qualified_name)
 
     async def reserve_package(
         self,
+        owner: str,
         name: str,
         package_reserve_request: PackageReserveRequest | None,
     ) -> PackageRegistry:
-        return await _service.reserve_package(name, package_reserve_request)
+        qualified_name = _qualify_package_name(name, owner)
+        return await _service.reserve_package(qualified_name, package_reserve_request)
 
     async def get_package_version(
         self,
+        owner: str,
         name: str,
         version: str,
     ) -> PackageVersionDetail:
-        return await _service.get_package_version(name, version)
+        qualified_name = _qualify_package_name(name, owner)
+        return await _service.get_package_version(qualified_name, version)
 
     async def download_package_archive(
         self,
+        owner: str,
         name: str,
         version: str | None,
     ) -> Response:
-        return await _service.download_package_archive(name, version)
+        qualified_name = _qualify_package_name(name, owner)
+        return await _service.download_package_archive(qualified_name, version)
 
     async def set_package_tag(
         self,
+        owner: str,
         name: str,
         tag: str,
         package_tag_request: PackageTagRequest,
     ) -> None:
-        return await _service.set_package_tag(name, tag, package_tag_request)
+        qualified_name = _qualify_package_name(name, owner)
+        return await _service.set_package_tag(qualified_name, tag, package_tag_request)
 
     async def delete_package_tag(
         self,
+        owner: str,
         name: str,
         tag: str,
     ) -> None:
-        return await _service.delete_package_tag(name, tag)
+        qualified_name = _qualify_package_name(name, owner)
+        return await _service.delete_package_tag(qualified_name, tag)
+
+    async def delete_package(
+        self,
+        owner: str,
+        name: str,
+    ) -> None:
+        qualified_name = _qualify_package_name(name, owner)
+        return await _service.delete_package(qualified_name)
 
     async def update_package_visibility(
         self,
+        owner: str,
         name: str,
         package_visibility_request: PackageVisibilityRequest,
     ) -> PackageRegistry:
-        return await _service.update_package_visibility(name, package_visibility_request)
+        qualified_name = _qualify_package_name(name, owner)
+        return await _service.update_package_visibility(
+            qualified_name,
+            package_visibility_request,
+        )
 
     async def transfer_package(
         self,
+        owner: str,
         name: str,
         package_transfer_request: PackageTransferRequest,
     ) -> PackageRegistry:
-        return await _service.transfer_package(name, package_transfer_request)
+        qualified_name = _qualify_package_name(name, owner)
+        return await _service.transfer_package(qualified_name, package_transfer_request)
 
     async def list_package_permissions(
         self,
+        owner: str,
         name: str,
     ) -> PackagePermissionList:
-        return await _service.list_package_permissions(name)
+        qualified_name = _qualify_package_name(name, owner)
+        return await _service.list_package_permissions(qualified_name)
 
     async def add_package_permission(
         self,
+        owner: str,
         name: str,
         package_permission_create_request: PackagePermissionCreateRequest,
     ) -> PackagePermission:
-        return await _service.add_package_permission(name, package_permission_create_request)
+        qualified_name = _qualify_package_name(name, owner)
+        return await _service.add_package_permission(
+            qualified_name,
+            package_permission_create_request,
+        )
 
     async def delete_package_permission(
         self,
+        owner: str,
         name: str,
         permissionId: str,
     ) -> None:
-        return await _service.delete_package_permission(name, permissionId)
+        qualified_name = _qualify_package_name(name, owner)
+        return await _service.delete_package_permission(qualified_name, permissionId)
 
     async def update_package_permission(
         self,
+        owner: str,
         name: str,
         permissionId: str,
         package_permission_update_request: PackagePermissionUpdateRequest,
     ) -> PackagePermission:
+        qualified_name = _qualify_package_name(name, owner)
         return await _service.update_package_permission(
-            name,
+            qualified_name,
             permissionId,
             package_permission_update_request,
         )

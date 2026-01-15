@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from typing import Dict, List  # noqa: F401
+from typing import Dict, List, Any  # noqa: F401
 import importlib
 import pkgutil
 
@@ -24,12 +24,16 @@ from fastapi import (  # noqa: F401
 
 from hub_api.models.extra_models import TokenModel  # noqa: F401
 from pydantic import Field, StrictStr
-from typing import Optional
+from typing import Any, Optional
 from typing_extensions import Annotated
 from hub_api.models.error import Error
 from hub_api.models.hub_workflow_detail import HubWorkflowDetail
 from hub_api.models.workflow_definition import WorkflowDefinition
 from hub_api.models.workflow_list_response import WorkflowListResponse
+from hub_api.models.workflow_permission import WorkflowPermission
+from hub_api.models.workflow_permission_create_request import WorkflowPermissionCreateRequest
+from hub_api.models.workflow_permission_list import WorkflowPermissionList
+from hub_api.models.workflow_permission_update_request import WorkflowPermissionUpdateRequest
 from hub_api.models.workflow_publish_request import WorkflowPublishRequest
 from hub_api.models.workflow_publish_response import WorkflowPublishResponse
 from hub_api.models.workflow_version_detail import WorkflowVersionDetail
@@ -177,3 +181,101 @@ async def get_workflow_definition(
     if not BaseWorkflowsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseWorkflowsApi.subclasses[0]().get_workflow_definition(workflowId, versionId)
+
+
+@router.get(
+    "/api/v1/workflows/{workflowId}/permissions",
+    responses={
+        200: {"model": WorkflowPermissionList, "description": "OK"},
+        401: {"model": Error, "description": "Unauthorized"},
+        403: {"model": Error, "description": "Forbidden"},
+        404: {"model": Error, "description": "Not Found"},
+    },
+    tags=["Workflows"],
+    summary="List workflow permissions",
+    response_model_by_alias=True,
+)
+async def list_workflow_permissions(
+    workflowId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth, scopes=["publish"]
+    ),
+) -> WorkflowPermissionList:
+    if not BaseWorkflowsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseWorkflowsApi.subclasses[0]().list_workflow_permissions(workflowId)
+
+
+@router.post(
+    "/api/v1/workflows/{workflowId}/permissions",
+    responses={
+        201: {"model": WorkflowPermission, "description": "Created"},
+        400: {"model": Error, "description": "Invalid input"},
+        401: {"model": Error, "description": "Unauthorized"},
+        403: {"model": Error, "description": "Forbidden"},
+        404: {"model": Error, "description": "Not Found"},
+    },
+    tags=["Workflows"],
+    summary="Add workflow permission",
+    response_model_by_alias=True,
+)
+async def add_workflow_permission(
+    workflowId: StrictStr = Path(..., description=""),
+    workflow_permission_create_request: WorkflowPermissionCreateRequest = Body(None, description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth, scopes=["publish"]
+    ),
+) -> WorkflowPermission:
+    if not BaseWorkflowsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseWorkflowsApi.subclasses[0]().add_workflow_permission(workflowId, workflow_permission_create_request)
+
+
+@router.delete(
+    "/api/v1/workflows/{workflowId}/permissions/{permissionId}",
+    responses={
+        204: {"description": "Deleted"},
+        401: {"model": Error, "description": "Unauthorized"},
+        403: {"model": Error, "description": "Forbidden"},
+        404: {"model": Error, "description": "Not Found"},
+    },
+    tags=["Workflows"],
+    summary="Delete workflow permission",
+    response_model_by_alias=True,
+)
+async def delete_workflow_permission(
+    workflowId: StrictStr = Path(..., description=""),
+    permissionId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth, scopes=["publish"]
+    ),
+) -> None:
+    if not BaseWorkflowsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseWorkflowsApi.subclasses[0]().delete_workflow_permission(workflowId, permissionId)
+
+
+@router.patch(
+    "/api/v1/workflows/{workflowId}/permissions/{permissionId}",
+    responses={
+        200: {"model": WorkflowPermission, "description": "OK"},
+        400: {"model": Error, "description": "Invalid input"},
+        401: {"model": Error, "description": "Unauthorized"},
+        403: {"model": Error, "description": "Forbidden"},
+        404: {"model": Error, "description": "Not Found"},
+    },
+    tags=["Workflows"],
+    summary="Update workflow permission",
+    response_model_by_alias=True,
+)
+async def update_workflow_permission(
+    workflowId: StrictStr = Path(..., description=""),
+    permissionId: StrictStr = Path(..., description=""),
+    workflow_permission_update_request: WorkflowPermissionUpdateRequest = Body(None, description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth, scopes=["publish"]
+    ),
+) -> WorkflowPermission:
+    if not BaseWorkflowsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseWorkflowsApi.subclasses[0]().update_workflow_permission(workflowId, permissionId, workflow_permission_update_request)

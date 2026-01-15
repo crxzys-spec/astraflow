@@ -33,8 +33,8 @@ class WorkerCommandOneOf2(BaseModel):
     """ # noqa: E501
     type: Optional[Any]
     name: StrictStr
-    version: Optional[StrictStr] = None
-    url: Optional[StrictStr] = Field(default=None, description="Optional archive URL; defaults to the published package archive.")
+    version: StrictStr
+    url: StrictStr = Field(description="Package archive URL to install from.")
     sha256: Optional[StrictStr] = Field(default=None, description="Optional SHA-256 checksum of the archive.")
     __properties: ClassVar[List[str]] = ["type", "name", "version", "url", "sha256"]
 

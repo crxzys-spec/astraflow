@@ -3,7 +3,12 @@ get:
   summary: Download hub package archive
   operationId: downloadHubPackageArchive
   parameters:
-  - name: packageName
+  - name: owner
+    in: path
+    required: true
+    schema:
+      type: string
+  - name: name
     in: path
     required: true
     schema:

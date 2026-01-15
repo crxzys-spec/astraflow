@@ -6,7 +6,7 @@ import os
 import re
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[5]
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 DEFAULT_STORAGE_ROOT = PROJECT_ROOT / "var" / "hub" / "storage"
 
 _SAFE_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
@@ -26,14 +26,21 @@ def get_storage_root() -> Path:
     return root
 
 
-def package_archive_relative_path(name: str, version: str) -> str:
+def package_archive_relative_path(owner: str, name: str, version: str) -> str:
+    safe_owner = _safe_component(owner)
     safe_name = _safe_component(name)
     safe_version = _safe_component(version)
-    return str(Path("packages") / safe_name / safe_version / f"{safe_name}-{safe_version}.zip")
+    return str(
+        Path("packages")
+        / safe_owner
+        / safe_name
+        / safe_version
+        / f"{safe_name}-{safe_version}.zip"
+    )
 
 
-def get_package_archive_path(name: str, version: str) -> Path:
-    relative = package_archive_relative_path(name, version)
+def get_package_archive_path(owner: str, name: str, version: str) -> Path:
+    relative = package_archive_relative_path(owner, name, version)
     path = get_storage_root() / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
@@ -44,4 +51,3 @@ def resolve_storage_path(path_value: str) -> Path:
     if path.is_absolute():
         return path
     return get_storage_root() / path_value
-

@@ -6,27 +6,47 @@ from math import ceil
 from fastapi import HTTPException, status
 
 from hub_api.repo.audit import record_audit_event
+from hub_api.repo.accounts import get_account
 from hub_api.repo.workflows import (
     DEFAULT_VISIBILITY,
     get_workflow_definition,
     get_workflow_record,
     get_workflow_version_record,
+    add_workflow_permission as add_workflow_permission_record,
+    delete_workflow_permission as delete_workflow_permission_record,
+    list_workflow_permissions as list_workflow_permissions_record,
     list_workflow_versions,
     list_workflows,
     publish_workflow_version,
+    update_workflow_permission as update_workflow_permission_record,
 )
 from hub_api.repo.packages import get_package_version_record
+from hub_api.repo.orgs import get_organization, get_org_role, is_user_in_org
 from hub_api.models.hub_workflow_detail import HubWorkflowDetail
 from hub_api.models.hub_workflow_summary import HubWorkflowSummary
 from hub_api.models.page_meta import PageMeta
 from hub_api.models.workflow_list_response import WorkflowListResponse
+from hub_api.models.workflow_permission import WorkflowPermission
+from hub_api.models.workflow_permission_create_request import WorkflowPermissionCreateRequest
+from hub_api.models.workflow_permission_list import WorkflowPermissionList
+from hub_api.models.workflow_permission_update_request import WorkflowPermissionUpdateRequest
 from hub_api.models.workflow_publish_request import WorkflowPublishRequest
 from hub_api.models.workflow_publish_response import WorkflowPublishResponse
 from hub_api.models.workflow_version_detail import WorkflowVersionDetail
 from hub_api.models.workflow_version_list import WorkflowVersionList
 from hub_api.models.workflow_version_summary import WorkflowVersionSummary
 from hub_api.models.visibility import Visibility
-from hub_api.security_api import get_current_actor, is_admin, require_actor
+from hub_api.security_api import get_current_actor, get_current_org_id, is_admin, require_actor
+from hub_api.services.permissions import get_workflow_role_for_user
+
+
+_ROLE_RANK = {
+    "read": 1,
+    "reader": 1,
+    "write": 2,
+    "maintainer": 2,
+    "owner": 3,
+}
 
 
 def _normalize(value: str | None) -> str:
@@ -146,6 +166,10 @@ def _visibility_value(value: Visibility | str | None) -> str:
     return value.value if hasattr(value, "value") else str(value)
 
 
+def _enum_value(value) -> str:
+    return value.value if hasattr(value, "value") else str(value)
+
+
 def _dependencies_payload(dependencies) -> list[dict] | None:
     if not dependencies:
         return None
@@ -156,6 +180,47 @@ def _dependencies_payload(dependencies) -> list[dict] | None:
         elif isinstance(dep, dict):
             payload.append(dep)
     return payload or None
+
+
+def _split_package_name(value: str) -> tuple[str | None, str]:
+    raw = value.strip()
+    if "/" in raw:
+        owner, name = raw.split("/", 1)
+        if owner and name:
+            return owner, name
+    return None, raw
+
+
+def _resolve_dependency_owner(owner: str | None) -> str | None:
+    if not owner:
+        return None
+    account = get_account(owner)
+    if account:
+        return account["id"]
+    org = get_organization(owner)
+    if org:
+        return org["id"]
+    return None
+
+
+def _resolve_owner_namespace(owner_id: str) -> str:
+    account = get_account(owner_id) or {}
+    if account:
+        return account.get("username") or owner_id
+    org = get_organization(owner_id)
+    if org:
+        return org.get("slug") or org.get("id") or owner_id
+    return owner_id
+
+
+def _resolve_dependency_target(dep: dict, fallback_owner_id: str) -> tuple[str, str]:
+    name = dep.get("name")
+    owner_hint = None
+    if isinstance(name, str):
+        owner_hint, name = _split_package_name(name)
+    owner_value = dep.get("owner") or dep.get("ownerId") or dep.get("ownerName") or owner_hint
+    owner_id = _resolve_dependency_owner(owner_value) or fallback_owner_id
+    return owner_id, str(name or "")
 
 
 def _ensure_valid_version(version: str) -> None:
@@ -169,6 +234,48 @@ def _ensure_valid_version(version: str) -> None:
         raise HTTPException(status_code=400, detail="Invalid workflow version.") from exc
 
 
+def _is_org_admin(org_id: str, actor_id: str) -> bool:
+    role = get_org_role(org_id, actor_id)
+    return role in ("owner", "admin")
+
+
+def _resolve_target_owner(actor_id: str, requested_owner_id: str | None) -> tuple[str, str]:
+    token_org_id = get_current_org_id()
+    if token_org_id:
+        if requested_owner_id and _normalize(requested_owner_id) != _normalize(token_org_id):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        return token_org_id, "org"
+    if requested_owner_id and _normalize(requested_owner_id) != _normalize(actor_id):
+        org = get_organization(requested_owner_id)
+        if not org:
+            raise HTTPException(status_code=404, detail="Not Found")
+        if not _is_org_admin(requested_owner_id, actor_id) and not is_admin():
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        return requested_owner_id, "org"
+    return actor_id, "user"
+
+
+def _owner_display_name(owner_id: str) -> str:
+    account = get_account(owner_id) or {}
+    if account:
+        return account.get("displayName") or account.get("username") or owner_id
+    org = get_organization(owner_id)
+    if org:
+        return org.get("name") or org.get("id") or owner_id
+    return owner_id
+
+
+def _require_workflow_role(workflow_id: str, actor_id: str, required_role: str) -> str:
+    if is_admin():
+        return "admin"
+    role = get_workflow_role_for_user(workflow_id, actor_id)
+    if role is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    if _ROLE_RANK.get(role, 0) < _ROLE_RANK.get(required_role, 0):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    return role
+
+
 def _can_view_workflow(record: dict, actor_id: str | None) -> bool:
     visibility = record.get("visibility") or DEFAULT_VISIBILITY
     if visibility == "public":
@@ -177,9 +284,13 @@ def _can_view_workflow(record: dict, actor_id: str | None) -> bool:
         return True
     if not actor_id:
         return False
+    owner_id = record.get("ownerId") or ""
     if visibility == "internal":
+        if is_user_in_org(actor_id, owner_id):
+            return True
+    if _is_org_admin(owner_id, actor_id):
         return True
-    return _normalize(record.get("ownerId")) == _normalize(actor_id)
+    return get_workflow_role_for_user(record.get("id", ""), actor_id) is not None
 
 
 def _require_workflow_access(record: dict | None, actor_id: str | None) -> dict:
@@ -188,6 +299,18 @@ def _require_workflow_access(record: dict | None, actor_id: str | None) -> dict:
     if _can_view_workflow(record, actor_id):
         return record
     raise HTTPException(status_code=404, detail="Not Found")
+
+
+def _permission_from_record(record: dict) -> WorkflowPermission:
+    payload = {
+        "id": record.get("id"),
+        "workflowId": record.get("workflowId"),
+        "subjectType": record.get("subjectType"),
+        "subjectId": record.get("subjectId"),
+        "role": record.get("role"),
+        "createdAt": record.get("createdAt"),
+    }
+    return WorkflowPermission.from_dict(payload)
 
 
 class WorkflowsService:
@@ -225,6 +348,13 @@ class WorkflowsService:
         workflow_publish_request: WorkflowPublishRequest,
     ) -> WorkflowPublishResponse:
         actor_id = require_actor()
+        requested_owner_id = None
+        if workflow_publish_request is not None:
+            requested_owner_id = getattr(workflow_publish_request, "owner_id", None)
+        target_owner_id, owner_subject_type = _resolve_target_owner(
+            actor_id,
+            requested_owner_id,
+        )
         if workflow_publish_request is None:
             raise HTTPException(status_code=400, detail="Publish payload is required.")
         if not isinstance(workflow_publish_request.definition, dict):
@@ -237,9 +367,10 @@ class WorkflowsService:
         previous_visibility = None
         if workflow_publish_request.workflow_id:
             existing = get_workflow_record(workflow_publish_request.workflow_id)
-            if existing and existing.get("ownerId") != actor_id and not is_admin():
+            if existing and _normalize(existing.get("ownerId")) != _normalize(target_owner_id):
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
             if existing:
+                _require_workflow_role(existing.get("id"), actor_id, "write")
                 previous_visibility = existing.get("visibility")
         visibility_value = _visibility_value(workflow_publish_request.visibility)
         dependencies = _dependencies_payload(workflow_publish_request.dependencies)
@@ -249,10 +380,12 @@ class WorkflowsService:
                 version = dep.get("version") if isinstance(dep, dict) else None
                 if not name or not version:
                     raise HTTPException(status_code=400, detail="Dependencies must include name and version.")
-                if get_package_version_record(name, version) is None:
+                owner_id, package_name = _resolve_dependency_target(dep, target_owner_id)
+                if get_package_version_record(owner_id, package_name, version) is None:
+                    owner_label = _resolve_owner_namespace(owner_id)
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Dependency {name}@{version} not found.",
+                        detail=f"Dependency {owner_label}/{package_name}@{version} not found.",
                     )
         try:
             workflow_record, version_record = publish_workflow_version(
@@ -266,7 +399,10 @@ class WorkflowsService:
                 preview_image=workflow_publish_request.preview_image,
                 dependencies=dependencies,
                 definition=workflow_publish_request.definition,
+                owner_id=target_owner_id,
+                owner_name=_owner_display_name(target_owner_id),
                 publisher_id=actor_id,
+                owner_subject_type=owner_subject_type,
             )
         except ValueError as exc:
             if str(exc) == "workflow_version_exists":
@@ -347,3 +483,113 @@ class WorkflowsService:
         if definition is None:
             raise HTTPException(status_code=404, detail="Not Found")
         return definition
+
+    async def list_workflow_permissions(
+        self,
+        workflowId: str,
+    ) -> WorkflowPermissionList:
+        actor_id = require_actor()
+        if not get_workflow_record(workflowId):
+            raise HTTPException(status_code=404, detail="Not Found")
+        _require_workflow_role(workflowId, actor_id, "owner")
+        permissions = [
+            _permission_from_record(record)
+            for record in list_workflow_permissions_record(workflowId)
+        ]
+        return WorkflowPermissionList(items=permissions)
+
+    async def add_workflow_permission(
+        self,
+        workflowId: str,
+        workflow_permission_create_request: WorkflowPermissionCreateRequest,
+    ) -> WorkflowPermission:
+        actor_id = require_actor()
+        if not get_workflow_record(workflowId):
+            raise HTTPException(status_code=404, detail="Not Found")
+        _require_workflow_role(workflowId, actor_id, "owner")
+        if workflow_permission_create_request is None:
+            raise HTTPException(status_code=400, detail="Payload is required.")
+        permission = add_workflow_permission_record(
+            workflow_id=workflowId,
+            subject_type=_enum_value(workflow_permission_create_request.subject_type),
+            subject_id=workflow_permission_create_request.subject_id,
+            role=_enum_value(workflow_permission_create_request.role),
+        )
+        record_audit_event(
+            action="workflow.permission.add",
+            actor_id=actor_id,
+            target_type="workflow",
+            target_id=workflowId,
+            metadata={
+                "permissionId": permission.get("id"),
+                "subjectType": permission.get("subjectType"),
+                "subjectId": permission.get("subjectId"),
+                "role": permission.get("role"),
+            },
+        )
+        return _permission_from_record(permission)
+
+    async def update_workflow_permission(
+        self,
+        workflowId: str,
+        permissionId: str,
+        workflow_permission_update_request: WorkflowPermissionUpdateRequest,
+    ) -> WorkflowPermission:
+        actor_id = require_actor()
+        if not get_workflow_record(workflowId):
+            raise HTTPException(status_code=404, detail="Not Found")
+        _require_workflow_role(workflowId, actor_id, "owner")
+        if workflow_permission_update_request is None:
+            raise HTTPException(status_code=400, detail="Payload is required.")
+        permissions = list_workflow_permissions_record(workflowId)
+        if not any(permission.get("id") == permissionId for permission in permissions):
+            raise HTTPException(status_code=404, detail="Not Found")
+        try:
+            permission = update_workflow_permission_record(
+                permissionId,
+                _enum_value(workflow_permission_update_request.role),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="Not Found") from exc
+        record_audit_event(
+            action="workflow.permission.update",
+            actor_id=actor_id,
+            target_type="workflow",
+            target_id=workflowId,
+            metadata={
+                "permissionId": permission.get("id"),
+                "role": permission.get("role"),
+            },
+        )
+        return _permission_from_record(permission)
+
+    async def delete_workflow_permission(
+        self,
+        workflowId: str,
+        permissionId: str,
+    ) -> None:
+        actor_id = require_actor()
+        if not get_workflow_record(workflowId):
+            raise HTTPException(status_code=404, detail="Not Found")
+        _require_workflow_role(workflowId, actor_id, "owner")
+        permissions = list_workflow_permissions_record(workflowId)
+        permission_record = next(
+            (permission for permission in permissions if permission.get("id") == permissionId),
+            None,
+        )
+        if not permission_record:
+            raise HTTPException(status_code=404, detail="Not Found")
+        delete_workflow_permission_record(permissionId)
+        record_audit_event(
+            action="workflow.permission.remove",
+            actor_id=actor_id,
+            target_type="workflow",
+            target_id=workflowId,
+            metadata={
+                "permissionId": permissionId,
+                "subjectType": permission_record.get("subjectType"),
+                "subjectId": permission_record.get("subjectId"),
+                "role": permission_record.get("role"),
+            },
+        )
+        return None

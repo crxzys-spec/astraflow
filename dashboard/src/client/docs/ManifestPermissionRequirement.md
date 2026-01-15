@@ -10,7 +10,7 @@ Name | Type | Description | Notes
 **providers** | **Array&lt;string&gt;** | Optional storage providers this permission applies to. | [optional] [default to undefined]
 **actions** | **Array&lt;string&gt;** | Allowed actions for the permission (read, write, use). | [optional] [default to undefined]
 **required** | **boolean** | Whether the permission must be granted before execution. | [optional] [default to true]
-**description** | **string** | Human-readable explanation of why the permission is needed. | [optional] [default to undefined]
+**description** | [**LocalizedText**](LocalizedText.md) |  | [optional] [default to undefined]
 **metadata** | **{ [key: string]: any; }** | Additional permission metadata. | [optional] [default to undefined]
 
 ## Example

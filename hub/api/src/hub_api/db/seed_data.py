@@ -281,7 +281,12 @@ def seed_sample_catalog() -> None:
         for tag, tagged_version in package["dist_tags"].items():
             if tag == "latest":
                 continue
-            set_package_tag_record(package["name"], tag, tagged_version)
+            set_package_tag_record(
+                package["owner_id"],
+                package["name"],
+                tag,
+                tagged_version,
+            )
 
     for workflow in DEFAULT_WORKFLOWS:
         definition = _build_workflow_definition(workflow)
@@ -296,5 +301,7 @@ def seed_sample_catalog() -> None:
             preview_image=None,
             dependencies=workflow["dependencies"],
             definition=definition,
+            owner_id=workflow["owner_id"],
+            owner_name=OWNER_NAME_BY_ID.get(workflow["owner_id"], workflow["owner_id"]),
             publisher_id=workflow["owner_id"],
         )

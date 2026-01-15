@@ -12,11 +12,18 @@ import { workflowsGateway } from "../../../services/workflows";
 import { workflowPackagesGateway } from "../../../services/workflowPackages";
 import type { ApiError } from "../../../api/fetcher";
 import { useAsyncAction } from "../../../hooks/useAsyncAction";
+import {
+  LOCALIZED_TEXT_DEFAULT_KEY,
+  coerceLocalizedTextMap,
+  resolveLocalizedText,
+  updateLocalizedTextDefault,
+  type LocalizedText,
+} from "../../../lib/manifestText";
 
 type ResourceStatus = "idle" | "loading" | "success" | "error";
 
 export type PublishMessage = { type: "success" | "error"; text: string };
-export type MetadataFormState = { name: string; description: string };
+export type MetadataFormState = { name: LocalizedText; description: LocalizedText };
 export type PublishFormState = {
   version: string;
   displayName: string;
@@ -26,6 +33,16 @@ export type PublishFormState = {
   mode: "new" | "existing";
   slug: string;
   packageId: string;
+};
+
+const trimLocalizedTextMap = (value: LocalizedText | undefined): Record<string, string> | undefined => {
+  const map = coerceLocalizedTextMap(value);
+  if (!map) {
+    return undefined;
+  }
+  return Object.fromEntries(
+    Object.entries(map).map(([key, entry]) => [key, entry.trim()])
+  ) as Record<string, string>;
 };
 
 export const useWorkflowDraft = (
@@ -109,7 +126,10 @@ export const useWorkflowDraft = (
   const [publishModalError, setPublishModalError] = useState<string | null>(null);
   const [isPublishModalOpen, setPublishModalOpen] = useState(false);
   const [isMetadataModalOpen, setMetadataModalOpen] = useState(false);
-  const [metadataForm, setMetadataForm] = useState<MetadataFormState>({ name: "", description: "" });
+  const [metadataForm, setMetadataForm] = useState<MetadataFormState>({
+    name: updateLocalizedTextDefault(undefined, ""),
+    description: updateLocalizedTextDefault(undefined, ""),
+  });
 
   useEffect(() => {
     resetWorkflow();
@@ -185,9 +205,14 @@ export const useWorkflowDraft = (
   }, [notFound, resetWorkflow]);
 
   const openMetadataModal = useCallback(() => {
+    const fallbackName = resolveLocalizedText(workflow?.metadata?.name) ?? "";
     setMetadataForm({
-      name: workflow?.metadata?.name ?? "",
-      description: workflow?.metadata?.description ?? "",
+      name:
+        coerceLocalizedTextMap(workflow?.metadata?.name, fallbackName) ??
+        updateLocalizedTextDefault(undefined, fallbackName),
+      description:
+        coerceLocalizedTextMap(workflow?.metadata?.description, "") ??
+        updateLocalizedTextDefault(undefined, ""),
     });
     setMetadataModalOpen(true);
   }, [workflow]);
@@ -211,8 +236,8 @@ export const useWorkflowDraft = (
   const handleMetadataSubmit = useCallback(
     (event?: FormEvent<HTMLFormElement>) => {
       event?.preventDefault();
-      const trimmedName = metadataForm.name.trim();
-      const trimmedDescription = metadataForm.description.trim();
+      const trimmedName = trimLocalizedTextMap(metadataForm.name);
+      const trimmedDescription = trimLocalizedTextMap(metadataForm.description);
       if (!workflow) {
         if (!isNewSession) {
           return;
@@ -220,17 +245,22 @@ export const useWorkflowDraft = (
         const localId = workflowId && workflowId !== "new" ? workflowId : "wf-local";
         const localName =
           workflowId && workflowId !== "new" ? `Workflow ${workflowId}` : "Local Builder Session";
-        const draft = createEmptyWorkflow(localId, trimmedName || localName);
-        if (trimmedDescription) {
-          draft.metadata = { ...draft.metadata, description: trimmedDescription };
-        }
+        const defaultName = trimmedName?.[LOCALIZED_TEXT_DEFAULT_KEY] ?? "";
+        const resolvedName = defaultName || localName;
+        const nameMap = updateLocalizedTextDefault(trimmedName ?? {}, resolvedName);
+        const draft = createEmptyWorkflow(localId, resolvedName);
+        draft.metadata = {
+          ...draft.metadata,
+          name: nameMap,
+          description: trimmedDescription ?? undefined,
+        };
         loadWorkflow(draft);
         setMetadataModalOpen(false);
         return;
       }
       updateWorkflowMetadata({
-        name: trimmedName || undefined,
-        description: trimmedDescription || undefined,
+        name: trimmedName,
+        description: trimmedDescription,
       });
       setMetadataModalOpen(false);
     },
@@ -315,7 +345,7 @@ export const useWorkflowDraft = (
     ? slugifyValue(
         publishForm.slug ||
           publishForm.displayName ||
-          workflow?.metadata?.name ||
+          resolveLocalizedText(workflow?.metadata?.name) ||
           workflow?.id ||
           ""
       )
@@ -337,8 +367,8 @@ export const useWorkflowDraft = (
       if (!canPublishWorkflow || !workflow) {
         return;
       }
-      const preferredName = workflow.metadata?.name ?? workflow.id ?? "";
-      const preferredSummary = workflow.metadata?.description ?? "";
+      const preferredName = resolveLocalizedText(workflow.metadata?.name) ?? workflow.id ?? "";
+      const preferredSummary = resolveLocalizedText(workflow.metadata?.description) ?? "";
       const suggestedSlug = slugifyValue(preferredName || workflow.id || "");
       const matchedPackage =
         ownedWorkflowPackages.find((pkg) => pkg.slug === suggestedSlug) ?? null;
@@ -372,7 +402,7 @@ export const useWorkflowDraft = (
       return;
     }
     const fallback =
-      publishForm.displayName || workflow?.metadata?.name || workflow?.id || "";
+      publishForm.displayName || resolveLocalizedText(workflow?.metadata?.name) || workflow?.id || "";
     const nextSlug = slugifyValue(fallback);
     if (nextSlug && nextSlug !== publishForm.slug) {
       setPublishForm((prev) => ({ ...prev, slug: nextSlug }));
@@ -427,7 +457,7 @@ export const useWorkflowDraft = (
             visibility: selected ? normalizeVisibility(selected.visibility) : prev.visibility,
           };
         }
-        const fallbackName = prev.displayName || workflow?.metadata?.name || workflow?.id || "";
+        const fallbackName = prev.displayName || resolveLocalizedText(workflow?.metadata?.name) || workflow?.id || "";
         return {
           ...prev,
           mode,
@@ -483,7 +513,7 @@ export const useWorkflowDraft = (
       setPublishModalError(null);
       const displayName =
         publishForm.displayName.trim() ||
-        workflow.metadata?.name ||
+        resolveLocalizedText(workflow.metadata?.name) ||
         workflow.id;
       const payload = {
         version: trimmedVersion,

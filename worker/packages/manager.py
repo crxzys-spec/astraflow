@@ -20,6 +20,99 @@ from worker.config import WorkerSettings
 from .registry import AdapterRegistry
 
 LOGGER = logging.getLogger(__name__)
+I18N_PREFIX = "@i18n:"
+
+
+def _normalize_locale(locale: str) -> str:
+    return locale.lower().replace("_", "-")
+
+
+def _load_locale_packs(package_dir: Path) -> dict[str, dict[str, str]]:
+    locales_dir = package_dir / "locales"
+    packs: dict[str, dict[str, str]] = {}
+    if not locales_dir.is_dir():
+        return packs
+    for locale_path in locales_dir.glob("*.json"):
+        locale = locale_path.stem
+        try:
+            payload = json.loads(locale_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if isinstance(payload, dict):
+            packs[locale] = {str(key): str(value) for key, value in payload.items()}
+    return packs
+
+
+def _resolve_i18n_value(value: object, packs: dict[str, dict[str, str]]):
+    if not isinstance(value, str) or not value.startswith(I18N_PREFIX):
+        return value
+    key = value[len(I18N_PREFIX) :]
+    if not packs:
+        return value
+    normalized = {
+        _normalize_locale(locale): (locale, entries)
+        for locale, entries in packs.items()
+    }
+    fallback = None
+    for candidate in ("en", "en-us"):
+        _, entries = normalized.get(candidate, (None, {}))
+        if entries:
+            fallback = entries.get(key)
+            if fallback:
+                break
+    resolved: dict[str, str] = {}
+    for locale, entries in packs.items():
+        resolved[locale] = entries.get(key) or fallback or key
+    return resolved
+
+
+def _apply_i18n_to_manifest(
+    payload: dict[str, Any],
+    packs: dict[str, dict[str, str]],
+) -> None:
+    def apply(value):
+        return _resolve_i18n_value(value, packs)
+
+    if "displayName" in payload:
+        payload["displayName"] = apply(payload.get("displayName"))
+    if "description" in payload:
+        payload["description"] = apply(payload.get("description"))
+
+    for adapter in payload.get("adapters", []) or []:
+        if isinstance(adapter, dict) and "description" in adapter:
+            adapter["description"] = apply(adapter.get("description"))
+
+    requirements = payload.get("requirements") or {}
+    if isinstance(requirements, dict):
+        for group in ("resources", "vault", "permissions"):
+            for req in requirements.get(group, []) or []:
+                if not isinstance(req, dict):
+                    continue
+                if "label" in req:
+                    req["label"] = apply(req.get("label"))
+                if "description" in req:
+                    req["description"] = apply(req.get("description"))
+
+    for node in payload.get("nodes", []) or []:
+        if not isinstance(node, dict):
+            continue
+        for key in ("category", "label", "description"):
+            if key in node:
+                node[key] = apply(node.get(key))
+        ui = node.get("ui") or {}
+        if not isinstance(ui, dict):
+            continue
+        for port_group in ("inputPorts", "outputPorts", "ports"):
+            for port in ui.get(port_group, []) or []:
+                if not isinstance(port, dict):
+                    continue
+                if "label" in port:
+                    port["label"] = apply(port.get("label"))
+                if "description" in port:
+                    port["description"] = apply(port.get("description"))
+        for widget in ui.get("widgets", []) or []:
+            if isinstance(widget, dict) and "label" in widget:
+                widget["label"] = apply(widget.get("label"))
 
 
 @dataclass
@@ -144,10 +237,19 @@ class PackageManager:
                 if manifest_path.is_file():
                     yield candidate
                     continue
-                for subdir in candidate.iterdir():
-                    sub_manifest = subdir / "manifest.json"
-                    if subdir.is_dir() and sub_manifest.is_file():
-                        yield subdir
+                for package_dir in candidate.iterdir():
+                    if not package_dir.is_dir():
+                        continue
+                    sub_manifest = package_dir / "manifest.json"
+                    if sub_manifest.is_file():
+                        yield package_dir
+                        continue
+                    for version_dir in package_dir.iterdir():
+                        if not version_dir.is_dir():
+                            continue
+                        version_manifest = version_dir / "manifest.json"
+                        if version_manifest.is_file():
+                            yield version_dir
         return iter_dirs()
 
     def _resolve_installed_dir(self, name: str, version: str) -> Path | None:
@@ -167,7 +269,10 @@ class PackageManager:
     def _load_manifest(package_dir: Path) -> Dict[str, Any]:
         manifest_path = package_dir / "manifest.json"
         with manifest_path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
+            payload = json.load(handle)
+        if isinstance(payload, dict):
+            _apply_i18n_to_manifest(payload, _load_locale_packs(package_dir))
+        return payload
 
     @staticmethod
     def _validate_manifest(manifest: Dict[str, Any], expected_name: str, expected_version: str) -> None:

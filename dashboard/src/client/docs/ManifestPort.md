@@ -6,8 +6,8 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **key** | **string** |  | [default to undefined]
-**label** | **string** |  | [default to undefined]
-**description** | **string** |  | [optional] [default to undefined]
+**label** | [**LocalizedText**](LocalizedText.md) |  | [default to undefined]
+**description** | [**LocalizedText**](LocalizedText.md) |  | [optional] [default to undefined]
 **binding** | [**ManifestBinding**](ManifestBinding.md) |  | [default to undefined]
 
 ## Example

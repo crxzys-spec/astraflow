@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { AuditEvent } from "../../../client/models";
 import { useAuthStore } from "@store/authSlice";
 import { listAuditEvents } from "../../../services/audit";
@@ -6,6 +7,7 @@ import { toApiError, type ApiError } from "../../../api/fetcher";
 
 const AuditLogPage = () => {
   const isAdmin = useAuthStore((state) => state.hasRole(["admin"]));
+  const { t } = useTranslation();
   const [filters, setFilters] = useState({ action: "", actorId: "", targetType: "" });
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [events, setEvents] = useState<AuditEvent[]>([]);
@@ -72,10 +74,8 @@ const AuditLogPage = () => {
     return (
       <div className="admin-view">
         <div className="card stack admin-panel">
-          <h2>Audit Events</h2>
-          <p className="text-subtle">
-            Only administrators can view the audit trail. Contact your AstraFlow admin to request access.
-          </p>
+          <h2>{t("admin.auditLogPage.accessDeniedTitle")}</h2>
+          <p className="text-subtle">{t("admin.auditLogPage.accessDeniedMessage")}</p>
         </div>
       </div>
     );
@@ -86,14 +86,12 @@ const AuditLogPage = () => {
       <div className="card stack admin-panel">
         <header className="card__header admin-panel__header">
           <div>
-            <span className="admin-panel__eyebrow">Administration</span>
-            <h2>Audit Events</h2>
-            <p className="text-subtle admin-panel__description">
-              Latest privileged operations captured by the scheduler.
-            </p>
+            <span className="admin-panel__eyebrow">{t("admin.eyebrow")}</span>
+            <h2>{t("admin.auditLogPage.title")}</h2>
+            <p className="text-subtle admin-panel__description">{t("admin.auditLogPage.subtitle")}</p>
           </div>
           <button className="btn" type="button" onClick={() => { setCursor(undefined); void fetchAudit(true); }}>
-            Refresh
+            {t("common.refresh")}
           </button>
         </header>
 
@@ -107,7 +105,7 @@ const AuditLogPage = () => {
         >
           <div className="builder-grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}>
             <label className="stack">
-              <span>Action</span>
+              <span>{t("admin.auditLogPage.filters.action")}</span>
               <input
                 type="text"
                 value={filters.action}
@@ -115,7 +113,7 @@ const AuditLogPage = () => {
               />
             </label>
             <label className="stack">
-              <span>Actor ID</span>
+              <span>{t("admin.auditLogPage.filters.actorId")}</span>
               <input
                 type="text"
                 value={filters.actorId}
@@ -123,7 +121,7 @@ const AuditLogPage = () => {
               />
             </label>
             <label className="stack">
-              <span>Target Type</span>
+              <span>{t("admin.auditLogPage.filters.targetType")}</span>
               <input
                 type="text"
                 value={filters.targetType}
@@ -140,31 +138,35 @@ const AuditLogPage = () => {
                 setCursor(undefined);
               }}
             >
-              Clear
+              {t("admin.auditLogPage.filters.clear")}
             </button>
             <button className="btn btn--primary" type="submit">
-              Apply Filters
+              {t("admin.auditLogPage.filters.apply")}
             </button>
           </div>
         </form>
 
         {isError && (
           <div className="admin-section admin-section--notice stack">
-            <p className="error">Unable to load audit events: {error?.message ?? "Unknown error"}</p>
+            <p className="error">
+              {t("admin.auditLogPage.messages.loadError", { message: error?.message ?? t("common.unknownError") })}
+            </p>
             <button className="btn" type="button" onClick={() => { setCursor(undefined); void fetchAudit(true); }}>
-              Retry
+              {t("common.retry")}
             </button>
           </div>
         )}
 
         {isLoading ? (
           <div className="admin-section admin-section--table">
-            <p className="text-subtle">Loading audit events...</p>
+            <p className="text-subtle">{t("admin.auditLogPage.messages.loading")}</p>
           </div>
         ) : rows.length === 0 ? (
           <div className="admin-section admin-section--table">
             <p className="text-subtle">
-              {hasFilters ? "No audit events match the selected filters." : "No audit events recorded yet."}
+              {hasFilters
+                ? t("admin.auditLogPage.messages.emptyFiltered")
+                : t("admin.auditLogPage.messages.empty")}
             </p>
           </div>
         ) : (
@@ -173,11 +175,11 @@ const AuditLogPage = () => {
               <table className="data-table admin-table">
                 <thead>
                   <tr>
-                    <th>Time</th>
-                    <th>Action</th>
-                    <th>Actor</th>
-                    <th>Target</th>
-                    <th>Metadata</th>
+                    <th>{t("admin.auditLogPage.table.time")}</th>
+                    <th>{t("admin.auditLogPage.table.action")}</th>
+                    <th>{t("admin.auditLogPage.table.actor")}</th>
+                    <th>{t("admin.auditLogPage.table.target")}</th>
+                    <th>{t("admin.auditLogPage.table.metadata")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -210,7 +212,7 @@ const AuditLogPage = () => {
                   onClick={() => setCursor(nextCursor)}
                   disabled={isLoading}
                 >
-                  {isLoading ? "Loading..." : "Load More"}
+                  {isLoading ? t("admin.auditLogPage.messages.loadingMore") : t("admin.auditLogPage.messages.loadMore")}
                 </button>
               </div>
             )}

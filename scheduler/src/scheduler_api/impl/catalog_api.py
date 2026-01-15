@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from scheduler_api.apis.catalog_api_base import BaseCatalogApi
-from scheduler_api.infra.catalog import catalog
+from scheduler_api.infra.catalog import LOCAL_OWNER, catalog
 from scheduler_api.infra.catalog.package_catalog import _version_key
 from scheduler_api.infra.network import worker_gateway
 from scheduler_api.models.catalog_node import CatalogNode
@@ -37,6 +37,45 @@ def _coerce_role(role_obj) -> Optional[str]:
     if value in ("node", "container", "middleware"):
         return value
     return None
+
+
+def _normalize_locale_key(value: str) -> str:
+    return value.lower().replace("_", "-")
+
+
+def _select_localized_text(value, fallback):
+    if hasattr(value, "root"):
+        value = value.root
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return value
+    return fallback
+
+
+def _resolve_localized_text(value, fallback: str = "") -> str:
+    if hasattr(value, "root"):
+        value = value.root
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        normalized = {
+            _normalize_locale_key(key): entry
+            for key, entry in value.items()
+            if isinstance(entry, str)
+        }
+        default_entry = normalized.get("default")
+        if default_entry:
+            return default_entry
+        for candidate in ("en-us", "en", "zh-cn", "zh", "ja", "ko"):
+            entry = normalized.get(candidate)
+            if entry:
+                return entry
+        for key in sorted(normalized.keys()):
+            entry = normalized.get(key)
+            if entry:
+                return entry
+    return fallback
 
 
 def _convert_manifest_node(node) -> ManifestNode | None:
@@ -79,9 +118,9 @@ def _convert_manifest_node(node) -> ManifestNode | None:
             type=node.type,
             role=_coerce_role(getattr(node, "role", None)),
             status=_coerce_status(getattr(node, "status", "")),
-            category=node.category,
-            label=node.label or node.type,
-            description=getattr(node, "description", None),
+            category=_select_localized_text(getattr(node, "category", None), None),
+            label=_select_localized_text(getattr(node, "label", None), node.type),
+            description=_select_localized_text(getattr(node, "description", None), None),
             tags=getattr(node, "tags", None),
             adapter=node.adapter,
             handler=node.handler,
@@ -100,9 +139,16 @@ def _convert_manifest_node(node) -> ManifestNode | None:
                 type=getattr(node, "type", "unknown"),
                 role=_coerce_role(getattr(node, "role", None)),
                 status=_coerce_status(getattr(node, "status", "draft") or "draft"),
-                category=getattr(node, "category", "default"),
-                label=getattr(node, "label", getattr(node, "type", "unknown")),
-                description=getattr(node, "description", None),
+                category=_select_localized_text(
+                    getattr(node, "category", None), "default"
+                ),
+                label=_select_localized_text(
+                    getattr(node, "label", None),
+                    getattr(node, "type", "unknown"),
+                ),
+                description=_select_localized_text(
+                    getattr(node, "description", None), None
+                ),
                 tags=getattr(node, "tags", None),
                 adapter=getattr(node, "adapter", "placeholder"),
                 handler=getattr(node, "handler", "handler"),
@@ -117,7 +163,7 @@ def _convert_manifest_node(node) -> ManifestNode | None:
 def _build_catalog_nodes() -> List[CatalogNode]:
     """Aggregate nodes across system manifests + worker-reported manifests."""
 
-    manifest_entries: list[tuple[str, str, dict]] = []
+    manifest_entries: list[tuple[str, str, str, dict]] = []
 
     # System/local manifests from PackageCatalog (system nodes live here).
     try:
@@ -125,9 +171,10 @@ def _build_catalog_nodes() -> List[CatalogNode]:
         for summary in summaries:
             name = summary.get("name")
             versions = summary.get("versions") or []
+            owner = summary.get("ownerId") or LOCAL_OWNER
             for version in versions:
                 try:
-                    manifest_model = catalog.get_manifest(name, version)
+                    manifest_model = catalog.get_manifest(name, version, owner=owner)
                     manifest = (
                         manifest_model.model_dump(by_alias=True)
                         if hasattr(manifest_model, "model_dump")
@@ -135,7 +182,7 @@ def _build_catalog_nodes() -> List[CatalogNode]:
                     )
                 except Exception:
                     continue
-                manifest_entries.append((name, version, manifest))
+                manifest_entries.append((owner, name, version, manifest))
     except Exception:
         pass
 
@@ -151,22 +198,23 @@ def _build_catalog_nodes() -> List[CatalogNode]:
                     continue
                 if not name or not version or not manifest:
                     continue
-                manifest_entries.append((str(name), str(version), manifest))
+                manifest_entries.append((LOCAL_OWNER, str(name), str(version), manifest))
     except Exception:
         pass
 
     # Group manifests per package to derive defaults.
-    grouped: dict[str, list[tuple[str, dict]]] = {}
-    for name, version, manifest in manifest_entries:
-        grouped.setdefault(name, []).append((version, manifest))
+    grouped: dict[tuple[str, str], list[tuple[str, dict]]] = {}
+    for owner, name, version, manifest in manifest_entries:
+        grouped.setdefault((owner, name), []).append((version, manifest))
 
     aggregated: dict[tuple[str, str], CatalogNode] = {}
     version_index: dict[tuple[str, str], dict[str, CatalogNodeVersion]] = {}
 
-    for name, versions_manifests in grouped.items():
+    for (owner, name), versions_manifests in grouped.items():
         versions = sorted({ver for ver, _ in versions_manifests}, key=_version_key, reverse=True)
         default_version = versions[0] if versions else None
         latest_version = versions[0] if versions else None
+        package_ref = name if owner == LOCAL_OWNER else f"{owner}/{name}"
         for version, manifest in versions_manifests:
             nodes_payload = manifest.get("nodes") if isinstance(manifest, dict) else None
             if not nodes_payload:
@@ -181,18 +229,24 @@ def _build_catalog_nodes() -> List[CatalogNode]:
                 node_type = node_dict.get("type")
                 if not node_type:
                     continue
-                key = (name, node_type)
+                key = (package_ref, node_type)
                 entry = aggregated.get(key)
                 if not entry:
                     entry = CatalogNode(
                         type=node_type,
-                        label=node_dict.get("label") or node_type,
-                        category=node_dict.get("category"),
+                        label=_select_localized_text(
+                            node_dict.get("label"), node_type
+                        ),
+                        category=_select_localized_text(
+                            node_dict.get("category"), None
+                        ),
                         role=_coerce_role(node_dict.get("role")),
-                        description=node_dict.get("description"),
+                        description=_select_localized_text(
+                            node_dict.get("description"), None
+                        ),
                         tags=node_dict.get("tags"),
                         status=_coerce_status(node_dict.get("status", "") or ""),
-                        packageName=name,
+                        packageName=package_ref,
                         defaultVersion=default_version,
                         latestVersion=latest_version,
                         versions=[],
@@ -209,9 +263,15 @@ def _build_catalog_nodes() -> List[CatalogNode]:
                         type=node_type,
                         role=_coerce_role(node_dict.get("role")),
                         status=_coerce_status(node_dict.get("status", "draft") or "draft"),
-                        category=node_dict.get("category", "default"),
-                        label=node_dict.get("label") or node_type,
-                        description=node_dict.get("description"),
+                        category=_select_localized_text(
+                            node_dict.get("category"), "default"
+                        ),
+                        label=_select_localized_text(
+                            node_dict.get("label"), node_type
+                        ),
+                        description=_select_localized_text(
+                            node_dict.get("description"), None
+                        ),
                         tags=node_dict.get("tags"),
                         adapter=node_dict.get("adapter", "placeholder"),
                         handler=node_dict.get("handler", "handler"),
@@ -262,7 +322,13 @@ def _build_catalog_nodes() -> List[CatalogNode]:
 
         entry.versions = sorted(selected_versions.values(), key=lambda v: _version_key(v.version))
 
-    return sorted(aggregated.values(), key=lambda item: (item.package_name, item.label))
+    return sorted(
+        aggregated.values(),
+        key=lambda item: (
+            item.package_name,
+            _resolve_localized_text(item.label, ""),
+        ),
+    )
 
 
 class CatalogApiImpl(BaseCatalogApi):
@@ -283,9 +349,9 @@ class CatalogApiImpl(BaseCatalogApi):
             haystack = " ".join(
                 str(part)
                 for part in [
-                    node.label,
+                    _resolve_localized_text(node.label, ""),
                     node.type,
-                    node.description or "",
+                    _resolve_localized_text(node.description, ""),
                     " ".join(node.tags or []),
                 ]
             ).lower()

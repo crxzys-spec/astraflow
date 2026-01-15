@@ -2,20 +2,29 @@ type HubBrowseTab = "packages" | "workflows" | "orgs";
 
 const normalizeBase = (value: string) => value.replace(/\/+$/, "");
 
+const tabPathMap: Record<HubBrowseTab, string> = {
+  packages: "/packages",
+  workflows: "/workflows",
+  orgs: "/console/orgs",
+};
+
 const buildHubUrl = (
   base: string,
   params: { tab?: HubBrowseTab; id?: string },
 ): string => {
-  const [path, query] = base.split("?");
-  const search = new URLSearchParams(query ?? "");
-  if (params.tab) {
-    search.set("tab", params.tab);
+  const normalized = normalizeBase(base);
+  if (!params.tab) {
+    return normalized;
   }
-  if (params.id) {
-    search.set("id", params.id);
+  const tabPath = tabPathMap[params.tab];
+  const baseWithTab = normalized.endsWith(tabPath)
+    ? normalized
+    : `${normalized}${tabPath}`;
+  if (!params.id || params.tab === "orgs") {
+    return baseWithTab;
   }
-  const queryString = search.toString();
-  return queryString ? `${path}?${queryString}` : path;
+  const encodedId = encodeURIComponent(params.id);
+  return `${baseWithTab}/${encodedId}`;
 };
 
 export const getHubWebBaseUrl = (): string | null => {

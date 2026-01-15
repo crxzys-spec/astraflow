@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { resolveLocalizedText } from "../../../lib/manifestText";
+import type { LocalizedText } from "../../../client/models";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import {
   WORKFLOW_NODE_DRAG_FORMAT,
@@ -15,11 +18,11 @@ export interface PaletteNodeVersion {
 
 export interface PaletteNode {
   type: string;
-  label: string;
-  category: string;
+  label: LocalizedText;
+  category: LocalizedText;
   packageName: string;
   role?: string;
-  description?: string;
+  description?: LocalizedText;
   tags?: string[];
   status?: string;
   defaultVersion?: string;
@@ -385,6 +388,7 @@ export const WorkflowPalette = ({
   error,
   onRetry
 }: WorkflowPaletteProps) => {
+  useTranslation();
   const packageLabelId = useId();
   const packageControlId = useId();
   const filterControlId = useId();
@@ -561,6 +565,8 @@ export const WorkflowPalette = ({
               value: version.version,
               label: version.version
             }));
+            const displayLabel = resolveLocalizedText(node.label) ?? node.type;
+            const displayDescription = resolveLocalizedText(node.description);
             const roleLabel =
               (node.role ?? "node").toLowerCase() === "middleware"
                 ? "MIDDLEWARE"
@@ -589,7 +595,7 @@ export const WorkflowPalette = ({
               >
                 <div className="palette__item-row">
                   <div className="palette__item-title">
-                    <span className="palette__item-label">{node.label}</span>
+                    <span className="palette__item-label">{displayLabel}</span>
                     <span className="palette__item-type">{node.type}</span>
                   </div>
                   <div className="palette__item-badges">
@@ -617,9 +623,9 @@ export const WorkflowPalette = ({
                     </span>
                   ))}
                 </div>
-                {node.description && (
+                {displayDescription && (
                   <p className="palette__item-description palette__item-description--clamp">
-                    {node.description}
+                    {displayDescription}
                   </p>
                 )}
               </div>

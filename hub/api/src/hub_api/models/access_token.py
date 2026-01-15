@@ -37,11 +37,16 @@ class AccessToken(BaseModel):
     label: StrictStr
     scopes: List[TokenScope]
     package_name: Optional[StrictStr] = Field(default=None, alias="packageName")
+    org_id: Optional[StrictStr] = Field(default=None, alias="orgId")
     created_at: datetime = Field(alias="createdAt")
+    created_ip: Optional[StrictStr] = Field(default=None, alias="createdIp")
+    created_user_agent: Optional[StrictStr] = Field(default=None, alias="createdUserAgent")
     last_used_at: Optional[datetime] = Field(default=None, alias="lastUsedAt")
+    last_used_ip: Optional[StrictStr] = Field(default=None, alias="lastUsedIp")
+    last_used_user_agent: Optional[StrictStr] = Field(default=None, alias="lastUsedUserAgent")
     expires_at: Optional[datetime] = Field(default=None, alias="expiresAt")
     token: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["id", "label", "scopes", "packageName", "createdAt", "lastUsedAt", "expiresAt", "token"]
+    __properties: ClassVar[List[str]] = ["id", "label", "scopes", "packageName", "orgId", "createdAt", "createdIp", "createdUserAgent", "lastUsedAt", "lastUsedIp", "lastUsedUserAgent", "expiresAt", "token"]
 
     model_config = {
         "populate_by_name": True,
@@ -96,8 +101,13 @@ class AccessToken(BaseModel):
             "label": obj.get("label"),
             "scopes": obj.get("scopes"),
             "packageName": obj.get("packageName"),
+            "orgId": obj.get("orgId"),
             "createdAt": obj.get("createdAt"),
+            "createdIp": obj.get("createdIp"),
+            "createdUserAgent": obj.get("createdUserAgent"),
             "lastUsedAt": obj.get("lastUsedAt"),
+            "lastUsedIp": obj.get("lastUsedIp"),
+            "lastUsedUserAgent": obj.get("lastUsedUserAgent"),
             "expiresAt": obj.get("expiresAt"),
             "token": obj.get("token")
         })

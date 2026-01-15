@@ -6,7 +6,7 @@ export const buildFlowNodes = (workflow: WorkflowDraft, selectedNodeIds: string[
   const fallbackOutputPorts: Record<string, Set<string>> = {};
   const attachedByHost: Record<
     string,
-    { id: string; label: string; node: WorkflowMiddlewareDraft; index: number }[]
+    { id: string; label: WorkflowMiddlewareDraft["label"]; node: WorkflowMiddlewareDraft; index: number }[]
   > = {};
 
   workflow.edges.forEach((edge) => {

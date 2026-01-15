@@ -24,6 +24,7 @@ from pydantic import ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from scheduler_api.models.list_workflows200_response_items_inner_nodes_inner_ui_input_ports_inner_binding import ListWorkflows200ResponseItemsInnerNodesInnerUiInputPortsInnerBinding
 from scheduler_api.models.object import object
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -34,7 +35,7 @@ class ListWorkflows200ResponseItemsInnerNodesInnerUiWidgetsInner(object):
     ListWorkflows200ResponseItemsInnerNodesInnerUiWidgetsInner
     """ # noqa: E501
     key: StrictStr
-    label: StrictStr
+    label: LocalizedText
     component: StrictStr = Field(description="string|number|enum|json...")
     binding: ListWorkflows200ResponseItemsInnerNodesInnerUiInputPortsInnerBinding
     options: Optional[Dict[str, Any]] = None
@@ -101,7 +102,7 @@ class ListWorkflows200ResponseItemsInnerNodesInnerUiWidgetsInner(object):
 
         _obj = cls.model_validate({
             "key": obj.get("key"),
-            "label": obj.get("label"),
+            "label": LocalizedText.from_dict(obj.get("label")) if obj.get("label") is not None else None,
             "component": obj.get("component"),
             "binding": ListWorkflows200ResponseItemsInnerNodesInnerUiInputPortsInnerBinding.from_dict(obj.get("binding")) if obj.get("binding") is not None else None,
             "options": obj.get("options")
@@ -112,5 +113,4 @@ class ListWorkflows200ResponseItemsInnerNodesInnerUiWidgetsInner(object):
                 _obj.additional_properties[_key] = obj.get(_key)
 
         return _obj
-
 

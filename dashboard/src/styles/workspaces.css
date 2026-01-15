@@ -489,11 +489,13 @@
 }
 
 .package-center-content .workflow-grid {
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 360px));
+  justify-content: start;
 }
 
 .workflows-panel .workflow-grid {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 340px));
+  justify-content: start;
   gap: 1rem;
 }
 
@@ -709,6 +711,7 @@
 .workflows-panel .workflow-card__action-buttons {
   gap: 0.6rem;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .workflows-panel .workflow-btn {
@@ -719,6 +722,7 @@
   letter-spacing: 0.02em;
   box-shadow: none;
 }
+
 
 .workflows-panel .workflow-btn--primary {
   background: linear-gradient(135deg, #2dd4bf, #f59e0b);

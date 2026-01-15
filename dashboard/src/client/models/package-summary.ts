@@ -15,22 +15,19 @@
 
 // May contain unused imports in some cases
 // @ts-ignore
-import type { PublishedPackageState } from './published-package-state';
+import type { LocalizedText } from './localized-text';
 // May contain unused imports in some cases
 // @ts-ignore
-import type { PublishedPackageVisibility } from './published-package-visibility';
+import type { PackageHubMeta } from './package-hub-meta';
 
 export interface PackageSummary {
     'name': string;
-    'description'?: string;
+    'description'?: LocalizedText;
     'latestVersion'?: string;
     'defaultVersion'?: string;
     'versions': Array<string>;
-    'distTags'?: { [key: string]: string; };
     'ownerId'?: string | null;
-    'visibility'?: PublishedPackageVisibility;
-    'state'?: PublishedPackageState;
+    'hub'?: PackageHubMeta;
+    'hubVersions'?: Array<string> | null;
 }
-
-
 

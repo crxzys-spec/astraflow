@@ -2,7 +2,7 @@
 """Synchronise packages into the shared node-packages repository.
 
 Usage:
-    python scripts/install_package.py node-packages/example_pkg/1.0.0 [...]
+    python scripts/install_package.py node-packages/example.pkg/1.0.0 [...]
 
 By default the script assumes it is executed from the repository root and that
 source packages live under ``node-packages`` while installed packages should be
@@ -24,7 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "packages",
         nargs="+",
-        help="Path(s) to package directories under node-packages (e.g. node-packages/example_pkg/1.0.0).",
+        help="Path(s) to package directories under node-packages (e.g. node-packages/example.pkg/1.0.0).",
     )
     parser.add_argument(
         "--source-root",

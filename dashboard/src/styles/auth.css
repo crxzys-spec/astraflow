@@ -108,6 +108,11 @@
   overflow: hidden;
 }
 
+.auth-panel__toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .auth-panel__card::before {
   content: "";
   position: absolute;

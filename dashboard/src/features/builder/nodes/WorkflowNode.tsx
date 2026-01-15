@@ -3,6 +3,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent, PointerEvent, ReactElement } from "react";
 import type { NodeProps } from "reactflow";
 import { Handle, Position, useViewport } from "reactflow";
+import { useTranslation } from "react-i18next";
 import type {
   NodePortDefinition,
   NodeWidgetDefinition,
@@ -25,6 +26,7 @@ import type { JsonSchema } from "../utils/schemaDefaults.ts";
 import { createNodeDraftFromTemplate } from "../utils/converters.ts";
 import { UIBindingMode } from "../../../client/model-shims";
 import { useWidgetRegistry, registerBuiltinWidgets } from "../widgets";
+import { resolveLocalizedText } from "../../../lib/manifestText";
 import {
   WORKFLOW_NODE_DRAG_FORMAT,
   WORKFLOW_NODE_DRAG_PACKAGE_KEY,
@@ -32,13 +34,12 @@ import {
   WORKFLOW_NODE_DRAG_TYPE_KEY,
   WORKFLOW_NODE_DRAG_VERSION_KEY
 } from "../constants.ts";
-import { PackagesApi } from "../../../client/apis/packages-api";
-import { createApi } from "../../../api/client";
+import { getPackage } from "../../../services/packages";
 import type { WorkflowPaletteNode } from "../types.ts";
 
 interface WorkflowNodeData {
   nodeId: string;
-  label?: string;
+  label?: WorkflowNodeDraft["label"];
   status?: string;
   stage?: string;
   role?: string;
@@ -54,7 +55,7 @@ interface WorkflowNodeData {
   fallbackInputPorts?: string[];
   fallbackOutputPorts?: string[];
   middlewares?: WorkflowMiddlewareDraft[];
-  attachedMiddlewares?: { id: string; label: string; node: WorkflowMiddlewareDraft; index: number }[];
+  attachedMiddlewares?: { id: string; label: WorkflowNodeDraft["label"]; node: WorkflowMiddlewareDraft; index: number }[];
 }
 
 type ResizeState = {
@@ -68,7 +69,6 @@ const NODE_MIN_WIDTH = 380;
 const NODE_MIN_HEIGHT = 180;
 
 registerBuiltinWidgets();
-const packagesApi = createApi(PackagesApi);
 
 const formatPackage = (node?: WorkflowNodeData | WorkflowNodeDraft | WorkflowMiddlewareDraft) => {
   const name = node?.packageName;
@@ -155,6 +155,8 @@ const mergePorts = (
 };
 
 const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) => {
+  const { i18n } = useTranslation();
+  const activeLocale = i18n.resolvedLanguage ?? i18n.language;
   const nodeId = data?.nodeId ?? id;
   const rootWorkflow = useWorkflowStore((state) => state.workflow);
   const activeGraph = useWorkflowStore((state) => state.activeGraph);
@@ -189,7 +191,7 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
   }, [storedLayout?.height, storedLayout?.width]);
   const [manualLayout, setManualLayout] = useState<WorkflowNodeLayout>(normalizedLayout);
 
-  const displayLabel = workflowNode?.label ?? data?.label ?? nodeId;
+  const displayLabel = resolveLocalizedText(workflowNode?.label ?? data?.label, activeLocale) ?? nodeId;
   const status = workflowNode?.status ?? data?.status;
   const runtimeState =
     workflowNode?.state ??
@@ -360,10 +362,12 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
       (mw.node.ui?.inputPorts ?? []).map((port) => ({
         ...port,
         key: `mw:${mw.id}:input:${port.key}`,
-        label: `${mw.label ?? "Middleware"} · ${port.label ?? port.key}`,
+        label: `${resolveLocalizedText(mw.label, activeLocale) ?? "Middleware"} · ${
+          resolveLocalizedText(port.label, activeLocale) ?? port.key
+        }`,
       }))
     );
-  }, [attachedMiddlewares, isMiddlewareNode]);
+  }, [activeLocale, attachedMiddlewares, isMiddlewareNode]);
 
   const middlewareOutputPorts = useMemo(() => {
     if (isMiddlewareNode) {
@@ -373,18 +377,28 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
       (mw.node.ui?.outputPorts ?? []).map((port) => ({
         ...port,
         key: `mw:${mw.id}:output:${port.key}`,
-        label: `${mw.label ?? "Middleware"} · ${port.label ?? port.key}`,
+        label: `${resolveLocalizedText(mw.label, activeLocale) ?? "Middleware"} · ${
+          resolveLocalizedText(port.label, activeLocale) ?? port.key
+        }`,
       }))
     );
-  }, [attachedMiddlewares, isMiddlewareNode]);
+  }, [activeLocale, attachedMiddlewares, isMiddlewareNode]);
 
   const displayInputPorts = useMemo(
-    () => [...inputPorts, ...middlewareInputPorts],
-    [inputPorts, middlewareInputPorts]
+    () =>
+      [...inputPorts, ...middlewareInputPorts].map((port) => ({
+        ...port,
+        label: resolveLocalizedText(port.label, activeLocale) ?? port.key,
+      })),
+    [activeLocale, inputPorts, middlewareInputPorts]
   );
   const displayOutputPorts = useMemo(
-    () => [...outputPorts, ...middlewareOutputPorts],
-    [outputPorts, middlewareOutputPorts]
+    () =>
+      [...outputPorts, ...middlewareOutputPorts].map((port) => ({
+        ...port,
+        label: resolveLocalizedText(port.label, activeLocale) ?? port.key,
+      })),
+    [activeLocale, outputPorts, middlewareOutputPorts]
   );
 
   const parameterInputBindings = useMemo(() => {
@@ -451,7 +465,11 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
         if (!binding) {
           return acc;
         }
-        const registration = resolve(widget);
+        const displayWidget = {
+          ...widget,
+          label: resolveLocalizedText(widget.label, activeLocale) ?? widget.key,
+        };
+        const registration = resolve(displayWidget);
         if (!registration) {
           return acc;
         }
@@ -503,7 +521,7 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
             )}
             {(!coveredByInput || isExpanded) && (
               <registration.component
-                widget={widget}
+                widget={displayWidget}
                 node={mw}
                 value={value}
                 onChange={handleChange}
@@ -515,7 +533,7 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
         return acc;
       }, []);
     },
-    [middlewareWidgetExpansion, resolve, updateNode, workflowEdges]
+    [activeLocale, middlewareWidgetExpansion, resolve, updateNode, workflowEdges]
   );
 
   const widgetElements = useMemo<ReactElement[]>(() => {
@@ -527,7 +545,11 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
       if (!binding) {
         return accumulator;
       }
-      const registration = resolve(widget);
+      const displayWidget = {
+        ...widget,
+        label: resolveLocalizedText(widget.label, activeLocale) ?? widget.key,
+      };
+      const registration = resolve(displayWidget);
       if (!registration) {
         return accumulator;
       }
@@ -568,7 +590,7 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
           )}
           {(!coveredByInput || isExpanded) && (
             <registration.component
-              widget={widget}
+              widget={displayWidget}
               node={workflowNode}
               value={value}
               onChange={handleChange}
@@ -580,6 +602,7 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
       return accumulator;
     }, []);
   }, [
+    activeLocale,
     connectedWidgetExpansion,
     nodeId,
     parameterInputBindings,
@@ -650,11 +673,10 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
         if (typeof nodeType !== "string" || typeof packageName !== "string") {
           return;
         }
-        const definitionResponse = await packagesApi.getPackage(
+        const definition = await getPackage(
           packageName,
           typeof packageVersion === "string" && packageVersion.length ? packageVersion : undefined,
         );
-        const definition = definitionResponse.data;
         const template = definition?.manifest?.nodes?.find((node) => node.type === nodeType);
         if (!template || template.role !== "middleware") {
           return;
@@ -864,7 +886,7 @@ const WorkflowNode = memo(({ id, data, selected }: NodeProps<WorkflowNodeData>) 
                                 <header className="workflow-node__middleware-card__header">
                                   <div className="workflow-node__middleware-card__title">
                                     <span className="workflow-node__middleware-index">#{mw.index + 1}</span>
-                                    <span>{mw.label}</span>
+                    <span>{resolveLocalizedText(mw.label) ?? mw.id}</span>
                                   </div>
                                   <div className="workflow-node__header-badges">
                                     {mwStage && (

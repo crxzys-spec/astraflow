@@ -8,8 +8,8 @@ Name | Type | Description | Notes
 **type** | **string** |  | [default to undefined]
 **queue** | **string** |  | [default to undefined]
 **name** | **string** |  | [default to undefined]
-**version** | **string** |  | [optional] [default to undefined]
-**url** | **string** | Optional archive URL; defaults to the published package archive. | [optional] [default to undefined]
+**version** | **string** |  | [default to undefined]
+**url** | **string** | Package archive URL to install from. | [default to undefined]
 **sha256** | **string** | Optional SHA-256 checksum of the archive. | [optional] [default to undefined]
 
 ## Example

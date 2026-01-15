@@ -9,6 +9,12 @@ from typing import Any, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, RootModel, constr
 
 
+class LocalizedText(RootModel[Union[str, dict[str, str]]]):
+    root: Union[str, dict[str, str]] = Field(
+        ..., description='Plain text or a locale map (e.g. {"en":"...","zh-CN":"..."}).'
+    )
+
+
 class Adapter(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -22,7 +28,9 @@ class Adapter(BaseModel):
         description='Capabilities registered by this adapter (used for dispatch).',
         min_length=1,
     )
-    description: Optional[str] = Field(None, description='Adapter level description.')
+    description: Optional[LocalizedText] = Field(
+        None, description='Adapter level description.'
+    )
     idempotency: Optional[str] = Field(
         None, description='Idempotency guarantees of the adapter (e.g. per_request).'
     )
@@ -116,7 +124,7 @@ class PermissionRequirement(BaseModel):
     required: Optional[bool] = Field(
         True, description='Whether the permission must be granted before execution.'
     )
-    description: Optional[str] = Field(
+    description: Optional[LocalizedText] = Field(
         None, description='Human-readable explanation of why the permission is needed.'
     )
     metadata: Optional[dict[str, Any]] = Field(
@@ -131,12 +139,14 @@ class VaultRequirement(BaseModel):
     key: str = Field(
         ..., description='Stable key used to store and retrieve the vault value.'
     )
-    label: Optional[str] = Field(None, description='Display label for the vault entry.')
+    label: Optional[LocalizedText] = Field(
+        None, description='Display label for the vault entry.'
+    )
     type: str = Field(..., description='Vault value type (secret, string, json).')
     required: Optional[bool] = Field(
         True, description='Whether the vault entry must be provided before execution.'
     )
-    description: Optional[str] = Field(
+    description: Optional[LocalizedText] = Field(
         None, description='Human-readable explanation of the vault entry.'
     )
     metadata: Optional[dict[str, Any]] = Field(
@@ -160,7 +170,7 @@ class ResourceRequirement(BaseModel):
     required: Optional[bool] = Field(
         True, description='Whether the resource must be bound before execution.'
     )
-    description: Optional[str] = Field(
+    description: Optional[LocalizedText] = Field(
         None, description='Human-readable explanation of why the resource is needed.'
     )
     metadata: Optional[dict[str, Any]] = Field(
@@ -237,7 +247,10 @@ class Port(BaseModel):
         extra='forbid',
     )
     key: str = Field(..., description='Stable identifier for the port.')
-    label: str = Field(..., description='Display label for the port.')
+    label: LocalizedText = Field(..., description='Display label for the port.')
+    description: Optional[LocalizedText] = Field(
+        None, description='Optional helper text for the port.'
+    )
     binding: Binding
 
 
@@ -246,7 +259,7 @@ class Widget(BaseModel):
         extra='forbid',
     )
     key: str = Field(..., description='Unique widget key.')
-    label: str = Field(..., description='Widget label.')
+    label: LocalizedText = Field(..., description='Widget label.')
     component: str = Field(..., description='Component type rendered by the dashboard.')
     binding: Binding
     options: Optional[dict[str, Any]] = Field(
@@ -272,13 +285,13 @@ class Node(BaseModel):
     )
     role: Optional[Role] = Field(None, description='Execution role of the node.')
     status: Status = Field(..., description='Lifecycle state of the node.')
-    category: str = Field(
+    category: LocalizedText = Field(
         ..., description='Grouping category displayed in the builder palette.'
     )
-    label: str = Field(
+    label: LocalizedText = Field(
         ..., description='Human readable label rendered in the palette and inspector.'
     )
-    description: Optional[str] = Field(
+    description: Optional[LocalizedText] = Field(
         None, description='Extended description of the node behaviour.'
     )
     tags: Optional[list[str]] = Field(
@@ -314,7 +327,10 @@ class PackageManifest(BaseModel):
     version: constr(pattern=r'^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$') = Field(
         ..., description='Package version in semver format.'
     )
-    description: str = Field(..., description='Short summary of the package.')
+    displayName: Optional[LocalizedText] = Field(
+        None, description='Optional human-readable package name.'
+    )
+    description: LocalizedText = Field(..., description='Short summary of the package.')
     adapters: list[Adapter] = Field(
         ..., description='Adapter modules exposed by the package.', min_length=1
     )

@@ -54,47 +54,19 @@ class SchedulerApiSettings(BaseSettings):
             "SCHEDULER_API_PUBLISHED_PACKAGES_ROOT",
             "ASTRA_PUBLISHED_PACKAGES_ROOT",
         ),
-        description="Root directory where published package archives are stored.",
+        description="Root directory where package archives are cached.",
     )
     published_packages_max_owner_bytes: NonNegativeInt = Field(
         default=0,
-        description="Max total bytes per owner across published packages (0 = unlimited).",
+        description="Max total bytes per owner across cached packages (0 = unlimited).",
     )
     published_packages_max_package_bytes: NonNegativeInt = Field(
         default=0,
-        description="Max total bytes per package across versions (0 = unlimited).",
+        description="Max total bytes per package across versions in the cache (0 = unlimited).",
     )
     published_packages_max_versions_per_package: NonNegativeInt = Field(
         default=0,
-        description="Max versions retained per package (0 = unlimited).",
-    )
-    registry_base_url: str | None = Field(
-        default=None,
-        description="Base URL for the external registry service.",
-    )
-    registry_service_token: str | None = Field(
-        default=None,
-        description="Service token used for registry API access.",
-    )
-    registry_timeout_seconds: PositiveInt = Field(
-        default=30,
-        description="Registry HTTP client timeout (seconds).",
-    )
-    registry_workflow_pull_policy: Literal["auto", "admin_approval", "whitelist"] = Field(
-        default="auto",
-        description="Policy for pulling workflows from registry.",
-    )
-    registry_package_pull_policy: Literal["auto", "admin_approval", "whitelist"] = Field(
-        default="auto",
-        description="Policy for pulling node packages from registry.",
-    )
-    registry_publish_dependency_policy: Literal["block", "auto_publish"] = Field(
-        default="block",
-        description="Policy for missing package dependencies during workflow publish.",
-    )
-    registry_mirror_root: Path = Field(
-        default=Path(__file__).resolve().parents[4] / "var" / "registry-packages",
-        description="Local cache root for mirrored registry package archives.",
+        description="Max versions retained per package in the cache (0 = unlimited).",
     )
     hub_base_url: str | None = Field(
         default=None,

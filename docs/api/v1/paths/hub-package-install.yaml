@@ -3,7 +3,12 @@ post:
   summary: Install hub package into the local catalog
   operationId: installHubPackage
   parameters:
-  - name: packageName
+  - name: owner
+    in: path
+    required: true
+    schema:
+      type: string
+  - name: name
     in: path
     required: true
     schema:

@@ -18,35 +18,39 @@ import { RunSseSubscriptions } from "./lib/sse/RunSseSubscriptions";
 import { NodeSseSubscriptions } from "./lib/sse/NodeSseSubscriptions";
 import { WorkerSseSubscriptions } from "./lib/sse/WorkerSseSubscriptions";
 import { MessageProvider } from "./components/MessageCenter";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "./components/LanguageSwitcher";
 
-const NotFound = () => (
-  <div className="card">
-    <h2>404</h2>
-    <p>Page not found.</p>
-  </div>
-);
+const NotFound = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="card">
+      <h2>404</h2>
+      <p>{t("common.pageNotFound")}</p>
+    </div>
+  );
+};
 
-const baseNavItems: NavItem[] = [
+const buildDashboardNav = (t: (key: string) => string): NavItem[] => [
   {
     to: "/workflows",
-    label: "Workflows",
+    label: t("nav.workflows"),
     match: (pathname) => pathname === "/workflows"
   },
   {
     to: "/hub/workflows",
-    label: "Hub Library",
+    label: t("nav.hubLibrary"),
     match: (pathname) => pathname.startsWith("/hub/workflows")
   },
   {
     to: "/packages",
-    label: "Package Center",
+    label: t("nav.packageCenter"),
     match: (pathname) => pathname === "/packages"
   }
 ];
 
-const buildDashboardNav = (): NavItem[] => [...baseNavItems];
-
 const AuthHeader = () => {
+  const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const isAdmin = useAuthStore((state) => state.hasRole(["admin"]));
@@ -125,20 +129,20 @@ const AuthHeader = () => {
       {open && (
         <div className="auth-menu" role="menu">
           <button className="auth-menu__item" type="button" onClick={handleAccountNavigate}>
-            Personal Panel
+            {t("auth.personalPanel")}
           </button>
           {canViewPackages && (
             <button className="auth-menu__item" type="button" onClick={handleMyPackagesNavigate}>
-              My Packages
+              {t("auth.myPackages")}
             </button>
           )}
           {isAdmin && (
             <button className="auth-menu__item" type="button" onClick={handleAdminNavigate}>
-              Admin Console
+              {t("auth.adminConsole")}
             </button>
           )}
           <button className="auth-menu__item" type="button" onClick={handleLogoutClick}>
-            Logout
+            {t("auth.logout")}
           </button>
         </div>
       )}
@@ -146,38 +150,48 @@ const AuthHeader = () => {
   );
 };
 
-const DashboardRoute = ({ children }: React.PropsWithChildren) => {
-  const navItems = useMemo(() => buildDashboardNav(), []);
-  return (
-    <AppShell navItems={navItems} rightSlot={<AuthHeader />}>
-      {children}
-    </AppShell>
-  );
-};
+const HeaderControls = () => (
+  <>
+    <LanguageSwitcher />
+    <AuthHeader />
+  </>
+);
 
-const RunsRoute = () => (
-  <DashboardRoute>
+const DashboardRoute = ({
+  children,
+  navItems,
+}: React.PropsWithChildren<{ navItems: NavItem[] }>) => (
+  <AppShell navItems={navItems} rightSlot={<HeaderControls />}>
+    {children}
+  </AppShell>
+);
+
+const RunsRoute = ({ navItems }: { navItems: NavItem[] }) => (
+  <DashboardRoute navItems={navItems}>
     <RunsPage />
     <Outlet />
   </DashboardRoute>
 );
 
-const adminLinks = [
-  { to: "/admin/users", label: "Users" },
-  { to: "/admin/audit", label: "Audit Log" },
-  { to: "/admin/workers", label: "Workers" },
-];
-
 const AdminLayout = ({ children }: React.PropsWithChildren) => {
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const adminLinks = useMemo(
+    () => [
+      { to: "/admin/users", label: t("admin.users") },
+      { to: "/admin/audit", label: t("admin.auditLog") },
+      { to: "/admin/workers", label: t("admin.workers") },
+    ],
+    [i18n.language, t]
+  );
 
   return (
     <div className="admin-layout">
       <aside className="admin-layout__sidebar">
         <div className="admin-layout__header">
-          <h3>Admin</h3>
-          <p className="text-subtle">Manage accounts & compliance</p>
+          <h3>{t("admin.title")}</h3>
+          <p className="text-subtle">{t("admin.subtitle")}</p>
         </div>
         <div className="admin-layout__nav">
           {adminLinks.map((link) => {
@@ -201,42 +215,44 @@ const AdminLayout = ({ children }: React.PropsWithChildren) => {
 };
 
 const AdminRoute = ({ children }: React.PropsWithChildren) => {
+  const { t } = useTranslation();
   const isAdmin = useAuthStore((state) => state.hasRole(["admin"]));
-  const navItems = useMemo(() => buildDashboardNav(), []);
+  const navItems = useMemo(() => buildDashboardNav(t), [t]);
 
   if (!isAdmin) {
     return (
-      <AppShell navItems={navItems} rightSlot={<AuthHeader />}>
+      <AppShell navItems={navItems} rightSlot={<HeaderControls />}>
         <div className="card stack">
-          <h2>Admin Access Required</h2>
-          <p className="text-subtle">You need the admin role to view this section.</p>
+          <h2>{t("auth.adminAccessRequired")}</h2>
+          <p className="text-subtle">{t("auth.adminAccessHint")}</p>
         </div>
       </AppShell>
     );
   }
 
   return (
-    <AppShell navItems={navItems} rightSlot={<AuthHeader />}>
+    <AppShell navItems={navItems} rightSlot={<HeaderControls />}>
       <AdminLayout>{children}</AdminLayout>
     </AppShell>
   );
 };
 
 const WorkflowBuilderRoute = () => {
+  const { t, i18n } = useTranslation();
   const { workflowId = "" } = useParams<{ workflowId: string }>();
   const builderNav = useMemo(() => {
-    const nav = buildDashboardNav();
+    const nav = buildDashboardNav(t);
     nav.push({
       to: `/workflows/${workflowId}`,
-      label: "Builder",
+      label: t("nav.builder"),
       match: (pathname) => pathname === `/workflows/${workflowId}`
     });
     return nav;
-  }, [workflowId]);
+  }, [workflowId, i18n.language, t]);
 
   return (
     <ReactFlowProvider>
-      <AppShell navItems={builderNav} variant="builder" rightSlot={<AuthHeader />}>
+      <AppShell navItems={builderNav} variant="builder" rightSlot={<HeaderControls />}>
         <WorkflowBuilderPage />
       </AppShell>
     </ReactFlowProvider>
@@ -244,6 +260,7 @@ const WorkflowBuilderRoute = () => {
 };
 
 const RequireAuth = ({ children }: React.PropsWithChildren) => {
+  const { t } = useTranslation();
   const initialized = useAuthStore((state) => state.initialized);
   const token = useAuthStore((state) => state.token);
   const hydrate = useAuthStore((state) => state.hydrate);
@@ -255,7 +272,7 @@ const RequireAuth = ({ children }: React.PropsWithChildren) => {
   }, [initialized, hydrate]);
 
   if (!initialized) {
-    return <div className="card">Checking session...</div>;
+    return <div className="card">{t("auth.checkingSession")}</div>;
   }
   if (!token) {
     return <Navigate to="/login" replace />;
@@ -264,6 +281,9 @@ const RequireAuth = ({ children }: React.PropsWithChildren) => {
 };
 
 function App() {
+  const { t, i18n } = useTranslation();
+  const navItems = useMemo(() => buildDashboardNav(t), [i18n.language, t]);
+
   return (
     <MessageProvider>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -276,7 +296,7 @@ function App() {
             path="/runs"
             element={
               <RequireAuth>
-                <RunsRoute />
+                <RunsRoute navItems={navItems} />
               </RequireAuth>
             }
           >
@@ -286,7 +306,7 @@ function App() {
             path="/workflows"
             element={
               <RequireAuth>
-                <DashboardRoute>
+                <DashboardRoute navItems={navItems}>
                   <WorkflowsPage />
                 </DashboardRoute>
               </RequireAuth>
@@ -296,7 +316,7 @@ function App() {
             path="/hub/workflows"
             element={
               <RequireAuth>
-                <DashboardRoute>
+                <DashboardRoute navItems={navItems}>
                   <HubWorkflowsPage />
                 </DashboardRoute>
               </RequireAuth>
@@ -306,7 +326,7 @@ function App() {
             path="/account"
             element={
               <RequireAuth>
-                <DashboardRoute>
+                <DashboardRoute navItems={navItems}>
                   <AccountPage />
                 </DashboardRoute>
               </RequireAuth>
@@ -324,7 +344,7 @@ function App() {
             path="/packages"
             element={
               <RequireAuth>
-                <DashboardRoute>
+                <DashboardRoute navItems={navItems}>
                   <PackageCenterPage />
                 </DashboardRoute>
               </RequireAuth>

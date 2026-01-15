@@ -4,12 +4,14 @@ All URIs are relative to *https://scheduler.example.com*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**downloadHubPackageArchive**](#downloadhubpackagearchive) | **GET** /api/v1/hub/packages/{packageName}/archive | Download hub package archive|
-|[**getHubPackage**](#gethubpackage) | **GET** /api/v1/hub/packages/{packageName} | Get hub package detail|
-|[**getHubPackageVersion**](#gethubpackageversion) | **GET** /api/v1/hub/packages/{packageName}/versions/{version} | Get hub package version detail|
-|[**installHubPackage**](#installhubpackage) | **POST** /api/v1/hub/packages/{packageName}/install | Install hub package into the local catalog|
+|[**downloadHubPackageArchive**](#downloadhubpackagearchive) | **GET** /api/v1/hub/packages/{owner}/{name}/archive | Download hub package archive|
+|[**getHubPackage**](#gethubpackage) | **GET** /api/v1/hub/packages/{owner}/{name} | Get hub package detail|
+|[**getHubPackageVersion**](#gethubpackageversion) | **GET** /api/v1/hub/packages/{owner}/{name}/versions/{version} | Get hub package version detail|
+|[**installHubPackage**](#installhubpackage) | **POST** /api/v1/hub/packages/{owner}/{name}/install | Install hub package into the local catalog|
 |[**listHubPackages**](#listhubpackages) | **GET** /api/v1/hub/packages | List hub packages|
 |[**publishHubPackage**](#publishhubpackage) | **POST** /api/v1/hub/packages | Publish a package archive to Hub|
+|[**publishHubPackageLocal**](#publishhubpackagelocal) | **POST** /api/v1/hub/packages/local | Publish a local package to Hub|
+|[**uninstallHubPackage**](#uninstallhubpackage) | **POST** /api/v1/hub/packages/{owner}/{name}/uninstall | Uninstall hub package from the local catalog|
 
 # **downloadHubPackageArchive**
 > File downloadHubPackageArchive()
@@ -26,11 +28,13 @@ import {
 const configuration = new Configuration();
 const apiInstance = new HubPackagesApi(configuration);
 
-let packageName: string; // (default to undefined)
+let owner: string; // (default to undefined)
+let name: string; // (default to undefined)
 let version: string; //Optional version to download (optional) (default to undefined)
 
 const { status, data } = await apiInstance.downloadHubPackageArchive(
-    packageName,
+    owner,
+    name,
     version
 );
 ```
@@ -39,7 +43,8 @@ const { status, data } = await apiInstance.downloadHubPackageArchive(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **packageName** | [**string**] |  | defaults to undefined|
+| **owner** | [**string**] |  | defaults to undefined|
+| **name** | [**string**] |  | defaults to undefined|
 | **version** | [**string**] | Optional version to download | (optional) defaults to undefined|
 
 
@@ -80,10 +85,12 @@ import {
 const configuration = new Configuration();
 const apiInstance = new HubPackagesApi(configuration);
 
-let packageName: string; // (default to undefined)
+let owner: string; // (default to undefined)
+let name: string; // (default to undefined)
 
 const { status, data } = await apiInstance.getHubPackage(
-    packageName
+    owner,
+    name
 );
 ```
 
@@ -91,7 +98,8 @@ const { status, data } = await apiInstance.getHubPackage(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **packageName** | [**string**] |  | defaults to undefined|
+| **owner** | [**string**] |  | defaults to undefined|
+| **name** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -131,11 +139,13 @@ import {
 const configuration = new Configuration();
 const apiInstance = new HubPackagesApi(configuration);
 
-let packageName: string; // (default to undefined)
+let owner: string; // (default to undefined)
+let name: string; // (default to undefined)
 let version: string; // (default to undefined)
 
 const { status, data } = await apiInstance.getHubPackageVersion(
-    packageName,
+    owner,
+    name,
     version
 );
 ```
@@ -144,7 +154,8 @@ const { status, data } = await apiInstance.getHubPackageVersion(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **packageName** | [**string**] |  | defaults to undefined|
+| **owner** | [**string**] |  | defaults to undefined|
+| **name** | [**string**] |  | defaults to undefined|
 | **version** | [**string**] |  | defaults to undefined|
 
 
@@ -186,11 +197,13 @@ import {
 const configuration = new Configuration();
 const apiInstance = new HubPackagesApi(configuration);
 
-let packageName: string; // (default to undefined)
+let owner: string; // (default to undefined)
+let name: string; // (default to undefined)
 let hubPackageInstallRequest: HubPackageInstallRequest; // (optional)
 
 const { status, data } = await apiInstance.installHubPackage(
-    packageName,
+    owner,
+    name,
     hubPackageInstallRequest
 );
 ```
@@ -200,7 +213,8 @@ const { status, data } = await apiInstance.installHubPackage(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **hubPackageInstallRequest** | **HubPackageInstallRequest**|  | |
-| **packageName** | [**string**] |  | defaults to undefined|
+| **owner** | [**string**] |  | defaults to undefined|
+| **name** | [**string**] |  | defaults to undefined|
 
 
 ### Return type
@@ -350,6 +364,119 @@ const { status, data } = await apiInstance.publishHubPackage(
 |**401** | Authentication required or credentials invalid |  -  |
 |**403** | Authenticated but lacks required permissions |  -  |
 |**409** | Conflict (e.g., idempotency-key reuse with different body) |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **publishHubPackageLocal**
+> HubPackageVersionDetail publishHubPackageLocal(hubLocalPackagePublishRequest)
+
+
+### Example
+
+```typescript
+import {
+    HubPackagesApi,
+    Configuration,
+    HubLocalPackagePublishRequest
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new HubPackagesApi(configuration);
+
+let hubLocalPackagePublishRequest: HubLocalPackagePublishRequest; //
+
+const { status, data } = await apiInstance.publishHubPackageLocal(
+    hubLocalPackagePublishRequest
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **hubLocalPackagePublishRequest** | **HubLocalPackagePublishRequest**|  | |
+
+
+### Return type
+
+**HubPackageVersionDetail**
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**201** | Created |  -  |
+|**400** | Invalid input |  -  |
+|**401** | Authentication required or credentials invalid |  -  |
+|**403** | Authenticated but lacks required permissions |  -  |
+|**409** | Conflict (e.g., idempotency-key reuse with different body) |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **uninstallHubPackage**
+> HubPackageInstallResponse uninstallHubPackage()
+
+
+### Example
+
+```typescript
+import {
+    HubPackagesApi,
+    Configuration,
+    HubPackageInstallRequest
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new HubPackagesApi(configuration);
+
+let owner: string; // (default to undefined)
+let name: string; // (default to undefined)
+let hubPackageInstallRequest: HubPackageInstallRequest; // (optional)
+
+const { status, data } = await apiInstance.uninstallHubPackage(
+    owner,
+    name,
+    hubPackageInstallRequest
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **hubPackageInstallRequest** | **HubPackageInstallRequest**|  | |
+| **owner** | [**string**] |  | defaults to undefined|
+| **name** | [**string**] |  | defaults to undefined|
+
+
+### Return type
+
+**HubPackageInstallResponse**
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+|**404** | Resource not found |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

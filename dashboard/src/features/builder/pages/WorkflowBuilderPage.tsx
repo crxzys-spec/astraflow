@@ -40,6 +40,8 @@ import {
 } from "../utils/builderHelpers";
 import { useRunsStore } from "../../../store";
 import { useMessageCenter } from "../../../components/MessageCenter";
+import { resolveApiErrorMessage } from "../../../lib/apiErrors";
+import { resolveLocalizedText } from "../../../lib/manifestText";
 
 const isEditableTarget = (target: EventTarget | null): boolean => {
   const element = target as HTMLElement | null;
@@ -109,21 +111,8 @@ const composeWorkflowDefinition = (
   });
 };
 
-const getErrorMessage = (error: unknown): string => {
-  if (!error) {
-    return "Unknown error.";
-  }
-  if (typeof error === "object" && error !== null && "response" in error) {
-    const response = (error as { response?: { data?: { message?: string } } }).response;
-    if (response?.data?.message) {
-      return response.data.message;
-    }
-  }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return "Unknown error.";
-};
+const getErrorMessage = (error: unknown): string =>
+  resolveApiErrorMessage(error, "Unknown error.");
 
 const getApiStatus = (error: unknown): number | undefined => {
   if (typeof error === "object" && error !== null && "status" in error) {
@@ -870,7 +859,7 @@ const WorkflowBuilderPage = () => {
           inspector={inspectorPanel}
           canvas={canvasNode}
           canvasRef={canvasRef}
-          watermarkTitle={workflow.metadata?.name ?? "Untitled Workflow"}
+          watermarkTitle={resolveLocalizedText(workflow.metadata?.name) ?? "Untitled Workflow"}
           watermarkSubtitle={`ID: ${workflow.id}`}
           paletteWidth={paletteWidth}
           inspectorWidth={inspectorWidth}

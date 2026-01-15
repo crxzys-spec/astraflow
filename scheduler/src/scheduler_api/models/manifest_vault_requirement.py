@@ -22,6 +22,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -32,10 +33,10 @@ class ManifestVaultRequirement(BaseModel):
     ManifestVaultRequirement
     """ # noqa: E501
     key: StrictStr = Field(description="Stable key used to store and retrieve the vault value.")
-    label: Optional[StrictStr] = Field(default=None, description="Display label for the vault entry.")
+    label: Optional[LocalizedText] = None
     type: StrictStr = Field(description="Vault value type (secret, string, json).")
     required: Optional[StrictBool] = Field(default=True, description="Whether the vault entry must be provided before execution.")
-    description: Optional[StrictStr] = Field(default=None, description="Human-readable explanation of the vault entry.")
+    description: Optional[LocalizedText] = Field(default=None, description="Human-readable explanation of the vault entry.")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional vault metadata.")
     __properties: ClassVar[List[str]] = ["key", "label", "type", "required", "description", "metadata"]
 
@@ -76,6 +77,12 @@ class ManifestVaultRequirement(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of label
+        if self.label:
+            _dict['label'] = self.label.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of description
+        if self.description:
+            _dict['description'] = self.description.to_dict()
         return _dict
 
     @classmethod
@@ -89,12 +96,11 @@ class ManifestVaultRequirement(BaseModel):
 
         _obj = cls.model_validate({
             "key": obj.get("key"),
-            "label": obj.get("label"),
+            "label": LocalizedText.from_dict(obj.get("label")) if obj.get("label") is not None else None,
             "type": obj.get("type"),
             "required": obj.get("required") if obj.get("required") is not None else True,
-            "description": obj.get("description"),
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "metadata": obj.get("metadata")
         })
         return _obj
-
 

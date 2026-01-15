@@ -20,7 +20,6 @@ from hub_api.apis.auth_api import router as AuthApiRouter
 from hub_api.apis.health_api import router as HealthApiRouter
 from hub_api.apis.orgs_api import router as OrgsApiRouter
 from hub_api.apis.packages_api import router as PackagesApiRouter
-from hub_api.apis.teams_api import router as TeamsApiRouter
 from hub_api.apis.tokens_api import router as TokensApiRouter
 from hub_api.apis.workflows_api import router as WorkflowsApiRouter
 
@@ -36,6 +35,5 @@ app.include_router(AuthApiRouter)
 app.include_router(HealthApiRouter)
 app.include_router(OrgsApiRouter)
 app.include_router(PackagesApiRouter)
-app.include_router(TeamsApiRouter)
 app.include_router(TokensApiRouter)
 app.include_router(WorkflowsApiRouter)

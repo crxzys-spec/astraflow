@@ -23,6 +23,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from scheduler_api.models.catalog_node_version import CatalogNodeVersion
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -33,10 +34,10 @@ class CatalogNode(BaseModel):
     CatalogNode
     """ # noqa: E501
     type: StrictStr
-    label: StrictStr
-    description: Optional[StrictStr] = None
+    label: LocalizedText
+    description: Optional[LocalizedText] = None
     role: Optional[StrictStr] = None
-    category: Optional[StrictStr] = None
+    category: Optional[LocalizedText] = None
     tags: Optional[List[StrictStr]] = None
     status: Optional[StrictStr] = None
     package_name: StrictStr = Field(alias="packageName")
@@ -82,6 +83,15 @@ class CatalogNode(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of label
+        if self.label:
+            _dict['label'] = self.label.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of description
+        if self.description:
+            _dict['description'] = self.description.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of category
+        if self.category:
+            _dict['category'] = self.category.to_dict()
         # override the default output from pydantic by calling `to_dict()` of each item in versions (list)
         _items = []
         if self.versions:
@@ -102,10 +112,10 @@ class CatalogNode(BaseModel):
 
         _obj = cls.model_validate({
             "type": obj.get("type"),
-            "label": obj.get("label"),
-            "description": obj.get("description"),
+            "label": LocalizedText.from_dict(obj.get("label")) if obj.get("label") is not None else None,
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "role": obj.get("role"),
-            "category": obj.get("category"),
+            "category": LocalizedText.from_dict(obj.get("category")) if obj.get("category") is not None else None,
             "tags": obj.get("tags"),
             "status": obj.get("status"),
             "packageName": obj.get("packageName"),

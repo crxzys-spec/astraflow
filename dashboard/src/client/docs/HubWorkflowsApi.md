@@ -11,6 +11,7 @@ All URIs are relative to *https://scheduler.example.com*
 |[**listHubWorkflowVersions**](#listhubworkflowversions) | **GET** /api/v1/hub/workflows/{workflowId}/versions | List hub workflow versions|
 |[**listHubWorkflows**](#listhubworkflows) | **GET** /api/v1/hub/workflows | List hub workflows|
 |[**publishHubWorkflow**](#publishhubworkflow) | **POST** /api/v1/hub/workflows | Publish a workflow to Hub|
+|[**publishHubWorkflowLocal**](#publishhubworkflowlocal) | **POST** /api/v1/hub/workflows/local | Publish a local workflow to Hub|
 
 # **getHubWorkflow**
 > HubWorkflowDetail getHubWorkflow()
@@ -390,6 +391,61 @@ const { status, data } = await apiInstance.publishHubWorkflow(
 |**400** | Invalid input |  -  |
 |**401** | Authentication required or credentials invalid |  -  |
 |**403** | Authenticated but lacks required permissions |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **publishHubWorkflowLocal**
+> HubWorkflowPublishResponse publishHubWorkflowLocal(hubLocalWorkflowPublishRequest)
+
+
+### Example
+
+```typescript
+import {
+    HubWorkflowsApi,
+    Configuration,
+    HubLocalWorkflowPublishRequest
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new HubWorkflowsApi(configuration);
+
+let hubLocalWorkflowPublishRequest: HubLocalWorkflowPublishRequest; //
+
+const { status, data } = await apiInstance.publishHubWorkflowLocal(
+    hubLocalWorkflowPublishRequest
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **hubLocalWorkflowPublishRequest** | **HubLocalWorkflowPublishRequest**|  | |
+
+
+### Return type
+
+**HubWorkflowPublishResponse**
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**201** | Created |  -  |
+|**400** | Invalid input |  -  |
+|**401** | Authentication required or credentials invalid |  -  |
+|**403** | Authenticated but lacks required permissions |  -  |
+|**409** | Conflict (e.g., idempotency-key reuse with different body) |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

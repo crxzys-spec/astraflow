@@ -12,6 +12,7 @@ import "reactflow/dist/style.css";
 import { useWorkflowStore } from "../store";
 import { buildFlowEdges, buildFlowNodes } from "../utils/flowTransforms.ts";
 import type { WorkflowEdgeDraft, WorkflowNodeLayout, XYPosition, WorkflowPaletteNode } from "../types.ts";
+import type { LocalizedText } from "../../../client/models";
 import { WorkflowNode } from "../nodes";
 import { generateId } from "../utils/id.ts";
 import {
@@ -39,7 +40,7 @@ const EDGE_TYPES: EdgeTypes = {};
 
 type WorkflowNodeData = {
   nodeId: string;
-  label?: string;
+  label?: LocalizedText;
   status?: string;
   stage?: string;
   role?: string;
@@ -55,7 +56,7 @@ type WorkflowNodeData = {
   fallbackInputPorts?: string[];
   fallbackOutputPorts?: string[];
   middlewares?: unknown[];
-  attachedMiddlewares?: { id: string; label: string; node: unknown; index: number }[];
+  attachedMiddlewares?: { id: string; label: LocalizedText; node: unknown; index: number }[];
 };
 
 const arraysShallowEqual = <T,>(

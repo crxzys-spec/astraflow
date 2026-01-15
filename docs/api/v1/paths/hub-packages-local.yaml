@@ -1,0 +1,25 @@
+post:
+  tags: [HubPackages]
+  summary: Publish a local package to Hub
+  operationId: publishHubPackageLocal
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/HubLocalPackagePublishRequest'
+  responses:
+    '201':
+      description: Created
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/HubPackageVersionDetail'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'
+    '401':
+      $ref: '../components/responses.yaml#/Unauthorized'
+    '403':
+      $ref: '../components/responses.yaml#/Forbidden'
+    '409':
+      $ref: '../components/responses.yaml#/Conflict'

@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { nanoid } from "nanoid";
+import { useTranslation } from "react-i18next";
 import { useWorkflowStore } from "../store";
 import { formatBindingDisplay, resolveBindingPath } from "../utils/binding";
 import type { NodePortDefinition, WorkflowDraft, WorkflowNodeDraft } from "../types";
@@ -12,6 +13,15 @@ import {
   type UIBindingModeEnum as UIBindingMode,
 } from "../../../client/models";
 import { getPackage } from "../../../services/packages";
+import {
+  LOCALIZED_TEXT_DEFAULT_KEY,
+  getLocalizedTextEntry,
+  resolveLocalizedText,
+  updateLocalizedTextDefault,
+  updateLocalizedTextLocale,
+  type LocalizedText,
+} from "../../../lib/manifestText";
+import { LocaleInput } from "./LocaleInput";
 
 registerBuiltinWidgets();
 
@@ -22,8 +32,47 @@ const formatPackageId = (node: WorkflowNodeDraft) => {
   return `${node.packageName}@${node.packageVersion ?? "latest"}`;
 };
 
-const NodeMeta = ({ node, onLabelChange }: { node: WorkflowNodeDraft; onLabelChange: (value: string) => void }) => {
+const normalizeLocaleInput = (value?: string) => {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) {
+    return LOCALIZED_TEXT_DEFAULT_KEY;
+  }
+  const normalized = trimmed.toLowerCase().replace("_", "-");
+  if (normalized === LOCALIZED_TEXT_DEFAULT_KEY) {
+    return LOCALIZED_TEXT_DEFAULT_KEY;
+  }
+  return trimmed;
+};
+
+const collectLocalizedKeys = (value: LocalizedText | undefined, target: Set<string>) => {
+  if (!value || typeof value === "string") {
+    return;
+  }
+  Object.keys(value).forEach((key) => target.add(key));
+};
+
+const NodeMeta = ({
+  node,
+  labelLocale,
+  labelLocaleSuggestions,
+  onLabelChange,
+  onLabelLocaleChange,
+}: {
+  node: WorkflowNodeDraft;
+  labelLocale: string;
+  labelLocaleSuggestions: string[];
+  onLabelChange: (value: string) => void;
+  onLabelLocaleChange: (value: string) => void;
+}) => {
   const [isEditingLabel, setIsEditingLabel] = useState(false);
+  const displayLabel = resolveLocalizedText(node.label) ?? "";
+  const displayCategory = resolveLocalizedText(node.category) ?? "-";
+  const labelEntry = getLocalizedTextEntry(node.label, labelLocale);
+  const labelValue = labelEntry ?? "";
+  const labelPlaceholder =
+    labelEntry === undefined
+      ? resolveLocalizedText(node.label, labelLocale) ?? "Untitled node"
+      : undefined;
 
   useEffect(() => {
     setIsEditingLabel(false);
@@ -39,7 +88,8 @@ const NodeMeta = ({ node, onLabelChange }: { node: WorkflowNodeDraft; onLabelCha
             <input
               className="inspector__summary-title-input"
               type="text"
-              value={node.label ?? ""}
+              value={labelValue}
+              placeholder={labelPlaceholder}
               onChange={(event) => onLabelChange(event.target.value)}
               onBlur={stopEditing}
               onKeyDown={(event) => {
@@ -58,14 +108,14 @@ const NodeMeta = ({ node, onLabelChange }: { node: WorkflowNodeDraft; onLabelCha
               aria-label="Edit node label"
               title="Click to edit"
             >
-              {node.label || "Untitled node"}
+              {displayLabel || "Untitled node"}
             </button>
           )}
         </div>
         <div className="inspector__summary-meta">
           <span className="inspector__badge">{node.nodeKind}</span>
           <span className="inspector__badge inspector__badge--muted">{formatPackageId(node)}</span>
-          <span className="inspector__badge inspector__badge--muted">{node.category ?? "-"}</span>
+          <span className="inspector__badge inspector__badge--muted">{displayCategory}</span>
           <span className="inspector__badge inspector__badge--status">{node.status ?? "-"}</span>
         </div>
       </header>
@@ -88,6 +138,15 @@ const NodeMeta = ({ node, onLabelChange }: { node: WorkflowNodeDraft; onLabelCha
             <span className="inspector__field-value">-</span>
           )}
         </div>
+        <LocaleInput
+          label="Label locale"
+          value={labelLocale}
+          onChange={onLabelLocaleChange}
+          suggestions={labelLocaleSuggestions}
+          placeholder="default"
+          className="inspector__inline-input"
+          inputClassName="inspector__port-input"
+        />
       </div>
     </div>
   );
@@ -99,6 +158,7 @@ type PortKind = "input" | "output";
 interface InspectorPort {
   key: string;
   label: string;
+  labelMap?: LocalizedText;
   bindingPath?: string | null;
   bindingPrefix?: string | null;
   bindingMode?: string | null;
@@ -109,14 +169,16 @@ interface InspectorPort {
 const collectPorts = (
   ports: NodePortDefinition[] | undefined,
   fallbackKeys: Set<string>,
-  kind: PortKind
+  kind: PortKind,
+  locale?: string
 ): InspectorPort[] => {
   const declared = (ports ?? []).map<InspectorPort>((port) => {
     const resolution = resolveBindingPath(port.binding?.path ?? "");
     const bindingPath = formatBindingDisplay(port.binding, resolution);
     return {
       key: port.key,
-      label: port.label,
+      label: resolveLocalizedText(port.label, locale) ?? port.key,
+      labelMap: port.label,
       bindingPath: bindingPath ?? null,
       bindingPrefix: port.binding?.prefix ?? null,
       bindingMode: port.binding?.mode ?? null,
@@ -144,6 +206,9 @@ const collectPorts = (
 };
 
 export const NodeInspector = () => {
+  const { i18n } = useTranslation();
+  const activeLocale = i18n.resolvedLanguage ?? i18n.language;
+  const [labelLocale, setLabelLocale] = useState<string>(normalizeLocaleInput(activeLocale));
   const selectedNodeId = useWorkflowStore((state) => state.selectedNodeId);
   const rootWorkflow = useWorkflowStore((state) => state.workflow);
   const activeGraph = useWorkflowStore((state) => state.activeGraph);
@@ -266,7 +331,9 @@ export const NodeInspector = () => {
         (mw.ui?.inputPorts ?? []).map((port) => ({
           ...port,
           key: `mw:${mw.id}:input:${port.key}`,
-          label: `${mw.label ?? "Middleware"} · ${port.label ?? port.key}`
+          label: `${resolveLocalizedText(mw.label, activeLocale) ?? "Middleware"} · ${
+            resolveLocalizedText(port.label, activeLocale) ?? port.key
+          }`
         }))
       ) ?? [];
     const middlewareOutputPorts =
@@ -274,15 +341,45 @@ export const NodeInspector = () => {
         (mw.ui?.outputPorts ?? []).map((port) => ({
           ...port,
           key: `mw:${mw.id}:output:${port.key}`,
-          label: `${mw.label ?? "Middleware"} · ${port.label ?? port.key}`
+          label: `${resolveLocalizedText(mw.label, activeLocale) ?? "Middleware"} · ${
+            resolveLocalizedText(port.label, activeLocale) ?? port.key
+          }`
         }))
       ) ?? [];
 
     return {
-      inputs: collectPorts([...(node.ui?.inputPorts ?? []), ...middlewareInputPorts], fallbackInputs, "input"),
-      outputs: collectPorts([...(node.ui?.outputPorts ?? []), ...middlewareOutputPorts], fallbackOutputs, "output")
+      inputs: collectPorts(
+        [...(node.ui?.inputPorts ?? []), ...middlewareInputPorts],
+        fallbackInputs,
+        "input",
+        activeLocale
+      ),
+      outputs: collectPorts(
+        [...(node.ui?.outputPorts ?? []), ...middlewareOutputPorts],
+        fallbackOutputs,
+        "output",
+        activeLocale
+      )
     };
-  }, [node, workflow]);
+  }, [activeLocale, node, workflow]);
+
+  const labelLocaleKey = normalizeLocaleInput(labelLocale);
+  const handleLabelLocaleChange = (nextLocale: string) => setLabelLocale(normalizeLocaleInput(nextLocale));
+  const labelLocaleSuggestions = useMemo(() => {
+    const locales = new Set<string>();
+    if (activeLocale) {
+      locales.add(activeLocale);
+    }
+    if (node) {
+      collectLocalizedKeys(node.label, locales);
+      collectLocalizedKeys(node.category, locales);
+      collectLocalizedKeys(node.description, locales);
+      node.ui?.inputPorts?.forEach((port) => collectLocalizedKeys(port.label, locales));
+      node.ui?.outputPorts?.forEach((port) => collectLocalizedKeys(port.label, locales));
+      node.ui?.widgets?.forEach((widget) => collectLocalizedKeys(widget.label, locales));
+    }
+    return Array.from(locales);
+  }, [activeLocale, node]);
 
   function normalizeMode(mode?: string | UIBindingMode | null): UIBindingMode | undefined {
     if (!mode) {
@@ -390,7 +487,10 @@ export const NodeInspector = () => {
             : existing.binding.prefix
       };
       const nextKey = changes.key ?? existing.key;
-      const nextLabel = changes.label ?? existing.label;
+      const nextLabel =
+        changes.label !== undefined
+          ? updateLocalizedTextLocale(existing.label, labelLocaleKey, changes.label)
+          : existing.label;
       ports[index] = { ...existing, key: nextKey, label: nextLabel, binding: nextBinding };
       return {
         ...current,
@@ -413,7 +513,7 @@ export const NodeInspector = () => {
       const index = ports.length + 1;
       const newPort: NodePortDefinition = {
         key: `${kind}-${nanoid(5)}`,
-        label: `${kind === "input" ? "Input" : "Output"} ${index}`,
+        label: updateLocalizedTextDefault(undefined, `${kind === "input" ? "Input" : "Output"} ${index}`),
         binding: {
           path: kind === "input" ? "/parameters/" : "/results/",
           mode: kind === "input" ? UIBindingModeEnum.Write : UIBindingModeEnum.Read,
@@ -484,7 +584,10 @@ export const NodeInspector = () => {
       widgets[index] = {
         ...existing,
         key: changes.key ?? existing.key,
-        label: changes.label !== undefined ? changes.label : existing.label,
+        label:
+          changes.label !== undefined
+            ? updateLocalizedTextLocale(existing.label, labelLocaleKey, changes.label)
+            : existing.label,
         component: changes.component !== undefined ? changes.component.trim() : existing.component,
         binding: nextBinding
       };
@@ -513,7 +616,7 @@ export const NodeInspector = () => {
       const widgets = [...(ui.widgets ?? [])];
       const newWidget = {
         key: `widget-${nanoid(5)}`,
-        label: `Widget ${widgets.length + 1}`,
+        label: updateLocalizedTextDefault(undefined, `Widget ${widgets.length + 1}`),
         component: "text",
         binding: {
           path: "/parameters/",
@@ -604,7 +707,7 @@ export const NodeInspector = () => {
     }
     updateNode(node.id, (current) => ({
       ...current,
-      label: nextLabel
+      label: updateLocalizedTextLocale(current.label, labelLocaleKey, nextLabel)
     }));
   };
 
@@ -617,7 +720,13 @@ export const NodeInspector = () => {
 
   return (
     <aside className="inspector">
-      <NodeMeta node={node} onLabelChange={updateNodeLabel} />
+      <NodeMeta
+        node={node}
+        labelLocale={labelLocaleKey}
+        labelLocaleSuggestions={labelLocaleSuggestions}
+        onLabelChange={updateNodeLabel}
+        onLabelLocaleChange={handleLabelLocaleChange}
+      />
       {node.nodeKind === "workflow.container" && (
         <div className="card inspector__panel">
           <header className="card__header">
@@ -630,7 +739,7 @@ export const NodeInspector = () => {
             </p>
             {containerSubgraphTarget && (
               <p className="text-subtle">
-                Target: <strong>{containerSubgraphTarget.definition.metadata?.name ?? containerSubgraphTarget.definition.id}</strong>
+                Target: <strong>{resolveLocalizedText(containerSubgraphTarget.definition.metadata?.name) ?? containerSubgraphTarget.definition.id}</strong>
               </p>
             )}
             {inlineStatus && (
@@ -663,7 +772,15 @@ export const NodeInspector = () => {
             </div>
             {ports.inputs.length ? (
               <ul className="inspector__port-list">
-                {ports.inputs.map((port) => (
+                {ports.inputs.map((port) => {
+                  const labelSource = port.labelMap ?? port.label;
+                  const labelEntry = getLocalizedTextEntry(labelSource, labelLocaleKey);
+                  const labelValue = labelEntry ?? "";
+                  const labelPlaceholder =
+                    labelEntry === undefined
+                      ? resolveLocalizedText(labelSource, labelLocaleKey) ?? port.key
+                      : undefined;
+                  return (
                   <li key={`input-${port.key}`} className="inspector__port">
                     <div className="inspector__port-header">
                       <div className="inspector__port-header-row">
@@ -687,7 +804,8 @@ export const NodeInspector = () => {
                         <input
                           className="inspector__port-input"
                           type="text"
-                          value={port.label}
+                          value={labelValue}
+                          placeholder={labelPlaceholder}
                           onChange={(event) => updatePortBindingFields(port, { label: event.target.value })}
                         />
                       </label>
@@ -747,7 +865,8 @@ export const NodeInspector = () => {
                   </>
                 )}
                   </li>
-                ))}
+                );
+                })}
               </ul>
             ) : (
               <p className="text-subtle">No input ports.</p>
@@ -762,7 +881,15 @@ export const NodeInspector = () => {
             </div>
             {ports.outputs.length ? (
               <ul className="inspector__port-list">
-                {ports.outputs.map((port) => (
+                {ports.outputs.map((port) => {
+                  const labelSource = port.labelMap ?? port.label;
+                  const labelEntry = getLocalizedTextEntry(labelSource, labelLocaleKey);
+                  const labelValue = labelEntry ?? "";
+                  const labelPlaceholder =
+                    labelEntry === undefined
+                      ? resolveLocalizedText(labelSource, labelLocaleKey) ?? port.key
+                      : undefined;
+                  return (
                   <li key={`output-${port.key}`} className="inspector__port">
                     <div className="inspector__port-header">
                       <div className="inspector__port-header-row">
@@ -786,7 +913,8 @@ export const NodeInspector = () => {
                         <input
                           className="inspector__port-input"
                           type="text"
-                          value={port.label}
+                          value={labelValue}
+                          placeholder={labelPlaceholder}
                           onChange={(event) => updatePortBindingFields(port, { label: event.target.value })}
                         />
                       </label>
@@ -846,7 +974,8 @@ export const NodeInspector = () => {
                   </>
                 )}
                   </li>
-                ))}
+                );
+                })}
               </ul>
             ) : (
               <p className="text-subtle">No output ports.</p>
@@ -865,11 +994,18 @@ export const NodeInspector = () => {
               {node.ui.widgets.map((widget) => {
                 const resolution = resolveBindingPath(widget.binding?.path ?? "");
                 const bindingPath = formatBindingDisplay(widget.binding, resolution);
+                const displayWidgetLabel = resolveLocalizedText(widget.label, activeLocale) ?? widget.key;
+                const labelEntry = getLocalizedTextEntry(widget.label, labelLocaleKey);
+                const labelValue = labelEntry ?? "";
+                const labelPlaceholder =
+                  labelEntry === undefined
+                    ? resolveLocalizedText(widget.label, labelLocaleKey) ?? widget.key
+                    : undefined;
                 return (
                   <li key={widget.key} className="inspector__widget">
                     <div className="inspector__widget-header">
                       <div className="inspector__port-header-row">
-                        <span className="inspector__port-label">{widget.label ?? widget.key}</span>
+                        <span className="inspector__port-label">{displayWidgetLabel}</span>
                       </div>
                       <div className="inspector__port-actions">
                         <button
@@ -888,9 +1024,10 @@ export const NodeInspector = () => {
                         <input
                           className="inspector__port-input"
                           type="text"
-                          value={widget.label ?? ""}
+                          value={labelValue}
+                          placeholder={labelPlaceholder}
                           onChange={(event) =>
-                            updateWidgetFields(widget.key, { label: event.target.value || undefined })
+                            updateWidgetFields(widget.key, { label: event.target.value })
                           }
                         />
                       </label>
@@ -988,6 +1125,7 @@ export const NodeInspector = () => {
                     <h4>Vault entries</h4>
                     {vaultRequirements.map((requirement) => {
                       const requirementRequired = requirement.required !== false;
+                      const requirementDescription = resolveLocalizedText(requirement.description);
                       return (
                         <div key={requirement.key} className="inspector__requirement">
                           <div className="inspector__requirement-header">
@@ -1003,8 +1141,8 @@ export const NodeInspector = () => {
                               {requirementRequired ? "Required" : "Optional"}
                             </span>
                           </div>
-                          {requirement.description && (
-                            <p className="inspector__requirement-description">{requirement.description}</p>
+                          {requirementDescription && (
+                            <p className="inspector__requirement-description">{requirementDescription}</p>
                           )}
                         </div>
                       );
@@ -1018,6 +1156,7 @@ export const NodeInspector = () => {
                       const requirementRequired = requirement.required !== false;
                       const actions = requirement.actions?.length ? requirement.actions.join(", ") : "read";
                       const types = requirement.types?.length ? requirement.types.join(", ") : "-";
+                      const requirementDescription = resolveLocalizedText(requirement.description);
                       return (
                         <div key={requirement.key} className="inspector__requirement">
                           <div className="inspector__requirement-header">
@@ -1033,8 +1172,8 @@ export const NodeInspector = () => {
                               {requirementRequired ? "Required" : "Optional"}
                             </span>
                           </div>
-                          {requirement.description && (
-                            <p className="inspector__requirement-description">{requirement.description}</p>
+                          {requirementDescription && (
+                            <p className="inspector__requirement-description">{requirementDescription}</p>
                           )}
                           <div className="inspector__requirement-meta">
                             <span className="inspector__field-label">Actions</span>

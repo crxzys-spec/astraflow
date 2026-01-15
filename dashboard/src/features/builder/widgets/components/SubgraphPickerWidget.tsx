@@ -2,6 +2,7 @@ import type { ChangeEvent } from "react";
 
 import type { WidgetRendererProps } from "../registry";
 import { useWorkflowStore } from "../../store";
+import { resolveLocalizedText } from "../../../../lib/manifestText";
 
 const toStringValue = (value: unknown): string =>
   typeof value === "string" ? value : "";
@@ -23,7 +24,7 @@ export const SubgraphPickerWidget = ({
   return (
     <div className="wf-widget">
       <label className="wf-widget__label">
-        {widget.label}
+        {resolveLocalizedText(widget.label) ?? widget.key}
         <select
           className="wf-widget__input"
           value={selectedValue}
@@ -33,8 +34,8 @@ export const SubgraphPickerWidget = ({
           <option value="">{widget.options?.placeholder ?? "Select subgraph"}</option>
           {subgraphs.map((entry) => {
             const label =
-              entry.metadata?.label ??
-              entry.definition.metadata?.name ??
+              resolveLocalizedText(entry.metadata?.label) ??
+              resolveLocalizedText(entry.definition.metadata?.name) ??
               entry.id;
             return (
               <option key={entry.id} value={entry.id}>

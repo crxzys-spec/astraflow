@@ -4,13 +4,10 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
-from urllib.parse import quote
-
-from scheduler_api.http.errors import bad_request, forbidden, not_found
+from scheduler_api.http.errors import bad_request, not_found
 
 from scheduler_api.apis.workers_api_base import BaseWorkersApi
 from scheduler_api.auth.roles import RUN_VIEW_ROLES, WORKFLOW_EDIT_ROLES, require_roles
-from scheduler_api.config.settings import get_api_settings
 from scheduler_api.infra.network import WorkerSession, worker_gateway
 from scheduler_api.models.command_ref import CommandRef
 from scheduler_api.models.list_workers200_response import ListWorkers200Response
@@ -23,12 +20,6 @@ from scheduler_api.models.worker_heartbeat_snapshot import WorkerHeartbeatSnapsh
 from scheduler_api.models.worker_heartbeat_snapshot_packages import WorkerHeartbeatSnapshotPackages
 from scheduler_api.models.worker_package import WorkerPackage
 from scheduler_api.models.worker_package_status import WorkerPackageStatus
-from scheduler_api.service.package_index import (
-    PublishedPackageNotFoundError,
-    PublishedPackageVersionNotFoundError,
-    package_index_service,
-)
-from scheduler_api.service.package_registry import package_registry_service
 
 from shared.models.biz.pkg.install import PackageInstallCommand
 from shared.models.biz.pkg.uninstall import PackageUninstallCommand
@@ -130,7 +121,6 @@ class WorkersApiImpl(BaseWorkersApi):
             command_type=command_type,
             payload=payload,
             actor_id=token.sub if token else None,
-            is_admin="admin" in (token.roles if token else []),
         )
 
         await worker_gateway.send_envelope(session, envelope)
@@ -268,7 +258,6 @@ def _build_command_envelope(
     command_type: str,
     payload: dict,
     actor_id: str | None,
-    is_admin: bool,
 ) -> WsEnvelope:
     if command_type == "drain":
         command_payload = SessionDrainPayload().model_dump(by_alias=True, exclude_none=True)
@@ -278,32 +267,10 @@ def _build_command_envelope(
         version = payload.get("version")
         if not name or not version:
             raise bad_request("pkg.install requires name and version")
-        registry = package_registry_service.get(name)
-        if registry and not package_registry_service.can_read(
-            registry,
-            actor_id=actor_id or "",
-            is_admin=is_admin,
-        ):
-            raise forbidden("Package is private.")
         url = payload.get("url")
         sha256 = payload.get("sha256")
-        detail = None
-        if not url or not sha256:
-            try:
-                detail = package_index_service.get_package_detail(name, version)
-            except PublishedPackageNotFoundError as exc:
-                raise not_found(str(exc), error="package_not_found") from exc
-            except PublishedPackageVersionNotFoundError as exc:
-                raise not_found(str(exc), error="package_version_not_found") from exc
         if not url:
-            base_url = _build_public_base_url()
-            quoted_name = quote(str(name), safe="")
-            quoted_version = quote(str(version), safe="")
-            url = f"{base_url}/api/v1/published-packages/{quoted_name}/archive?version={quoted_version}"
-        if not sha256:
-            sha256 = detail.get("archiveSha256") if detail else None
-        if not sha256:
-            raise bad_request("pkg.install requires sha256 checksum for integrity checks")
+            raise bad_request("pkg.install requires url")
         command_payload = PackageInstallCommand(
             name=name,
             version=version,
@@ -335,10 +302,3 @@ def _build_command_envelope(
         sender=Sender(role=Role.scheduler, id=worker_gateway.scheduler_id),
         payload=command_payload,
     )
-
-
-def _build_public_base_url() -> str:
-    settings = get_api_settings()
-    if settings.public_base_url:
-        return settings.public_base_url.rstrip("/")
-    return f"http://{settings.host}:{settings.port}"

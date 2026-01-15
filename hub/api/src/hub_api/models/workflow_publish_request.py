@@ -35,6 +35,7 @@ class WorkflowPublishRequest(BaseModel):
     WorkflowPublishRequest
     """ # noqa: E501
     workflow_id: Optional[StrictStr] = Field(default=None, alias="workflowId")
+    owner_id: Optional[StrictStr] = Field(default=None, alias="ownerId")
     name: StrictStr
     version: StrictStr
     summary: Optional[StrictStr] = None
@@ -44,7 +45,7 @@ class WorkflowPublishRequest(BaseModel):
     preview_image: Optional[StrictStr] = Field(default=None, alias="previewImage")
     dependencies: Optional[List[PackageDependency]] = None
     definition: WorkflowDefinition
-    __properties: ClassVar[List[str]] = ["workflowId", "name", "version", "summary", "description", "tags", "visibility", "previewImage", "dependencies", "definition"]
+    __properties: ClassVar[List[str]] = ["workflowId", "ownerId", "name", "version", "summary", "description", "tags", "visibility", "previewImage", "dependencies", "definition"]
 
     model_config = {
         "populate_by_name": True,
@@ -106,6 +107,7 @@ class WorkflowPublishRequest(BaseModel):
 
         _obj = cls.model_validate({
             "workflowId": obj.get("workflowId"),
+            "ownerId": obj.get("ownerId"),
             "name": obj.get("name"),
             "version": obj.get("version"),
             "summary": obj.get("summary"),

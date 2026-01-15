@@ -3,7 +3,12 @@ get:
   summary: Get hub package detail
   operationId: getHubPackage
   parameters:
-  - name: packageName
+  - name: owner
+    in: path
+    required: true
+    schema:
+      type: string
+  - name: name
     in: path
     required: true
     schema:

@@ -1,5 +1,6 @@
 import { generateId, isValidUuid } from "./id";
 import type { WorkflowDefinition, WorkflowDraft } from "../types";
+import { coerceLocalizedTextMap, updateLocalizedTextDefault } from "../../../lib/manifestText";
 
 export const slugifyValue = (value: string): string =>
   value
@@ -20,7 +21,7 @@ export const createEmptyWorkflow = (id: string, name: string): WorkflowDefinitio
   id,
   schemaVersion: "2025-10",
   metadata: {
-    name,
+    name: updateLocalizedTextDefault(undefined, name),
     namespace: "default",
     originId: id,
   },
@@ -32,8 +33,9 @@ export const ensurePersistableIds = (draft: WorkflowDraft, workflowKey?: string)
   const needsNewId = !workflowKey || workflowKey === "new" || !isValidUuid(draft.id);
   const id = needsNewId ? generateId() : draft.id;
   const originId = isValidUuid(draft.metadata?.originId) ? draft.metadata?.originId : id;
-  const baseMetadata = draft.metadata ?? { name: draft.id ?? id };
-  const name = baseMetadata.name ?? draft.id ?? id ?? "Untitled workflow";
+  const fallbackName = draft.id ?? id ?? "Untitled workflow";
+  const baseMetadata = draft.metadata ?? { name: updateLocalizedTextDefault(undefined, fallbackName) };
+  const name = coerceLocalizedTextMap(baseMetadata.name, fallbackName) ?? updateLocalizedTextDefault(undefined, fallbackName);
 
   return {
     ...draft,

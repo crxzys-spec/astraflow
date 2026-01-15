@@ -1,6 +1,15 @@
-import type { FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  LOCALIZED_TEXT_DEFAULT_KEY,
+  getLocalizedTextEntry,
+  resolveLocalizedText,
+  updateLocalizedTextLocale,
+  type LocalizedText,
+} from "../../../lib/manifestText";
+import { LocaleInput } from "../components/LocaleInput";
 
-export type MetadataFormState = { name: string; description: string };
+export type MetadataFormState = { name: LocalizedText; description: LocalizedText };
 
 export type PublishFormState = {
   version: string;
@@ -15,6 +24,25 @@ export type PublishFormState = {
 
 export const VISIBILITY_OPTIONS: PublishFormState["visibility"][] = ["private", "internal", "public"];
 
+const normalizeLocaleInput = (value?: string) => {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) {
+    return LOCALIZED_TEXT_DEFAULT_KEY;
+  }
+  const normalized = trimmed.toLowerCase().replace("_", "-");
+  if (normalized === LOCALIZED_TEXT_DEFAULT_KEY) {
+    return LOCALIZED_TEXT_DEFAULT_KEY;
+  }
+  return trimmed;
+};
+
+const collectLocalizedKeys = (value: LocalizedText, target: Set<string>) => {
+  if (!value || typeof value === "string") {
+    return;
+  }
+  Object.keys(value).forEach((key) => target.add(key));
+};
+
 type MetadataModalProps = {
   isOpen: boolean;
   form: MetadataFormState;
@@ -24,6 +52,39 @@ type MetadataModalProps = {
 };
 
 export const MetadataModal = ({ isOpen, form, onClose, onSubmit, onChange }: MetadataModalProps) => {
+  const { i18n } = useTranslation();
+  const activeLocale = i18n.resolvedLanguage ?? i18n.language ?? LOCALIZED_TEXT_DEFAULT_KEY;
+  const [editLocale, setEditLocale] = useState<string>(normalizeLocaleInput(activeLocale));
+  const editLocaleKey = normalizeLocaleInput(editLocale);
+  const handleLocaleChange = (nextLocale: string) => setEditLocale(normalizeLocaleInput(nextLocale));
+  const localeSuggestions = useMemo(() => {
+    const locales = new Set<string>();
+    if (activeLocale) {
+      locales.add(activeLocale);
+    }
+    collectLocalizedKeys(form.name, locales);
+    collectLocalizedKeys(form.description, locales);
+    return Array.from(locales);
+  }, [activeLocale, form.description, form.name]);
+  const nameEntry = getLocalizedTextEntry(form.name, editLocaleKey);
+  const nameValue = nameEntry ?? "";
+  const namePlaceholder =
+    nameEntry === undefined
+      ? resolveLocalizedText(form.name, editLocaleKey) ?? "Untitled workflow"
+      : undefined;
+  const descriptionEntry = getLocalizedTextEntry(form.description, editLocaleKey);
+  const descriptionValue = descriptionEntry ?? "";
+  const descriptionPlaceholder =
+    descriptionEntry === undefined
+      ? resolveLocalizedText(form.description, editLocaleKey) ?? "Add a short summary"
+      : undefined;
+
+  useEffect(() => {
+    if (isOpen) {
+      setEditLocale(normalizeLocaleInput(activeLocale));
+    }
+  }, [activeLocale, isOpen]);
+
   if (!isOpen) {
     return null;
   }
@@ -42,13 +103,28 @@ export const MetadataModal = ({ isOpen, form, onClose, onSubmit, onChange }: Met
         </header>
         <div className="publish-modal__grid">
           <div className="publish-modal__section publish-modal__field--full">
+            <LocaleInput
+              label="Locale"
+              value={editLocaleKey}
+              onChange={handleLocaleChange}
+              suggestions={localeSuggestions}
+              placeholder="default"
+              className="publish-modal__label"
+            />
+            <small className="publish-modal__helper">
+              Use &quot;default&quot; as the fallback. Any locale tag works (e.g. en, zh-CN).
+            </small>
+          </div>
+          <div className="publish-modal__section publish-modal__field--full">
             <label className="publish-modal__label">
               Name
               <input
                 type="text"
-                value={form.name}
-                onChange={(event) => onChange({ name: event.target.value })}
-                placeholder="Untitled workflow"
+                value={nameValue}
+                placeholder={namePlaceholder}
+                onChange={(event) =>
+                  onChange({ name: updateLocalizedTextLocale(form.name, editLocaleKey, event.target.value) })
+                }
               />
             </label>
           </div>
@@ -56,9 +132,13 @@ export const MetadataModal = ({ isOpen, form, onClose, onSubmit, onChange }: Met
             <label className="publish-modal__label">
               Description
               <textarea
-                value={form.description}
-                onChange={(event) => onChange({ description: event.target.value })}
-                placeholder="Add a short summary"
+                value={descriptionValue}
+                onChange={(event) =>
+                  onChange({
+                    description: updateLocalizedTextLocale(form.description, editLocaleKey, event.target.value),
+                  })
+                }
+                placeholder={descriptionPlaceholder ?? "Add a short summary"}
                 rows={4}
               />
             </label>

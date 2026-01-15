@@ -1,0 +1,30 @@
+post:
+  tags: [HubPackages]
+  summary: Uninstall hub package from the local catalog
+  operationId: uninstallHubPackage
+  parameters:
+  - name: owner
+    in: path
+    required: true
+    schema:
+      type: string
+  - name: name
+    in: path
+    required: true
+    schema:
+      type: string
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: '../components/schemas/index.yaml#/HubPackageInstallRequest'
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/HubPackageInstallResponse'
+    '404':
+      $ref: '../components/responses.yaml#/NotFound'

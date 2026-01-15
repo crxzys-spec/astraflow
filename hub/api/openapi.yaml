@@ -21,8 +21,6 @@ tags:
   description: Account profile and identity
 - name: Orgs
   description: Organization management
-- name: Teams
-  description: Team management
 - name: Tokens
   description: Access tokens and publishing credentials
 - name: Audit
@@ -132,13 +130,18 @@ paths:
       security:
       - bearerAuth:
         - publish
-  /api/v1/packages/{name}:
+  /api/v1/packages/{owner}/{name}:
     get:
       tags:
       - Packages
       summary: Get package detail
       operationId: getPackage
       parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
       - name: name
         in: path
         required: true
@@ -159,13 +162,58 @@ paths:
                 $ref: '#/components/schemas/Error'
       security:
       - bearerAuth: []
-  /api/v1/packages/{name}/reserve:
+    delete:
+      tags:
+      - Packages
+      summary: Delete package
+      operationId: deletePackage
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/packages/{owner}/{name}/reserve:
     post:
       tags:
       - Packages
       summary: Reserve package name
       operationId: reservePackage
       parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
       - name: name
         in: path
         required: true
@@ -211,13 +259,18 @@ paths:
       security:
       - bearerAuth:
         - publish
-  /api/v1/packages/{name}/versions/{version}:
+  /api/v1/packages/{owner}/{name}/versions/{version}:
     get:
       tags:
       - Packages
       summary: Get package version detail
       operationId: getPackageVersion
       parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
       - name: name
         in: path
         required: true
@@ -243,13 +296,18 @@ paths:
                 $ref: '#/components/schemas/Error'
       security:
       - bearerAuth: []
-  /api/v1/packages/{name}/archive:
+  /api/v1/packages/{owner}/{name}/archive:
     get:
       tags:
       - Packages
       summary: Download package archive
       operationId: downloadPackageArchive
       parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
       - name: name
         in: path
         required: true
@@ -276,13 +334,18 @@ paths:
                 $ref: '#/components/schemas/Error'
       security:
       - bearerAuth: []
-  /api/v1/packages/{name}/tags/{tag}:
+  /api/v1/packages/{owner}/{name}/tags/{tag}:
     put:
       tags:
       - Packages
       summary: Set package dist-tag
       operationId: setPackageTag
       parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
       - name: name
         in: path
         required: true
@@ -335,6 +398,11 @@ paths:
       summary: Delete package dist-tag
       operationId: deletePackageTag
       parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
       - name: name
         in: path
         required: true
@@ -369,13 +437,18 @@ paths:
       security:
       - bearerAuth:
         - publish
-  /api/v1/packages/{name}/visibility:
+  /api/v1/packages/{owner}/{name}/visibility:
     patch:
       tags:
       - Packages
       summary: Update package visibility
       operationId: updatePackageVisibility
       parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
       - name: name
         in: path
         required: true
@@ -421,13 +494,18 @@ paths:
       security:
       - bearerAuth:
         - publish
-  /api/v1/packages/{name}/transfer:
+  /api/v1/packages/{owner}/{name}/transfer:
     post:
       tags:
       - Packages
       summary: Transfer package ownership
       operationId: transferPackage
       parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
       - name: name
         in: path
         required: true
@@ -697,6 +775,194 @@ paths:
                 $ref: '#/components/schemas/Error'
       security:
       - bearerAuth: []
+  /api/v1/workflows/{workflowId}/permissions:
+    get:
+      tags:
+      - Workflows
+      summary: List workflow permissions
+      operationId: listWorkflowPermissions
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPermissionList'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+    post:
+      tags:
+      - Workflows
+      summary: Add workflow permission
+      operationId: addWorkflowPermission
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowPermissionCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPermission'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+  /api/v1/workflows/{workflowId}/permissions/{permissionId}:
+    patch:
+      tags:
+      - Workflows
+      summary: Update workflow permission
+      operationId: updateWorkflowPermission
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: permissionId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowPermissionUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowPermission'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
+    delete:
+      tags:
+      - Workflows
+      summary: Delete workflow permission
+      operationId: deleteWorkflowPermission
+      parameters:
+      - name: workflowId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: permissionId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - publish
   /api/v1/auth/register:
     post:
       tags:
@@ -772,6 +1038,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Account'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - read
+    patch:
+      tags:
+      - Account
+      summary: Update current account
+      operationId: updateAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - read
+  /api/v1/account/invites:
+    get:
+      tags:
+      - Account
+      summary: List account invites
+      operationId: listAccountInvites
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationInviteList'
         '401':
           description: Unauthorized
           content:
@@ -1059,12 +1380,12 @@ paths:
       security:
       - bearerAuth:
         - publish
-  /api/v1/orgs/{orgId}/teams:
+  /api/v1/orgs/{orgId}/invites:
     get:
       tags:
-      - Teams
-      summary: List organization teams
-      operationId: listOrganizationTeams
+      - Orgs
+      summary: List organization invites
+      operationId: listOrganizationInvites
       parameters:
       - name: orgId
         in: path
@@ -1077,9 +1398,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TeamList'
+                $ref: '#/components/schemas/OrganizationInviteList'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
           content:
             application/json:
               schema:
@@ -1095,9 +1422,9 @@ paths:
         - publish
     post:
       tags:
-      - Teams
-      summary: Create team
-      operationId: createTeam
+      - Orgs
+      summary: Create organization invite
+      operationId: createOrganizationInvite
       parameters:
       - name: orgId
         in: path
@@ -1109,14 +1436,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TeamCreateRequest'
+              $ref: '#/components/schemas/OrganizationInviteCreateRequest'
       responses:
         '201':
           description: Created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Team'
+                $ref: '#/components/schemas/OrganizationInvite'
         '400':
           description: Invalid input
           content:
@@ -1144,182 +1471,19 @@ paths:
       security:
       - bearerAuth:
         - publish
-  /api/v1/orgs/{orgId}/teams/{teamId}:
-    patch:
-      tags:
-      - Teams
-      summary: Update team
-      operationId: updateTeam
-      parameters:
-      - name: orgId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: teamId
-        in: path
-        required: true
-        schema:
-          type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TeamUpdateRequest'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Team'
-        '400':
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      security:
-      - bearerAuth:
-        - publish
-  /api/v1/orgs/{orgId}/teams/{teamId}/members:
-    get:
-      tags:
-      - Teams
-      summary: List team members
-      operationId: listTeamMembers
-      parameters:
-      - name: orgId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: teamId
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TeamMemberList'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      security:
-      - bearerAuth:
-        - publish
-    post:
-      tags:
-      - Teams
-      summary: Add team member
-      operationId: addTeamMember
-      parameters:
-      - name: orgId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: teamId
-        in: path
-        required: true
-        schema:
-          type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TeamMemberRequest'
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TeamMember'
-        '400':
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      security:
-      - bearerAuth:
-        - publish
-  /api/v1/orgs/{orgId}/teams/{teamId}/members/{userId}:
+  /api/v1/orgs/{orgId}/invites/{inviteId}:
     delete:
       tags:
-      - Teams
-      summary: Remove team member
-      operationId: removeTeamMember
+      - Orgs
+      summary: Revoke organization invite
+      operationId: revokeOrganizationInvite
       parameters:
       - name: orgId
         in: path
         required: true
         schema:
           type: string
-      - name: teamId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: userId
+      - name: inviteId
         in: path
         required: true
         schema:
@@ -1348,13 +1512,116 @@ paths:
       security:
       - bearerAuth:
         - publish
-  /api/v1/packages/{name}/permissions:
+  /api/v1/orgs/{orgId}/invites/{inviteId}/accept:
+    post:
+      tags:
+      - Orgs
+      summary: Accept organization invite
+      operationId: acceptOrganizationInvite
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: inviteId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationMember'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - read
+  /api/v1/orgs/{orgId}/invites/{inviteId}/decline:
+    post:
+      tags:
+      - Orgs
+      summary: Decline organization invite
+      operationId: declineOrganizationInvite
+      parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: inviteId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Deleted
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth:
+        - read
+  /api/v1/packages/{owner}/{name}/permissions:
     get:
       tags:
       - Packages
       summary: List package permissions
       operationId: listPackagePermissions
       parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
       - name: name
         in: path
         required: true
@@ -1394,6 +1661,11 @@ paths:
       summary: Add package permission
       operationId: addPackagePermission
       parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
       - name: name
         in: path
         required: true
@@ -1433,13 +1705,18 @@ paths:
       security:
       - bearerAuth:
         - publish
-  /api/v1/packages/{name}/permissions/{permissionId}:
+  /api/v1/packages/{owner}/{name}/permissions/{permissionId}:
     patch:
       tags:
       - Packages
       summary: Update package permission
       operationId: updatePackagePermission
       parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
       - name: name
         in: path
         required: true
@@ -1496,6 +1773,11 @@ paths:
       summary: Remove package permission
       operationId: deletePackagePermission
       parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
       - name: name
         in: path
         required: true
@@ -1825,6 +2107,8 @@ components:
           type: array
           items:
             type: string
+        ownerId:
+          type: string
       required:
       - file
     PackageReserveRequest:
@@ -1832,6 +2116,8 @@ components:
       properties:
         visibility:
           $ref: '#/components/schemas/Visibility'
+        ownerId:
+          type: string
     PackageTagRequest:
       type: object
       properties:
@@ -2156,6 +2442,8 @@ components:
       properties:
         workflowId:
           type: string
+        ownerId:
+          type: string
         name:
           type: string
         version:
@@ -2302,6 +2590,13 @@ components:
       required:
       - id
       - username
+    AccountUpdateRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+        email:
+          type: string
     Organization:
       type: object
       properties:
@@ -2391,90 +2686,79 @@ components:
       required:
       - userId
       - role
-    Team:
+    OrganizationInviteStatus:
+      type: string
+      enum:
+      - pending
+      - accepted
+      - declined
+      - revoked
+      - expired
+    OrganizationInvite:
       type: object
       properties:
         id:
           type: string
         orgId:
           type: string
-        name:
+        invitedBy:
           type: string
-        slug:
+        userId:
           type: string
+        email:
+          type: string
+        role:
+          $ref: '#/components/schemas/OrganizationMemberRole'
+        status:
+          $ref: '#/components/schemas/OrganizationInviteStatus'
         createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        respondedAt:
           type: string
           format: date-time
       required:
       - id
       - orgId
-      - name
-      - slug
+      - invitedBy
+      - userId
+      - role
+      - status
       - createdAt
-    TeamCreateRequest:
-      type: object
-      properties:
-        name:
-          type: string
-        slug:
-          type: string
-      required:
-      - name
-      - slug
-    TeamUpdateRequest:
-      type: object
-      properties:
-        name:
-          type: string
-        slug:
-          type: string
-    TeamList:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Team'
-      required:
-      - items
-    TeamMember:
+    OrganizationInviteCreateRequest:
       type: object
       properties:
         userId:
           type: string
-        addedAt:
+        role:
+          $ref: '#/components/schemas/OrganizationMemberRole'
+        expiresAt:
           type: string
           format: date-time
       required:
       - userId
-      - addedAt
-    TeamMemberList:
+    OrganizationInviteList:
       type: object
       properties:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/TeamMember'
+            $ref: '#/components/schemas/OrganizationInvite'
       required:
       - items
-    TeamMemberRequest:
-      type: object
-      properties:
-        userId:
-          type: string
-      required:
-      - userId
     PackagePermissionRole:
       type: string
       enum:
       - owner
-      - maintainer
-      - reader
+      - write
+      - read
     PackagePermissionSubjectType:
       type: string
       enum:
       - user
-      - team
       - org
     PackagePermission:
       type: object
@@ -2528,6 +2812,69 @@ components:
             $ref: '#/components/schemas/PackagePermission'
       required:
       - items
+    WorkflowPermissionRole:
+      type: string
+      enum:
+      - owner
+      - write
+      - read
+    WorkflowPermissionSubjectType:
+      type: string
+      enum:
+      - user
+      - org
+    WorkflowPermission:
+      type: object
+      properties:
+        id:
+          type: string
+        workflowId:
+          type: string
+        subjectType:
+          $ref: '#/components/schemas/WorkflowPermissionSubjectType'
+        subjectId:
+          type: string
+        role:
+          $ref: '#/components/schemas/WorkflowPermissionRole'
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - workflowId
+      - subjectType
+      - subjectId
+      - role
+      - createdAt
+    WorkflowPermissionCreateRequest:
+      type: object
+      properties:
+        subjectType:
+          $ref: '#/components/schemas/WorkflowPermissionSubjectType'
+        subjectId:
+          type: string
+        role:
+          $ref: '#/components/schemas/WorkflowPermissionRole'
+      required:
+      - subjectType
+      - subjectId
+      - role
+    WorkflowPermissionUpdateRequest:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/WorkflowPermissionRole'
+      required:
+      - role
+    WorkflowPermissionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowPermission'
+      required:
+      - items
     TokenScope:
       type: string
       enum:
@@ -2547,12 +2894,22 @@ components:
             $ref: '#/components/schemas/TokenScope'
         packageName:
           type: string
+        orgId:
+          type: string
         createdAt:
           type: string
           format: date-time
+        createdIp:
+          type: string
+        createdUserAgent:
+          type: string
         lastUsedAt:
           type: string
           format: date-time
+        lastUsedIp:
+          type: string
+        lastUsedUserAgent:
+          type: string
         expiresAt:
           type: string
           format: date-time
@@ -2573,6 +2930,8 @@ components:
           items:
             $ref: '#/components/schemas/TokenScope'
         packageName:
+          type: string
+        orgId:
           type: string
         expiresAt:
           type: string

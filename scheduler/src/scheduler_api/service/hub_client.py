@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO, Iterable
-from urllib.parse import urlencode, urljoin
+from urllib.parse import quote, urlencode, urljoin
 
 import requests
 from requests import Response
@@ -85,11 +85,35 @@ class HubClient:
         }
         return self._request_json("GET", "/api/v1/packages", params=params)
 
+    def get_account(self) -> dict[str, Any]:
+        return self._request_json("GET", "/api/v1/account")
+
     def get_package(self, name: str) -> dict[str, Any]:
-        return self._request_json("GET", f"/api/v1/packages/{name}")
+        package_name, owner = self._split_package_ref(name)
+        if owner:
+            encoded_owner = self._encode_path_segment(owner)
+            encoded_name = self._encode_path_segment(package_name)
+            return self._request_json(
+                "GET",
+                f"/api/v1/packages/{encoded_owner}/{encoded_name}",
+            )
+        encoded = self._encode_path_segment(package_name)
+        return self._request_json("GET", f"/api/v1/packages/{encoded}")
 
     def get_package_version(self, name: str, version: str) -> dict[str, Any]:
-        return self._request_json("GET", f"/api/v1/packages/{name}/versions/{version}")
+        package_name, owner = self._split_package_ref(name)
+        encoded_name = self._encode_path_segment(package_name)
+        encoded_version = self._encode_path_segment(version)
+        if owner:
+            encoded_owner = self._encode_path_segment(owner)
+            return self._request_json(
+                "GET",
+                f"/api/v1/packages/{encoded_owner}/{encoded_name}/versions/{encoded_version}",
+            )
+        return self._request_json(
+            "GET",
+            f"/api/v1/packages/{encoded_name}/versions/{encoded_version}",
+        )
 
     def publish_package(
         self,
@@ -120,8 +144,24 @@ class HubClient:
         version: str | None,
         dest_path: Path | None = None,
     ) -> HubDownloadResult | bytes:
-        params = {"version": version} if version else None
-        response = self._request("GET", f"/api/v1/packages/{name}/archive", params=params, stream=True)
+        package_name, owner = self._split_package_ref(name)
+        params: dict[str, object] | None = {"version": version} if version else None
+        encoded = self._encode_path_segment(package_name)
+        if owner:
+            encoded_owner = self._encode_path_segment(owner)
+            response = self._request(
+                "GET",
+                f"/api/v1/packages/{encoded_owner}/{encoded}/archive",
+                params=params,
+                stream=True,
+            )
+        else:
+            response = self._request(
+                "GET",
+                f"/api/v1/packages/{encoded}/archive",
+                params=params,
+                stream=True,
+            )
         if dest_path is None:
             return response.content
         dest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -243,14 +283,54 @@ class HubClient:
         return url
 
     @staticmethod
+    def _split_package_ref(value: str) -> tuple[str, str | None]:
+        raw = value.strip()
+        if "/" in raw:
+            owner, name = raw.split("/", 1)
+            owner = owner.strip()
+            name = name.strip()
+            if owner and name:
+                return name, owner
+        return raw, None
+
+    @staticmethod
+    def _encode_path_segment(value: str) -> str:
+        return quote(value, safe="")
+
+    @staticmethod
     def _raise_for_status(response: Response) -> None:
+        detail = ""
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = None
+        if isinstance(payload, dict):
+            nested = payload.get("detail")
+            if isinstance(nested, dict):
+                detail = str(
+                    nested.get("message")
+                    or nested.get("error")
+                    or nested.get("detail")
+                    or ""
+                ).strip()
+            elif isinstance(nested, str):
+                detail = nested.strip()
+            elif "message" in payload:
+                detail = str(payload.get("message") or "").strip()
+        if not detail:
+            text = (response.text or "").strip()
+            if text and len(text) < 500:
+                detail = text
+        suffix = f": {detail}" if detail else ""
         if response.status_code == 404:
-            raise HubNotFoundError("Hub resource not found.")
+            raise HubNotFoundError(f"Hub resource not found{suffix}.")
         if response.status_code in {401, 403}:
-            raise HubUnauthorizedError("Hub access denied.")
+            raise HubUnauthorizedError(f"Hub access denied{suffix}.")
         if response.status_code == 409:
-            raise HubConflictError("Hub resource conflict.")
-        raise HubRequestError(f"Hub request failed with status {response.status_code}.")
+            raise HubConflictError(f"Hub resource conflict{suffix}.")
+        raise HubRequestError(
+            f"Hub request failed with status {response.status_code}{suffix}."
+        )
 
 
 __all__ = [

@@ -1,0 +1,383 @@
+{
+  "schemaVersion": "1.0.0",
+  "name": "llm",
+  "version": "1.0.0",
+  "description": "@i18n:package.description",
+  "adapters": [
+    {
+      "name": "llm",
+      "entrypoint": "adapters.llm",
+      "capabilities": [
+        "llm.chat"
+      ]
+    }
+  ],
+  "python": {
+    "requires": ">=3.10,<3.12",
+    "dependencies": []
+  },
+  "requirements": {
+    "resources": [
+      {
+        "key": "openai_api_key",
+        "type": "secret",
+        "actions": [
+          "read"
+        ],
+        "required": false,
+        "description": "@i18n:requirements.resources.openai_api_key.description"
+      },
+      {
+        "key": "openai_compatible_api_key",
+        "type": "secret",
+        "actions": [
+          "read"
+        ],
+        "required": false,
+        "description": "@i18n:requirements.resources.openai_compatible_api_key.description"
+      },
+      {
+        "key": "anthropic_api_key",
+        "type": "secret",
+        "actions": [
+          "read"
+        ],
+        "required": false,
+        "description": "@i18n:requirements.resources.anthropic_api_key.description"
+      },
+      {
+        "key": "google_api_key",
+        "type": "secret",
+        "actions": [
+          "read"
+        ],
+        "required": false,
+        "description": "@i18n:requirements.resources.google_api_key.description"
+      }
+    ],
+    "vault": [
+      {
+        "key": "openai_api_key",
+        "label": "@i18n:requirements.vault.openai_api_key.label",
+        "type": "secret",
+        "required": false,
+        "description": "@i18n:requirements.vault.openai_api_key.description"
+      },
+      {
+        "key": "openai_compatible_api_key",
+        "label": "@i18n:requirements.vault.openai_compatible_api_key.label",
+        "type": "secret",
+        "required": false,
+        "description": "@i18n:requirements.vault.openai_compatible_api_key.description"
+      },
+      {
+        "key": "anthropic_api_key",
+        "label": "@i18n:requirements.vault.anthropic_api_key.label",
+        "type": "secret",
+        "required": false,
+        "description": "@i18n:requirements.vault.anthropic_api_key.description"
+      },
+      {
+        "key": "google_api_key",
+        "label": "@i18n:requirements.vault.google_api_key.label",
+        "type": "secret",
+        "required": false,
+        "description": "@i18n:requirements.vault.google_api_key.description"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "type": "llm.chat",
+      "status": "published",
+      "category": "@i18n:nodes.llm.chat.category",
+      "label": "@i18n:nodes.llm.chat.label",
+      "description": "@i18n:nodes.llm.chat.description",
+      "tags": [
+        "llm",
+        "chat",
+        "openai",
+        "anthropic",
+        "gemini",
+        "ollama"
+      ],
+      "adapter": "llm",
+      "handler": "chat",
+      "config": {},
+      "schema": {
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "description": "Target provider (openai, openai_compatible, anthropic, google, ollama).",
+              "enum": [
+                "openai",
+                "openai_compatible",
+                "anthropic",
+                "google",
+                "ollama"
+              ],
+              "default": "openai"
+            },
+            "model": {
+              "type": "string",
+              "description": "Model identifier, e.g. gpt-4o-mini, claude-3-5-sonnet, gemini-1.5-flash, llama3."
+            },
+            "prompt": {
+              "type": "string",
+              "description": "Single-turn user prompt (ignored when messages are provided).",
+              "default": ""
+            },
+            "system": {
+              "type": "string",
+              "description": "Optional system instruction.",
+              "default": ""
+            },
+            "messages": {
+              "type": "array",
+              "description": "Optional chat message list (role/content).",
+              "items": {
+                "type": "object",
+                "required": [
+                  "role",
+                  "content"
+                ],
+                "properties": {
+                  "role": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "baseUrl": {
+              "type": "string",
+              "description": "Override provider base URL (useful for OpenAI-compatible servers or Ollama)."
+            },
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2,
+              "default": 0.7
+            },
+            "topP": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "maxTokens": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "stop": {
+              "description": "Optional stop sequences.",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "timeoutSeconds": {
+              "type": "number",
+              "minimum": 1,
+              "default": 60
+            }
+          },
+          "required": [
+            "model"
+          ]
+        },
+        "results": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "succeeded",
+                "failed"
+              ]
+            },
+            "text": {
+              "type": "string"
+            },
+            "provider": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "usage": {
+              "type": "object"
+            },
+            "raw": {
+              "type": "object"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status"
+          ]
+        }
+      },
+      "ui": {
+        "inputPorts": [
+          {
+            "key": "prompt",
+            "label": "@i18n:nodes.llm.chat.inputPorts.prompt.label",
+            "binding": {
+              "path": "/parameters/prompt",
+              "mode": "write"
+            }
+          }
+        ],
+        "outputPorts": [
+          {
+            "key": "text",
+            "label": "@i18n:nodes.llm.chat.outputPorts.text.label",
+            "binding": {
+              "path": "/results/text",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "raw",
+            "label": "@i18n:nodes.llm.chat.outputPorts.raw.label",
+            "binding": {
+              "path": "/results/raw",
+              "mode": "read"
+            }
+          },
+          {
+            "key": "usage",
+            "label": "@i18n:nodes.llm.chat.outputPorts.usage.label",
+            "binding": {
+              "path": "/results/usage",
+              "mode": "read"
+            }
+          }
+        ],
+        "widgets": [
+          {
+            "key": "provider",
+            "label": "@i18n:nodes.llm.chat.widgets.provider.label",
+            "component": "options",
+            "binding": {
+              "path": "/parameters/provider",
+              "mode": "write"
+            },
+            "options": {
+              "options": [
+                "openai",
+                "openai_compatible",
+                "anthropic",
+                "google",
+                "ollama"
+              ]
+            }
+          },
+          {
+            "key": "model",
+            "label": "@i18n:nodes.llm.chat.widgets.model.label",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/model",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "system",
+            "label": "@i18n:nodes.llm.chat.widgets.system.label",
+            "component": "textarea",
+            "binding": {
+              "path": "/parameters/system",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "prompt",
+            "label": "@i18n:nodes.llm.chat.widgets.prompt.label",
+            "component": "textarea",
+            "binding": {
+              "path": "/parameters/prompt",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "messages",
+            "label": "@i18n:nodes.llm.chat.widgets.messages.label",
+            "component": "json",
+            "binding": {
+              "path": "/parameters/messages",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "baseUrl",
+            "label": "@i18n:nodes.llm.chat.widgets.baseUrl.label",
+            "component": "text",
+            "binding": {
+              "path": "/parameters/baseUrl",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "temperature",
+            "label": "@i18n:nodes.llm.chat.widgets.temperature.label",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/temperature",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "topP",
+            "label": "@i18n:nodes.llm.chat.widgets.topP.label",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/topP",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "maxTokens",
+            "label": "@i18n:nodes.llm.chat.widgets.maxTokens.label",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/maxTokens",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "stop",
+            "label": "@i18n:nodes.llm.chat.widgets.stop.label",
+            "component": "json",
+            "binding": {
+              "path": "/parameters/stop",
+              "mode": "write"
+            }
+          },
+          {
+            "key": "timeoutSeconds",
+            "label": "@i18n:nodes.llm.chat.widgets.timeoutSeconds.label",
+            "component": "number",
+            "binding": {
+              "path": "/parameters/timeoutSeconds",
+              "mode": "write"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

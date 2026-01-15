@@ -1,14 +1,18 @@
 # coding: utf-8
 
-from typing import ClassVar, Dict, List, Tuple  # noqa: F401
+from typing import ClassVar, Dict, List, Tuple, Any  # noqa: F401
 
 from pydantic import Field, StrictStr
-from typing import Optional
+from typing import Any, Optional
 from typing_extensions import Annotated
 from hub_api.models.error import Error
 from hub_api.models.hub_workflow_detail import HubWorkflowDetail
 from hub_api.models.workflow_definition import WorkflowDefinition
 from hub_api.models.workflow_list_response import WorkflowListResponse
+from hub_api.models.workflow_permission import WorkflowPermission
+from hub_api.models.workflow_permission_create_request import WorkflowPermissionCreateRequest
+from hub_api.models.workflow_permission_list import WorkflowPermissionList
+from hub_api.models.workflow_permission_update_request import WorkflowPermissionUpdateRequest
 from hub_api.models.workflow_publish_request import WorkflowPublishRequest
 from hub_api.models.workflow_publish_response import WorkflowPublishResponse
 from hub_api.models.workflow_version_detail import WorkflowVersionDetail
@@ -68,4 +72,36 @@ class BaseWorkflowsApi:
         workflowId: StrictStr,
         versionId: StrictStr,
     ) -> WorkflowDefinition:
+        ...
+
+
+    async def list_workflow_permissions(
+        self,
+        workflowId: StrictStr,
+    ) -> WorkflowPermissionList:
+        ...
+
+
+    async def add_workflow_permission(
+        self,
+        workflowId: StrictStr,
+        workflow_permission_create_request: WorkflowPermissionCreateRequest,
+    ) -> WorkflowPermission:
+        ...
+
+
+    async def delete_workflow_permission(
+        self,
+        workflowId: StrictStr,
+        permissionId: StrictStr,
+    ) -> None:
+        ...
+
+
+    async def update_workflow_permission(
+        self,
+        workflowId: StrictStr,
+        permissionId: StrictStr,
+        workflow_permission_update_request: WorkflowPermissionUpdateRequest,
+    ) -> WorkflowPermission:
         ...

@@ -4,8 +4,11 @@ import type { AuthLoginRequest } from "../../../client/models";
 import { useAuthStore } from "@store/authSlice";
 import { authLogin } from "../../../services/auth";
 import { useAsyncAction } from "../../../hooks/useAsyncAction";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "../../../components/LanguageSwitcher";
 
 const LoginPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
   const initialized = useAuthStore((state) => state.initialized);
@@ -27,7 +30,7 @@ const LoginPage = () => {
     return (
       <div className="auth-view auth-view--splash">
         <div className="auth-panel__card">
-          <p>Loading session...</p>
+          <p>{t("login.loadingSession")}</p>
         </div>
       </div>
     );
@@ -52,7 +55,10 @@ const LoginPage = () => {
       },
       onError: (err: any) => {
         const message =
-          err?.response?.data?.message || err?.response?.data?.detail || err?.message || "Login failed";
+          err?.response?.data?.message ||
+          err?.response?.data?.detail ||
+          err?.message ||
+          t("login.loginFailed");
         setError(message);
       },
     });
@@ -62,23 +68,26 @@ const LoginPage = () => {
     <div className="auth-view auth-view--solo">
       <section className="auth-panel">
         <div className="auth-panel__card">
-          <h2>Welcome back</h2>
-          <p className="auth-panel__subtitle">Sign in with your AstraFlow account</p>
+          <div className="auth-panel__toolbar">
+            <LanguageSwitcher />
+          </div>
+          <h2>{t("login.welcomeBack")}</h2>
+          <p className="auth-panel__subtitle">{t("login.subtitle")}</p>
           <form className="auth-form" onSubmit={handleSubmit}>
             <label className="stack">
-              <span>Username</span>
+              <span>{t("login.username")}</span>
               <input
               type="text"
               name="username"
               autoComplete="username"
               value={form.username}
               onChange={handleChange}
-              placeholder="username"
+              placeholder={t("login.username")}
               required
             />
           </label>
             <label className="stack">
-              <span>Password</span>
+              <span>{t("login.password")}</span>
               <input
                 type="password"
                 name="password"
@@ -91,12 +100,12 @@ const LoginPage = () => {
             </label>
             {error && <p className="error auth-form__error">{error}</p>}
             <button className="btn btn--primary auth-form__submit" type="submit" disabled={loginMutation.isPending}>
-              {loginMutation.isPending ? "Signing in..." : "Sign In"}
+              {loginMutation.isPending ? t("login.signingIn") : t("login.signIn")}
             </button>
           </form>
           <div className="auth-panel__meta">
-            <p>Need an account? Ask your AstraFlow administrator.</p>
-            {import.meta.env.VITE_SCHEDULER_TOKEN && <p>Dev token detected - login will persist your JWT.</p>}
+            <p>{t("login.needAccount")}</p>
+            {import.meta.env.VITE_SCHEDULER_TOKEN && <p>{t("login.devTokenDetected")}</p>}
           </div>
         </div>
       </section>

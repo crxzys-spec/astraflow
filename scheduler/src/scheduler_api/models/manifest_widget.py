@@ -22,6 +22,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from scheduler_api.models.localized_text import LocalizedText
 from scheduler_api.models.manifest_binding import ManifestBinding
 try:
     from typing import Self
@@ -33,7 +34,7 @@ class ManifestWidget(BaseModel):
     ManifestWidget
     """ # noqa: E501
     key: StrictStr
-    label: StrictStr
+    label: LocalizedText
     component: StrictStr
     binding: ManifestBinding
     options: Optional[Dict[str, Any]] = None
@@ -76,6 +77,9 @@ class ManifestWidget(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of label
+        if self.label:
+            _dict['label'] = self.label.to_dict()
         # override the default output from pydantic by calling `to_dict()` of binding
         if self.binding:
             _dict['binding'] = self.binding.to_dict()
@@ -92,11 +96,10 @@ class ManifestWidget(BaseModel):
 
         _obj = cls.model_validate({
             "key": obj.get("key"),
-            "label": obj.get("label"),
+            "label": LocalizedText.from_dict(obj.get("label")) if obj.get("label") is not None else None,
             "component": obj.get("component"),
             "binding": ManifestBinding.from_dict(obj.get("binding")) if obj.get("binding") is not None else None,
             "options": obj.get("options")
         })
         return _obj
-
 

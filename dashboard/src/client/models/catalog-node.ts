@@ -16,13 +16,16 @@
 // May contain unused imports in some cases
 // @ts-ignore
 import type { CatalogNodeVersion } from './catalog-node-version';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { LocalizedText } from './localized-text';
 
 export interface CatalogNode {
     'type': string;
-    'label': string;
-    'description'?: string;
+    'label': LocalizedText;
+    'description'?: LocalizedText;
     'role'?: string;
-    'category'?: string;
+    'category'?: LocalizedText;
     'tags'?: Array<string>;
     'status'?: string;
     'packageName': string;

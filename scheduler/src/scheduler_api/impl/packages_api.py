@@ -10,27 +10,30 @@ from scheduler_api.infra.catalog import (
     PackageVersionNotFoundError,
     catalog,
 )
-from scheduler_api.models.list_packages200_response import ListPackages200Response
-from scheduler_api.models.list_packages200_response_items_inner import ListPackages200ResponseItemsInner
 from scheduler_api.models.package_detail import PackageDetail
+from scheduler_api.models.package_list import PackageList
 from scheduler_api.models.package_manifest import PackageManifest
+from scheduler_api.models.package_summary import PackageSummary
 
 
 class PackagesApiImpl(BasePackagesApi):
-    async def list_packages(self) -> ListPackages200Response:
+    async def list_packages(self) -> PackageList:
         require_roles(*WORKFLOW_VIEW_ROLES)
         summaries = catalog.list_packages()
         items = [
-            ListPackages200ResponseItemsInner(
+            PackageSummary(
                 name=summary["name"],
                 description=summary.get("description"),
                 latestVersion=summary.get("latestVersion"),
                 defaultVersion=summary.get("defaultVersion"),
                 versions=summary.get("versions", []),
+                ownerId=summary.get("ownerId"),
+                hub=summary.get("hub"),
+                hubVersions=summary.get("hubVersions"),
             )
             for summary in summaries
         ]
-        return ListPackages200Response(items=items)
+        return PackageList(items=items)
 
     async def get_package(
         self,
@@ -69,4 +72,5 @@ class PackagesApiImpl(BasePackagesApi):
             version=detail["version"],
             availableVersions=detail.get("availableVersions"),
             manifest=manifest_model,
+            hub=detail.get("hub"),
         )

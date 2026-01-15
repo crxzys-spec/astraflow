@@ -7,6 +7,7 @@ from pydantic import Field, StrictBytes, StrictStr
 from typing import List, Optional, Tuple, Union
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
+from scheduler_api.models.hub_local_package_publish_request import HubLocalPackagePublishRequest
 from scheduler_api.models.hub_package_detail import HubPackageDetail
 from scheduler_api.models.hub_package_install_request import HubPackageInstallRequest
 from scheduler_api.models.hub_package_install_response import HubPackageInstallResponse
@@ -43,16 +44,25 @@ class BaseHubPackagesApi:
         ...
 
 
+    async def publish_hub_package_local(
+        self,
+        hub_local_package_publish_request: HubLocalPackagePublishRequest,
+    ) -> HubPackageVersionDetail:
+        ...
+
+
     async def get_hub_package(
         self,
-        packageName: StrictStr,
+        owner: StrictStr,
+        name: StrictStr,
     ) -> HubPackageDetail:
         ...
 
 
     async def get_hub_package_version(
         self,
-        packageName: StrictStr,
+        owner: StrictStr,
+        name: StrictStr,
         version: StrictStr,
     ) -> HubPackageVersionDetail:
         ...
@@ -60,7 +70,8 @@ class BaseHubPackagesApi:
 
     async def download_hub_package_archive(
         self,
-        packageName: StrictStr,
+        owner: StrictStr,
+        name: StrictStr,
         version: Annotated[Optional[StrictStr], Field(description="Optional version to download")],
     ) -> Any:
         ...
@@ -68,7 +79,17 @@ class BaseHubPackagesApi:
 
     async def install_hub_package(
         self,
-        packageName: StrictStr,
+        owner: StrictStr,
+        name: StrictStr,
+        hub_package_install_request: Optional[HubPackageInstallRequest],
+    ) -> HubPackageInstallResponse:
+        ...
+
+
+    async def uninstall_hub_package(
+        self,
+        owner: StrictStr,
+        name: StrictStr,
         hub_package_install_request: Optional[HubPackageInstallRequest],
     ) -> HubPackageInstallResponse:
         ...

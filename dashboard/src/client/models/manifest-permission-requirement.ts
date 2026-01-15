@@ -13,6 +13,9 @@
  */
 
 
+// May contain unused imports in some cases
+// @ts-ignore
+import type { LocalizedText } from './localized-text';
 
 export interface ManifestPermissionRequirement {
     /**
@@ -35,10 +38,7 @@ export interface ManifestPermissionRequirement {
      * Whether the permission must be granted before execution.
      */
     'required'?: boolean;
-    /**
-     * Human-readable explanation of why the permission is needed.
-     */
-    'description'?: string;
+    'description'?: LocalizedText;
     /**
      * Additional permission metadata.
      */

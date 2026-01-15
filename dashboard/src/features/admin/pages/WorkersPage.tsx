@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type { WorkerPackageStatus } from "../../../client/models";
 import { useAuthStore } from "@store/authSlice";
 import { useWorkers } from "@store/workersSlice";
@@ -22,7 +24,7 @@ const DEFAULT_FILTERS: FilterState = {
   packageStatus: "all",
 };
 
-const formatAge = (iso?: string | null) => {
+const formatAge = (iso: string | null | undefined, t: TFunction) => {
   if (!iso) {
     return "-";
   }
@@ -32,22 +34,22 @@ const formatAge = (iso?: string | null) => {
   }
   const diffMs = Date.now() - timestamp;
   if (diffMs < 0) {
-    return "just now";
+    return t("admin.workersPage.age.justNow");
   }
   const seconds = Math.floor(diffMs / 1000);
   if (seconds < 60) {
-    return `${seconds}s ago`;
+    return t("admin.workersPage.age.seconds", { count: seconds });
   }
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) {
-    return `${minutes}m ago`;
+    return t("admin.workersPage.age.minutes", { count: minutes });
   }
   const hours = Math.floor(minutes / 60);
   if (hours < 24) {
-    return `${hours}h ago`;
+    return t("admin.workersPage.age.hours", { count: hours });
   }
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return t("admin.workersPage.age.days", { count: days });
 };
 
 const formatPct = (value?: number | null) => {
@@ -85,6 +87,7 @@ const summarizePackages = (worker: WorkerModel) => {
 
 const WorkersPage = () => {
   const isAdmin = useAuthStore((state) => state.hasRole(["admin"]));
+  const { t } = useTranslation();
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
 
   const queryParams = useMemo(
@@ -130,8 +133,8 @@ const WorkersPage = () => {
     return (
       <div className="admin-view">
         <div className="card stack admin-panel">
-          <h2>Worker Fleet</h2>
-          <p className="text-subtle">Only administrators can view connected workers.</p>
+          <h2>{t("admin.workersPage.accessDeniedTitle")}</h2>
+          <p className="text-subtle">{t("admin.workersPage.accessDeniedMessage")}</p>
         </div>
       </div>
     );
@@ -144,37 +147,35 @@ const WorkersPage = () => {
       <div className="card stack admin-panel">
         <header className="card__header worker-header admin-panel__header">
           <div>
-            <span className="admin-panel__eyebrow">Administration</span>
-            <h2>Worker Fleet</h2>
-            <p className="text-subtle admin-panel__description">
-              Inspect connection health, queues, and installed packages.
-            </p>
+            <span className="admin-panel__eyebrow">{t("admin.eyebrow")}</span>
+            <h2>{t("admin.workersPage.title")}</h2>
+            <p className="text-subtle admin-panel__description">{t("admin.workersPage.subtitle")}</p>
           </div>
           <div className="builder-actions builder-actions--buttons">
             <button className="btn btn--ghost" type="button" onClick={clearFilters}>
-              Clear Filters
+              {t("admin.workersPage.actions.clearFilters")}
             </button>
             <button className="btn" type="button" onClick={() => void refetch()} disabled={status === "loading"}>
-              {status === "loading" ? "Refreshing..." : "Refresh"}
+              {status === "loading" ? t("admin.workersPage.actions.refreshing") : t("common.refresh")}
             </button>
           </div>
         </header>
 
         <div className="admin-section admin-section--stats worker-stats">
           <div className="worker-stat">
-            <span className="worker-stat__label">Total</span>
+            <span className="worker-stat__label">{t("admin.workersPage.stats.total")}</span>
             <span className="worker-stat__value">{stats.total}</span>
           </div>
           <div className="worker-stat">
-            <span className="worker-stat__label">Connected</span>
+            <span className="worker-stat__label">{t("admin.workersPage.stats.connected")}</span>
             <span className="worker-stat__value">{stats.connected}</span>
           </div>
           <div className="worker-stat">
-            <span className="worker-stat__label">Registered</span>
+            <span className="worker-stat__label">{t("admin.workersPage.stats.registered")}</span>
             <span className="worker-stat__value">{stats.registered}</span>
           </div>
           <div className="worker-stat">
-            <span className="worker-stat__label">Healthy</span>
+            <span className="worker-stat__label">{t("admin.workersPage.stats.healthy")}</span>
             <span className="worker-stat__value">{stats.healthy}</span>
           </div>
         </div>
@@ -182,70 +183,70 @@ const WorkersPage = () => {
         <form className="admin-section admin-section--filters">
           <div className="builder-grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}>
             <label className="stack">
-              <span>Search</span>
+              <span>{t("admin.workersPage.filters.search")}</span>
               <input
                 type="text"
                 value={filters.search}
                 onChange={(evt) => setFilters((prev) => ({ ...prev, search: evt.target.value }))}
-                placeholder="worker name, host, tenant"
+                placeholder={t("admin.workersPage.filters.searchPlaceholder")}
               />
             </label>
             <label className="stack">
-              <span>Queue</span>
+              <span>{t("admin.workersPage.filters.queue")}</span>
               <input
                 type="text"
                 value={filters.queue}
                 onChange={(evt) => setFilters((prev) => ({ ...prev, queue: evt.target.value }))}
-                placeholder="default"
+                placeholder={t("admin.workersPage.filters.queuePlaceholder")}
               />
             </label>
             <label className="stack">
-              <span>Connection</span>
+              <span>{t("admin.workersPage.filters.connection")}</span>
               <select
                 value={filters.connection}
                 onChange={(evt) => setFilters((prev) => ({ ...prev, connection: evt.target.value as FilterState["connection"] }))}
               >
-                <option value="all">All</option>
-                <option value="connected">Connected</option>
-                <option value="disconnected">Disconnected</option>
+                <option value="all">{t("admin.workersPage.filters.all")}</option>
+                <option value="connected">{t("admin.workersPage.filters.connected")}</option>
+                <option value="disconnected">{t("admin.workersPage.filters.disconnected")}</option>
               </select>
             </label>
             <label className="stack">
-              <span>Health</span>
+              <span>{t("admin.workersPage.filters.health")}</span>
               <select
                 value={filters.health}
                 onChange={(evt) => setFilters((prev) => ({ ...prev, health: evt.target.value as FilterState["health"] }))}
               >
-                <option value="all">All</option>
-                <option value="healthy">Healthy</option>
-                <option value="unhealthy">Unhealthy or unknown</option>
+                <option value="all">{t("admin.workersPage.filters.all")}</option>
+                <option value="healthy">{t("admin.workersPage.filters.healthy")}</option>
+                <option value="unhealthy">{t("admin.workersPage.filters.unhealthy")}</option>
               </select>
             </label>
             <label className="stack">
-              <span>Package</span>
+              <span>{t("admin.workersPage.filters.package")}</span>
               <input
                 type="text"
                 value={filters.packageName}
                 onChange={(evt) => setFilters((prev) => ({ ...prev, packageName: evt.target.value }))}
-                placeholder="package name"
+                placeholder={t("admin.workersPage.filters.packagePlaceholder")}
               />
             </label>
             <label className="stack">
-              <span>Package Status</span>
+              <span>{t("admin.workersPage.filters.packageStatus")}</span>
               <select
                 value={filters.packageStatus}
                 onChange={(evt) =>
                   setFilters((prev) => ({ ...prev, packageStatus: evt.target.value as FilterState["packageStatus"] }))
                 }
               >
-                <option value="all">All</option>
-                <option value="installed">Installed</option>
-                <option value="installing">Installing</option>
-                <option value="uninstalling">Uninstalling</option>
-                <option value="removed">Removed</option>
-                <option value="failed">Failed</option>
-                <option value="missing">Missing</option>
-                <option value="unknown">Unknown</option>
+                <option value="all">{t("admin.workersPage.filters.all")}</option>
+                <option value="installed">{t("admin.workersPage.packageStatus.installed")}</option>
+                <option value="installing">{t("admin.workersPage.packageStatus.installing")}</option>
+                <option value="uninstalling">{t("admin.workersPage.packageStatus.uninstalling")}</option>
+                <option value="removed">{t("admin.workersPage.packageStatus.removed")}</option>
+                <option value="failed">{t("admin.workersPage.packageStatus.failed")}</option>
+                <option value="missing">{t("admin.workersPage.packageStatus.missing")}</option>
+                <option value="unknown">{t("admin.workersPage.packageStatus.unknown")}</option>
               </select>
             </label>
           </div>
@@ -253,9 +254,11 @@ const WorkersPage = () => {
 
         {status === "error" && (
           <div className="admin-section admin-section--notice stack">
-            <p className="error">Unable to load workers: {error?.message ?? "Unknown error"}</p>
+            <p className="error">
+              {t("admin.workersPage.messages.loadError", { message: error?.message ?? t("common.unknownError") })}
+            </p>
             <button className="btn" type="button" onClick={() => void refetch()}>
-              Retry
+              {t("common.retry")}
             </button>
           </div>
         )}
@@ -265,22 +268,22 @@ const WorkersPage = () => {
             <table className="data-table worker-table admin-table">
               <thead>
                 <tr>
-                  <th>Worker</th>
-                  <th>Status</th>
-                  <th>Heartbeat</th>
-                  <th>Queues</th>
-                  <th>Packages</th>
-                  <th>Metrics</th>
+                  <th>{t("admin.workersPage.table.worker")}</th>
+                  <th>{t("admin.workersPage.table.status")}</th>
+                  <th>{t("admin.workersPage.table.heartbeat")}</th>
+                  <th>{t("admin.workersPage.table.queues")}</th>
+                  <th>{t("admin.workersPage.table.packages")}</th>
+                  <th>{t("admin.workersPage.table.metrics")}</th>
                 </tr>
               </thead>
               <tbody>
                 {status === "loading" ? (
                   <tr>
-                    <td colSpan={6}>Loading workers...</td>
+                    <td colSpan={6}>{t("admin.workersPage.messages.loading")}</td>
                   </tr>
                 ) : visibleItems.length === 0 ? (
                   <tr>
-                    <td colSpan={6}>No workers match the current filters.</td>
+                    <td colSpan={6}>{t("admin.workersPage.messages.empty")}</td>
                   </tr>
                 ) : (
                   visibleItems.map((worker) => {
@@ -293,33 +296,43 @@ const WorkersPage = () => {
                           <div className="worker-cell">
                             <span className="worker-cell__title">{worker.id}</span>
                             <span className="text-subtle">
-                              {worker.hostname ?? "unknown host"} / {worker.version ?? "unknown version"}
+                              {worker.hostname ?? t("admin.workersPage.values.unknownHost")} /{" "}
+                              {worker.version ?? t("admin.workersPage.values.unknownVersion")}
                             </span>
                             <span className="text-subtle">
-                              {worker.tenant ?? "default"} / {worker.instanceId ?? "instance unknown"}
+                              {worker.tenant ?? t("admin.workersPage.values.defaultTenant")} /{" "}
+                              {worker.instanceId ?? t("admin.workersPage.values.unknownInstance")}
                             </span>
                           </div>
                         </td>
                         <td>
                           <div className="worker-tag-list">
                             <span className={`badge ${worker.connected ? "badge--success" : "badge--muted"}`}>
-                              {worker.connected ? "Connected" : "Offline"}
+                              {worker.connected
+                                ? t("admin.workersPage.status.connected")
+                                : t("admin.workersPage.status.offline")}
                             </span>
                             <span className={`badge ${worker.registered ? "badge--info" : "badge--muted"}`}>
-                              {worker.registered ? "Registered" : "Unregistered"}
+                              {worker.registered
+                                ? t("admin.workersPage.status.registered")
+                                : t("admin.workersPage.status.unregistered")}
                             </span>
                             <span
                               className={`badge ${
                                 heartbeat?.healthy ? "badge--success" : heartbeat ? "badge--warning" : "badge--muted"
                               }`}
                             >
-                              {heartbeat?.healthy ? "Healthy" : heartbeat ? "Unhealthy" : "Unknown"}
+                              {heartbeat?.healthy
+                                ? t("admin.workersPage.status.healthy")
+                                : heartbeat
+                                  ? t("admin.workersPage.status.unhealthy")
+                                  : t("admin.workersPage.status.unknown")}
                             </span>
                           </div>
                         </td>
                         <td>
                           <div className="worker-cell">
-                            <span>{formatAge(worker.lastHeartbeatAt)}</span>
+                            <span>{formatAge(worker.lastHeartbeatAt, t)}</span>
                             <span className="text-subtle">
                               {worker.lastHeartbeatAt ? new Date(worker.lastHeartbeatAt).toLocaleString() : "-"}
                             </span>
@@ -335,7 +348,7 @@ const WorkersPage = () => {
                               ))}
                             </div>
                           ) : (
-                            <span className="text-subtle">No queues</span>
+                            <span className="text-subtle">{t("admin.workersPage.messages.noQueues")}</span>
                           )}
                         </td>
                         <td>
@@ -351,16 +364,16 @@ const WorkersPage = () => {
                               )}
                             </div>
                           ) : (
-                            <span className="text-subtle">No packages</span>
+                            <span className="text-subtle">{t("admin.workersPage.messages.noPackages")}</span>
                           )}
                         </td>
                         <td>
                           <div className="worker-metrics">
-                            <span>CPU: {formatPct(metrics?.cpuPct)}</span>
-                            <span>Mem: {formatPct(metrics?.memPct)}</span>
-                            <span>Disk: {formatPct(metrics?.diskPct)}</span>
-                            <span>Inflight: {formatMetric(metrics?.inflight)}</span>
-                            <span>Latency: {formatLatency(metrics?.latencyMs)}</span>
+                            <span>{t("admin.workersPage.metrics.cpu")}: {formatPct(metrics?.cpuPct)}</span>
+                            <span>{t("admin.workersPage.metrics.mem")}: {formatPct(metrics?.memPct)}</span>
+                            <span>{t("admin.workersPage.metrics.disk")}: {formatPct(metrics?.diskPct)}</span>
+                            <span>{t("admin.workersPage.metrics.inflight")}: {formatMetric(metrics?.inflight)}</span>
+                            <span>{t("admin.workersPage.metrics.latency")}: {formatLatency(metrics?.latencyMs)}</span>
                           </div>
                         </td>
                       </tr>

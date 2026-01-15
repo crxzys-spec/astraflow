@@ -1,369 +1,18 @@
 ﻿<template>
   <div class="hub-app">
     <div class="ambient-grid"></div>
-    <header class="hub-header">
-      <div class="brand">
-        <span class="brand-mark">A</span>
-        <div>
-          <div class="brand-title">AstraFlow Hub</div>
-          <div class="brand-subtitle">Secure discovery for packages and workflows.</div>
-        </div>
-      </div>
-      <div class="header-actions">
-        <el-input
-          v-model="apiBase"
-          class="hub-input"
-          placeholder="API base (http://localhost:8310)"
-        />
-        <el-input
-          v-model="tokenInput"
-          class="hub-input"
-          placeholder="Bearer token"
-          type="password"
-          show-password
-        />
-        <el-button type="primary" @click="applyAuth">Connect</el-button>
-        <el-button plain @click="openAuthDialog">Login / Register</el-button>
-      </div>
-    </header>
+    <HubHeader
+      :hasToken="hasToken"
+      :account="accountProfile"
+      v-model:searchQuery="headerSearchQuery"
+      @clear-auth="handleClearAuth"
+      @open-auth="openAuthDialog"
+      @search="handleHeaderSearch"
+      @select-tab="handleSelectTab"
+    />
 
     <main class="hub-main">
-      <section class="status-panel">
-        <div>
-          <div class="status-eyebrow">Connection</div>
-          <h1>Hub console</h1>
-          <p class="status-subtitle">
-            Authenticate to browse packages and workflows, then drill into detail
-            snapshots and version histories.
-          </p>
-        </div>
-        <div class="status-cards">
-          <div class="status-card">
-            <div class="status-label">Packages indexed</div>
-            <div class="status-value">{{ packageTotalDisplay }}</div>
-          </div>
-          <div class="status-card">
-            <div class="status-label">Workflows indexed</div>
-            <div class="status-value">{{ workflowTotalDisplay }}</div>
-          </div>
-          <div class="status-card">
-            <div class="status-label">Session</div>
-            <div class="status-value">
-              <span class="status-pill" :class="{ ready: hasToken }">
-                {{ hasToken ? 'Authenticated' : 'Token required' }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="workspace">
-        <div class="workspace-header">
-          <el-tabs v-model="activeTab" class="hub-tabs">
-            <el-tab-pane label="Packages" name="packages" />
-            <el-tab-pane label="Workflows" name="workflows" />
-            <el-tab-pane label="Organizations" name="orgs" />
-          </el-tabs>
-          <div class="filters">
-            <el-input v-model="searchQuery" placeholder="Search" clearable />
-            <el-input v-model="tagFilter" placeholder="Tag" clearable />
-            <el-input v-model="ownerFilter" placeholder="Owner" clearable />
-            <el-button type="primary" @click="applyFilters">Search</el-button>
-            <el-button plain @click="resetFilters">Reset</el-button>
-          </div>
-        </div>
-
-        <el-alert
-          v-if="listError"
-          class="hub-alert"
-          type="error"
-          show-icon
-          :closable="false"
-          :title="listError"
-        />
-
-        <div class="workspace-body">
-          <div class="list-pane">
-            <el-skeleton v-if="listLoading" animated :rows="6" />
-            <template v-else>
-              <div v-if="activeTab === 'packages'" class="card-grid">
-                <el-card
-                  v-for="pkg in packages"
-                  :key="pkg.name"
-                  class="hub-card"
-                  shadow="never"
-                  @click="selectPackage(pkg)"
-                >
-                  <div class="card-head">
-                    <div>
-                      <div class="card-title">{{ pkg.name }}</div>
-                      <div class="card-meta">
-                        v{{ pkg.latestVersion || 'n/a' }} · {{ pkg.ownerName || 'Unknown' }}
-                      </div>
-                    </div>
-                    <el-tag size="small" effect="dark" type="info">
-                      {{ pkg.visibility || 'public' }}
-                    </el-tag>
-                  </div>
-                  <p class="card-desc">{{ pkg.description || 'No description.' }}</p>
-                  <div class="card-tags">
-                    <el-tag v-for="tag in pkg.tags || []" :key="tag" size="small">
-                      {{ tag }}
-                    </el-tag>
-                  </div>
-                </el-card>
-              </div>
-
-              <div v-else-if="activeTab === 'workflows'" class="card-grid workflows">
-                <el-card
-                  v-for="flow in workflows"
-                  :key="flow.id"
-                  class="hub-card"
-                  shadow="never"
-                  @click="selectWorkflow(flow)"
-                >
-                  <div class="card-head">
-                    <div>
-                      <div class="card-title">{{ flow.name }}</div>
-                      <div class="card-meta">
-                        {{ flow.ownerName || 'Unknown' }} · {{ formatDate(flow.updatedAt) }}
-                      </div>
-                    </div>
-                    <el-tag size="small" effect="dark" type="success">
-                      {{ flow.latestVersion || 'draft' }}
-                    </el-tag>
-                  </div>
-                  <p class="card-desc">{{ flow.summary || flow.description || 'No summary.' }}</p>
-                  <div class="card-tags">
-                    <el-tag v-for="tag in flow.tags || []" :key="tag" size="small" type="info">
-                      {{ tag }}
-                    </el-tag>
-                  </div>
-                </el-card>
-              </div>
-
-              <div v-else class="card-grid orgs">
-                <el-card
-                  v-for="org in organizations"
-                  :key="org.id"
-                  class="hub-card"
-                  shadow="never"
-                  @click="selectOrganization(org)"
-                >
-                  <div class="card-head">
-                    <div>
-                      <div class="card-title">{{ org.name }}</div>
-                      <div class="card-meta">Slug {{ org.slug }} - Owner {{ org.ownerId }}</div>
-                    </div>
-                    <el-tag size="small" effect="dark" type="warning">org</el-tag>
-                  </div>
-                  <p class="card-desc">
-                    Created {{ formatDate(org.createdAt) }} - Updated {{ formatDate(org.updatedAt) }}
-                  </p>
-                  <div class="card-actions">
-                    <el-button size="small" plain @click.stop="openOrgEdit(org)">Edit</el-button>
-                  </div>
-                </el-card>
-              </div>
-
-              <el-empty
-                v-if="!hasListData"
-                description="No records found"
-              />
-            </template>
-
-            <div class="pagination">
-              <el-pagination
-                v-model:current-page="page"
-                v-model:page-size="pageSize"
-                layout="sizes, prev, pager, next"
-                :page-sizes="[6, 12, 24, 48]"
-                :total="activeTotal"
-                @current-change="loadList"
-                @size-change="handlePageSize"
-              />
-            </div>
-          </div>
-
-          <aside class="detail-pane">
-            <div class="detail-card">
-              <div class="detail-header">
-                <div>
-                  <div class="detail-eyebrow">Details</div>
-                  <h3>{{ detailTitle }}</h3>
-                </div>
-                <el-button
-                  v-if="detailTitle !== 'Select an item'"
-                  size="small"
-                  plain
-                  @click="clearSelection"
-                >
-                  Clear
-                </el-button>
-              </div>
-
-              <el-skeleton v-if="detailLoading" animated :rows="8" />
-              <el-alert
-                v-else-if="detailError"
-                type="error"
-                show-icon
-                :closable="false"
-                :title="detailError"
-              />
-              <div v-else-if="selectedPackage" class="detail-body">
-                <div class="detail-meta">
-                  <div>
-                    <span class="meta-label">Owner</span>
-                    <span>{{ selectedPackage.ownerName || selectedPackage.ownerId }}</span>
-                  </div>
-                  <div>
-                    <span class="meta-label">Visibility</span>
-                    <span>{{ selectedPackage.visibility || 'public' }}</span>
-                  </div>
-                  <div>
-                    <span class="meta-label">Updated</span>
-                    <span>{{ formatDate(selectedPackage.updatedAt) }}</span>
-                  </div>
-                </div>
-                <p class="detail-text">{{ selectedPackage.description || 'No description.' }}</p>
-                <div class="detail-tags">
-                  <el-tag v-for="tag in selectedPackage.tags || []" :key="tag" size="small">
-                    {{ tag }}
-                  </el-tag>
-                </div>
-                <div class="detail-section">
-                  <div class="section-title">Versions</div>
-                  <div class="version-list">
-                    <span v-for="ver in selectedPackage.versions" :key="ver" class="version-pill">
-                      {{ ver }}
-                    </span>
-                  </div>
-                </div>
-                <div v-if="selectedPackage.readme" class="detail-section">
-                  <div class="section-title">Readme</div>
-                  <pre class="detail-readme">{{ selectedPackage.readme }}</pre>
-                </div>
-              </div>
-
-              <div v-else-if="selectedWorkflow" class="detail-body">
-                <div class="detail-meta">
-                  <div>
-                    <span class="meta-label">Owner</span>
-                    <span>{{ selectedWorkflow.ownerName || selectedWorkflow.ownerId }}</span>
-                  </div>
-                  <div>
-                    <span class="meta-label">Visibility</span>
-                    <span>{{ selectedWorkflow.visibility || 'public' }}</span>
-                  </div>
-                  <div>
-                    <span class="meta-label">Updated</span>
-                    <span>{{ formatDate(selectedWorkflow.updatedAt) }}</span>
-                  </div>
-                </div>
-                <p class="detail-text">{{ selectedWorkflow.summary || selectedWorkflow.description || 'No summary.' }}</p>
-                <div class="detail-tags">
-                  <el-tag v-for="tag in selectedWorkflow.tags || []" :key="tag" size="small" type="info">
-                    {{ tag }}
-                  </el-tag>
-                </div>
-                <div v-if="workflowPreviewSrc" class="detail-section">
-                  <div class="section-title">Preview</div>
-                  <div class="workflow-preview">
-                    <img :src="workflowPreviewSrc" :alt="`${selectedWorkflow.name} preview`" />
-                  </div>
-                </div>
-                <div class="detail-section">
-                  <div class="section-title">Versions</div>
-                  <div class="version-stack">
-                    <div
-                      v-for="ver in workflowVersions"
-                      :key="ver.id"
-                      class="version-row"
-                      :class="{ 'version-row--active': selectedWorkflowVersion && selectedWorkflowVersion.id === ver.id }"
-                      @click="selectWorkflowVersion(ver)"
-                    >
-                      <div>
-                        <div class="version-name">{{ ver.version }}</div>
-                        <div class="version-meta">{{ formatDate(ver.publishedAt) }}</div>
-                      </div>
-                      <span class="version-chip">{{ ver.changelog || 'No changelog' }}</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="detail-section">
-                  <div class="section-title">Dependencies</div>
-                  <div v-if="workflowVersionLoading" class="detail-empty">
-                    Loading dependencies...
-                  </div>
-                  <div v-else-if="workflowVersionError" class="detail-empty">
-                    {{ workflowVersionError }}
-                  </div>
-                  <div v-else-if="workflowDependencies.length" class="dependency-list">
-                    <span
-                      v-for="dep in workflowDependencies"
-                      :key="`${dep.name}@${dep.version}`"
-                      class="dependency-pill"
-                    >
-                      {{ dep.name }}@{{ dep.version }}
-                    </span>
-                  </div>
-                  <div v-else class="detail-empty">
-                    No dependencies declared.
-                  </div>
-                </div>
-              </div>
-
-              <div v-else-if="selectedOrg" class="detail-body">
-                <div class="detail-meta">
-                  <div>
-                    <span class="meta-label">Owner</span>
-                    <span>{{ selectedOrg.ownerId }}</span>
-                  </div>
-                  <div>
-                    <span class="meta-label">Slug</span>
-                    <span>{{ selectedOrg.slug }}</span>
-                  </div>
-                  <div>
-                    <span class="meta-label">Updated</span>
-                    <span>{{ formatDate(selectedOrg.updatedAt) }}</span>
-                  </div>
-                </div>
-                <div class="detail-section">
-                  <div class="section-title">Teams</div>
-                  <el-skeleton v-if="teamsLoading" animated :rows="4" />
-                  <el-alert
-                    v-else-if="teamsError"
-                    type="error"
-                    show-icon
-                    :closable="false"
-                    :title="teamsError"
-                  />
-                  <div v-else class="team-list">
-                    <div v-if="teams.length === 0" class="detail-empty">
-                      No teams yet.
-                    </div>
-                    <div v-else>
-                      <div v-for="team in teams" :key="team.id" class="team-row">
-                        <div>
-                          <div class="team-name">{{ team.name }}</div>
-                          <div class="team-meta">Slug {{ team.slug }}</div>
-                        </div>
-                        <el-button size="small" plain @click="openTeamEdit(team)">
-                          Edit
-                        </el-button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div v-else class="detail-empty">
-                <p>Select a package, workflow, or organization to see details.</p>
-              </div>
-            </div>
-          </aside>
-        </div>
-      </section>
+      <RouterView />
     </main>
 
     <el-dialog
@@ -440,7 +89,7 @@
         <div class="auth-header">
           <div>
             <div class="auth-eyebrow">Organization</div>
-            <h3>Edit organization</h3>
+            <h3>{{ orgEditTarget ? 'Edit organization' : 'Create organization' }}</h3>
           </div>
           <el-button text @click="orgEditOpen = false">Close</el-button>
         </div>
@@ -467,50 +116,56 @@
         <div class="auth-footer">
           <el-button plain @click="orgEditOpen = false">Cancel</el-button>
           <el-button type="primary" :loading="orgEditLoading" @click="submitOrgEdit">
-            Save
+            {{ orgEditTarget ? 'Save' : 'Create' }}
           </el-button>
         </div>
       </template>
     </el-dialog>
 
     <el-dialog
-      v-model="teamEditOpen"
-      width="420px"
+      v-model="orgInviteOpen"
+      width="460px"
       class="edit-dialog"
       :show-close="false"
     >
       <template #header>
         <div class="auth-header">
           <div>
-            <div class="auth-eyebrow">Team</div>
-            <h3>Edit team</h3>
+            <div class="auth-eyebrow">Organization</div>
+            <h3>Invite member</h3>
           </div>
-          <el-button text @click="teamEditOpen = false">Close</el-button>
+          <el-button text @click="orgInviteOpen = false">Close</el-button>
         </div>
       </template>
 
       <el-form label-position="top" class="auth-form">
-        <el-form-item label="Name">
-          <el-input v-model="teamEditForm.name" />
+        <el-form-item label="User ID or email">
+          <el-input v-model="orgInviteForm.userId" placeholder="username or email" />
         </el-form-item>
-        <el-form-item label="Slug">
-          <el-input v-model="teamEditForm.slug" />
+        <el-form-item label="Role">
+          <el-select v-model="orgInviteForm.role" placeholder="Select role">
+            <el-option label="Member" value="member" />
+            <el-option label="Admin" value="admin" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="Expires at (optional)">
+          <el-input v-model="orgInviteForm.expiresAt" placeholder="2026-12-31T00:00:00Z" />
         </el-form-item>
       </el-form>
 
       <el-alert
-        v-if="teamEditError"
+        v-if="orgInviteError"
         type="error"
         show-icon
         :closable="false"
-        :title="teamEditError"
+        :title="orgInviteError"
       />
 
       <template #footer>
         <div class="auth-footer">
-          <el-button plain @click="teamEditOpen = false">Cancel</el-button>
-          <el-button type="primary" :loading="teamEditLoading" @click="submitTeamEdit">
-            Save
+          <el-button plain @click="orgInviteOpen = false">Cancel</el-button>
+          <el-button type="primary" :loading="orgInviteLoading" @click="submitOrgInvite">
+            Send invite
           </el-button>
         </div>
       </template>
@@ -519,813 +174,126 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { ElMessageBox } from 'element-plus'
+import { computed, provide } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import HubHeader from './layouts/HubHeader.vue'
+import { hubStoreKey, useHubStore } from './store/hubStore'
 
-interface PageMeta {
-  page: number
-  pageSize: number
-  total: number
-  totalPages: number
-}
+const hubStore = useHubStore()
+const route = useRoute()
+const router = useRouter()
+provide(hubStoreKey, hubStore)
 
-interface PackageSummary {
-  name: string
-  latestVersion?: string
-  description?: string
-  tags?: string[]
-  ownerName?: string
-  visibility?: string
-  updatedAt?: string
-}
+const {
+  hasToken,
+  accountProfile,
+  searchQuery,
+  librarySearchQuery,
+  clearAuth,
+  openAuthDialog,
+  applyConsoleFilters,
+  applyLibraryFilters,
+  authDialogOpen,
+  authMode,
+  authError,
+  authForm,
+  authLoading,
+  resetAuthForm,
+  submitAuth,
+  orgEditOpen,
+  orgEditForm,
+  orgEditError,
+  orgEditLoading,
+  orgEditTarget,
+  submitOrgEdit,
+  orgInviteOpen,
+  orgInviteForm,
+  orgInviteError,
+  orgInviteLoading,
+  createOrgInvite,
+  selectedOrg
+} = hubStore
 
-interface PackageDetail {
-  name: string
-  description?: string
-  readme?: string
-  versions: string[]
-  distTags?: Record<string, string>
-  tags?: string[]
-  ownerId?: string
-  ownerName?: string
-  updatedAt?: string
-  visibility?: string
-}
-
-interface WorkflowSummary {
-  id: string
-  name: string
-  summary?: string
-  description?: string
-  tags?: string[]
-  ownerName?: string
-  updatedAt?: string
-  latestVersion?: string
-  visibility?: string
-}
-
-interface WorkflowDetail {
-  id: string
-  name: string
-  summary?: string
-  description?: string
-  tags?: string[]
-  ownerId?: string
-  ownerName?: string
-  updatedAt?: string
-  visibility?: string
-  previewImage?: string
-}
-
-interface WorkflowVersionSummary {
-  id: string
-  version: string
-  publishedAt?: string
-  changelog?: string
-}
-
-interface PackageDependency {
-  name: string
-  version: string
-}
-
-interface WorkflowVersionDetail {
-  id: string
-  version: string
-  summary?: string
-  description?: string
-  tags?: string[]
-  previewImage?: string
-  dependencies?: PackageDependency[]
-  publishedAt?: string
-  publisherId?: string
-}
-
-interface Organization {
-  id: string
-  name: string
-  slug: string
-  ownerId: string
-  createdAt?: string
-  updatedAt?: string
-}
-
-interface Team {
-  id: string
-  orgId: string
-  name: string
-  slug: string
-  createdAt?: string
-}
-
-interface AuthResponse {
-  token: { token?: string }
-}
-
-const storageKeys = {
-  apiBase: 'hub_api_base',
-  token: 'hub_auth_token'
-}
-
-const apiBase = ref(localStorage.getItem(storageKeys.apiBase) || 'http://localhost:8310')
-const tokenInput = ref(localStorage.getItem(storageKeys.token) || '')
-const authToken = ref(tokenInput.value)
-
-type HubTab = 'packages' | 'workflows' | 'orgs'
-type HubSelection = { tab: HubTab; id: string }
-
-const resolveInitialTab = (): HubTab => {
-  if (typeof window === 'undefined') {
-    return 'packages'
+const isConsoleRoute = computed(() => route.path.startsWith('/console'))
+const headerSearchQuery = computed({
+  get: () => (isConsoleRoute.value ? searchQuery.value : librarySearchQuery.value),
+  set: (value) => {
+    if (isConsoleRoute.value) {
+      searchQuery.value = value
+    } else {
+      librarySearchQuery.value = value
+    }
   }
-  const tab = new URLSearchParams(window.location.search).get('tab')
-  if (tab === 'workflows' || tab === 'orgs' || tab === 'packages') {
-    return tab
-  }
-  return 'packages'
-}
-
-const resolveInitialSelection = (defaultTab: HubTab): HubSelection | null => {
-  if (typeof window === 'undefined') {
-    return null
-  }
-  const params = new URLSearchParams(window.location.search)
-  const id = params.get('id')?.trim()
-  if (!id) {
-    return null
-  }
-  const tab = params.get('tab')
-  if (tab === 'workflows' || tab === 'orgs' || tab === 'packages') {
-    return { tab, id }
-  }
-  return { tab: defaultTab, id }
-}
-
-const initialTab = resolveInitialTab()
-const activeTab = ref<HubTab>(initialTab)
-const pendingSelection = ref<HubSelection | null>(resolveInitialSelection(initialTab))
-const searchQuery = ref('')
-const tagFilter = ref('')
-const ownerFilter = ref('')
-const page = ref(1)
-const pageSize = ref(12)
-
-const listLoading = ref(false)
-const detailLoading = ref(false)
-const listError = ref('')
-const detailError = ref('')
-
-const packages = ref<PackageSummary[]>([])
-const workflows = ref<WorkflowSummary[]>([])
-const packageTotal = ref<number | null>(null)
-const workflowTotal = ref<number | null>(null)
-const organizations = ref<Organization[]>([])
-const orgTotal = ref<number | null>(null)
-
-const selectedPackage = ref<PackageDetail | null>(null)
-const selectedWorkflow = ref<WorkflowDetail | null>(null)
-const selectedOrg = ref<Organization | null>(null)
-const workflowVersions = ref<WorkflowVersionSummary[]>([])
-const selectedWorkflowVersion = ref<WorkflowVersionDetail | null>(null)
-const workflowVersionLoading = ref(false)
-const workflowVersionError = ref('')
-const teams = ref<Team[]>([])
-const teamsLoading = ref(false)
-const teamsError = ref('')
-
-const authDialogOpen = ref(false)
-const authMode = ref<'login' | 'register'>('login')
-const authLoading = ref(false)
-const authError = ref('')
-const authForm = reactive({
-  username: '',
-  password: '',
-  displayName: '',
-  email: ''
 })
 
-const orgEditOpen = ref(false)
-const orgEditLoading = ref(false)
-const orgEditError = ref('')
-const orgEditTarget = ref<Organization | null>(null)
-const orgEditForm = reactive({
-  name: '',
-  slug: ''
-})
-
-const teamEditOpen = ref(false)
-const teamEditLoading = ref(false)
-const teamEditError = ref('')
-const teamEditTarget = ref<Team | null>(null)
-const teamEditForm = reactive({
-  name: '',
-  slug: ''
-})
-
-const hasToken = computed(() => Boolean(authToken.value))
-const activeTotal = computed(() => {
-  const total =
-    activeTab.value === 'packages'
-      ? packageTotal.value
-      : activeTab.value === 'workflows'
-        ? workflowTotal.value
-        : orgTotal.value
-  return total ?? 0
-})
-const hasListData = computed(() => {
-  if (activeTab.value === 'packages') return packages.value.length > 0
-  if (activeTab.value === 'workflows') return workflows.value.length > 0
-  return organizations.value.length > 0
-})
-const packageTotalDisplay = computed(() => (packageTotal.value === null ? '--' : packageTotal.value.toString()))
-const workflowTotalDisplay = computed(() => (workflowTotal.value === null ? '--' : workflowTotal.value.toString()))
-const detailTitle = computed(() => {
-  if (selectedPackage.value) return selectedPackage.value.name
-  if (selectedWorkflow.value) return selectedWorkflow.value.name
-  if (selectedOrg.value) return selectedOrg.value.name
-  return 'Select an item'
-})
-const workflowPreviewSrc = computed(() => {
-  const raw = selectedWorkflowVersion.value?.previewImage || selectedWorkflow.value?.previewImage
-  if (!raw) return ''
-  return raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`
-})
-const workflowDependencies = computed(() => selectedWorkflowVersion.value?.dependencies || [])
-
-function normalizeBase(base: string) {
-  return base.replace(/\/$/, '')
-}
-
-function openAuthDialog() {
-  authDialogOpen.value = true
-  authError.value = ''
-}
-
-function resetAuthForm() {
-  authForm.username = ''
-  authForm.password = ''
-  authForm.displayName = ''
-  authForm.email = ''
-  authError.value = ''
-}
-
-function applyAuth() {
-  const token = tokenInput.value.trim()
-  authToken.value = token
-  localStorage.setItem(storageKeys.apiBase, apiBase.value)
-  if (token) {
-    localStorage.setItem(storageKeys.token, token)
-  } else {
-    localStorage.removeItem(storageKeys.token)
-  }
-  loadList()
-}
-
-function clearAuth() {
-  tokenInput.value = ''
-  authToken.value = ''
-  localStorage.removeItem(storageKeys.token)
-  listError.value = 'Token required to load hub data.'
-  packages.value = []
-  workflows.value = []
-  packageTotal.value = null
-  workflowTotal.value = null
-  organizations.value = []
-  orgTotal.value = null
-  clearSelection()
-}
-
-function clearSelection() {
-  selectedPackage.value = null
-  selectedWorkflow.value = null
-  selectedOrg.value = null
-  workflowVersions.value = []
-  selectedWorkflowVersion.value = null
-  workflowVersionLoading.value = false
-  workflowVersionError.value = ''
-  teams.value = []
-  teamsError.value = ''
-}
-
-function buildQuery() {
-  const params = new URLSearchParams()
-  if (searchQuery.value) params.set('q', searchQuery.value)
-  if (tagFilter.value) params.set('tag', tagFilter.value)
-  if (ownerFilter.value) params.set('owner', ownerFilter.value)
-  params.set('page', String(page.value))
-  params.set('pageSize', String(pageSize.value))
-  return params.toString()
-}
-
-async function tryAutoSelectFromQuery(tab: HubTab) {
-  const selection = pendingSelection.value
-  if (!selection || selection.tab !== tab) {
+function handleHeaderSearch() {
+  if (isConsoleRoute.value) {
+    applyConsoleFilters()
     return
   }
-  pendingSelection.value = null
-  if (tab === 'packages') {
-    await loadPackageDetail(selection.id)
+  if (route.path.startsWith('/workflows/')) {
+    router.push('/workflows')
+    applyLibraryFilters('workflows')
     return
   }
-  if (tab === 'workflows') {
-    await loadWorkflowDetails(selection.id)
+  if (route.path.startsWith('/packages/')) {
+    router.push('/packages')
+    applyLibraryFilters('packages')
     return
   }
-  if (tab === 'orgs') {
-    const match = organizations.value.find((org) => org.id === selection.id || org.slug === selection.id)
-    if (match) {
-      await selectOrganization(match)
-    }
-  }
-}
-
-async function requestJson<T>(path: string, options: RequestInit = {}) {
-  if (!authToken.value) {
-    throw new Error('Token required to call hub API.')
-  }
-  const url = `${normalizeBase(apiBase.value)}${path}`
-  const headers = new Headers(options.headers)
-  headers.set('Accept', 'application/json')
-  headers.set('Authorization', `Bearer ${authToken.value}`)
-  const response = await fetch(url, { ...options, headers })
-  if (!response.ok) {
-    const message = response.status === 401
-      ? 'Unauthorized. Check your token.'
-      : `Request failed (${response.status})`
-    throw new Error(message)
-  }
-  return (await response.json()) as T
-}
-
-async function requestAuth(path: string, body: Record<string, unknown>) {
-  const url = `${normalizeBase(apiBase.value)}${path}`
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify(body)
-  })
-  if (!response.ok) {
-    const message = response.status === 401
-      ? 'Invalid credentials.'
-      : response.status === 409
-        ? 'Username already exists.'
-        : `Request failed (${response.status})`
-    throw new Error(message)
-  }
-  return (await response.json()) as AuthResponse
-}
-
-async function submitAuth() {
-  authError.value = ''
-  if (!authForm.username || !authForm.password) {
-    authError.value = 'Username and password are required.'
+  if (route.path.startsWith('/workflows')) {
+    applyLibraryFilters('workflows')
     return
   }
-  authLoading.value = true
-  try {
-    const payload = authMode.value === 'login'
-      ? { username: authForm.username, password: authForm.password }
-      : {
-          username: authForm.username,
-          password: authForm.password,
-          displayName: authForm.displayName || undefined,
-          email: authForm.email || undefined
-        }
-    const response = await requestAuth(
-      authMode.value === 'login' ? '/api/v1/auth/login' : '/api/v1/auth/register',
-      payload
-    )
-    const token = response.token?.token
-    if (!token) {
-      throw new Error('Token missing from response.')
-    }
-    tokenInput.value = token
-    authToken.value = token
-    localStorage.setItem(storageKeys.token, token)
-    localStorage.setItem(storageKeys.apiBase, apiBase.value)
-    authDialogOpen.value = false
-    await loadList()
-  } catch (error) {
-    authError.value = (error as Error).message
-  } finally {
-    authLoading.value = false
-  }
-}
-
-async function loadPackages() {
-  listLoading.value = true
-  listError.value = ''
-  try {
-    const data = await requestJson<{ items: PackageSummary[]; meta: PageMeta }>(
-      `/api/v1/packages?${buildQuery()}`
-    )
-    packages.value = data.items || []
-    packageTotal.value = data.meta?.total || 0
-    void tryAutoSelectFromQuery('packages')
-  } catch (error) {
-    listError.value = (error as Error).message
-    packageTotal.value = null
-    if ((error as Error).message.includes('Unauthorized')) {
-      authDialogOpen.value = true
-    }
-  } finally {
-    listLoading.value = false
-  }
-}
-
-async function loadWorkflows() {
-  listLoading.value = true
-  listError.value = ''
-  try {
-    const data = await requestJson<{ items: WorkflowSummary[]; meta: PageMeta }>(
-      `/api/v1/workflows?${buildQuery()}`
-    )
-    workflows.value = data.items || []
-    workflowTotal.value = data.meta?.total || 0
-    void tryAutoSelectFromQuery('workflows')
-  } catch (error) {
-    listError.value = (error as Error).message
-    workflowTotal.value = null
-    if ((error as Error).message.includes('Unauthorized')) {
-      authDialogOpen.value = true
-    }
-  } finally {
-    listLoading.value = false
-  }
-}
-
-async function loadOrganizations() {
-  listLoading.value = true
-  listError.value = ''
-  try {
-    const data = await requestJson<{ items: Organization[] }>(
-      '/api/v1/orgs'
-    )
-    const items = data.items || []
-    const query = searchQuery.value.trim().toLowerCase()
-    const owner = ownerFilter.value.trim().toLowerCase()
-    const filtered = items.filter((org) => {
-      const matchesQuery = !query
-        || org.name.toLowerCase().includes(query)
-        || org.slug.toLowerCase().includes(query)
-      const matchesOwner = !owner
-        || org.ownerId.toLowerCase().includes(owner)
-      return matchesQuery && matchesOwner
-    })
-    orgTotal.value = filtered.length
-    const start = (page.value - 1) * pageSize.value
-    organizations.value = filtered.slice(start, start + pageSize.value)
-    void tryAutoSelectFromQuery('orgs')
-  } catch (error) {
-    listError.value = (error as Error).message
-    orgTotal.value = null
-    if ((error as Error).message.includes('Unauthorized')) {
-      authDialogOpen.value = true
-    }
-  } finally {
-    listLoading.value = false
-  }
-}
-
-async function loadList() {
-  if (!authToken.value) {
-    listError.value = 'Token required to load hub data.'
-    authDialogOpen.value = true
+  if (route.path.startsWith('/packages')) {
+    applyLibraryFilters('packages')
     return
   }
-  clearSelection()
-  if (activeTab.value === 'packages') {
-    await loadPackages()
-  } else if (activeTab.value === 'workflows') {
-    await loadWorkflows()
-  } else {
-    await loadOrganizations()
-  }
+  applyLibraryFilters('snapshot')
 }
 
-async function loadPackageDetail(packageName: string) {
-  detailLoading.value = true
-  detailError.value = ''
-  selectedWorkflow.value = null
-  workflowVersions.value = []
-  selectedWorkflowVersion.value = null
-  workflowVersionLoading.value = false
-  workflowVersionError.value = ''
-  selectedOrg.value = null
-  teams.value = []
-  teamsError.value = ''
-  try {
-    const detail = await requestJson<PackageDetail>(
-      `/api/v1/packages/${encodeURIComponent(packageName)}`
-    )
-    selectedPackage.value = detail
-  } catch (error) {
-    detailError.value = (error as Error).message
-  } finally {
-    detailLoading.value = false
-  }
-}
-
-async function selectPackage(pkg: PackageSummary) {
-  await loadPackageDetail(pkg.name)
-}
-
-async function loadWorkflowVersionDetail(workflowId: string, versionId?: string) {
-  if (!versionId) {
-    selectedWorkflowVersion.value = null
+async function submitOrgInvite() {
+  if (!selectedOrg.value) {
+    orgInviteError.value = 'Select an organization to invite members.'
     return
   }
-  workflowVersionLoading.value = true
-  workflowVersionError.value = ''
-  try {
-    const detail = await requestJson<WorkflowVersionDetail>(
-      `/api/v1/workflows/${encodeURIComponent(workflowId)}/versions/${encodeURIComponent(versionId)}`
-    )
-    selectedWorkflowVersion.value = detail
-  } catch (error) {
-    workflowVersionError.value = (error as Error).message
-    selectedWorkflowVersion.value = null
-  } finally {
-    workflowVersionLoading.value = false
+  await createOrgInvite(selectedOrg.value.id)
+}
+
+function handleClearAuth() {
+  clearAuth()
+  if (router.currentRoute.value.path !== '/') {
+    router.push('/')
   }
 }
 
-async function selectWorkflowVersion(version: WorkflowVersionSummary) {
-  if (!selectedWorkflow.value) {
+function handleSelectTab(tab: 'packages' | 'workflows' | 'orgs' | 'profile' | 'keys' | 'devices') {
+  if (!hasToken.value) {
+    openAuthDialog()
     return
   }
-  await loadWorkflowVersionDetail(selectedWorkflow.value.id, version.id)
-}
-
-async function loadWorkflowDetails(workflowId: string) {
-  detailLoading.value = true
-  detailError.value = ''
-  selectedPackage.value = null
-  workflowVersions.value = []
-  selectedWorkflowVersion.value = null
-  workflowVersionLoading.value = false
-  workflowVersionError.value = ''
-  selectedOrg.value = null
-  teams.value = []
-  teamsError.value = ''
-  try {
-    const detail = await requestJson<WorkflowDetail>(
-      `/api/v1/workflows/${encodeURIComponent(workflowId)}`
-    )
-    const versions = await requestJson<{ items: WorkflowVersionSummary[] }>(
-      `/api/v1/workflows/${encodeURIComponent(workflowId)}/versions`
-    )
-    selectedWorkflow.value = detail
-    workflowVersions.value = versions.items || []
-    if (workflowVersions.value.length > 0) {
-      void loadWorkflowVersionDetail(detail.id, workflowVersions.value[0].id)
-    }
-  } catch (error) {
-    detailError.value = (error as Error).message
-  } finally {
-    detailLoading.value = false
+  hubStore.activeTab.value = tab
+  const target = `/console/${tab}`
+  if (router.currentRoute.value.path !== target) {
+    router.push(target)
   }
 }
-
-async function selectWorkflow(flow: WorkflowSummary) {
-  await loadWorkflowDetails(flow.id)
-}
-
-async function loadTeams(orgId: string) {
-  teamsLoading.value = true
-  teamsError.value = ''
-  try {
-    const data = await requestJson<{ items: Team[] }>(
-      `/api/v1/orgs/${encodeURIComponent(orgId)}/teams`
-    )
-    teams.value = data.items || []
-  } catch (error) {
-    teamsError.value = (error as Error).message
-    teams.value = []
-  } finally {
-    teamsLoading.value = false
-  }
-}
-
-async function selectOrganization(org: Organization) {
-  detailLoading.value = true
-  detailError.value = ''
-  selectedPackage.value = null
-  selectedWorkflow.value = null
-  workflowVersions.value = []
-  selectedWorkflowVersion.value = null
-  workflowVersionLoading.value = false
-  workflowVersionError.value = ''
-  selectedOrg.value = org
-  teams.value = []
-  teamsError.value = ''
-  try {
-    await loadTeams(org.id)
-  } finally {
-    detailLoading.value = false
-  }
-}
-
-function openOrgEdit(org: Organization) {
-  orgEditTarget.value = org
-  orgEditForm.name = org.name
-  orgEditForm.slug = org.slug
-  orgEditError.value = ''
-  orgEditOpen.value = true
-}
-
-async function submitOrgEdit() {
-  if (!orgEditTarget.value) {
-    orgEditError.value = 'Select an organization to edit.'
-    return
-  }
-  const original = orgEditTarget.value
-  const name = orgEditForm.name.trim()
-  const slug = orgEditForm.slug.trim()
-  if (!name) {
-    orgEditError.value = 'Name is required.'
-    return
-  }
-  if (!slug) {
-    orgEditError.value = 'Slug is required.'
-    return
-  }
-  if (slug !== original.slug) {
-    try {
-      await ElMessageBox.confirm(
-        'Changing the slug will change IDs and invalidate old links. Continue?',
-        'Confirm slug change',
-        {
-          confirmButtonText: 'Change slug',
-          cancelButtonText: 'Cancel',
-          type: 'warning'
-        }
-      )
-    } catch {
-      return
-    }
-  }
-  const payload: Record<string, string> = {}
-  if (name && name !== original.name) payload.name = name
-  if (slug && slug !== original.slug) payload.slug = slug
-  if (!Object.keys(payload).length) {
-    orgEditError.value = 'No changes to save.'
-    return
-  }
-  orgEditLoading.value = true
-  orgEditError.value = ''
-  try {
-    const updated = await requestJson<Organization>(
-      `/api/v1/orgs/${encodeURIComponent(original.id)}`,
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }
-    )
-    if (selectedOrg.value && selectedOrg.value.id === original.id) {
-      selectedOrg.value = updated
-      await loadTeams(updated.id)
-    }
-    await loadOrganizations()
-    orgEditOpen.value = false
-    orgEditTarget.value = null
-  } catch (error) {
-    orgEditError.value = (error as Error).message
-  } finally {
-    orgEditLoading.value = false
-  }
-}
-
-function openTeamEdit(team: Team) {
-  teamEditTarget.value = team
-  teamEditForm.name = team.name
-  teamEditForm.slug = team.slug
-  teamEditError.value = ''
-  teamEditOpen.value = true
-}
-
-async function submitTeamEdit() {
-  if (!teamEditTarget.value) {
-    teamEditError.value = 'Select a team to edit.'
-    return
-  }
-  const original = teamEditTarget.value
-  const name = teamEditForm.name.trim()
-  const slug = teamEditForm.slug.trim()
-  if (!name) {
-    teamEditError.value = 'Name is required.'
-    return
-  }
-  if (!slug) {
-    teamEditError.value = 'Slug is required.'
-    return
-  }
-  if (slug !== original.slug) {
-    try {
-      await ElMessageBox.confirm(
-        'Changing the slug will change IDs and invalidate old links. Continue?',
-        'Confirm slug change',
-        {
-          confirmButtonText: 'Change slug',
-          cancelButtonText: 'Cancel',
-          type: 'warning'
-        }
-      )
-    } catch {
-      return
-    }
-  }
-  const payload: Record<string, string> = {}
-  if (name && name !== original.name) payload.name = name
-  if (slug && slug !== original.slug) payload.slug = slug
-  if (!Object.keys(payload).length) {
-    teamEditError.value = 'No changes to save.'
-    return
-  }
-  teamEditLoading.value = true
-  teamEditError.value = ''
-  try {
-    const updated = await requestJson<Team>(
-      `/api/v1/orgs/${encodeURIComponent(original.orgId)}/teams/${encodeURIComponent(original.id)}`,
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }
-    )
-    if (selectedOrg.value && selectedOrg.value.id === original.orgId) {
-      await loadTeams(selectedOrg.value.id)
-    }
-    teamEditOpen.value = false
-    teamEditTarget.value = null
-  } catch (error) {
-    teamEditError.value = (error as Error).message
-  } finally {
-    teamEditLoading.value = false
-  }
-}
-
-function handlePageSize() {
-  page.value = 1
-  loadList()
-}
-
-function applyFilters() {
-  page.value = 1
-  loadList()
-}
-
-function resetFilters() {
-  searchQuery.value = ''
-  tagFilter.value = ''
-  ownerFilter.value = ''
-  page.value = 1
-  loadList()
-}
-
-function formatDate(value?: string) {
-  if (!value) return 'Unknown'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Unknown'
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric'
-  }).format(date)
-}
-
-watch(activeTab, () => {
-  page.value = 1
-  loadList()
-})
-
-onMounted(() => {
-  if (authToken.value) {
-    loadList()
-  } else {
-    listError.value = 'Token required to load hub data.'
-  }
-})
 </script>
 
-<style scoped>
+<style>
 .hub-app {
   position: relative;
-  min-height: 100vh;
-  overflow: hidden;
-  padding-bottom: 80px;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
 }
 
 .hub-app::before,
 .hub-app::after {
   content: '';
-  position: absolute;
-  inset: -20% -10% auto -10%;
-  height: 70%;
+  position: fixed;
+  inset: 0;
   background: radial-gradient(circle at top, rgba(79, 209, 197, 0.22), transparent 60%),
     radial-gradient(circle at 40% 20%, rgba(255, 184, 77, 0.18), transparent 55%);
   pointer-events: none;
@@ -1333,8 +301,6 @@ onMounted(() => {
 }
 
 .hub-app::after {
-  inset: auto -10% -40% -10%;
-  height: 80%;
   background: radial-gradient(circle at 20% 30%, rgba(85, 120, 255, 0.18), transparent 60%),
     radial-gradient(circle at 80% 70%, rgba(79, 209, 197, 0.2), transparent 60%);
 }
@@ -1362,6 +328,55 @@ onMounted(() => {
   background: rgba(7, 11, 20, 0.78);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(120, 160, 220, 0.15);
+}
+
+.hub-header--public {
+  background: rgba(6, 10, 18, 0.6);
+  border-bottom: 1px solid rgba(120, 160, 220, 0.1);
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.header-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.nav-link {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: var(--hub-muted);
+  border: 1px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.nav-link:hover {
+  color: var(--hub-text);
+  border-color: rgba(79, 209, 197, 0.4);
+  background: rgba(79, 209, 197, 0.1);
 }
 
 .brand {
@@ -1402,20 +417,277 @@ onMounted(() => {
   width: 220px;
 }
 
+.hub-search {
+  width: 280px;
+}
+
 .hub-main {
   position: relative;
   z-index: 1;
-  padding: 32px 48px 0;
+  padding: 32px 48px 80px;
   display: flex;
   flex-direction: column;
   gap: 32px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.public-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+  gap: 28px;
+  padding: 32px;
+  border-radius: 28px;
+  background: linear-gradient(120deg, rgba(15, 26, 44, 0.92), rgba(7, 12, 22, 0.82));
+  border: 1px solid rgba(120, 160, 220, 0.2);
+  overflow: hidden;
+  animation: hero-fade 0.6s ease forwards;
+}
+
+.public-hero::before {
+  content: '';
+  position: absolute;
+  inset: -40% -10% auto -10%;
+  height: 90%;
+  background: radial-gradient(circle at 20% 20%, rgba(79, 209, 197, 0.22), transparent 60%),
+    radial-gradient(circle at 60% 10%, rgba(255, 184, 77, 0.18), transparent 55%);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.public-hero__content,
+.public-hero__panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.public-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-size: 11px;
+  color: var(--hub-accent);
+}
+
+.public-title {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 52px);
+  line-height: 1.05;
+}
+
+.public-subtitle {
+  margin: 0;
+  color: var(--hub-muted);
+  max-width: 560px;
+}
+
+.public-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.public-search {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.public-search-input {
+  flex: 1;
+  min-width: 220px;
+}
+
+.public-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tags-label {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 11px;
+  color: var(--hub-muted);
+}
+
+.tag-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(79, 209, 197, 0.35);
+  background: rgba(79, 209, 197, 0.12);
+  color: #b8f3ea;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.tag-chip.active,
+.tag-chip:hover {
+  border-color: rgba(255, 184, 77, 0.7);
+  color: #ffd79b;
+  background: rgba(255, 184, 77, 0.18);
+}
+
+.public-stats {
+  display: grid;
+  gap: 12px;
+}
+
+.stat-card {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 160, 220, 0.18);
+  background: rgba(10, 16, 28, 0.75);
+  box-shadow: inset 0 0 20px rgba(79, 209, 197, 0.05);
+}
+
+.stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--hub-muted);
+  margin-bottom: 6px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+
+
+.public-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.public-loading {
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(10, 16, 28, 0.6);
+  border: 1px solid rgba(120, 160, 220, 0.16);
+}
+
+.public-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+
+.public-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.public-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.section-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 11px;
+  color: var(--hub-accent);
+}
+
+.section-meta {
+  font-size: 12px;
+  color: var(--hub-muted);
+}
+
+.public-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.public-card {
+  background: rgba(12, 20, 34, 0.88);
+  border: 1px solid rgba(120, 160, 220, 0.2);
+  border-radius: 18px;
+  color: inherit;
+  cursor: pointer;
+  box-shadow: inset 0 0 20px rgba(79, 209, 197, 0.04);
+  opacity: 0;
+  transform: translateY(16px);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  animation: card-rise 0.6s ease forwards;
+  animation-delay: var(--delay, 0ms);
+}
+
+.public-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(79, 209, 197, 0.35);
+  box-shadow: 0 14px 26px rgba(4, 8, 18, 0.35);
+}
+
+.public-card .el-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.public-empty {
+  font-size: 12px;
+  color: var(--hub-muted);
+  padding: 12px;
+}
+
+
+
+.public-footer {
+  padding: 28px;
+  border-radius: 24px;
+  border: 1px solid rgba(120, 160, 220, 0.2);
+  background: rgba(10, 16, 28, 0.7);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .status-panel {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 24px;
+  padding: 24px 26px;
+  border-radius: 26px;
+  border: 1px solid rgba(120, 160, 220, 0.18);
+  background: linear-gradient(120deg, rgba(12, 20, 34, 0.92), rgba(7, 12, 22, 0.75));
+  box-shadow: 0 24px 48px rgba(4, 8, 18, 0.55), inset 0 0 24px rgba(79, 209, 197, 0.05);
+  overflow: hidden;
+}
+
+.status-panel::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(79, 209, 197, 0.7), rgba(58, 169, 255, 0));
+  opacity: 0.7;
 }
 
 .status-eyebrow {
@@ -1445,9 +717,9 @@ onMounted(() => {
 .status-card {
   padding: 16px;
   border-radius: 16px;
-  background: var(--hub-surface);
-  border: 1px solid var(--hub-border);
-  box-shadow: inset 0 0 24px rgba(79, 209, 197, 0.06);
+  background: rgba(10, 16, 28, 0.7);
+  border: 1px solid rgba(120, 160, 220, 0.16);
+  box-shadow: inset 0 0 18px rgba(79, 209, 197, 0.05);
 }
 
 .status-label {
@@ -1477,13 +749,120 @@ onMounted(() => {
 }
 
 .workspace {
-  background: rgba(10, 16, 28, 0.6);
-  border: 1px solid rgba(120, 160, 220, 0.2);
+  background: linear-gradient(180deg, rgba(10, 16, 28, 0.78), rgba(7, 12, 22, 0.9));
+  border: 1px solid rgba(120, 160, 220, 0.18);
   border-radius: 24px;
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  flex: 1 1 auto;
+  min-height: 0;
+  box-shadow: 0 18px 40px rgba(4, 8, 18, 0.45), inset 0 0 30px rgba(79, 209, 197, 0.04);
+}
+
+.console-shell {
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.console-nav {
+  background: linear-gradient(180deg, rgba(10, 16, 28, 0.92), rgba(7, 12, 22, 0.85));
+  border: 1px solid rgba(120, 160, 220, 0.18);
+  border-radius: 20px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-self: flex-start;
+  flex: 0 0 220px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 14px 32px rgba(4, 8, 16, 0.45), inset 0 0 18px rgba(79, 209, 197, 0.04);
+}
+
+.console-nav-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--hub-muted);
+}
+
+.console-nav-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(79, 209, 197, 0.55), rgba(58, 169, 255, 0));
+}
+
+.console-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.console-nav-item {
+  position: relative;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px 10px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(120, 160, 220, 0.12);
+  background: rgba(10, 16, 28, 0.5);
+  color: var(--hub-muted);
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.console-nav-item::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 55%;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.console-nav-item:hover {
+  color: var(--hub-text);
+  border-color: rgba(79, 209, 197, 0.28);
+  background: rgba(79, 209, 197, 0.08);
+  transform: translateX(2px);
+}
+
+.console-nav-item--active {
+  color: var(--hub-text);
+  border-color: rgba(79, 209, 197, 0.55);
+  background: linear-gradient(130deg, rgba(79, 209, 197, 0.18), rgba(58, 169, 255, 0.12));
+  box-shadow: inset 0 0 0 1px rgba(79, 209, 197, 0.18);
+}
+
+.console-nav-item--active::before {
+  background: linear-gradient(180deg, rgba(79, 209, 197, 0.9), rgba(58, 169, 255, 0.8));
+  box-shadow: 0 0 12px rgba(79, 209, 197, 0.6);
+}
+
+.console-title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.console-title h3 {
+  margin: 0;
 }
 
 .workspace-header {
@@ -1492,12 +871,49 @@ onMounted(() => {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(120, 160, 220, 0.14);
+}
+
+.console-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.library-shell {
+  gap: 20px;
+}
+
+.resource-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(120, 160, 220, 0.14);
+}
+
+.resource-title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.resource-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--hub-muted);
+  max-width: 520px;
 }
 
 .filters {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .hub-alert {
@@ -1508,12 +924,16 @@ onMounted(() => {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
   gap: 24px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .list-pane {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .card-grid {
@@ -1523,20 +943,22 @@ onMounted(() => {
 }
 
 .hub-card {
-  background: var(--hub-surface);
-  border: 1px solid var(--hub-border);
+  background: linear-gradient(180deg, rgba(12, 20, 34, 0.78), rgba(9, 15, 26, 0.6));
+  border: 1px solid rgba(120, 160, 220, 0.1);
   border-radius: 18px;
   color: inherit;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 10px 22px rgba(4, 8, 16, 0.35);
 }
 
 .hub-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 18px 30px rgba(7, 12, 22, 0.45);
+  transform: translateY(-3px);
+  border-color: rgba(79, 209, 197, 0.25);
+  box-shadow: 0 16px 30px rgba(4, 8, 16, 0.45);
 }
 
-.hub-card :deep(.el-card__body) {
+.hub-card .el-card__body {
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1580,21 +1002,29 @@ onMounted(() => {
 .pagination {
   display: flex;
   justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid rgba(120, 160, 220, 0.12);
 }
 
 .detail-pane {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .detail-card {
-  background: var(--hub-surface-strong);
-  border: 1px solid var(--hub-border);
+  background: linear-gradient(180deg, rgba(12, 20, 34, 0.82), rgba(9, 15, 26, 0.65));
+  border: 1px solid rgba(120, 160, 220, 0.14);
   border-radius: 20px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  box-shadow: 0 16px 30px rgba(4, 8, 16, 0.4);
 }
 
 .detail-header {
@@ -1602,6 +1032,15 @@ onMounted(() => {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(120, 160, 220, 0.12);
+}
+
+.detail-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
 }
 
 .detail-eyebrow {
@@ -1747,29 +1186,125 @@ onMounted(() => {
   font-size: 12px;
 }
 
-.team-list {
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-count {
+  font-size: 11px;
+  color: var(--hub-muted);
+}
+
+.detail-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.team-row {
+.detail-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
   background: rgba(10, 16, 28, 0.7);
   border: 1px solid rgba(120, 160, 220, 0.2);
 }
 
-.team-name {
-  font-weight: 600;
+.detail-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
-.team-meta {
+.detail-row__title {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-row__meta {
   font-size: 11px;
   color: var(--hub-muted);
+}
+
+.detail-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 1px solid rgba(79, 209, 197, 0.35);
+  background: rgba(79, 209, 197, 0.12);
+  color: var(--hub-accent);
+}
+
+.detail-chip--pending {
+  border-color: rgba(255, 184, 77, 0.4);
+  background: rgba(255, 184, 77, 0.15);
+  color: var(--hub-accent-2);
+}
+
+.detail-chip--accepted {
+  border-color: rgba(79, 209, 197, 0.4);
+  background: rgba(79, 209, 197, 0.12);
+  color: var(--hub-accent);
+}
+
+.detail-chip--declined,
+.detail-chip--revoked,
+.detail-chip--expired {
+  border-color: rgba(120, 160, 220, 0.25);
+  background: rgba(120, 160, 220, 0.12);
+  color: var(--hub-muted);
+}
+
+.detail-chip--role {
+  border-color: rgba(120, 160, 220, 0.3);
+  background: rgba(120, 160, 220, 0.1);
+  color: var(--hub-text);
+}
+
+.permission-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(7, 12, 22, 0.7);
+  border: 1px solid rgba(120, 160, 220, 0.16);
+}
+
+.permission-form__title {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--hub-muted);
+}
+
+.permission-form__grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: center;
+}
+
+.permission-form__grid .el-button {
+  justify-self: start;
 }
 
 .detail-empty {
@@ -1777,18 +1312,875 @@ onMounted(() => {
   font-size: 13px;
 }
 
-.auth-dialog :deep(.el-dialog) {
+.account-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.account-layout--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.account-layout--keys {
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+}
+
+.account-layout--sessions {
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+}
+
+.account-card {
+  min-height: 0;
+}
+
+.account-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.account-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.account-meta {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.account-form {
+  display: grid;
+  gap: 16px;
+}
+
+.account-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.session-list {
+  max-height: min(360px, 55vh);
+}
+
+.account-keys-list .detail-body,
+.account-sessions-list .detail-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.account-sessions-list .session-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.session-row {
+  position: relative;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+  padding: 14px 16px;
+  color: var(--hub-text);
+  background: linear-gradient(
+    120deg,
+    rgba(79, 209, 197, 0.08),
+    rgba(9, 16, 28, 0.9) 36%,
+    rgba(7, 12, 22, 0.6)
+  );
+  border: 1px solid rgba(120, 160, 220, 0.16);
+  box-shadow: inset 4px 0 0 rgba(79, 209, 197, 0.12);
+}
+
+.session-row .token-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 12px;
+}
+
+.session-row:hover {
+  border-color: rgba(79, 209, 197, 0.25);
+  transform: translateX(2px);
+  background: linear-gradient(130deg, rgba(12, 24, 36, 0.94), rgba(9, 15, 26, 0.7));
+  box-shadow: inset 4px 0 0 rgba(79, 209, 197, 0.38);
+}
+
+.session-row--active {
+  border-color: rgba(79, 209, 197, 0.55);
+  background: linear-gradient(130deg, rgba(79, 209, 197, 0.22), rgba(58, 169, 255, 0.08));
+  box-shadow: 0 10px 24px rgba(4, 8, 18, 0.35), inset 4px 0 0 rgba(79, 209, 197, 0.9);
+}
+
+.session-row__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.session-row__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--hub-text);
+}
+
+.session-row__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  font-size: 12px;
+  color: rgba(176, 194, 224, 0.82);
+  line-height: 1.4;
+}
+
+.session-row__meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.session-row__meta-label {
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: rgba(148, 168, 200, 0.7);
+}
+
+.session-row__meta-value {
+  font-size: 12px;
+  color: rgba(188, 206, 236, 0.95);
+}
+
+.session-row__id {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 160, 220, 0.2);
+  background: rgba(10, 16, 28, 0.65);
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: rgba(176, 194, 224, 0.78);
+}
+
+.session-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 160, 220, 0.2);
+  background: rgba(10, 16, 28, 0.7);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  color: var(--hub-muted);
+  text-transform: uppercase;
+}
+
+.session-chip--current {
+  color: #8ff5ea;
+  border-color: rgba(79, 209, 197, 0.5);
+  background: linear-gradient(135deg, rgba(79, 209, 197, 0.22), rgba(58, 169, 255, 0.12));
+  box-shadow: inset 0 0 0 1px rgba(79, 209, 197, 0.2);
+}
+
+.session-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(120, 160, 220, 0.12);
+}
+
+.session-detail-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.session-detail-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.session-detail-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--hub-text);
+}
+
+.session-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: 18px;
+  align-items: start;
+}
+
+.session-detail-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.session-detail-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.session-section {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 160, 220, 0.16);
+  background: rgba(8, 14, 24, 0.55);
+  box-shadow: inset 0 0 10px rgba(79, 209, 197, 0.04);
+}
+
+.session-section .section-title {
+  margin-bottom: 8px;
+}
+
+.session-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.session-kpi {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(120, 160, 220, 0.18);
+  background: linear-gradient(180deg, rgba(9, 16, 28, 0.88), rgba(7, 12, 22, 0.75));
+  box-shadow: inset 0 0 14px rgba(79, 209, 197, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.session-kpi__label {
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--hub-muted);
+}
+
+.session-kpi__value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hub-text);
+}
+
+.session-kpi__value--muted {
+  color: var(--hub-muted);
+}
+
+.session-meta-grid {
+  border-top: 1px dashed rgba(120, 160, 220, 0.18);
+  padding-top: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.session-agent {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 160, 220, 0.18);
+  background: linear-gradient(180deg, rgba(9, 16, 28, 0.85), rgba(7, 12, 22, 0.7));
+  box-shadow: inset 0 0 12px rgba(79, 209, 197, 0.05);
+}
+
+.session-agent-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--hub-text);
+}
+
+.session-agent-item .meta-label {
+  margin-bottom: 0;
+}
+
+.account-sessions-list,
+.account-sessions-detail {
+  position: relative;
+  overflow: hidden;
+}
+
+.account-sessions-list::after,
+.account-sessions-detail::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(79, 209, 197, 0.08) 1px, transparent 1px);
+  background-size: 18px 18px;
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.account-sessions-list > *,
+.account-sessions-detail > * {
+  position: relative;
+  z-index: 1;
+}
+
+.session-detail {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 160, 220, 0.16);
+  background: rgba(8, 14, 24, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100%;
+}
+
+.session-meta {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.session-meta--wide {
+  grid-column: 1 / -1;
+  word-break: break-word;
+}
+
+.session-actions {
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(79, 209, 197, 0.35);
+  background: linear-gradient(135deg, rgba(10, 18, 30, 0.92), rgba(7, 12, 22, 0.88));
+  box-shadow: 0 -12px 24px rgba(4, 8, 18, 0.35), inset 0 0 16px rgba(79, 209, 197, 0.08);
+}
+
+.session-actions .section-title {
+  margin: 0;
+}
+
+.session-actions .el-button {
+  min-width: 120px;
+  justify-content: center;
+  border: none;
+  color: #07121c;
+  font-weight: 600;
+  background: linear-gradient(135deg, rgba(79, 209, 197, 0.95), rgba(58, 169, 255, 0.9));
+  box-shadow: 0 8px 20px rgba(4, 8, 18, 0.35);
+}
+
+.session-actions .el-button:hover {
+  filter: brightness(1.05);
+}
+
+.session-actions .el-button.is-disabled {
+  color: rgba(176, 194, 224, 0.7);
+  background: rgba(10, 16, 28, 0.7);
+  border: 1px solid rgba(120, 160, 220, 0.2);
+  box-shadow: none;
+}
+
+.token-form {
+  margin-top: 8px;
+}
+
+.key-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.key-callout {
+  border-radius: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(79, 209, 197, 0.25);
+  background: linear-gradient(135deg, rgba(79, 209, 197, 0.14), rgba(58, 169, 255, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(79, 209, 197, 0.08);
+}
+
+.key-callout-title {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 11px;
+  color: var(--hub-accent-2);
+  margin-bottom: 6px;
+}
+
+.key-callout-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--hub-text);
+}
+
+.key-form-panel {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 160, 220, 0.16);
+  background: rgba(8, 14, 24, 0.55);
+}
+
+.key-form-section + .key-form-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(120, 160, 220, 0.2);
+}
+
+.key-form-title {
+  text-transform: uppercase;
+  letter-spacing: 1.6px;
+  font-size: 11px;
+  color: var(--hub-muted);
+  margin-bottom: 6px;
+}
+
+.key-scope-group .el-checkbox {
+  margin-right: 12px;
+}
+
+.key-form-actions {
+  justify-content: space-between;
+}
+
+.key-result-panel {
+  border-color: rgba(79, 209, 197, 0.35);
+  background: linear-gradient(150deg, rgba(9, 18, 28, 0.92), rgba(7, 12, 22, 0.88));
+  box-shadow: 0 18px 40px rgba(4, 8, 18, 0.35);
+}
+
+.key-result-panel .token-secret {
+  background: rgba(8, 14, 24, 0.9);
+}
+
+.token-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.token-result {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(120, 160, 220, 0.2);
+  background: rgba(7, 12, 22, 0.75);
+}
+
+.token-result-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.token-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.token-result-meta {
+  font-size: 12px;
+  color: var(--hub-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.token-secret {
+  margin: 10px 0 12px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(120, 160, 220, 0.2);
+  background: rgba(10, 16, 28, 0.8);
+  font-size: 12px;
+  color: var(--hub-text);
+  word-break: break-all;
+}
+
+.token-result-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.key-inline-secret {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(8, 14, 24, 0.6);
+}
+
+.key-inline-secret .token-secret {
+  margin: 8px 0 0;
+}
+
+.token-copy {
+  font-size: 11px;
+  color: var(--hub-muted);
+}
+
+.token-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.token-stack--scroll {
+  max-height: min(360px, 55vh);
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(79, 209, 197, 0.55) rgba(10, 16, 28, 0.4);
+}
+
+.token-stack--scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.token-stack--scroll::-webkit-scrollbar-track {
+  background: rgba(10, 16, 28, 0.35);
+  border-radius: 999px;
+}
+
+.token-stack--scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(79, 209, 197, 0.75), rgba(58, 169, 255, 0.6));
+  border-radius: 999px;
+  border: 2px solid rgba(10, 16, 28, 0.4);
+}
+
+.token-stack--scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(99, 235, 224, 0.9), rgba(82, 192, 255, 0.8));
+}
+
+.token-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(8, 14, 24, 0.5);
+  border: 1px solid rgba(120, 160, 220, 0.12);
+}
+
+.key-row {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.key-row:hover {
+  border-color: rgba(79, 209, 197, 0.25);
+  transform: translateX(2px);
+  background: rgba(10, 16, 28, 0.65);
+}
+
+.key-row--active {
+  border-color: rgba(79, 209, 197, 0.55);
+  background: linear-gradient(130deg, rgba(79, 209, 197, 0.18), rgba(58, 169, 255, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(79, 209, 197, 0.18);
+}
+
+.key-meta {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.key-detail {
+  gap: 18px;
+}
+
+.key-summary {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 160, 220, 0.18);
+  background: linear-gradient(135deg, rgba(10, 18, 30, 0.88), rgba(7, 12, 22, 0.75));
+  box-shadow: inset 0 0 12px rgba(79, 209, 197, 0.06);
+}
+
+.key-summary-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.key-summary-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #e6f6ff;
+  text-shadow: 0 0 12px rgba(79, 209, 197, 0.25);
+}
+
+.key-summary-id {
+  margin-top: 4px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(176, 214, 244, 0.75);
+}
+
+.key-summary-id span {
+  display: inline-block;
+  margin-left: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  letter-spacing: 0.3px;
+  text-transform: none;
+  color: rgba(210, 232, 255, 0.96);
+  word-break: break-all;
+}
+
+.key-summary-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.key-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 160, 220, 0.2);
+  background: rgba(10, 16, 28, 0.7);
+  font-size: 11px;
+  color: rgba(214, 236, 255, 0.92);
+  box-shadow: inset 0 0 10px rgba(79, 209, 197, 0.08);
+}
+
+.key-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.key-detail-section {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 160, 220, 0.16);
+  background: rgba(8, 14, 24, 0.6);
+  box-shadow: inset 0 0 10px rgba(79, 209, 197, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.key-detail-section .section-title {
+  color: rgba(176, 214, 244, 0.85);
+}
+
+.key-constraint {
+  font-size: 13px;
+  color: rgba(220, 238, 255, 0.96);
+}
+
+.key-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 160, 220, 0.18);
+  background: rgba(8, 14, 24, 0.7);
+}
+
+.key-actions .section-title {
+  margin: 0;
+}
+
+.key-actions .el-button {
+  border-color: rgba(79, 209, 197, 0.35);
+  color: #8ff5ea;
+}
+
+.token-row--current {
+  border-color: rgba(79, 209, 197, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(79, 209, 197, 0.35);
+  background: rgba(12, 24, 32, 0.75);
+}
+
+.token-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.token-label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.token-label {
+  font-weight: 600;
+  color: rgba(224, 242, 255, 0.96);
+  text-shadow: 0 0 8px rgba(79, 209, 197, 0.2);
+}
+
+.token-owner {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 160, 220, 0.25);
+  color: var(--hub-muted);
+  background: rgba(18, 26, 38, 0.7);
+  white-space: nowrap;
+}
+
+.token-owner--org {
+  border-color: rgba(79, 209, 197, 0.35);
+  color: var(--hub-accent);
+  background: rgba(79, 209, 197, 0.14);
+}
+
+.token-meta {
+  font-size: 12px;
+  color: var(--hub-muted);
+}
+
+.token-meta--wrap {
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.token-scopes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.token-scopes .el-tag {
+  background: rgba(18, 26, 38, 0.85);
+  border-color: rgba(120, 160, 220, 0.25);
+  color: rgba(188, 206, 236, 0.82);
+}
+
+.token-scopes .el-tag.el-tag--info {
+  background: rgba(18, 26, 38, 0.85);
+  border-color: rgba(120, 160, 220, 0.25);
+  color: rgba(188, 206, 236, 0.82);
+}
+
+.form-hint {
+  font-size: 11px;
+  color: var(--hub-muted);
+  margin-top: -4px;
+}
+
+.form-hint--error {
+  color: #ffb4b4;
+}
+
+.auth-dialog .el-dialog {
   background: rgba(7, 12, 22, 0.95);
   border: 1px solid rgba(120, 160, 220, 0.2);
   border-radius: 20px;
   box-shadow: 0 24px 60px rgba(7, 12, 22, 0.6);
 }
 
-.edit-dialog :deep(.el-dialog) {
+.edit-dialog .el-dialog {
   background: rgba(7, 12, 22, 0.95);
   border: 1px solid rgba(120, 160, 220, 0.2);
   border-radius: 20px;
   box-shadow: 0 24px 60px rgba(7, 12, 22, 0.6);
+}
+
+.create-key-dialog {
+  background: linear-gradient(160deg, rgba(10, 16, 28, 0.96), rgba(7, 12, 22, 0.9));
+  border: 1px solid rgba(120, 160, 220, 0.18);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(4, 8, 18, 0.6), inset 0 0 18px rgba(79, 209, 197, 0.06);
+}
+
+.create-key-dialog .el-dialog__body {
+  padding: 0 24px 20px;
+}
+
+.create-key-dialog .el-dialog__header {
+  margin-right: 0;
+  padding: 20px 24px 0;
+}
+
+.create-key-dialog .el-form-item__label {
+  color: var(--hub-muted);
+}
+
+.create-key-dialog .el-input__wrapper {
+  background-color: rgba(9, 16, 28, 0.85);
+  border: 1px solid rgba(120, 160, 220, 0.2);
+  box-shadow: none;
+}
+
+.create-key-dialog .el-input__inner {
+  color: var(--hub-text);
+}
+
+.create-key-dialog .el-input__inner::placeholder {
+  color: rgba(154, 172, 204, 0.7);
+}
+
+.hub-message-box {
+  background: linear-gradient(160deg, rgba(10, 16, 28, 0.98), rgba(7, 12, 22, 0.95));
+  border: 1px solid rgba(120, 160, 220, 0.22);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(4, 8, 18, 0.55), inset 0 0 18px rgba(79, 209, 197, 0.06);
+  color: var(--hub-text);
+}
+
+.hub-message-box .el-message-box__title {
+  color: var(--hub-text);
+  font-weight: 600;
+}
+
+.hub-message-box .el-message-box__content {
+  color: var(--hub-muted);
+}
+
+.hub-message-box .el-message-box__message {
+  color: inherit;
+}
+
+.hub-message-box .el-message-box__btns {
+  padding-top: 4px;
+}
+
+.hub-message-box .el-button {
+  background: rgba(9, 16, 28, 0.8);
+  border: 1px solid rgba(120, 160, 220, 0.2);
+  color: var(--hub-text);
+}
+
+.hub-message-box .el-button:hover {
+  border-color: rgba(79, 209, 197, 0.5);
+  color: var(--hub-text);
+}
+
+.hub-message-box .el-button--primary {
+  background: linear-gradient(135deg, rgba(79, 209, 197, 0.9), rgba(58, 169, 255, 0.85));
+  border-color: transparent;
+  color: #07121c;
+  font-weight: 600;
+}
+
+.hub-message-box .el-message-box__status {
+  color: rgba(255, 184, 77, 0.9);
 }
 
 .auth-header {
@@ -1815,10 +2207,51 @@ onMounted(() => {
   align-items: center;
 }
 
+@keyframes hero-fade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-hero,
+  .public-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (max-width: 1180px) {
   .hub-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .header-left,
+  .header-right {
+    width: 100%;
+  }
+
+  .header-right {
+    margin-left: 0;
+    justify-content: space-between;
   }
 
   .header-actions {
@@ -1839,19 +2272,146 @@ onMounted(() => {
   .workspace-body {
     grid-template-columns: 1fr;
   }
+
+  .console-shell {
+    flex-direction: column;
+  }
+
+  .console-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    flex: 0 0 auto;
+  }
+
+  .console-nav-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .console-nav-item {
+    width: auto;
+  }
+
+  .header-nav {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .public-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .public-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .account-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .session-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .session-detail-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
   .hub-header {
     padding: 16px 20px;
+    gap: 12px;
+  }
+
+  .header-left,
+  .header-right {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .brand {
+    gap: 12px;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+  }
+
+  .brand-title {
+    font-size: 16px;
+  }
+
+  .brand-subtitle {
+    display: none;
+  }
+
+  .header-search {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-search .el-button {
+    width: 100%;
+  }
+
+  .header-nav {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-link {
+    white-space: nowrap;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .header-actions .el-button {
+    width: 100%;
+  }
+
+  .account-trigger {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .hub-main {
-    padding: 24px 20px 0;
+    padding: 24px 20px 72px;
   }
 
   .hub-input {
     width: 100%;
+  }
+
+  .hub-search {
+    width: 100%;
+  }
+
+  .public-hero {
+    padding: 20px;
+  }
+
+  .public-search {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .public-footer {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .pagination {

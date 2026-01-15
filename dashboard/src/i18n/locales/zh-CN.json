@@ -1,0 +1,606 @@
+{
+  "nav": {
+    "workflows": "工作流",
+    "hubLibrary": "Hub 资源库",
+    "packageCenter": "包中心",
+    "builder": "构建器",
+    "localWorkflows": "本地工作流"
+  },
+  "auth": {
+    "personalPanel": "个人面板",
+    "myPackages": "我的包",
+    "adminConsole": "管理员控制台",
+    "logout": "退出登录",
+    "checkingSession": "正在检查会话…",
+    "adminAccessRequired": "需要管理员权限",
+    "adminAccessHint": "需要管理员角色才能查看此区域。"
+  },
+  "admin": {
+    "title": "管理",
+    "subtitle": "管理账号与合规",
+    "users": "用户",
+    "auditLog": "审计日志",
+    "workers": "Worker",
+    "eyebrow": "管理",
+    "roles": {
+      "admin": {
+        "label": "管理员",
+        "helper": "可完整访问调度器和用户管理。"
+      },
+      "editor": {
+        "label": "工作流编辑者",
+        "helper": "创建和更新工作流，启动运行。"
+      },
+      "viewer": {
+        "label": "工作流查看者",
+        "helper": "只读访问工作流定义。"
+      },
+      "runViewer": {
+        "label": "运行查看者",
+        "helper": "在不编辑工作流的情况下查看运行遥测。"
+      }
+    },
+    "usersPage": {
+      "accessDeniedTitle": "用户管理",
+      "accessDeniedMessage": "只有管理员可以创建账号。请联系 AstraFlow 管理员申请访问。",
+      "title": "用户管理",
+      "subtitle": "管理平台上的账号、角色与密码。",
+      "actions": {
+        "createUser": "创建用户",
+        "refreshing": "刷新中…",
+        "manage": "管理"
+      },
+      "table": {
+        "username": "用户名",
+        "displayName": "显示名称",
+        "roles": "角色",
+        "status": "状态",
+        "loading": "正在加载用户…",
+        "empty": "未找到用户。使用“创建用户”来添加。"
+      },
+      "roles": {
+        "none": "无"
+      },
+      "status": {
+        "active": "启用",
+        "disabled": "已禁用"
+      },
+      "messages": {
+        "loadError": "无法加载用户。",
+        "createSuccess": "用户“{{username}}”创建成功。",
+        "createError": "无法创建用户。",
+        "passwordRequired": "需要输入新密码。",
+        "fallbackUser": "用户",
+        "passwordUpdated": "已更新“{{username}}”的密码。",
+        "passwordResetError": "无法重置密码。",
+        "roleAssigned": "角色已分配。",
+        "roleAssignError": "无法分配角色。",
+        "roleRemoved": "角色已移除。",
+        "roleRemoveError": "无法移除角色。",
+        "statusUpdated": "账号状态已更新。",
+        "statusUpdateError": "无法更新状态。"
+      },
+      "createModal": {
+        "title": "创建用户",
+        "username": "用户名",
+        "usernamePlaceholder": "username",
+        "displayName": "显示名称",
+        "displayNamePlaceholder": "显示名称",
+        "password": "临时密码",
+        "passwordPlaceholder": "********",
+        "rolesLabel": "初始角色（可选）",
+        "creating": "创建中…"
+      },
+      "manageModal": {
+        "title": "管理 {{name}}",
+        "summary": "用户名：{{username}} - 角色：{{roles}}",
+        "statusLabel": "状态：",
+        "disableAccount": "禁用账号",
+        "enableAccount": "启用账号",
+        "resetPassword": "重置密码",
+        "newPasswordPlaceholder": "新密码",
+        "updating": "更新中…",
+        "updatePassword": "更新密码"
+      }
+    },
+    "auditLogPage": {
+      "accessDeniedTitle": "审计事件",
+      "accessDeniedMessage": "只有管理员可以查看审计记录。请联系 AstraFlow 管理员申请访问。",
+      "title": "审计事件",
+      "subtitle": "调度器记录的最近特权操作。",
+      "filters": {
+        "action": "操作",
+        "actorId": "操作者 ID",
+        "targetType": "目标类型",
+        "clear": "清除",
+        "apply": "应用筛选"
+      },
+      "messages": {
+        "loadError": "无法加载审计事件：{{message}}",
+        "loading": "正在加载审计事件…",
+        "emptyFiltered": "没有审计事件符合所选筛选条件。",
+        "empty": "还没有审计事件记录。",
+        "loadingMore": "加载中…",
+        "loadMore": "加载更多"
+      },
+      "table": {
+        "time": "时间",
+        "action": "操作",
+        "actor": "操作者",
+        "target": "目标",
+        "metadata": "元数据"
+      }
+    },
+    "workersPage": {
+      "accessDeniedTitle": "Worker 集群",
+      "accessDeniedMessage": "只有管理员可以查看连接的 Worker。",
+      "title": "Worker 集群",
+      "subtitle": "查看连接健康度、队列和已安装包。",
+      "actions": {
+        "clearFilters": "清除筛选",
+        "refreshing": "刷新中…"
+      },
+      "stats": {
+        "total": "总数",
+        "connected": "已连接",
+        "registered": "已注册",
+        "healthy": "健康"
+      },
+      "filters": {
+        "search": "搜索",
+        "searchPlaceholder": "worker 名称、主机、租户",
+        "queue": "队列",
+        "queuePlaceholder": "default",
+        "connection": "连接",
+        "health": "健康",
+        "package": "包",
+        "packagePlaceholder": "包名",
+        "packageStatus": "包状态",
+        "all": "全部",
+        "connected": "已连接",
+        "disconnected": "已断开",
+        "healthy": "健康",
+        "unhealthy": "异常或未知"
+      },
+      "packageStatus": {
+        "installed": "已安装",
+        "installing": "安装中",
+        "uninstalling": "卸载中",
+        "removed": "已移除",
+        "failed": "失败",
+        "missing": "缺失",
+        "unknown": "未知"
+      },
+      "messages": {
+        "loadError": "无法加载 Worker：{{message}}",
+        "loading": "正在加载 Worker…",
+        "empty": "没有符合当前筛选条件的 Worker。",
+        "noQueues": "无队列",
+        "noPackages": "无包"
+      },
+      "values": {
+        "unknownHost": "未知主机",
+        "unknownVersion": "未知版本",
+        "defaultTenant": "默认",
+        "unknownInstance": "未知实例"
+      },
+      "status": {
+        "connected": "已连接",
+        "offline": "离线",
+        "registered": "已注册",
+        "unregistered": "未注册",
+        "healthy": "健康",
+        "unhealthy": "异常",
+        "unknown": "未知"
+      },
+      "table": {
+        "worker": "Worker",
+        "status": "状态",
+        "heartbeat": "心跳",
+        "queues": "队列",
+        "packages": "包",
+        "metrics": "指标"
+      },
+      "metrics": {
+        "cpu": "CPU",
+        "mem": "内存",
+        "disk": "磁盘",
+        "inflight": "进行中",
+        "latency": "延迟"
+      },
+      "age": {
+        "justNow": "刚刚",
+        "seconds": "{{count}} 秒前",
+        "minutes": "{{count}} 分钟前",
+        "hours": "{{count}} 小时前",
+        "days": "{{count}} 天前"
+      }
+    }
+  },
+  "account": {
+    "kicker": "个人控制台",
+    "title": "账户",
+    "subtitle": "管理你的个人资料和个人资源。",
+    "stats": {
+      "resources": "资源",
+      "packages": "包",
+      "roles": "角色"
+    },
+    "menu": {
+      "profile": "个人面板",
+      "resources": "资源中心",
+      "packages": "包仓库"
+    },
+    "profile": {
+      "eyebrow": "资料",
+      "title": "身份与访问",
+      "subtitle": "更新显示名称并查看分配给你账号的访问权限。",
+      "displayName": "显示名称",
+      "username": "用户名",
+      "userId": "用户 ID",
+      "roles": "角色",
+      "fallbackDisplayName": "AstraFlow 用户",
+      "fallbackUsername": "未知",
+      "fallbackUserId": "-",
+      "status": {
+        "label": "状态",
+        "active": "启用",
+        "disabled": "已禁用",
+        "checking": "检查中…"
+      },
+      "actions": {
+        "save": "保存更改",
+        "saving": "保存中…"
+      },
+      "messages": {
+        "loadError": "无法加载个人资料。",
+        "displayNameRequired": "需要填写显示名称。",
+        "updated": "个人资料已更新。",
+        "updateError": "无法更新个人资料。",
+        "empty": "未加载个人资料。"
+      }
+    },
+    "resources": {
+      "eyebrow": "资源",
+      "title": "资源库",
+      "subtitle": "上传文件、管理键值资源，并预览已存储的内容。",
+      "upload": {
+        "title": "上传文件",
+        "subtitle": "拖放或点击浏览。",
+        "provider": "提供方",
+        "defaultProvider": "默认提供方",
+        "uploading": "上传中…",
+        "status": {
+          "queued": "排队中",
+          "failed": "失败"
+        },
+        "remove": "移除"
+      },
+      "kv": {
+        "title": "键值资源",
+        "subtitle": "无需上传文件即可存储密钥和配置项。",
+        "resourceName": "资源名称",
+        "resourceNamePlaceholder": "key-values.json",
+        "key": "键",
+        "value": "值",
+        "keyPrimaryPlaceholder": "OPENAI_API_KEY",
+        "keyPlaceholder": "KEY",
+        "valuePlaceholder": "值",
+        "removeRow": "移除",
+        "addRow": "新增行",
+        "create": "创建资源",
+        "hint": "使用上方选择的提供方。"
+      },
+      "filters": {
+        "search": "搜索",
+        "searchPlaceholder": "文件名或 ID",
+        "provider": "提供方",
+        "allProviders": "全部提供方",
+        "type": "类型",
+        "allTypes": "全部类型"
+      },
+      "actions": {
+        "refreshing": "刷新中…",
+        "download": "下载",
+        "delete": "删除"
+      },
+      "messages": {
+        "loadError": "无法加载资源。",
+        "deleteConfirm": "删除此资源？",
+        "deleteError": "无法删除资源。",
+        "uploadFailed": "上传失败。",
+        "duplicateKeys": "重复的键：{{keys}}",
+        "kvMissing": "至少添加一条键值对。",
+        "previewFailed": "预览加载失败。",
+        "loading": "正在加载资源…",
+        "empty": "未找到资源。"
+      },
+      "table": {
+        "file": "文件",
+        "resourceId": "资源 ID",
+        "provider": "提供方",
+        "type": "类型",
+        "size": "大小",
+        "created": "创建时间",
+        "actions": "操作"
+      },
+      "preview": {
+        "loading": "加载中",
+        "show": "预览",
+        "hide": "隐藏",
+        "loadingDetail": "正在加载预览…",
+        "altFallback": "预览"
+      }
+    },
+    "packages": {
+      "eyebrow": "包",
+      "title": "包仓库",
+      "subtitle": "管理包所需的密钥和权限。",
+      "listTitle": "包",
+      "listSubtitle": "选择一个包来管理访问。",
+      "actions": {
+        "refreshing": "刷新中…"
+      },
+      "messages": {
+        "loadError": "无法加载包。",
+        "requirementsError": "无法加载包需求。",
+        "loading": "正在加载包…",
+        "empty": "未找到包。",
+        "selectPackage": "从列表中选择一个包以配置访问。",
+        "loadingRequirements": "正在加载包需求…",
+        "noRequirements": "该包未请求保管库条目或权限。"
+      },
+      "latest": "最新",
+      "requirement": {
+        "required": "必需",
+        "optional": "可选"
+      },
+      "vault": {
+        "title": "保管库条目",
+        "subtitle": "按包存储的密钥和配置。",
+        "actions": {
+          "save": "保存",
+          "saving": "保存中…",
+          "remove": "移除"
+        },
+        "jsonPlaceholder": "{}",
+        "messages": {
+          "loadError": "无法加载保管库条目。",
+          "missingRequired": "缺少必需条目：{{keys}}",
+          "updated": "保管库条目已更新。",
+          "updateError": "无法更新保管库。",
+          "deleted": "保管库条目已删除。",
+          "deleteError": "无法删除保管库条目。"
+        }
+      },
+      "permissions": {
+        "title": "权限",
+        "subtitle": "授予包访问资源类型的权限。",
+        "defaultAction": "读取",
+        "actionsLabel": "操作：{{actions}}",
+        "actions": {
+          "grant": "授予",
+          "revoke": "撤销"
+        },
+        "messages": {
+          "loadError": "无法加载权限。",
+          "granted": "权限已授予。",
+          "grantError": "无法授予权限。",
+          "revoked": "权限已撤销。",
+          "revokeError": "无法撤销权限。"
+        }
+      }
+    }
+  },
+  "login": {
+    "loadingSession": "正在加载会话…",
+    "welcomeBack": "欢迎回来",
+    "subtitle": "使用 AstraFlow 账号登录",
+    "username": "用户名",
+    "password": "密码",
+    "signIn": "登录",
+    "signingIn": "登录中…",
+    "loginFailed": "登录失败",
+    "needAccount": "需要账号？请联系 AstraFlow 管理员。",
+    "devTokenDetected": "检测到开发者令牌 - 登录将保留你的 JWT。"
+  },
+  "common": {
+    "create": "创建",
+    "openHub": "打开 Hub",
+    "retry": "重试",
+    "dismiss": "关闭",
+    "id": "ID",
+    "local": "本地",
+    "unassigned": "未分配",
+    "language": "语言",
+    "refresh": "刷新",
+    "pageNotFound": "页面未找到。",
+    "unknownError": "未知错误"
+  },
+  "workflows": {
+    "libraryTitle": "工作流库",
+    "librarySubtitle": "管理本地工作流，并在交互式构建器中打开。",
+    "stats": {
+      "totalLabel": "总数",
+      "totalSublabel": "本地工作流",
+      "ownersLabel": "维护者",
+      "ownersSublabel": "维护人员",
+      "tagsLabel": "标签",
+      "tagsSublabel": "分类"
+    },
+    "hubHint": "想找共享工作流？",
+    "browseHub": "在 Hub 浏览",
+    "loading": "正在加载本地工作流…",
+    "loadFailed": "无法加载工作流：{{message}}",
+    "empty": "暂无本地工作流。",
+    "snapshotPending": "快照待生成",
+    "snapshotHint": "运行工作流以生成预览。",
+    "localWorkflow": "本地工作流",
+    "noDescription": "暂无描述。",
+    "noTags": "暂无标签",
+    "moreTags": "+{{count}} 个更多",
+    "openBuilder": "打开构建器",
+    "delete": "删除",
+    "deleting": "删除中…",
+    "deleteConfirm": "删除工作流“{{name}}”吗？",
+    "deleteSuccess": "已删除 {{name}}。",
+    "deleteFailed": "删除工作流失败。",
+    "deletePermission": "需要 workflow.editor 权限才能删除工作流。"
+  },
+  "hubWorkflows": {
+    "libraryTitle": "Hub 资源库",
+    "librarySubtitle": "浏览 Hub 上的共享工作流并导入本地工作区。",
+    "stats": {
+      "totalLabel": "总数",
+      "totalSublabel": "Hub 工作流",
+      "ownersLabel": "维护者",
+      "ownersSublabel": "维护者",
+      "tagsLabel": "标签",
+      "tagsSublabel": "分类"
+    },
+    "loading": "正在加载 Hub 工作流…",
+    "loadFailed": "无法加载工作流：{{message}}",
+    "empty": "暂无 Hub 工作流。",
+    "importError": "导入工作流失败：{{message}}",
+    "import": "导入",
+    "importing": "导入中…",
+    "viewInHub": "在 Hub 查看",
+    "openHub": "打开 Hub",
+    "localWorkflows": "本地工作流",
+    "previewTitle": "在 Hub 预览",
+    "previewSubtitle": "前往 Hub 查看完整快照与历史。",
+    "hubWorkflow": "Hub 工作流",
+    "noDescription": "暂无描述。",
+    "importFailed": "导入工作流失败。",
+    "importPermission": "需要 workflow.editor 权限才能导入工作流。"
+  },
+  "runs": {
+    "title": "运行记录",
+    "subtitle": "最近的执行记录",
+    "noPermission": "你没有权限查看运行记录。",
+    "noPermissionDetail": "请申请 run.viewer 或 workflow.editor 角色。",
+    "loading": "正在加载运行记录…",
+    "loadFailed": "加载运行记录失败：{{message}}",
+    "showMiddleware": "只显示中间件运行",
+    "noRuns": "暂无运行记录。",
+    "table": {
+      "runId": "运行 ID",
+      "status": "状态",
+      "clientId": "客户端 ID",
+      "started": "开始时间",
+      "finished": "结束时间",
+      "actions": "操作"
+    },
+    "stop": "停止"
+  },
+  "packages": {
+    "eyebrow": "包",
+    "heading": {
+      "public": "包中心",
+      "mine": "Hub 账号包",
+      "local": "已安装包"
+    },
+    "subheading": {
+      "public": "发现 Hub 包并安装到你的工作区。",
+      "mine": "查看此调度器关联的 Hub 账号拥有的包。",
+      "local": "查看此工作区可用的包。"
+    },
+    "stats": {
+      "public": "公开",
+      "hubAccount": "Hub 账号",
+      "installed": "已安装",
+      "locked": "已锁定",
+      "unavailable": "不可用",
+      "loading": "..."
+    },
+    "tabs": {
+      "discover": "发现",
+      "hubAccount": "Hub 账号",
+      "installed": "已安装"
+    },
+    "actions": {
+      "publishPackage": "发布包",
+      "createWorkflow": "创建工作流",
+      "createWorkflowTitle": "创建用于发布的工作流",
+      "install": "安装",
+      "update": "更新",
+      "installed": "已安装",
+      "installing": "安装中…",
+      "viewInHub": "在 Hub 查看",
+      "uninstall": "卸载",
+      "uninstalling": "卸载中…"
+    },
+    "permissions": {
+      "install": "需要 workflow.editor 权限才能安装包。",
+      "uninstall": "需要 workflow.editor 权限才能卸载包。",
+      "viewMine": "需要 workflow.viewer 或 workflow.editor 权限才能查看 Hub 账号包。",
+      "viewLocal": "需要 workflow.viewer 或 workflow.editor 权限才能查看本地包。",
+      "tabRequiresViewer": "需要 workflow.viewer 权限。"
+    },
+    "errors": {
+      "missingOwner": "缺少 Hub 包所有者。",
+      "localManaged": "本地包由工作区管理，无法在此移除。",
+      "install": "安装包失败。",
+      "uninstall": "卸载包失败。",
+      "publish": "发布包失败。",
+      "loadLocal": "加载本地包失败。",
+      "loadHub": "无法加载 Hub 包：{{message}}",
+      "loadAccount": "无法加载 Hub 账号：{{message}}",
+      "loadAccountFallback": "加载 Hub 账号失败。",
+      "loadMine": "无法加载包：{{message}}"
+    },
+    "loading": {
+      "hubPackages": "正在加载 Hub 包…",
+      "hubAccount": "正在加载 Hub 账号…",
+      "myPackages": "正在加载你的包…",
+      "localPackages": "正在加载本地包…"
+    },
+    "empty": {
+      "public": "暂无 Hub 包。",
+      "mine": "此 Hub 账号暂无包。",
+      "local": "暂无本地包。",
+      "noAccount": "该工作区尚未配置 Hub 访问。"
+    },
+    "card": {
+      "previewHubTitle": "在 Hub 预览",
+      "previewHubSubtitle": "可在 Hub 查看 README 与版本。",
+      "previewLocalTitle": "已本地安装",
+      "previewLocalSubtitle": "工作区内所有工作流均可使用。",
+      "hubPackage": "包",
+      "localPackage": "本地包",
+      "descriptionFallback": "暂无描述。",
+      "localDescriptionFallback": "已安装到此工作区。",
+      "linkedDescription": "已关联到 Hub：{{name}}@{{version}}。",
+      "signatureLabel": "包"
+    },
+    "visibility": {
+      "public": "公开",
+      "private": "私有",
+      "internal": "内部",
+      "local": "本地"
+    },
+    "latest": "最新",
+    "localVersion": "本地",
+    "installSuccess": "已安装 {{name}}@{{version}}。",
+    "uninstallSuccess": "已卸载 {{name}}@{{version}}。",
+    "allVersions": "全部",
+    "publish": {
+      "title": "发布包到 Hub",
+      "subtitle": "发布此工作区已安装的包。",
+      "close": "关闭发布窗口",
+      "packageLabel": "包",
+      "versionLabel": "版本",
+      "visibilityLabel": "可见性",
+      "tagsLabel": "标签（逗号分隔）",
+      "summaryLabel": "摘要",
+      "readmeLabel": "Readme（可选）",
+      "noneReady": "暂无可发布的本地包。",
+      "selectPackage": "请选择要发布的本地包。",
+      "selectVersion": "请选择要发布的版本。",
+      "success": "已发布 {{name}}@{{version}}。",
+      "cancel": "取消",
+      "publish": "发布",
+      "publishing": "发布中…"
+    }
+  }
+}

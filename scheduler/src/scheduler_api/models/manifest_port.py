@@ -22,6 +22,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from scheduler_api.models.localized_text import LocalizedText
 from scheduler_api.models.manifest_binding import ManifestBinding
 try:
     from typing import Self
@@ -33,8 +34,8 @@ class ManifestPort(BaseModel):
     ManifestPort
     """ # noqa: E501
     key: StrictStr
-    label: StrictStr
-    description: Optional[StrictStr] = None
+    label: LocalizedText
+    description: Optional[LocalizedText] = None
     binding: ManifestBinding
     __properties: ClassVar[List[str]] = ["key", "label", "description", "binding"]
 
@@ -75,6 +76,12 @@ class ManifestPort(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of label
+        if self.label:
+            _dict['label'] = self.label.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of description
+        if self.description:
+            _dict['description'] = self.description.to_dict()
         # override the default output from pydantic by calling `to_dict()` of binding
         if self.binding:
             _dict['binding'] = self.binding.to_dict()
@@ -91,8 +98,8 @@ class ManifestPort(BaseModel):
 
         _obj = cls.model_validate({
             "key": obj.get("key"),
-            "label": obj.get("label"),
-            "description": obj.get("description"),
+            "label": LocalizedText.from_dict(obj.get("label")) if obj.get("label") is not None else None,
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "binding": ManifestBinding.from_dict(obj.get("binding")) if obj.get("binding") is not None else None
         })
         return _obj

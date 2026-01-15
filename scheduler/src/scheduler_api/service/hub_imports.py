@@ -162,14 +162,17 @@ class HubImportService:
             return []
         pulled: list[WorkflowPackageDependency] = []
         for dependency in dependencies:
+            owner_hint, package_only = _split_hub_package_reference(dependency.name)
             try:
                 hub_mirror_service.ensure_package(
-                    name=dependency.name,
+                    name=package_only,
                     version=dependency.version,
+                    owner=owner_hint,
                 )
                 hub_mirror_service.install_to_catalog(
-                    name=dependency.name,
+                    name=package_only,
                     version=dependency.version,
+                    owner=owner_hint,
                 )
                 pulled.append(dependency)
             except HubMirrorError as exc:
@@ -192,6 +195,15 @@ class HubImportService:
 
 
 hub_import_service = HubImportService()
+
+
+def _split_hub_package_reference(value: str) -> tuple[str | None, str]:
+    raw = value.strip()
+    if "/" in raw:
+        owner, name = raw.split("/", 1)
+        if owner and name:
+            return owner, name
+    return None, raw
 
 __all__ = [
     "HubImportError",

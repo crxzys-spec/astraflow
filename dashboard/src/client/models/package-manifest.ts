@@ -15,6 +15,9 @@
 
 // May contain unused imports in some cases
 // @ts-ignore
+import type { LocalizedText } from './localized-text';
+// May contain unused imports in some cases
+// @ts-ignore
 import type { ManifestAdapter } from './manifest-adapter';
 // May contain unused imports in some cases
 // @ts-ignore
@@ -48,10 +51,8 @@ export interface PackageManifest {
      * Package version in semver format.
      */
     'version': string;
-    /**
-     * Short summary of the package.
-     */
-    'description': string;
+    'displayName'?: LocalizedText;
+    'description': LocalizedText;
     'adapters': Array<ManifestAdapter>;
     'python': ManifestPythonConfig;
     'nodes': Array<ManifestNode>;

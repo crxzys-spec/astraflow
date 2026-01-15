@@ -15,6 +15,9 @@
 
 // May contain unused imports in some cases
 // @ts-ignore
+import type { LocalizedText } from './localized-text';
+// May contain unused imports in some cases
+// @ts-ignore
 import type { NodePackage } from './node-package';
 // May contain unused imports in some cases
 // @ts-ignore
@@ -56,12 +59,12 @@ export interface WorkflowNode {
     /**
      * Group/category shown in the builder palette.
      */
-    'category': string;
-    'label': string;
+    'category': LocalizedText;
+    'label': LocalizedText;
     /**
      * Longer description of the node behaviour.
      */
-    'description'?: string;
+    'description'?: LocalizedText;
     /**
      * Keywords for search/filter.
      */
@@ -99,5 +102,4 @@ export const WorkflowNodeStatusEnum = {
 } as const;
 
 export type WorkflowNodeStatusEnum = typeof WorkflowNodeStatusEnum[keyof typeof WorkflowNodeStatusEnum];
-
 

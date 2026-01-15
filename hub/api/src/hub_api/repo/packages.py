@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
 
 from hub_api.db.models import HubPackage, HubPackagePermission, HubPackageVersion
@@ -22,17 +22,19 @@ def _package_permission_from_model(permission: HubPackagePermission) -> dict[str
         "createdAt": permission.created_at,
     }
 
-def list_package_permissions(package_name: str) -> list[dict[str, Any]]:
+def list_package_permissions(owner_id: str, package_name: str) -> list[dict[str, Any]]:
     with SessionLocal() as session:
         perms = session.execute(
             select(HubPackagePermission).where(
-                HubPackagePermission.package_name == package_name
+                HubPackagePermission.owner_id == owner_id,
+                HubPackagePermission.package_name == package_name,
             )
         ).scalars().all()
         return [_package_permission_from_model(perm) for perm in perms]
 
 def add_package_permission(
     *,
+    owner_id: str,
     package_name: str,
     subject_type: str,
     subject_id: str,
@@ -41,6 +43,7 @@ def add_package_permission(
     with SessionLocal() as session:
         permission = session.execute(
             select(HubPackagePermission).where(
+                HubPackagePermission.owner_id == owner_id,
                 HubPackagePermission.package_name == package_name,
                 HubPackagePermission.subject_type == subject_type,
                 HubPackagePermission.subject_id == subject_id,
@@ -51,6 +54,7 @@ def add_package_permission(
         else:
             permission = HubPackagePermission(
                 id=_generate_id(),
+                owner_id=owner_id,
                 package_name=package_name,
                 subject_type=subject_type,
                 subject_id=subject_id,
@@ -129,11 +133,15 @@ def _package_version_record_from_model(
 
 def _load_package(
     session,
+    owner_id: str,
     name: str,
     *,
     include_versions: bool,
 ) -> HubPackage | None:
-    stmt = select(HubPackage).where(HubPackage.name_normalized == _key(name))
+    stmt = select(HubPackage).where(
+        HubPackage.owner_id == owner_id,
+        HubPackage.name_normalized == _key(name),
+    )
     if include_versions:
         stmt = stmt.options(selectinload(HubPackage.versions))
     return session.execute(stmt).scalar_one_or_none()
@@ -146,19 +154,20 @@ def list_packages() -> list[dict[str, Any]]:
             for package in packages
         ]
 
-def get_package_record(name: str) -> dict[str, Any] | None:
+def get_package_record(owner_id: str, name: str) -> dict[str, Any] | None:
     with SessionLocal() as session:
-        package = _load_package(session, name, include_versions=True)
+        package = _load_package(session, owner_id, name, include_versions=True)
         if not package:
             return None
         return _package_record_from_model(package, include_versions=True)
 
-def get_package_version_record(name: str, version: str) -> dict[str, Any] | None:
+def get_package_version_record(owner_id: str, name: str, version: str) -> dict[str, Any] | None:
     with SessionLocal() as session:
-        package = _load_package(session, name, include_versions=False)
+        package = _load_package(session, owner_id, name, include_versions=False)
         if not package:
             return None
         stmt = select(HubPackageVersion).where(
+            HubPackageVersion.owner_id == owner_id,
             HubPackageVersion.package_name == package.name,
             HubPackageVersion.version == version,
         )
@@ -173,19 +182,20 @@ def reserve_package_record(
     owner_id: str,
     owner_name: str,
     visibility: str,
+    owner_subject_type: str = "user",
 ) -> dict[str, Any]:
     normalized = _key(name)
     with SessionLocal() as session:
-        package = _load_package(session, name, include_versions=True)
+        package = _load_package(session, owner_id, name, include_versions=True)
         if package:
             return _package_record_from_model(package, include_versions=True)
         now = _now()
         package = HubPackage(
+            owner_id=owner_id,
             name=name,
             name_normalized=normalized,
             description=None,
             tags=None,
-            owner_id=owner_id,
             owner_name=owner_name,
             updated_at=now,
             created_at=now,
@@ -196,12 +206,14 @@ def reserve_package_record(
         )
         session.add(package)
         session.commit()
-        add_package_permission(
-            package_name=name,
-            subject_type="user",
-            subject_id=owner_id,
-            role="owner",
-        )
+        if owner_subject_type == "user":
+            add_package_permission(
+                owner_id=owner_id,
+                package_name=name,
+                subject_type="user",
+                subject_id=owner_id,
+                role="owner",
+            )
         session.refresh(package)
         return _package_record_from_model(package, include_versions=True)
 
@@ -219,32 +231,36 @@ def publish_package_version(
     archive_bytes: bytes | None,
     archive_sha256: str | None,
     archive_size_bytes: int | None,
+    owner_subject_type: str = "user",
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     normalized = _key(name)
     archive_relative = None
     archive_path = None
     created = False
     if archive_bytes is not None:
-        archive_relative = package_archive_relative_path(name, version)
-        archive_path = get_package_archive_path(name, version)
+        archive_relative = package_archive_relative_path(owner_id, name, version)
+        archive_path = get_package_archive_path(owner_id, name, version)
         archive_path.write_bytes(archive_bytes)
 
     try:
         with SessionLocal() as session:
             package = session.execute(
-                select(HubPackage).where(HubPackage.name_normalized == normalized)
+                select(HubPackage).where(
+                    HubPackage.owner_id == owner_id,
+                    HubPackage.name_normalized == normalized,
+                )
             ).scalar_one_or_none()
             if package and package.owner_id != owner_id:
                 raise ValueError("package_owner_mismatch")
             if package is None:
                 now = _now()
                 package = HubPackage(
+                    owner_id=owner_id,
                     name=name,
                     name_normalized=normalized,
                     description=description,
                     readme=readme,
                     tags=tags,
-                    owner_id=owner_id,
                     owner_name=owner_name,
                     updated_at=now,
                     created_at=now,
@@ -258,6 +274,7 @@ def publish_package_version(
 
             existing_version = session.execute(
                 select(HubPackageVersion).where(
+                    HubPackageVersion.owner_id == owner_id,
                     HubPackageVersion.package_name == package.name,
                     HubPackageVersion.version == version,
                 )
@@ -280,6 +297,7 @@ def publish_package_version(
             package.latest_version = version
 
             version_record = HubPackageVersion(
+                owner_id=owner_id,
                 package_name=package.name,
                 version=version,
                 description=description or package.description,
@@ -288,7 +306,6 @@ def publish_package_version(
                 archive_sha256=archive_sha256,
                 archive_size_bytes=archive_size_bytes,
                 archive_path=archive_relative,
-                owner_id=owner_id,
                 owner_name=owner_name,
                 visibility=visibility,
                 published_at=now,
@@ -305,8 +322,9 @@ def publish_package_version(
             archive_path.unlink()
         raise
 
-    if created:
+    if created and owner_subject_type == "user":
         add_package_permission(
+            owner_id=owner_id,
             package_name=name,
             subject_type="user",
             subject_id=owner_id,
@@ -314,9 +332,9 @@ def publish_package_version(
         )
     return record, version_payload
 
-def set_package_tag_record(name: str, tag: str, version: str) -> dict[str, Any]:
+def set_package_tag_record(owner_id: str, name: str, tag: str, version: str) -> dict[str, Any]:
     with SessionLocal() as session:
-        package = _load_package(session, name, include_versions=True)
+        package = _load_package(session, owner_id, name, include_versions=True)
         if not package:
             raise ValueError("package_not_found")
         version_exists = any(item.version == version for item in package.versions)
@@ -335,9 +353,9 @@ def set_package_tag_record(name: str, tag: str, version: str) -> dict[str, Any]:
         session.refresh(package)
         return _package_record_from_model(package, include_versions=True)
 
-def delete_package_tag_record(name: str, tag: str) -> dict[str, Any]:
+def delete_package_tag_record(owner_id: str, name: str, tag: str) -> dict[str, Any]:
     with SessionLocal() as session:
-        package = _load_package(session, name, include_versions=True)
+        package = _load_package(session, owner_id, name, include_versions=True)
         if not package:
             raise ValueError("package_not_found")
         dist_tags = dict(package.dist_tags or {})
@@ -356,9 +374,9 @@ def delete_package_tag_record(name: str, tag: str) -> dict[str, Any]:
         session.refresh(package)
         return _package_record_from_model(package, include_versions=True)
 
-def update_package_visibility_record(name: str, visibility: str) -> dict[str, Any]:
+def update_package_visibility_record(owner_id: str, name: str, visibility: str) -> dict[str, Any]:
     with SessionLocal() as session:
-        package = _load_package(session, name, include_versions=True)
+        package = _load_package(session, owner_id, name, include_versions=True)
         if not package:
             raise ValueError("package_not_found")
         now = _now()
@@ -371,16 +389,44 @@ def update_package_visibility_record(name: str, visibility: str) -> dict[str, An
         session.refresh(package)
         return _package_record_from_model(package, include_versions=True)
 
+def delete_package_record(owner_id: str, name: str) -> None:
+    with SessionLocal() as session:
+        package = _load_package(session, owner_id, name, include_versions=True)
+        if not package:
+            raise ValueError("package_not_found")
+        permissions = session.execute(
+            select(HubPackagePermission).where(
+                HubPackagePermission.owner_id == owner_id,
+                HubPackagePermission.package_name == package.name,
+            )
+        ).scalars().all()
+        for permission in permissions:
+            session.delete(permission)
+        session.delete(package)
+        session.commit()
+
 def transfer_package_record(
+    owner_id: str,
     name: str,
     new_owner_id: str,
     new_owner_name: str,
 ) -> dict[str, Any]:
     with SessionLocal() as session:
-        package = _load_package(session, name, include_versions=True)
+        package = _load_package(session, owner_id, name, include_versions=True)
         if not package:
             raise ValueError("package_not_found")
+        existing = _load_package(session, new_owner_id, name, include_versions=False)
+        if existing:
+            raise ValueError("package_owner_mismatch")
         now = _now()
+        session.execute(
+            update(HubPackagePermission)
+            .where(
+                HubPackagePermission.owner_id == owner_id,
+                HubPackagePermission.package_name == package.name,
+            )
+            .values(owner_id=new_owner_id)
+        )
         package.owner_id = new_owner_id
         package.owner_name = new_owner_name
         package.updated_at = now

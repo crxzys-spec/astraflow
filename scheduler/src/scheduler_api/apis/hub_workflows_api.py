@@ -27,6 +27,7 @@ from pydantic import Field, StrictStr
 from typing import Any, Dict, Optional
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
+from scheduler_api.models.hub_local_workflow_publish_request import HubLocalWorkflowPublishRequest
 from scheduler_api.models.hub_workflow_detail import HubWorkflowDetail
 from scheduler_api.models.hub_workflow_import_request import HubWorkflowImportRequest
 from scheduler_api.models.hub_workflow_import_response import HubWorkflowImportResponse
@@ -89,6 +90,30 @@ async def publish_hub_workflow(
     if not BaseHubWorkflowsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseHubWorkflowsApi.subclasses[0]().publish_hub_workflow(hub_workflow_publish_request)
+
+
+@router.post(
+    "/api/v1/hub/workflows/local",
+    responses={
+        201: {"model": HubWorkflowPublishResponse, "description": "Created"},
+        400: {"model": Error, "description": "Invalid input"},
+        401: {"model": Error, "description": "Authentication required or credentials invalid"},
+        403: {"model": Error, "description": "Authenticated but lacks required permissions"},
+        409: {"model": Error, "description": "Conflict (e.g., idempotency-key reuse with different body)"},
+    },
+    tags=["HubWorkflows"],
+    summary="Publish a local workflow to Hub",
+    response_model_by_alias=True,
+)
+async def publish_hub_workflow_local(
+    hub_local_workflow_publish_request: HubLocalWorkflowPublishRequest = Body(None, description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> HubWorkflowPublishResponse:
+    if not BaseHubWorkflowsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseHubWorkflowsApi.subclasses[0]().publish_hub_workflow_local(hub_local_workflow_publish_request)
 
 
 @router.get(

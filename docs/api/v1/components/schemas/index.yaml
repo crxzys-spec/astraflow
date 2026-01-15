@@ -445,7 +445,7 @@ WorkflowSubgraphMetadata:
   additionalProperties: false
   properties:
     label:
-      type: string
+      $ref: '#/LocalizedText'
       description: Optional human-friendly label for the subgraph.
     description:
       type: string
@@ -607,7 +607,7 @@ PackageSummary:
     name:
       type: string
     description:
-      type: string
+      $ref: '#/LocalizedText'
     latestVersion:
       type: string
     defaultVersion:
@@ -616,16 +616,16 @@ PackageSummary:
       type: array
       items:
         type: string
-    distTags:
-      $ref: '#/PackageDistTags'
     ownerId:
       type: string
       nullable: true
-    visibility:
-      $ref: '#/PublishedPackageVisibility'
+    hub:
+      $ref: '#/PackageHubMeta'
       nullable: true
-    state:
-      $ref: '#/PublishedPackageState'
+    hubVersions:
+      type: array
+      items:
+        type: string
       nullable: true
 PackageDetail:
   type: object
@@ -645,174 +645,37 @@ PackageDetail:
         type: string
     manifest:
       $ref: '#/PackageManifest'
-    status:
-      $ref: '#/PackageVersionStatus'
-    distTags:
-      $ref: '#/PackageDistTags'
+    hub:
+      $ref: '#/PackageHubMeta'
+      nullable: true
+PackageHubMeta:
+  type: object
+  additionalProperties: false
+  required:
+  - hubName
+  - hubVersion
+  properties:
+    hubName:
+      type: string
+    hubVersion:
+      type: string
+    ownerId:
+      type: string
+      nullable: true
+    ownerName:
+      type: string
+      nullable: true
+    visibility:
+      type: string
+      nullable: true
+    publishedAt:
+      type: string
+      format: date-time
+      nullable: true
     archiveSha256:
       type: string
       nullable: true
-    archiveSizeBytes:
-      type: integer
-      format: int64
-      nullable: true
-    ownerId:
-      type: string
-      nullable: true
-    visibility:
-      $ref: '#/PublishedPackageVisibility'
-      nullable: true
-    state:
-      $ref: '#/PublishedPackageState'
-      nullable: true
-PackageVersionStatus:
-  type: string
-  enum:
-  - active
-  - deprecated
-  - yanked
-PackageDistTags:
-  type: object
-  additionalProperties:
-    type: string
 
-PublishedPackageVisibility:
-  type: string
-  enum:
-  - private
-  - internal
-  - public
-
-PublishedPackageState:
-  type: string
-  enum:
-  - reserved
-  - active
-
-PublishedPackageRegistry:
-  type: object
-  additionalProperties: false
-  required:
-  - name
-  - ownerId
-  - visibility
-  - state
-  - createdAt
-  - updatedAt
-  properties:
-    name:
-      type: string
-    ownerId:
-      type: string
-    visibility:
-      $ref: '#/PublishedPackageVisibility'
-    state:
-      $ref: '#/PublishedPackageState'
-    createdAt:
-      type: string
-      format: date-time
-    updatedAt:
-      type: string
-      format: date-time
-    createdBy:
-      type: string
-      nullable: true
-    updatedBy:
-      type: string
-      nullable: true
-
-PublishedPackageGcRequest:
-  type: object
-  additionalProperties: false
-  properties:
-    packageName:
-      type: string
-      description: Limit garbage collection to a specific package.
-    maxVersions:
-      type: integer
-      format: int32
-      description: Override the max versions to keep per package.
-    dryRun:
-      type: boolean
-      description: When true, report the versions that would be removed without deleting them.
-
-PublishedPackageGcItem:
-  type: object
-  additionalProperties: false
-  required:
-  - name
-  - version
-  properties:
-    name:
-      type: string
-    version:
-      type: string
-    sizeBytes:
-      type: integer
-      format: int64
-      nullable: true
-    archivePath:
-      type: string
-      nullable: true
-
-PublishedPackageGcResult:
-  type: object
-  additionalProperties: false
-  required:
-  - items
-  - totalBytes
-  properties:
-    items:
-      type: array
-      items:
-        $ref: '#/PublishedPackageGcItem'
-    totalBytes:
-      type: integer
-      format: int64
-
-PublishedPackageReserveRequest:
-  type: object
-  additionalProperties: false
-  properties:
-    visibility:
-      $ref: '#/PublishedPackageVisibility'
-      description: Desired visibility (private/internal/public).
-
-PublishedPackageVisibilityRequest:
-  type: object
-  additionalProperties: false
-  required:
-  - visibility
-  properties:
-    visibility:
-      $ref: '#/PublishedPackageVisibility'
-      description: Desired visibility (private/internal/public).
-
-PublishedPackageTransferRequest:
-  type: object
-  additionalProperties: false
-  required:
-  - newOwnerId
-  properties:
-    newOwnerId:
-      type: string
-PublishedPackageTagRequest:
-  type: object
-  additionalProperties: false
-  required:
-  - version
-  properties:
-    version:
-      type: string
-      description: Package version to associate with the tag.
-PublishedPackageStatusRequest:
-  type: object
-  additionalProperties: false
-  required:
-  - status
-  properties:
-    status:
-      $ref: '#/PackageVersionStatus'
 PackagePermission:
   type: object
   additionalProperties: false
@@ -940,6 +803,13 @@ PackageVaultList:
       type: array
       items:
         $ref: '#/PackageVaultItem'
+LocalizedText:
+  description: Plain text or a locale map (e.g. {"default":"...","en":"..."}). Locale maps should include a "default" fallback used when a specific locale is missing. Strings may reference language-pack keys using "@i18n:<key>".
+  oneOf:
+  - type: string
+  - type: object
+    additionalProperties:
+      type: string
 PackageManifest:
   type: object
   additionalProperties: false
@@ -964,8 +834,11 @@ PackageManifest:
       type: string
       description: Package version in semver format.
       pattern: '^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z\.-]+)?$'
+    displayName:
+      $ref: '#/LocalizedText'
+      description: Optional human-readable package name.
     description:
-      type: string
+      $ref: '#/LocalizedText'
       description: Short summary of the package.
     adapters:
       type: array
@@ -1055,11 +928,11 @@ ManifestNode:
       - published
       - deprecated
     category:
-      type: string
+      $ref: '#/LocalizedText'
     label:
-      type: string
+      $ref: '#/LocalizedText'
     description:
-      type: string
+      $ref: '#/LocalizedText'
     tags:
       type: array
       items:
@@ -1114,9 +987,9 @@ ManifestPort:
     key:
       type: string
     label:
-      type: string
+      $ref: '#/LocalizedText'
     description:
-      type: string
+      $ref: '#/LocalizedText'
     binding:
       $ref: '#/ManifestBinding'
 ManifestWidget:
@@ -1131,7 +1004,7 @@ ManifestWidget:
     key:
       type: string
     label:
-      type: string
+      $ref: '#/LocalizedText'
     component:
       type: string
     binding:
@@ -1227,7 +1100,7 @@ ManifestPermissionRequirement:
       description: Whether the permission must be granted before execution.
       default: true
     description:
-      type: string
+      $ref: '#/LocalizedText'
       description: Human-readable explanation of why the permission is needed.
     metadata:
       type: object
@@ -1244,7 +1117,7 @@ ManifestVaultRequirement:
       type: string
       description: Stable key used to store and retrieve the vault value.
     label:
-      type: string
+      $ref: '#/LocalizedText'
       description: Display label for the vault entry.
     type:
       type: string
@@ -1254,7 +1127,7 @@ ManifestVaultRequirement:
       description: Whether the vault entry must be provided before execution.
       default: true
     description:
-      type: string
+      $ref: '#/LocalizedText'
       description: Human-readable explanation of the vault entry.
     metadata:
       type: object
@@ -1318,9 +1191,9 @@ WorkflowMetadata:
   additionalProperties: false
   properties:
     name:
-      type: string
+      $ref: '#/LocalizedText'
     description:
-      type: string
+      $ref: '#/LocalizedText'
     tags:
       type: array
       items:
@@ -1425,12 +1298,12 @@ WorkflowNode:
       - published
       - deprecated
     category:
-      type: string
+      $ref: '#/LocalizedText'
       description: Group/category shown in the builder palette.
     label:
-      type: string
+      $ref: '#/LocalizedText'
     description:
-      type: string
+      $ref: '#/LocalizedText'
       description: Longer description of the node behaviour.
     tags:
       type: array
@@ -1519,12 +1392,12 @@ WorkflowMiddleware:
       - published
       - deprecated
     category:
-      type: string
+      $ref: '#/LocalizedText'
       description: Group/category shown in the builder palette.
     label:
-      type: string
+      $ref: '#/LocalizedText'
     description:
-      type: string
+      $ref: '#/LocalizedText'
       description: Longer description of the middleware behaviour.
     tags:
       type: array
@@ -2303,13 +2176,15 @@ WorkerCommand:
       url:
         type: string
         format: uri
-        description: Optional archive URL; defaults to the published package archive.
+        description: Package archive URL to install from.
       sha256:
         type: string
         description: Optional SHA-256 checksum of the archive.
     required:
     - type
     - name
+    - version
+    - url
   - properties:
       type:
         const: pkg.uninstall
@@ -2732,94 +2607,6 @@ WorkflowPublishResponse:
     version:
       type: string
 
-RegistryPackageDependency:
-  type: object
-  additionalProperties: false
-  required:
-  - name
-  - version
-  properties:
-    name:
-      type: string
-    version:
-      type: string
-
-RegistryAccountLink:
-  type: object
-  additionalProperties: false
-  required:
-  - userId
-  - registryUserId
-  properties:
-    userId:
-      type: string
-    registryUserId:
-      type: string
-    registryUsername:
-      type: string
-      nullable: true
-
-RegistryAccountLinkRequest:
-  type: object
-  additionalProperties: false
-  required:
-  - registryUserId
-  properties:
-    registryUserId:
-      type: string
-    registryUsername:
-      type: string
-      nullable: true
-
-RegistryWorkflowImportRequest:
-  type: object
-  additionalProperties: false
-  required:
-  - packageId
-  properties:
-    packageId:
-      type: string
-      description: Registry workflow package id.
-    versionId:
-      type: string
-      description: Specific registry version id to import.
-    version:
-      type: string
-      description: Version string to import when versionId is omitted.
-    name:
-      type: string
-      description: Optional override for the imported workflow name.
-
-RegistryWorkflowImportResponse:
-  type: object
-  additionalProperties: false
-  required:
-  - workflowId
-  - packageId
-  - versionId
-  - dependencies
-  - pulledPackages
-  properties:
-    workflowId:
-      type: string
-      format: uuid
-    packageId:
-      type: string
-    versionId:
-      type: string
-    dependencies:
-      type: array
-      items:
-        $ref: '#/RegistryPackageDependency'
-    pulledPackages:
-      type: array
-      items:
-        $ref: '#/RegistryPackageDependency'
-    missingPackages:
-      type: array
-      items:
-        $ref: '#/RegistryPackageDependency'
-
 WorkflowPreview:
   type: object
   additionalProperties: false
@@ -2855,13 +2642,13 @@ CatalogNode:
     type:
       type: string
     label:
-      type: string
+      $ref: '#/LocalizedText'
     description:
-      type: string
+      $ref: '#/LocalizedText'
     role:
       type: string
     category:
-      type: string
+      $ref: '#/LocalizedText'
     tags:
       type: array
       items:
@@ -2924,7 +2711,7 @@ HubPackageSummary:
       type: string
       nullable: true
     description:
-      type: string
+      $ref: '#/LocalizedText'
       nullable: true
     tags:
       type: array
@@ -2953,7 +2740,7 @@ HubPackageDetail:
     name:
       type: string
     description:
-      type: string
+      $ref: '#/LocalizedText'
       nullable: true
     readme:
       type: string
@@ -2984,6 +2771,24 @@ HubPackageDetail:
       nullable: true
     visibility:
       $ref: '#/HubVisibility'
+      nullable: true
+
+HubAccount:
+  type: object
+  additionalProperties: false
+  required:
+  - id
+  - username
+  properties:
+    id:
+      type: string
+    username:
+      type: string
+    displayName:
+      type: string
+      nullable: true
+    email:
+      type: string
       nullable: true
 
 HubPackageListResponse:
@@ -3058,6 +2863,27 @@ HubPackagePublishRequest:
     file:
       type: string
       format: binary
+    visibility:
+      $ref: '#/HubVisibility'
+    summary:
+      type: string
+    readme:
+      type: string
+    tags:
+      type: array
+      items:
+        type: string
+
+HubLocalPackagePublishRequest:
+  type: object
+  required:
+  - name
+  properties:
+    name:
+      type: string
+    version:
+      type: string
+      description: Optional package version; defaults to latest local version.
     visibility:
       $ref: '#/HubVisibility'
     summary:
@@ -3228,6 +3054,32 @@ HubWorkflowPublishRequest:
         $ref: '#/HubPackageDependency'
     definition:
       $ref: '#/HubWorkflowDefinition'
+
+HubLocalWorkflowPublishRequest:
+  type: object
+  required:
+  - workflowId
+  - version
+  properties:
+    workflowId:
+      type: string
+    name:
+      type: string
+      description: Optional override for the workflow name.
+    version:
+      type: string
+    summary:
+      type: string
+    description:
+      type: string
+    tags:
+      type: array
+      items:
+        type: string
+    visibility:
+      $ref: '#/HubVisibility'
+    previewImage:
+      type: string
 
 HubWorkflowPublishResponse:
   type: object

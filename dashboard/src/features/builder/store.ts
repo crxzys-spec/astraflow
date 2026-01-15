@@ -27,6 +27,7 @@ import {
 } from './utils/converters.ts';
 import { generateId } from './utils/id.ts';
 import { CONTAINER_PARAM_KEY } from './constants.ts';
+import { coerceLocalizedTextMap, updateLocalizedTextDefault } from '../../lib/manifestText';
 
 const HISTORY_LIMIT = 100;
 
@@ -308,9 +309,21 @@ export const useWorkflowStore = create<WorkflowStore>()(
         if (!state.workflow) {
           return;
         }
-        const current = state.workflow.metadata ?? { name: state.workflow.id ?? 'Untitled workflow' };
-        const nextName = changes.name ?? current.name ?? state.workflow.id ?? 'Untitled workflow';
-        state.workflow.metadata = { ...current, ...changes, name: nextName };
+        const fallbackName = state.workflow.id ?? 'Untitled workflow';
+        const current = state.workflow.metadata ?? { name: updateLocalizedTextDefault(undefined, fallbackName) };
+        const nextName =
+          coerceLocalizedTextMap(changes.name ?? current.name, fallbackName) ??
+          updateLocalizedTextDefault(undefined, fallbackName);
+        const nextDescription =
+          changes.description !== undefined
+            ? coerceLocalizedTextMap(changes.description)
+            : current.description;
+        state.workflow.metadata = {
+          ...current,
+          ...changes,
+          name: nextName,
+          description: nextDescription,
+        };
         state.workflow.dirty = true;
       });
     },

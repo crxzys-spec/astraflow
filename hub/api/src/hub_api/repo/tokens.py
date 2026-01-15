@@ -23,8 +23,13 @@ def _token_from_model(token: HubToken) -> dict[str, Any]:
         "label": token.label,
         "scopes": list(token.scopes or []),
         "packageName": token.package_name,
+        "orgId": token.org_id,
         "createdAt": token.created_at,
+        "createdIp": token.created_ip,
+        "createdUserAgent": token.created_user_agent,
         "lastUsedAt": token.last_used_at,
+        "lastUsedIp": token.last_used_ip,
+        "lastUsedUserAgent": token.last_used_user_agent,
         "expiresAt": token.expires_at,
         "ownerId": token.owner_id,
         "token": token.token,
@@ -44,6 +49,9 @@ def create_token(
     scopes: list[str],
     package_name: str | None,
     expires_at: datetime | None,
+    org_id: str | None = None,
+    created_ip: str | None = None,
+    created_user_agent: str | None = None,
 ) -> dict[str, Any]:
     token_id = _generate_id()
     secret = f"tok_{uuid4().hex}"
@@ -54,7 +62,10 @@ def create_token(
             label=label,
             scopes=scopes,
             package_name=package_name,
+            org_id=org_id,
             expires_at=expires_at,
+            created_ip=created_ip,
+            created_user_agent=created_user_agent,
             token=secret,
         )
         session.add(record)
@@ -76,17 +87,30 @@ def revoke_token(token_id: str, actor_id: str) -> None:
             _TOKEN_BY_SECRET.pop(token_secret, None)
         _TOKENS.pop(token_id, None)
 
-def resolve_token(token_value: str) -> tuple[str, list[str]]:
+def resolve_token(
+    token_value: str,
+    client_ip: str | None = None,
+    user_agent: str | None = None,
+) -> tuple[str, list[str], str | None]:
     with SessionLocal() as session:
         token = session.execute(
             select(HubToken).where(HubToken.token == token_value)
         ).scalar_one_or_none()
         if token:
-            if token.expires_at and token.expires_at < _now():
+            now = _now()
+            if token.expires_at and token.expires_at < now:
                 raise ValueError("invalid_token")
-            token.last_used_at = _now()
+            token.last_used_at = now
+            if client_ip:
+                token.last_used_ip = client_ip
+                if not token.created_ip:
+                    token.created_ip = client_ip
+            if user_agent:
+                token.last_used_user_agent = user_agent
+                if not token.created_user_agent:
+                    token.created_user_agent = user_agent
             session.commit()
-            return token.owner_id, list(token.scopes or [])
+            return token.owner_id, list(token.scopes or []), token.org_id
 
     if token_value in _TOKEN_BY_SECRET:
         token_id = _TOKEN_BY_SECRET[token_value]
@@ -94,11 +118,19 @@ def resolve_token(token_value: str) -> tuple[str, list[str]]:
         if not token:
             raise ValueError("invalid_token")
         token["lastUsedAt"] = _now()
-        return token["ownerId"], token["scopes"]
+        if client_ip:
+            token["lastUsedIp"] = client_ip
+            if not token.get("createdIp"):
+                token["createdIp"] = client_ip
+        if user_agent:
+            token["lastUsedUserAgent"] = user_agent
+            if not token.get("createdUserAgent"):
+                token["createdUserAgent"] = user_agent
+        return token["ownerId"], token["scopes"], token.get("orgId")
     if token_value in _USERS:
-        return token_value, DEFAULT_SCOPES
+        return token_value, DEFAULT_SCOPES, None
     if token_value == DEFAULT_OWNER_ID:
-        return DEFAULT_OWNER_ID, DEFAULT_SCOPES
+        return DEFAULT_OWNER_ID, DEFAULT_SCOPES, None
     raise ValueError("invalid_token")
 
 def get_token_record(token_value: str) -> dict[str, Any] | None:

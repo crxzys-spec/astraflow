@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **key** | **string** | Stable key used to store and retrieve the vault value. | [default to undefined]
-**label** | **string** | Display label for the vault entry. | [optional] [default to undefined]
+**label** | [**LocalizedText**](LocalizedText.md) |  | [optional] [default to undefined]
 **type** | **string** | Vault value type (secret, string, json). | [default to undefined]
 **required** | **boolean** | Whether the vault entry must be provided before execution. | [optional] [default to true]
 **description** | **string** | Human-readable explanation of the vault entry. | [optional] [default to undefined]

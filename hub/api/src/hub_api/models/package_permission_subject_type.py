@@ -35,7 +35,6 @@ class PackagePermissionSubjectType(str, Enum):
     allowed enum values
     """
     USER = 'user'
-    TEAM = 'team'
     ORG = 'org'
 
     @classmethod

@@ -23,6 +23,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
+from scheduler_api.models.localized_text import LocalizedText
 from scheduler_api.models.node_package import NodePackage
 from scheduler_api.models.node_ui import NodeUI
 from scheduler_api.models.workflow_node_schema import WorkflowNodeSchema
@@ -41,9 +42,9 @@ class WorkflowMiddleware(BaseModel):
     role: Optional[StrictStr] = Field(default=None, description="Execution role of the middleware (always middleware).")
     package: NodePackage
     status: StrictStr = Field(description="Middleware lifecycle state.")
-    category: StrictStr = Field(description="Group/category shown in the builder palette.")
-    label: StrictStr
-    description: Optional[StrictStr] = Field(default=None, description="Longer description of the middleware behaviour.")
+    category: LocalizedText = Field(description="Group/category shown in the builder palette.")
+    label: LocalizedText
+    description: Optional[LocalizedText] = Field(default=None, description="Longer description of the middleware behaviour.")
     tags: Optional[List[StrictStr]] = Field(default=None, description="Keywords for search/filter.")
     parameters: Optional[Dict[str, Any]] = Field(default=None, description="Default parameter payload seeded from the manifest schema.")
     results: Optional[Dict[str, Any]] = Field(default=None, description="Default results payload seeded from the manifest schema.")
@@ -135,9 +136,9 @@ class WorkflowMiddleware(BaseModel):
             "role": obj.get("role"),
             "package": NodePackage.from_dict(obj.get("package")) if obj.get("package") is not None else None,
             "status": obj.get("status"),
-            "category": obj.get("category"),
-            "label": obj.get("label"),
-            "description": obj.get("description"),
+            "category": LocalizedText.from_dict(obj.get("category")) if obj.get("category") is not None else None,
+            "label": LocalizedText.from_dict(obj.get("label")) if obj.get("label") is not None else None,
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "tags": obj.get("tags"),
             "parameters": obj.get("parameters"),
             "results": obj.get("results"),
@@ -146,5 +147,4 @@ class WorkflowMiddleware(BaseModel):
             "ui": NodeUI.from_dict(obj.get("ui")) if obj.get("ui") is not None else None
         })
         return _obj
-
 

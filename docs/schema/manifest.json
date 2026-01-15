@@ -29,8 +29,12 @@
       "description": "Package version in semver format.",
       "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
     },
+    "displayName": {
+      "$ref": "#/$defs/LocalizedText",
+      "description": "Optional human-readable package name."
+    },
     "description": {
-      "type": "string",
+      "$ref": "#/$defs/LocalizedText",
       "description": "Short summary of the package."
     },
     "adapters": {
@@ -72,6 +76,20 @@
     }
   },
   "$defs": {
+    "LocalizedText": {
+      "description": "Plain text or a locale map (e.g. {\"en\":\"...\",\"zh-CN\":\"...\"}). Strings may also reference language-pack keys using \"@i18n:<key>\".",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "Adapter": {
       "type": "object",
       "required": [
@@ -99,7 +117,7 @@
           "minItems": 1
         },
         "description": {
-          "type": "string",
+          "$ref": "#/$defs/LocalizedText",
           "description": "Adapter level description."
         },
         "idempotency": {
@@ -171,15 +189,15 @@
           ]
         },
         "category": {
-          "type": "string",
+          "$ref": "#/$defs/LocalizedText",
           "description": "Grouping category displayed in the builder palette."
         },
         "label": {
-          "type": "string",
+          "$ref": "#/$defs/LocalizedText",
           "description": "Human readable label rendered in the palette and inspector."
         },
         "description": {
-          "type": "string",
+          "$ref": "#/$defs/LocalizedText",
           "description": "Extended description of the node behaviour."
         },
         "tags": {
@@ -255,8 +273,12 @@
           "description": "Stable identifier for the port."
         },
         "label": {
-          "type": "string",
+          "$ref": "#/$defs/LocalizedText",
           "description": "Display label for the port."
+        },
+        "description": {
+          "$ref": "#/$defs/LocalizedText",
+          "description": "Optional helper text for the port."
         },
         "binding": {
           "$ref": "#/$defs/Binding"
@@ -278,7 +300,7 @@
           "description": "Unique widget key."
         },
         "label": {
-          "type": "string",
+          "$ref": "#/$defs/LocalizedText",
           "description": "Widget label."
         },
         "component": {
@@ -451,7 +473,7 @@
           "default": true
         },
         "description": {
-          "type": "string",
+          "$ref": "#/$defs/LocalizedText",
           "description": "Human-readable explanation of why the permission is needed."
         },
         "metadata": {
@@ -474,7 +496,7 @@
           "description": "Stable key used to store and retrieve the vault value."
         },
         "label": {
-          "type": "string",
+          "$ref": "#/$defs/LocalizedText",
           "description": "Display label for the vault entry."
         },
         "type": {
@@ -487,7 +509,7 @@
           "default": true
         },
         "description": {
-          "type": "string",
+          "$ref": "#/$defs/LocalizedText",
           "description": "Human-readable explanation of the vault entry."
         },
         "metadata": {
@@ -529,7 +551,7 @@
           "default": true
         },
         "description": {
-          "type": "string",
+          "$ref": "#/$defs/LocalizedText",
           "description": "Human-readable explanation of why the resource is needed."
         },
         "metadata": {

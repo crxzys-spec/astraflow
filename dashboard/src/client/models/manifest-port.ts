@@ -15,12 +15,15 @@
 
 // May contain unused imports in some cases
 // @ts-ignore
+import type { LocalizedText } from './localized-text';
+// May contain unused imports in some cases
+// @ts-ignore
 import type { ManifestBinding } from './manifest-binding';
 
 export interface ManifestPort {
     'key': string;
-    'label': string;
-    'description'?: string;
+    'label': LocalizedText;
+    'description'?: LocalizedText;
     'binding': ManifestBinding;
 }
 

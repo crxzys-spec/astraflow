@@ -23,6 +23,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
+from scheduler_api.models.localized_text import LocalizedText
 from scheduler_api.models.node_package import NodePackage
 from scheduler_api.models.node_ui import NodeUI
 from scheduler_api.models.workflow_middleware import WorkflowMiddleware
@@ -44,9 +45,9 @@ class WorkflowNode(BaseModel):
     role: Optional[StrictStr] = Field(default=None, description="Execution role of the node.")
     package: NodePackage
     status: StrictStr = Field(description="Node lifecycle state.")
-    category: StrictStr = Field(description="Group/category shown in the builder palette.")
-    label: StrictStr
-    description: Optional[StrictStr] = Field(default=None, description="Longer description of the node behaviour.")
+    category: LocalizedText = Field(description="Group/category shown in the builder palette.")
+    label: LocalizedText
+    description: Optional[LocalizedText] = Field(default=None, description="Longer description of the node behaviour.")
     tags: Optional[List[StrictStr]] = Field(default=None, description="Keywords for search/filter.")
     position: WorkflowNodePosition
     layout: Optional[WorkflowNodeLayout] = None
@@ -115,6 +116,9 @@ class WorkflowNode(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of package
         if self.package:
             _dict['package'] = self.package.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of label
+        if self.label:
+            _dict['label'] = self.label.to_dict()
         # override the default output from pydantic by calling `to_dict()` of position
         if self.position:
             _dict['position'] = self.position.to_dict()
@@ -154,9 +158,9 @@ class WorkflowNode(BaseModel):
             "role": obj.get("role"),
             "package": NodePackage.from_dict(obj.get("package")) if obj.get("package") is not None else None,
             "status": obj.get("status"),
-            "category": obj.get("category"),
-            "label": obj.get("label"),
-            "description": obj.get("description"),
+            "category": LocalizedText.from_dict(obj.get("category")) if obj.get("category") is not None else None,
+            "label": LocalizedText.from_dict(obj.get("label")) if obj.get("label") is not None else None,
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "tags": obj.get("tags"),
             "position": WorkflowNodePosition.from_dict(obj.get("position")) if obj.get("position") is not None else None,
             "layout": WorkflowNodeLayout.from_dict(obj.get("layout")) if obj.get("layout") is not None else None,
@@ -168,5 +172,4 @@ class WorkflowNode(BaseModel):
             "middlewares": [WorkflowMiddleware.from_dict(_item) for _item in obj.get("middlewares")] if obj.get("middlewares") is not None else None
         })
         return _obj
-
 

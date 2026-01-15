@@ -6,10 +6,10 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **type** | **string** |  | [default to undefined]
-**label** | **string** |  | [default to undefined]
-**description** | **string** |  | [optional] [default to undefined]
+**label** | [**LocalizedText**](LocalizedText.md) |  | [default to undefined]
+**description** | [**LocalizedText**](LocalizedText.md) |  | [optional] [default to undefined]
 **role** | **string** |  | [optional] [default to undefined]
-**category** | **string** |  | [optional] [default to undefined]
+**category** | [**LocalizedText**](LocalizedText.md) |  | [optional] [default to undefined]
 **tags** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **status** | **string** |  | [optional] [default to undefined]
 **packageName** | **string** |  | [default to undefined]

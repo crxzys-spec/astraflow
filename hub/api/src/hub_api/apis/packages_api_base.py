@@ -46,19 +46,30 @@ class BasePackagesApi:
         summary: Optional[StrictStr],
         readme: Optional[StrictStr],
         tags: Optional[List[StrictStr]],
+        owner_id: Optional[StrictStr],
     ) -> PackageVersionDetail:
         ...
 
 
     async def get_package(
         self,
+        owner: StrictStr,
         name: StrictStr,
     ) -> HubPackageDetail:
         ...
 
 
+    async def delete_package(
+        self,
+        owner: StrictStr,
+        name: StrictStr,
+    ) -> None:
+        ...
+
+
     async def reserve_package(
         self,
+        owner: StrictStr,
         name: StrictStr,
         package_reserve_request: Optional[PackageReserveRequest],
     ) -> PackageRegistry:
@@ -67,6 +78,7 @@ class BasePackagesApi:
 
     async def get_package_version(
         self,
+        owner: StrictStr,
         name: StrictStr,
         version: StrictStr,
     ) -> PackageVersionDetail:
@@ -75,6 +87,7 @@ class BasePackagesApi:
 
     async def download_package_archive(
         self,
+        owner: StrictStr,
         name: StrictStr,
         version: Annotated[Optional[StrictStr], Field(description="Optional version to download")],
     ) -> Any:
@@ -83,6 +96,7 @@ class BasePackagesApi:
 
     async def set_package_tag(
         self,
+        owner: StrictStr,
         name: StrictStr,
         tag: StrictStr,
         package_tag_request: PackageTagRequest,
@@ -92,6 +106,7 @@ class BasePackagesApi:
 
     async def delete_package_tag(
         self,
+        owner: StrictStr,
         name: StrictStr,
         tag: StrictStr,
     ) -> None:
@@ -100,6 +115,7 @@ class BasePackagesApi:
 
     async def update_package_visibility(
         self,
+        owner: StrictStr,
         name: StrictStr,
         package_visibility_request: PackageVisibilityRequest,
     ) -> PackageRegistry:
@@ -108,6 +124,7 @@ class BasePackagesApi:
 
     async def transfer_package(
         self,
+        owner: StrictStr,
         name: StrictStr,
         package_transfer_request: PackageTransferRequest,
     ) -> PackageRegistry:
@@ -116,6 +133,7 @@ class BasePackagesApi:
 
     async def list_package_permissions(
         self,
+        owner: StrictStr,
         name: StrictStr,
     ) -> PackagePermissionList:
         ...
@@ -123,6 +141,7 @@ class BasePackagesApi:
 
     async def add_package_permission(
         self,
+        owner: StrictStr,
         name: StrictStr,
         package_permission_create_request: PackagePermissionCreateRequest,
     ) -> PackagePermission:
@@ -131,6 +150,7 @@ class BasePackagesApi:
 
     async def delete_package_permission(
         self,
+        owner: StrictStr,
         name: StrictStr,
         permissionId: StrictStr,
     ) -> None:
@@ -139,6 +159,7 @@ class BasePackagesApi:
 
     async def update_package_permission(
         self,
+        owner: StrictStr,
         name: StrictStr,
         permissionId: StrictStr,
         package_permission_update_request: PackagePermissionUpdateRequest,

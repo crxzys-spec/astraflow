@@ -8,7 +8,8 @@ Name | Type | Description | Notes
 **schemaVersion** | **string** | Manifest schema version (semver). | [default to undefined]
 **name** | **string** | Package identifier (lowercase with dots/underscores). | [default to undefined]
 **version** | **string** | Package version in semver format. | [default to undefined]
-**description** | **string** | Short summary of the package. | [default to undefined]
+**displayName** | [**LocalizedText**](LocalizedText.md) |  | [optional] [default to undefined]
+**description** | [**LocalizedText**](LocalizedText.md) |  | [default to undefined]
 **adapters** | [**Array&lt;ManifestAdapter&gt;**](ManifestAdapter.md) |  | [default to undefined]
 **python** | [**ManifestPythonConfig**](ManifestPythonConfig.md) |  | [default to undefined]
 **nodes** | [**Array&lt;ManifestNode&gt;**](ManifestNode.md) |  | [default to undefined]
@@ -26,6 +27,7 @@ const instance: PackageManifest = {
     schemaVersion,
     name,
     version,
+    displayName,
     description,
     adapters,
     python,

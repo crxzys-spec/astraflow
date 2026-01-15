@@ -22,6 +22,8 @@ import { DUMMY_BASE_URL, assertParamExists, setApiKeyToObject, setBasicAuthToObj
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError, operationServerMap } from '../base';
 // @ts-ignore
+import type { HubLocalWorkflowPublishRequest } from '../models';
+// @ts-ignore
 import type { HubWorkflowDetail } from '../models';
 // @ts-ignore
 import type { HubWorkflowImportRequest } from '../models';
@@ -343,6 +345,46 @@ export const HubWorkflowsApiAxiosParamCreator = function (configuration?: Config
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * 
+         * @summary Publish a local workflow to Hub
+         * @param {HubLocalWorkflowPublishRequest} hubLocalWorkflowPublishRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        publishHubWorkflowLocal: async (hubLocalWorkflowPublishRequest: HubLocalWorkflowPublishRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'hubLocalWorkflowPublishRequest' is not null or undefined
+            assertParamExists('publishHubWorkflowLocal', 'hubLocalWorkflowPublishRequest', hubLocalWorkflowPublishRequest)
+            const localVarPath = `/api/v1/hub/workflows/local`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(hubLocalWorkflowPublishRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -450,6 +492,19 @@ export const HubWorkflowsApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['HubWorkflowsApi.publishHubWorkflow']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * 
+         * @summary Publish a local workflow to Hub
+         * @param {HubLocalWorkflowPublishRequest} hubLocalWorkflowPublishRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async publishHubWorkflowLocal(hubLocalWorkflowPublishRequest: HubLocalWorkflowPublishRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HubWorkflowPublishResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.publishHubWorkflowLocal(hubLocalWorkflowPublishRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['HubWorkflowsApi.publishHubWorkflowLocal']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -535,6 +590,16 @@ export const HubWorkflowsApiFactory = function (configuration?: Configuration, b
          */
         publishHubWorkflow(hubWorkflowPublishRequest: HubWorkflowPublishRequest, options?: RawAxiosRequestConfig): AxiosPromise<HubWorkflowPublishResponse> {
             return localVarFp.publishHubWorkflow(hubWorkflowPublishRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Publish a local workflow to Hub
+         * @param {HubLocalWorkflowPublishRequest} hubLocalWorkflowPublishRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        publishHubWorkflowLocal(hubLocalWorkflowPublishRequest: HubLocalWorkflowPublishRequest, options?: RawAxiosRequestConfig): AxiosPromise<HubWorkflowPublishResponse> {
+            return localVarFp.publishHubWorkflowLocal(hubLocalWorkflowPublishRequest, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -625,6 +690,17 @@ export class HubWorkflowsApi extends BaseAPI {
      */
     public publishHubWorkflow(hubWorkflowPublishRequest: HubWorkflowPublishRequest, options?: RawAxiosRequestConfig) {
         return HubWorkflowsApiFp(this.configuration).publishHubWorkflow(hubWorkflowPublishRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Publish a local workflow to Hub
+     * @param {HubLocalWorkflowPublishRequest} hubLocalWorkflowPublishRequest 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public publishHubWorkflowLocal(hubLocalWorkflowPublishRequest: HubLocalWorkflowPublishRequest, options?: RawAxiosRequestConfig) {
+        return HubWorkflowsApiFp(this.configuration).publishHubWorkflowLocal(hubLocalWorkflowPublishRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

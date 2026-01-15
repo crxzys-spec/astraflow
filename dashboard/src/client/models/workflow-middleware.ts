@@ -18,6 +18,9 @@
 import type { NodePackage } from './node-package';
 // May contain unused imports in some cases
 // @ts-ignore
+import type { LocalizedText } from './localized-text';
+// May contain unused imports in some cases
+// @ts-ignore
 import type { NodeUI } from './node-ui';
 // May contain unused imports in some cases
 // @ts-ignore
@@ -47,12 +50,12 @@ export interface WorkflowMiddleware {
     /**
      * Group/category shown in the builder palette.
      */
-    'category': string;
-    'label': string;
+    'category': LocalizedText;
+    'label': LocalizedText;
     /**
      * Longer description of the middleware behaviour.
      */
-    'description'?: string;
+    'description'?: LocalizedText;
     /**
      * Keywords for search/filter.
      */
@@ -82,5 +85,4 @@ export const WorkflowMiddlewareStatusEnum = {
 } as const;
 
 export type WorkflowMiddlewareStatusEnum = typeof WorkflowMiddlewareStatusEnum[keyof typeof WorkflowMiddlewareStatusEnum];
-
 

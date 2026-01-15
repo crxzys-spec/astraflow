@@ -19,11 +19,14 @@ class PackageIndexRepository:
         name: str,
         source: str,
         session: Session,
+        owner_id: str | None = None,
     ) -> list[PackageIndexRecord]:
         stmt = select(PackageIndexRecord).where(
             PackageIndexRecord.source == source,
             PackageIndexRecord.name == name,
         )
+        if owner_id:
+            stmt = stmt.where(PackageIndexRecord.owner_id == owner_id)
         return list(session.execute(stmt).scalars().all())
 
     def list_by_owner(
@@ -39,6 +42,21 @@ class PackageIndexRepository:
         )
         return list(session.execute(stmt).scalars().all())
 
+    def list_by_owner_name(
+        self,
+        *,
+        owner_id: str,
+        name: str,
+        source: str,
+        session: Session,
+    ) -> list[PackageIndexRecord]:
+        stmt = select(PackageIndexRecord).where(
+            PackageIndexRecord.source == source,
+            PackageIndexRecord.owner_id == owner_id,
+            PackageIndexRecord.name == name,
+        )
+        return list(session.execute(stmt).scalars().all())
+
     def get_by_name_version(
         self,
         *,
@@ -46,10 +64,13 @@ class PackageIndexRepository:
         version: str,
         source: str,
         session: Session,
+        owner_id: str | None = None,
     ) -> PackageIndexRecord | None:
         stmt = select(PackageIndexRecord).where(
             PackageIndexRecord.source == source,
             PackageIndexRecord.name == name,
             PackageIndexRecord.version == version,
         )
+        if owner_id:
+            stmt = stmt.where(PackageIndexRecord.owner_id == owner_id)
         return session.execute(stmt).scalars().first()

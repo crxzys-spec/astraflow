@@ -16,10 +16,13 @@
 // May contain unused imports in some cases
 // @ts-ignore
 import type { HubVisibility } from './hub-visibility';
+// May contain unused imports in some cases
+// @ts-ignore
+import type { LocalizedText } from './localized-text';
 
 export interface HubPackageDetail {
     'name': string;
-    'description'?: string | null;
+    'description'?: LocalizedText;
     'readme'?: string | null;
     'versions'?: Array<string>;
     'distTags'?: { [key: string]: string; } | null;

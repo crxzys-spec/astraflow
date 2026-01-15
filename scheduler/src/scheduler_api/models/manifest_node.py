@@ -23,6 +23,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
+from scheduler_api.models.localized_text import LocalizedText
 from scheduler_api.models.manifest_node_schema import ManifestNodeSchema
 from scheduler_api.models.manifest_node_ui import ManifestNodeUI
 try:
@@ -37,9 +38,9 @@ class ManifestNode(BaseModel):
     type: Annotated[str, Field(strict=True)]
     role: Optional[StrictStr] = Field(default=None, description="Execution role of the node.")
     status: StrictStr
-    category: StrictStr
-    label: StrictStr
-    description: Optional[StrictStr] = None
+    category: LocalizedText
+    label: LocalizedText
+    description: Optional[LocalizedText] = None
     tags: Optional[List[StrictStr]] = None
     adapter: Annotated[str, Field(strict=True)]
     handler: Annotated[str, Field(strict=True)]
@@ -123,6 +124,15 @@ class ManifestNode(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of category
+        if self.category:
+            _dict['category'] = self.category.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of label
+        if self.label:
+            _dict['label'] = self.label.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of description
+        if self.description:
+            _dict['description'] = self.description.to_dict()
         # override the default output from pydantic by calling `to_dict()` of var_schema
         if self.var_schema:
             _dict['schema'] = self.var_schema.to_dict()
@@ -144,9 +154,9 @@ class ManifestNode(BaseModel):
             "type": obj.get("type"),
             "role": obj.get("role"),
             "status": obj.get("status"),
-            "category": obj.get("category"),
-            "label": obj.get("label"),
-            "description": obj.get("description"),
+            "category": LocalizedText.from_dict(obj.get("category")) if obj.get("category") is not None else None,
+            "label": LocalizedText.from_dict(obj.get("label")) if obj.get("label") is not None else None,
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "tags": obj.get("tags"),
             "adapter": obj.get("adapter"),
             "handler": obj.get("handler"),

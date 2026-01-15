@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **name** | **string** |  | [default to undefined]
-**description** | **string** |  | [optional] [default to undefined]
+**description** | [**LocalizedText**](LocalizedText.md) |  | [optional] [default to undefined]
 **readme** | **string** |  | [optional] [default to undefined]
 **versions** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **distTags** | **{ [key: string]: string; }** |  | [optional] [default to undefined]

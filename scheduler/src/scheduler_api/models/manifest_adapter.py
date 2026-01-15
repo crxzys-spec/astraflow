@@ -23,6 +23,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -35,7 +36,7 @@ class ManifestAdapter(BaseModel):
     name: StrictStr
     entrypoint: Annotated[str, Field(strict=True)]
     capabilities: Annotated[List[StrictStr], Field(min_length=1)]
-    description: Optional[StrictStr] = None
+    description: Optional[LocalizedText] = None
     idempotency: Optional[StrictStr] = None
     metadata: Optional[Dict[str, Any]] = None
     __properties: ClassVar[List[str]] = ["name", "entrypoint", "capabilities", "description", "idempotency", "metadata"]
@@ -84,6 +85,9 @@ class ManifestAdapter(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of description
+        if self.description:
+            _dict['description'] = self.description.to_dict()
         return _dict
 
     @classmethod
@@ -99,10 +103,9 @@ class ManifestAdapter(BaseModel):
             "name": obj.get("name"),
             "entrypoint": obj.get("entrypoint"),
             "capabilities": obj.get("capabilities"),
-            "description": obj.get("description"),
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "idempotency": obj.get("idempotency"),
             "metadata": obj.get("metadata")
         })
         return _obj
-
 

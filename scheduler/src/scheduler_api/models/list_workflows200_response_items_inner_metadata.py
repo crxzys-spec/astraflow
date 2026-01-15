@@ -23,6 +23,7 @@ import json
 from pydantic import ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from scheduler_api.models.object import object
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -32,8 +33,8 @@ class ListWorkflows200ResponseItemsInnerMetadata(object):
     """
     ListWorkflows200ResponseItemsInnerMetadata
     """ # noqa: E501
-    name: StrictStr
-    description: Optional[StrictStr] = None
+    name: LocalizedText
+    description: Optional[LocalizedText] = None
     tags: Optional[List[StrictStr]] = None
     environment: Optional[StrictStr] = None
     additional_properties: Dict[str, Any] = {}
@@ -95,8 +96,8 @@ class ListWorkflows200ResponseItemsInnerMetadata(object):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "name": obj.get("name"),
-            "description": obj.get("description"),
+            "name": LocalizedText.from_dict(obj.get("name")) if obj.get("name") is not None else None,
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "tags": obj.get("tags"),
             "environment": obj.get("environment")
         })
@@ -106,5 +107,4 @@ class ListWorkflows200ResponseItemsInnerMetadata(object):
                 _obj.additional_properties[_key] = obj.get(_key)
 
         return _obj
-
 

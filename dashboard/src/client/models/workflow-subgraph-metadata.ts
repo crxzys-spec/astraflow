@@ -14,12 +14,16 @@
 
 
 
+// May contain unused imports in some cases
+// @ts-ignore
+import type { LocalizedText } from './localized-text';
+
 export interface WorkflowSubgraphMetadata {
     /**
      * Optional human-friendly label for the subgraph.
      */
-    'label'?: string;
-    'description'?: string;
+    'label'?: LocalizedText;
+    'description'?: LocalizedText;
     /**
      * Original workflow id when this subgraph was created from a reference.
      */
@@ -28,4 +32,3 @@ export interface WorkflowSubgraphMetadata {
     'ownerId'?: string;
     'notes'?: string;
 }
-

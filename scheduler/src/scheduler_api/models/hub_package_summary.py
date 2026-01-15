@@ -24,6 +24,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from scheduler_api.models.hub_visibility import HubVisibility
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -35,7 +36,7 @@ class HubPackageSummary(BaseModel):
     """ # noqa: E501
     name: StrictStr
     latest_version: Optional[StrictStr] = Field(default=None, alias="latestVersion")
-    description: Optional[StrictStr] = None
+    description: Optional[LocalizedText] = None
     tags: Optional[List[StrictStr]] = None
     owner_id: Optional[StrictStr] = Field(default=None, alias="ownerId")
     owner_name: Optional[StrictStr] = Field(default=None, alias="ownerName")
@@ -80,15 +81,13 @@ class HubPackageSummary(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of description
+        if self.description:
+            _dict['description'] = self.description.to_dict()
         # set to None if latest_version (nullable) is None
         # and model_fields_set contains the field
         if self.latest_version is None and "latest_version" in self.model_fields_set:
             _dict['latestVersion'] = None
-
-        # set to None if description (nullable) is None
-        # and model_fields_set contains the field
-        if self.description is None and "description" in self.model_fields_set:
-            _dict['description'] = None
 
         # set to None if tags (nullable) is None
         # and model_fields_set contains the field
@@ -124,7 +123,7 @@ class HubPackageSummary(BaseModel):
         _obj = cls.model_validate({
             "name": obj.get("name"),
             "latestVersion": obj.get("latestVersion"),
-            "description": obj.get("description"),
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "tags": obj.get("tags"),
             "ownerId": obj.get("ownerId"),
             "ownerName": obj.get("ownerName"),

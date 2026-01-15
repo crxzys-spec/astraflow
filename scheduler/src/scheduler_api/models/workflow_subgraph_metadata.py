@@ -23,6 +23,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -32,8 +33,8 @@ class WorkflowSubgraphMetadata(BaseModel):
     """
     WorkflowSubgraphMetadata
     """ # noqa: E501
-    label: Optional[StrictStr] = Field(default=None, description="Optional human-friendly label for the subgraph.")
-    description: Optional[StrictStr] = None
+    label: Optional[LocalizedText] = Field(default=None, description="Optional human-friendly label for the subgraph.")
+    description: Optional[LocalizedText] = None
     reference_workflow_id: Optional[UUID] = Field(default=None, description="Original workflow id when this subgraph was created from a reference.", alias="referenceWorkflowId")
     reference_workflow_name: Optional[StrictStr] = Field(default=None, alias="referenceWorkflowName")
     owner_id: Optional[StrictStr] = Field(default=None, alias="ownerId")
@@ -89,13 +90,12 @@ class WorkflowSubgraphMetadata(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "label": obj.get("label"),
-            "description": obj.get("description"),
+            "label": LocalizedText.from_dict(obj.get("label")) if obj.get("label") is not None else None,
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "referenceWorkflowId": obj.get("referenceWorkflowId"),
             "referenceWorkflowName": obj.get("referenceWorkflowName"),
             "ownerId": obj.get("ownerId"),
             "notes": obj.get("notes")
         })
         return _obj
-
 

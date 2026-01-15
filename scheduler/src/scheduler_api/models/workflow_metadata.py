@@ -23,6 +23,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from uuid import UUID
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -32,8 +33,8 @@ class WorkflowMetadata(BaseModel):
     """
     WorkflowMetadata
     """ # noqa: E501
-    name: StrictStr
-    description: Optional[StrictStr] = None
+    name: LocalizedText
+    description: Optional[LocalizedText] = None
     tags: Optional[List[StrictStr]] = None
     environment: Optional[StrictStr] = None
     namespace: Optional[StrictStr] = Field(default=None, description="Logical workflow namespace used for indexing/cross-workflow bindings. Defaults to \"default\".")
@@ -98,8 +99,8 @@ class WorkflowMetadata(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "name": obj.get("name"),
-            "description": obj.get("description"),
+            "name": LocalizedText.from_dict(obj.get("name")) if obj.get("name") is not None else None,
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "tags": obj.get("tags"),
             "environment": obj.get("environment"),
             "namespace": obj.get("namespace"),
@@ -110,5 +111,4 @@ class WorkflowMetadata(BaseModel):
             "updatedBy": obj.get("updatedBy")
         })
         return _obj
-
 

@@ -15,6 +15,9 @@
 
 // May contain unused imports in some cases
 // @ts-ignore
+import type { LocalizedText } from './localized-text';
+// May contain unused imports in some cases
+// @ts-ignore
 import type { ManifestNodeSchema } from './manifest-node-schema';
 // May contain unused imports in some cases
 // @ts-ignore
@@ -27,9 +30,9 @@ export interface ManifestNode {
      */
     'role'?: ManifestNodeRoleEnum;
     'status': ManifestNodeStatusEnum;
-    'category': string;
-    'label': string;
-    'description'?: string;
+    'category': LocalizedText;
+    'label': LocalizedText;
+    'description'?: LocalizedText;
     'tags'?: Array<string>;
     'adapter': string;
     'handler': string;

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select, update, or_
@@ -7,12 +8,13 @@ from sqlalchemy import select, update, or_
 from hub_api.db.models import (
     HubOrganization,
     HubOrganizationMember,
+    HubOrganizationInvite,
     HubPackagePermission,
     HubTeam,
     HubTeamMember,
 )
 from hub_api.db.session import SessionLocal
-from hub_api.repo.common import _now
+from hub_api.repo.common import _generate_id, _now
 
 def _org_from_model(org: HubOrganization) -> dict[str, Any]:
     return {
@@ -29,6 +31,21 @@ def _org_member_from_model(member: HubOrganizationMember) -> dict[str, Any]:
         "userId": member.user_id,
         "role": member.role,
         "joinedAt": member.joined_at,
+    }
+
+
+def _org_invite_from_model(invite: HubOrganizationInvite) -> dict[str, Any]:
+    return {
+        "id": invite.id,
+        "orgId": invite.org_id,
+        "invitedBy": invite.invited_by,
+        "userId": invite.invitee_id,
+        "email": invite.invitee_email,
+        "role": invite.role,
+        "status": invite.status,
+        "createdAt": invite.created_at,
+        "expiresAt": invite.expires_at,
+        "respondedAt": invite.responded_at,
     }
 
 def list_organizations(user_id: str) -> list[dict[str, Any]]:
@@ -89,6 +106,87 @@ def list_org_members(org_id: str) -> list[dict[str, Any]]:
             select(HubOrganizationMember).where(HubOrganizationMember.org_id == org_id)
         ).scalars().all()
         return [_org_member_from_model(member) for member in members]
+
+
+def list_org_invites(org_id: str) -> list[dict[str, Any]]:
+    with SessionLocal() as session:
+        invites = session.execute(
+            select(HubOrganizationInvite).where(HubOrganizationInvite.org_id == org_id)
+        ).scalars().all()
+        return [_org_invite_from_model(invite) for invite in invites]
+
+
+def list_user_invites(user_id: str) -> list[dict[str, Any]]:
+    with SessionLocal() as session:
+        invites = session.execute(
+            select(HubOrganizationInvite).where(HubOrganizationInvite.invitee_id == user_id)
+        ).scalars().all()
+        return [_org_invite_from_model(invite) for invite in invites]
+
+
+def get_org_invite(invite_id: str) -> dict[str, Any] | None:
+    with SessionLocal() as session:
+        invite = session.get(HubOrganizationInvite, invite_id)
+        if not invite:
+            return None
+        return _org_invite_from_model(invite)
+
+
+def create_org_invite(
+    *,
+    org_id: str,
+    invited_by: str,
+    invitee_id: str,
+    role: str,
+    expires_at: datetime | None,
+) -> dict[str, Any]:
+    with SessionLocal() as session:
+        existing = session.execute(
+            select(HubOrganizationInvite).where(
+                HubOrganizationInvite.org_id == org_id,
+                HubOrganizationInvite.invitee_id == invitee_id,
+                HubOrganizationInvite.status == "pending",
+            )
+        ).scalar_one_or_none()
+        if existing:
+            existing.role = role
+            existing.expires_at = expires_at
+            existing.invited_by = invited_by
+            session.commit()
+            session.refresh(existing)
+            return _org_invite_from_model(existing)
+        invite = HubOrganizationInvite(
+            id=_generate_id(),
+            org_id=org_id,
+            invited_by=invited_by,
+            invitee_id=invitee_id,
+            invitee_email=None,
+            role=role,
+            status="pending",
+            created_at=_now(),
+            expires_at=expires_at,
+            responded_at=None,
+        )
+        session.add(invite)
+        session.commit()
+        session.refresh(invite)
+        return _org_invite_from_model(invite)
+
+
+def update_org_invite_status(
+    invite_id: str,
+    status: str,
+    responded_at: datetime | None,
+) -> dict[str, Any] | None:
+    with SessionLocal() as session:
+        invite = session.get(HubOrganizationInvite, invite_id)
+        if not invite:
+            return None
+        invite.status = status
+        invite.responded_at = responded_at
+        session.commit()
+        session.refresh(invite)
+        return _org_invite_from_model(invite)
 
 def get_org_role(org_id: str, user_id: str) -> str | None:
     with SessionLocal() as session:

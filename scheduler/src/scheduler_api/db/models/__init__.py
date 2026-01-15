@@ -8,8 +8,6 @@ from .package_dist_tag import PackageDistTagRecord
 from .package_index import PackageIndexRecord
 from .package_permission import PackagePermissionRecord
 from .package_vault import PackageVaultRecord
-from .package_registry import PackageRegistryRecord
-from .registry_account import RegistryAccountRecord
 from .resource import ResourceRecord
 from .resource_payload import ResourcePayloadRecord
 
@@ -24,8 +22,6 @@ __all__ = [
     "PackageDistTagRecord",
     "PackagePermissionRecord",
     "PackageIndexRecord",
-    "PackageRegistryRecord",
-    "RegistryAccountRecord",
     "PackageVaultRecord",
     "ResourceRecord",
     "ResourcePayloadRecord",

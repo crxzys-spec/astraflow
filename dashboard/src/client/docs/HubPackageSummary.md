@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **name** | **string** |  | [default to undefined]
 **latestVersion** | **string** |  | [optional] [default to undefined]
-**description** | **string** |  | [optional] [default to undefined]
+**description** | [**LocalizedText**](LocalizedText.md) |  | [optional] [default to undefined]
 **tags** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **ownerId** | **string** |  | [optional] [default to undefined]
 **ownerName** | **string** |  | [optional] [default to undefined]

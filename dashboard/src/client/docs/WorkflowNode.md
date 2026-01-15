@@ -11,7 +11,7 @@ Name | Type | Description | Notes
 **_package** | [**NodePackage**](NodePackage.md) |  | [default to undefined]
 **status** | **string** | Node lifecycle state. | [default to undefined]
 **category** | **string** | Group/category shown in the builder palette. | [default to undefined]
-**label** | **string** |  | [default to undefined]
+**label** | [**LocalizedText**](LocalizedText.md) |  | [default to undefined]
 **description** | **string** | Longer description of the node behaviour. | [optional] [default to undefined]
 **tags** | **Array&lt;string&gt;** | Keywords for search/filter. | [optional] [default to undefined]
 **position** | [**WorkflowNodePosition**](WorkflowNodePosition.md) |  | [default to undefined]

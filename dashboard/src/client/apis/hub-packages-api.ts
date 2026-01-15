@@ -22,6 +22,8 @@ import { DUMMY_BASE_URL, assertParamExists, setApiKeyToObject, setBasicAuthToObj
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError, operationServerMap } from '../base';
 // @ts-ignore
+import type { HubLocalPackagePublishRequest } from '../models';
+// @ts-ignore
 import type { HubPackageDetail } from '../models';
 // @ts-ignore
 import type { HubPackageInstallRequest } from '../models';
@@ -41,16 +43,20 @@ export const HubPackagesApiAxiosParamCreator = function (configuration?: Configu
         /**
          * 
          * @summary Download hub package archive
-         * @param {string} packageName 
+         * @param {string} owner 
+         * @param {string} name 
          * @param {string} [version] Optional version to download
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        downloadHubPackageArchive: async (packageName: string, version?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'packageName' is not null or undefined
-            assertParamExists('downloadHubPackageArchive', 'packageName', packageName)
-            const localVarPath = `/api/v1/hub/packages/{packageName}/archive`
-                .replace(`{${"packageName"}}`, encodeURIComponent(String(packageName)));
+        downloadHubPackageArchive: async (owner: string, name: string, version?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'owner' is not null or undefined
+            assertParamExists('downloadHubPackageArchive', 'owner', owner)
+            // verify required parameter 'name' is not null or undefined
+            assertParamExists('downloadHubPackageArchive', 'name', name)
+            const localVarPath = `/api/v1/hub/packages/{owner}/{name}/archive`
+                .replace(`{${"owner"}}`, encodeURIComponent(String(owner)))
+                .replace(`{${"name"}}`, encodeURIComponent(String(name)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -84,15 +90,19 @@ export const HubPackagesApiAxiosParamCreator = function (configuration?: Configu
         /**
          * 
          * @summary Get hub package detail
-         * @param {string} packageName 
+         * @param {string} owner 
+         * @param {string} name 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getHubPackage: async (packageName: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'packageName' is not null or undefined
-            assertParamExists('getHubPackage', 'packageName', packageName)
-            const localVarPath = `/api/v1/hub/packages/{packageName}`
-                .replace(`{${"packageName"}}`, encodeURIComponent(String(packageName)));
+        getHubPackage: async (owner: string, name: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'owner' is not null or undefined
+            assertParamExists('getHubPackage', 'owner', owner)
+            // verify required parameter 'name' is not null or undefined
+            assertParamExists('getHubPackage', 'name', name)
+            const localVarPath = `/api/v1/hub/packages/{owner}/{name}`
+                .replace(`{${"owner"}}`, encodeURIComponent(String(owner)))
+                .replace(`{${"name"}}`, encodeURIComponent(String(name)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -122,18 +132,22 @@ export const HubPackagesApiAxiosParamCreator = function (configuration?: Configu
         /**
          * 
          * @summary Get hub package version detail
-         * @param {string} packageName 
+         * @param {string} owner 
+         * @param {string} name 
          * @param {string} version 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getHubPackageVersion: async (packageName: string, version: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'packageName' is not null or undefined
-            assertParamExists('getHubPackageVersion', 'packageName', packageName)
+        getHubPackageVersion: async (owner: string, name: string, version: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'owner' is not null or undefined
+            assertParamExists('getHubPackageVersion', 'owner', owner)
+            // verify required parameter 'name' is not null or undefined
+            assertParamExists('getHubPackageVersion', 'name', name)
             // verify required parameter 'version' is not null or undefined
             assertParamExists('getHubPackageVersion', 'version', version)
-            const localVarPath = `/api/v1/hub/packages/{packageName}/versions/{version}`
-                .replace(`{${"packageName"}}`, encodeURIComponent(String(packageName)))
+            const localVarPath = `/api/v1/hub/packages/{owner}/{name}/versions/{version}`
+                .replace(`{${"owner"}}`, encodeURIComponent(String(owner)))
+                .replace(`{${"name"}}`, encodeURIComponent(String(name)))
                 .replace(`{${"version"}}`, encodeURIComponent(String(version)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -164,16 +178,20 @@ export const HubPackagesApiAxiosParamCreator = function (configuration?: Configu
         /**
          * 
          * @summary Install hub package into the local catalog
-         * @param {string} packageName 
+         * @param {string} owner 
+         * @param {string} name 
          * @param {HubPackageInstallRequest} [hubPackageInstallRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        installHubPackage: async (packageName: string, hubPackageInstallRequest?: HubPackageInstallRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'packageName' is not null or undefined
-            assertParamExists('installHubPackage', 'packageName', packageName)
-            const localVarPath = `/api/v1/hub/packages/{packageName}/install`
-                .replace(`{${"packageName"}}`, encodeURIComponent(String(packageName)));
+        installHubPackage: async (owner: string, name: string, hubPackageInstallRequest?: HubPackageInstallRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'owner' is not null or undefined
+            assertParamExists('installHubPackage', 'owner', owner)
+            // verify required parameter 'name' is not null or undefined
+            assertParamExists('installHubPackage', 'name', name)
+            const localVarPath = `/api/v1/hub/packages/{owner}/{name}/install`
+                .replace(`{${"owner"}}`, encodeURIComponent(String(owner)))
+                .replace(`{${"name"}}`, encodeURIComponent(String(name)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -327,6 +345,92 @@ export const HubPackagesApiAxiosParamCreator = function (configuration?: Configu
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * 
+         * @summary Publish a local package to Hub
+         * @param {HubLocalPackagePublishRequest} hubLocalPackagePublishRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        publishHubPackageLocal: async (hubLocalPackagePublishRequest: HubLocalPackagePublishRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'hubLocalPackagePublishRequest' is not null or undefined
+            assertParamExists('publishHubPackageLocal', 'hubLocalPackagePublishRequest', hubLocalPackagePublishRequest)
+            const localVarPath = `/api/v1/hub/packages/local`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(hubLocalPackagePublishRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Uninstall hub package from the local catalog
+         * @param {string} owner 
+         * @param {string} name 
+         * @param {HubPackageInstallRequest} [hubPackageInstallRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uninstallHubPackage: async (owner: string, name: string, hubPackageInstallRequest?: HubPackageInstallRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'owner' is not null or undefined
+            assertParamExists('uninstallHubPackage', 'owner', owner)
+            // verify required parameter 'name' is not null or undefined
+            assertParamExists('uninstallHubPackage', 'name', name)
+            const localVarPath = `/api/v1/hub/packages/{owner}/{name}/uninstall`
+                .replace(`{${"owner"}}`, encodeURIComponent(String(owner)))
+                .replace(`{${"name"}}`, encodeURIComponent(String(name)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(hubPackageInstallRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -339,13 +443,14 @@ export const HubPackagesApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Download hub package archive
-         * @param {string} packageName 
+         * @param {string} owner 
+         * @param {string} name 
          * @param {string} [version] Optional version to download
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async downloadHubPackageArchive(packageName: string, version?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<File>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadHubPackageArchive(packageName, version, options);
+        async downloadHubPackageArchive(owner: string, name: string, version?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<File>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadHubPackageArchive(owner, name, version, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['HubPackagesApi.downloadHubPackageArchive']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -353,12 +458,13 @@ export const HubPackagesApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Get hub package detail
-         * @param {string} packageName 
+         * @param {string} owner 
+         * @param {string} name 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getHubPackage(packageName: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HubPackageDetail>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getHubPackage(packageName, options);
+        async getHubPackage(owner: string, name: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HubPackageDetail>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getHubPackage(owner, name, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['HubPackagesApi.getHubPackage']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -366,13 +472,14 @@ export const HubPackagesApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Get hub package version detail
-         * @param {string} packageName 
+         * @param {string} owner 
+         * @param {string} name 
          * @param {string} version 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getHubPackageVersion(packageName: string, version: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HubPackageVersionDetail>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getHubPackageVersion(packageName, version, options);
+        async getHubPackageVersion(owner: string, name: string, version: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HubPackageVersionDetail>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getHubPackageVersion(owner, name, version, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['HubPackagesApi.getHubPackageVersion']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -380,13 +487,14 @@ export const HubPackagesApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Install hub package into the local catalog
-         * @param {string} packageName 
+         * @param {string} owner 
+         * @param {string} name 
          * @param {HubPackageInstallRequest} [hubPackageInstallRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async installHubPackage(packageName: string, hubPackageInstallRequest?: HubPackageInstallRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HubPackageInstallResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.installHubPackage(packageName, hubPackageInstallRequest, options);
+        async installHubPackage(owner: string, name: string, hubPackageInstallRequest?: HubPackageInstallRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HubPackageInstallResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.installHubPackage(owner, name, hubPackageInstallRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['HubPackagesApi.installHubPackage']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -425,6 +533,34 @@ export const HubPackagesApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['HubPackagesApi.publishHubPackage']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * 
+         * @summary Publish a local package to Hub
+         * @param {HubLocalPackagePublishRequest} hubLocalPackagePublishRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async publishHubPackageLocal(hubLocalPackagePublishRequest: HubLocalPackagePublishRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HubPackageVersionDetail>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.publishHubPackageLocal(hubLocalPackagePublishRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['HubPackagesApi.publishHubPackageLocal']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Uninstall hub package from the local catalog
+         * @param {string} owner 
+         * @param {string} name 
+         * @param {HubPackageInstallRequest} [hubPackageInstallRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async uninstallHubPackage(owner: string, name: string, hubPackageInstallRequest?: HubPackageInstallRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HubPackageInstallResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.uninstallHubPackage(owner, name, hubPackageInstallRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['HubPackagesApi.uninstallHubPackage']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -437,45 +573,49 @@ export const HubPackagesApiFactory = function (configuration?: Configuration, ba
         /**
          * 
          * @summary Download hub package archive
-         * @param {string} packageName 
+         * @param {string} owner 
+         * @param {string} name 
          * @param {string} [version] Optional version to download
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        downloadHubPackageArchive(packageName: string, version?: string, options?: RawAxiosRequestConfig): AxiosPromise<File> {
-            return localVarFp.downloadHubPackageArchive(packageName, version, options).then((request) => request(axios, basePath));
+        downloadHubPackageArchive(owner: string, name: string, version?: string, options?: RawAxiosRequestConfig): AxiosPromise<File> {
+            return localVarFp.downloadHubPackageArchive(owner, name, version, options).then((request) => request(axios, basePath));
         },
         /**
          * 
          * @summary Get hub package detail
-         * @param {string} packageName 
+         * @param {string} owner 
+         * @param {string} name 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getHubPackage(packageName: string, options?: RawAxiosRequestConfig): AxiosPromise<HubPackageDetail> {
-            return localVarFp.getHubPackage(packageName, options).then((request) => request(axios, basePath));
+        getHubPackage(owner: string, name: string, options?: RawAxiosRequestConfig): AxiosPromise<HubPackageDetail> {
+            return localVarFp.getHubPackage(owner, name, options).then((request) => request(axios, basePath));
         },
         /**
          * 
          * @summary Get hub package version detail
-         * @param {string} packageName 
+         * @param {string} owner 
+         * @param {string} name 
          * @param {string} version 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getHubPackageVersion(packageName: string, version: string, options?: RawAxiosRequestConfig): AxiosPromise<HubPackageVersionDetail> {
-            return localVarFp.getHubPackageVersion(packageName, version, options).then((request) => request(axios, basePath));
+        getHubPackageVersion(owner: string, name: string, version: string, options?: RawAxiosRequestConfig): AxiosPromise<HubPackageVersionDetail> {
+            return localVarFp.getHubPackageVersion(owner, name, version, options).then((request) => request(axios, basePath));
         },
         /**
          * 
          * @summary Install hub package into the local catalog
-         * @param {string} packageName 
+         * @param {string} owner 
+         * @param {string} name 
          * @param {HubPackageInstallRequest} [hubPackageInstallRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        installHubPackage(packageName: string, hubPackageInstallRequest?: HubPackageInstallRequest, options?: RawAxiosRequestConfig): AxiosPromise<HubPackageInstallResponse> {
-            return localVarFp.installHubPackage(packageName, hubPackageInstallRequest, options).then((request) => request(axios, basePath));
+        installHubPackage(owner: string, name: string, hubPackageInstallRequest?: HubPackageInstallRequest, options?: RawAxiosRequestConfig): AxiosPromise<HubPackageInstallResponse> {
+            return localVarFp.installHubPackage(owner, name, hubPackageInstallRequest, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -505,6 +645,28 @@ export const HubPackagesApiFactory = function (configuration?: Configuration, ba
         publishHubPackage(file: File, visibility?: HubVisibility, summary?: string, readme?: string, tags?: Array<string>, options?: RawAxiosRequestConfig): AxiosPromise<HubPackageVersionDetail> {
             return localVarFp.publishHubPackage(file, visibility, summary, readme, tags, options).then((request) => request(axios, basePath));
         },
+        /**
+         * 
+         * @summary Publish a local package to Hub
+         * @param {HubLocalPackagePublishRequest} hubLocalPackagePublishRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        publishHubPackageLocal(hubLocalPackagePublishRequest: HubLocalPackagePublishRequest, options?: RawAxiosRequestConfig): AxiosPromise<HubPackageVersionDetail> {
+            return localVarFp.publishHubPackageLocal(hubLocalPackagePublishRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Uninstall hub package from the local catalog
+         * @param {string} owner 
+         * @param {string} name 
+         * @param {HubPackageInstallRequest} [hubPackageInstallRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uninstallHubPackage(owner: string, name: string, hubPackageInstallRequest?: HubPackageInstallRequest, options?: RawAxiosRequestConfig): AxiosPromise<HubPackageInstallResponse> {
+            return localVarFp.uninstallHubPackage(owner, name, hubPackageInstallRequest, options).then((request) => request(axios, basePath));
+        },
     };
 };
 
@@ -515,48 +677,52 @@ export class HubPackagesApi extends BaseAPI {
     /**
      * 
      * @summary Download hub package archive
-     * @param {string} packageName 
+     * @param {string} owner 
+     * @param {string} name 
      * @param {string} [version] Optional version to download
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public downloadHubPackageArchive(packageName: string, version?: string, options?: RawAxiosRequestConfig) {
-        return HubPackagesApiFp(this.configuration).downloadHubPackageArchive(packageName, version, options).then((request) => request(this.axios, this.basePath));
+    public downloadHubPackageArchive(owner: string, name: string, version?: string, options?: RawAxiosRequestConfig) {
+        return HubPackagesApiFp(this.configuration).downloadHubPackageArchive(owner, name, version, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
      * 
      * @summary Get hub package detail
-     * @param {string} packageName 
+     * @param {string} owner 
+     * @param {string} name 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public getHubPackage(packageName: string, options?: RawAxiosRequestConfig) {
-        return HubPackagesApiFp(this.configuration).getHubPackage(packageName, options).then((request) => request(this.axios, this.basePath));
+    public getHubPackage(owner: string, name: string, options?: RawAxiosRequestConfig) {
+        return HubPackagesApiFp(this.configuration).getHubPackage(owner, name, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
      * 
      * @summary Get hub package version detail
-     * @param {string} packageName 
+     * @param {string} owner 
+     * @param {string} name 
      * @param {string} version 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public getHubPackageVersion(packageName: string, version: string, options?: RawAxiosRequestConfig) {
-        return HubPackagesApiFp(this.configuration).getHubPackageVersion(packageName, version, options).then((request) => request(this.axios, this.basePath));
+    public getHubPackageVersion(owner: string, name: string, version: string, options?: RawAxiosRequestConfig) {
+        return HubPackagesApiFp(this.configuration).getHubPackageVersion(owner, name, version, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
      * 
      * @summary Install hub package into the local catalog
-     * @param {string} packageName 
+     * @param {string} owner 
+     * @param {string} name 
      * @param {HubPackageInstallRequest} [hubPackageInstallRequest] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public installHubPackage(packageName: string, hubPackageInstallRequest?: HubPackageInstallRequest, options?: RawAxiosRequestConfig) {
-        return HubPackagesApiFp(this.configuration).installHubPackage(packageName, hubPackageInstallRequest, options).then((request) => request(this.axios, this.basePath));
+    public installHubPackage(owner: string, name: string, hubPackageInstallRequest?: HubPackageInstallRequest, options?: RawAxiosRequestConfig) {
+        return HubPackagesApiFp(this.configuration).installHubPackage(owner, name, hubPackageInstallRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -587,6 +753,30 @@ export class HubPackagesApi extends BaseAPI {
      */
     public publishHubPackage(file: File, visibility?: HubVisibility, summary?: string, readme?: string, tags?: Array<string>, options?: RawAxiosRequestConfig) {
         return HubPackagesApiFp(this.configuration).publishHubPackage(file, visibility, summary, readme, tags, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Publish a local package to Hub
+     * @param {HubLocalPackagePublishRequest} hubLocalPackagePublishRequest 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public publishHubPackageLocal(hubLocalPackagePublishRequest: HubLocalPackagePublishRequest, options?: RawAxiosRequestConfig) {
+        return HubPackagesApiFp(this.configuration).publishHubPackageLocal(hubLocalPackagePublishRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Uninstall hub package from the local catalog
+     * @param {string} owner 
+     * @param {string} name 
+     * @param {HubPackageInstallRequest} [hubPackageInstallRequest] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public uninstallHubPackage(owner: string, name: string, hubPackageInstallRequest?: HubPackageInstallRequest, options?: RawAxiosRequestConfig) {
+        return HubPackagesApiFp(this.configuration).uninstallHubPackage(owner, name, hubPackageInstallRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

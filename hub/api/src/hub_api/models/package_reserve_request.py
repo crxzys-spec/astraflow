@@ -20,7 +20,7 @@ import json
 
 
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from hub_api.models.visibility import Visibility
 try:
@@ -33,7 +33,8 @@ class PackageReserveRequest(BaseModel):
     PackageReserveRequest
     """ # noqa: E501
     visibility: Optional[Visibility] = None
-    __properties: ClassVar[List[str]] = ["visibility"]
+    owner_id: Optional[StrictStr] = Field(default=None, alias="ownerId")
+    __properties: ClassVar[List[str]] = ["visibility", "ownerId"]
 
     model_config = {
         "populate_by_name": True,
@@ -84,7 +85,8 @@ class PackageReserveRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "visibility": obj.get("visibility")
+            "visibility": obj.get("visibility"),
+            "ownerId": obj.get("ownerId")
         })
         return _obj
 

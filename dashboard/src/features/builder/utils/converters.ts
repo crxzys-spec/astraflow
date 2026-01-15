@@ -12,10 +12,10 @@ import type {
   WorkflowNodeState,
   WorkflowSubgraph,
   EdgeEndpoint,
-  NodeUI,
+  NodeUI as ApiNodeUI,
   UIBinding,
-  UIPort,
-  UIWidget,
+  UIPort as ApiUIPort,
+  UIWidget as ApiUIWidget,
   ManifestBinding,
   ManifestNodeUI,
   ManifestPort,
@@ -30,13 +30,21 @@ import type {
   WorkflowNodeDraft,
   WorkflowPaletteNode,
   XYPosition,
+  LocalizedNodeUI,
+  LocalizedUIPort,
+  LocalizedUIWidget,
 } from "../types.ts";
 import type { ContainerSettings } from "../types.ts";
 import { CONTAINER_PARAM_KEY } from "../constants.ts";
 import { generateId, isValidUuid } from "./id.ts";
 import { buildDefaultsFromSchema } from "./schemaDefaults.ts";
+import { coerceLocalizedTextMap, type LocalizedText } from "../../../lib/manifestText";
 
 import type { JsonSchema } from "./schemaDefaults.ts";
+
+type NodeUI = LocalizedNodeUI;
+type UIPort = LocalizedUIPort;
+type UIWidget = LocalizedUIWidget;
 
 const defaultNodeStatus: WorkflowNodeStatusEnum = WorkflowNodeStatusEnum.Draft;
 const defaultMiddlewareStatus: WorkflowMiddlewareStatusEnum = WorkflowMiddlewareStatusEnum.Draft;
@@ -62,14 +70,41 @@ const normalizeMiddlewareStatus = (status?: string): WorkflowMiddlewareStatusEnu
 };
 
 const clone = <T>(value: T): T =>
-
   value === undefined ? value : (JSON.parse(JSON.stringify(value)) as T);
 
-
-
 const coerceOptional = <T>(value: T | null | undefined): T | undefined =>
-
   value === null || value === undefined ? undefined : value;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const coerceLocalizedRequired = (
+  value: LocalizedText | null | undefined,
+  fallback: string,
+): LocalizedText => coerceLocalizedTextMap(value, fallback) ?? { default: fallback };
+
+const coerceLocalizedOptional = (
+  value: LocalizedText | null | undefined,
+): LocalizedText | undefined => coerceLocalizedTextMap(value);
+
+const LEGACY_WIDGET_LABEL_I18N_KEY = "__builderWidgetLabelI18n";
+
+const extractLegacyWidgetLabelMap = (
+  options: ApiUIWidget["options"] | null | undefined,
+): { labelMap?: LocalizedText; options?: ApiUIWidget["options"] } => {
+  const normalizedOptions = coerceOptional(options);
+  if (!isPlainObject(normalizedOptions)) {
+    return { options: normalizedOptions };
+  }
+  const candidate = normalizedOptions[LEGACY_WIDGET_LABEL_I18N_KEY] as LocalizedText | undefined;
+  const labelMap = coerceLocalizedOptional(candidate);
+  if (!labelMap) {
+    return { options: normalizedOptions };
+  }
+  const { [LEGACY_WIDGET_LABEL_I18N_KEY]: _removed, ...rest } = normalizedOptions;
+  const nextOptions = Object.keys(rest).length ? rest : undefined;
+  return { labelMap, options: nextOptions };
+};
 
 
 
@@ -162,102 +197,100 @@ const writeContainerParameters = (
 
 
 
-const mapPorts = (ports?: UIPort[] | null): UIPort[] | undefined => {
-
+const mapPorts = (ports?: LocalizedUIPort[] | null): ApiUIPort[] | undefined => {
   if (!ports) {
-
     return undefined;
-
   }
-
   return ports.map((port) => ({
-
     key: port.key,
-
-    label: port.label,
-
+    label: coerceLocalizedRequired(port.label, port.key),
     binding: normalizeBinding(port.binding),
-
   }));
-
 };
 
-
-
-const mapWidgets = (widgets?: UIWidget[] | null): UIWidget[] | undefined => {
-
+const mapWidgets = (widgets?: LocalizedUIWidget[] | null): ApiUIWidget[] | undefined => {
   if (!widgets) {
-
     return undefined;
-
   }
-
   return widgets.map((widget) => {
-
-    const serialized: UIWidget = {
-
+    const serialized: ApiUIWidget = {
       key: widget.key,
-
-      label: widget.label,
-
+      label: coerceLocalizedRequired(widget.label, widget.key),
       component: widget.component,
-
       binding: normalizeBinding(widget.binding),
-
     };
-
     const options = coerceOptional(widget.options);
-
     if (options !== undefined) {
-
       serialized.options = options;
-
     }
-
     return serialized;
-
   });
-
 };
 
 
 
 const sanitizeNodeUi = (ui?: NodeUI | null): NodeUI | undefined => {
-
   if (!ui) {
-
     return undefined;
-
   }
+
+  const normalizePorts = (ports?: UIPort[]) =>
+    ports?.map((port) => ({
+      ...port,
+      label: coerceLocalizedRequired(port.label, port.key),
+      binding: normalizeBinding(port.binding),
+    }));
+
+  const normalizeWidgets = (widgets?: UIWidget[]) =>
+    widgets?.map((widget) => {
+      const { labelMap, options: storedOptions } = extractLegacyWidgetLabelMap(widget.options);
+      const sanitized: UIWidget = {
+        ...widget,
+        label: coerceLocalizedRequired(labelMap ?? widget.label, widget.key),
+        binding: normalizeBinding(widget.binding),
+      };
+      const options = coerceOptional(storedOptions);
+      if (options !== undefined) {
+        sanitized.options = options;
+      }
+      return sanitized;
+    });
 
   const sanitized: NodeUI = {};
-
-  const inputs = mapPorts(ui.inputPorts);
-
+  const inputs = normalizePorts(ui.inputPorts);
   if (inputs !== undefined) {
-
     sanitized.inputPorts = inputs;
-
   }
-
-  const outputs = mapPorts(ui.outputPorts);
-
+  const outputs = normalizePorts(ui.outputPorts);
   if (outputs !== undefined) {
-
     sanitized.outputPorts = outputs;
-
   }
-
-  const widgets = mapWidgets(ui.widgets);
-
+  const widgets = normalizeWidgets(ui.widgets);
   if (widgets !== undefined) {
-
     sanitized.widgets = widgets;
-
   }
-
   return sanitized;
+};
 
+const serializeNodeUi = (ui?: NodeUI | null): ApiNodeUI | undefined => {
+  const sanitized = sanitizeNodeUi(ui);
+  if (!sanitized) {
+    return undefined;
+  }
+  const serialized: ApiNodeUI = {};
+  const inputs = mapPorts(sanitized.inputPorts);
+  if (inputs !== undefined) {
+    serialized.inputPorts = inputs;
+  }
+  const outputs = mapPorts(sanitized.outputPorts);
+  if (outputs !== undefined) {
+    serialized.outputPorts = outputs;
+  }
+  const widgets = mapWidgets(sanitized.widgets);
+  if (widgets !== undefined) {
+    serialized.widgets = widgets;
+  }
+  return serialized;
 };
 
 
@@ -267,18 +300,13 @@ const sanitizeMetadata = (
   fallbackName: string,
 ): WorkflowMetadata => {
 
-  const safeName = metadata?.name ?? fallbackName;
-
   const sanitized: WorkflowMetadata = {
-
-    name: safeName,
-
+    name: coerceLocalizedRequired(metadata?.name, fallbackName),
   };
 
-  if (metadata?.description !== undefined && metadata.description !== null) {
-
-    sanitized.description = metadata.description;
-
+  const description = coerceLocalizedOptional(metadata?.description);
+  if (description !== undefined) {
+    sanitized.description = description;
   }
 
   const tags = sanitizeTags(metadata?.tags);
@@ -290,27 +318,19 @@ const sanitizeMetadata = (
   }
 
   if (metadata?.environment !== undefined && metadata.environment !== null) {
-
     sanitized.environment = metadata.environment;
-
   }
 
   const namespaceValue =
-
     metadata?.namespace && metadata.namespace.trim().length > 0
-
       ? metadata.namespace.trim()
-
       : "default";
 
   sanitized.namespace = namespaceValue;
 
   const originValue =
-
     metadata?.originId && metadata.originId.trim().length > 0
-
       ? metadata.originId.trim()
-
       : fallbackName;
 
   sanitized.originId = originValue;
@@ -380,45 +400,27 @@ const coerceBinding = (binding?: ManifestBinding): UIBinding => {
 
 
 const coercePorts = (ports?: ManifestPort[]): UIPort[] | undefined =>
-
   ports?.map((port) => ({
-
     key: port.key,
-
-    label: port.label,
-
+    label: coerceLocalizedRequired(port.label, port.key),
     binding: coerceBinding(port.binding),
-
   }));
 
 
 
 const coerceWidgets = (widgets?: ManifestWidget[]): UIWidget[] | undefined =>
-
   widgets?.map((widget) => {
-
     const coerced: UIWidget = {
-
       key: widget.key,
-
-      label: widget.label,
-
+      label: coerceLocalizedRequired(widget.label, widget.key),
       component: widget.component,
-
       binding: coerceBinding(widget.binding),
-
     };
-
     const options = coerceOptional(widget.options);
-
     if (options !== undefined) {
-
       coerced.options = options as UIWidget["options"];
-
     }
-
     return coerced;
-
   });
 
 
@@ -498,12 +500,12 @@ const middlewareToDraft = (middleware: WorkflowMiddleware): WorkflowMiddlewareDr
   const mwId = normalizeMiddlewareId(middleware.id as string | undefined);
   const draft: WorkflowMiddlewareDraft = {
     id: mwId,
-    label: middleware.label,
+    label: coerceLocalizedRequired(middleware.label, middleware.id ?? mwId),
     role: "middleware",
     nodeKind: middleware.type,
     status: normalizeMiddlewareStatus(middleware.status),
-    category: middleware.category ?? "uncategorised",
-    description: coerceOptional(middleware.description),
+    category: coerceLocalizedRequired(middleware.category, "uncategorised"),
+    description: coerceLocalizedOptional(middleware.description),
     tags: sanitizeTags(middleware.tags),
     packageName: middleware.package?.name,
     packageVersion: middleware.package?.version,
@@ -543,13 +545,13 @@ const middlewareDraftToDefinition = (middleware: WorkflowMiddlewareDraft): Workf
       version: middleware.packageVersion ?? "",
     },
     status: normalizeMiddlewareStatus(middleware.status),
-    category: middleware.category ?? "uncategorised",
-    label: middleware.label,
+    category: coerceLocalizedRequired(middleware.category, "uncategorised"),
+    label: coerceLocalizedRequired(middleware.label, middleware.id ?? mwId),
     parameters: clone(params ?? defaultParams),
     results: clone(results ?? defaultResults),
-    ui: sanitizeNodeUi(middleware.ui),
+    ui: serializeNodeUi(middleware.ui),
   };
-  const description = coerceOptional(middleware.description);
+  const description = coerceLocalizedOptional(middleware.description);
   if (description !== undefined) {
     payload.description = description;
   }
@@ -603,12 +605,12 @@ export const workflowDefinitionToDraft = (
         nodeDefaultsFromSchema(node.schema);
       const draft: WorkflowNodeDraft = {
         id: node.id,
-        label: node.label,
+        label: coerceLocalizedRequired(node.label, node.type ?? node.id),
         role: (node as { role?: string }).role as WorkflowNodeDraft["role"],
         nodeKind: node.type,
         status: normalizeNodeStatus(node.status),
-        category: node.category ?? "uncategorised",
-        description: coerceOptional(node.description),
+        category: coerceLocalizedRequired(node.category, "uncategorised"),
+        description: coerceLocalizedOptional(node.description),
         tags: sanitizeTags(node.tags),
         packageName: node.package?.name,
         packageVersion: node.package?.version,
@@ -717,9 +719,9 @@ export const workflowDraftToDefinition = (
 
         status: normalizeNodeStatus(node.status),
 
-        category: node.category ?? "uncategorised",
+        category: coerceLocalizedRequired(node.category, "uncategorised"),
 
-        label: node.label,
+        label: coerceLocalizedRequired(node.label, node.nodeKind ?? node.id),
 
         position: { x: node.position.x, y: node.position.y },
         layout:
@@ -731,7 +733,7 @@ export const workflowDraftToDefinition = (
 
         results: clone(node.results),
 
-        ui: ensureInputGeneratorUi(node.nodeKind, node.ui),
+        ui: serializeNodeUi(ensureInputGeneratorUi(node.nodeKind, node.ui)),
 
         middlewares:
           node.middlewares && node.middlewares.length
@@ -740,7 +742,7 @@ export const workflowDraftToDefinition = (
 
       };
 
-      const description = coerceOptional(node.description);
+      const description = coerceLocalizedOptional(node.description);
 
       if (description !== undefined) {
 
@@ -835,20 +837,20 @@ export const createNodeDraftFromTemplate = (
 
 
 
-  return {
+    return {
 
-    id: nodeId,
+      id: nodeId,
 
-    label: manifestNode.label,
+      label: coerceLocalizedRequired(manifestNode.label, manifestNode.type ?? nodeId),
     role: (manifestNode as { role?: "node" | "container" | "middleware" }).role,
 
     nodeKind: manifestNode.type,
 
     status: normalizeNodeStatus(manifestNode.status),
 
-    category: manifestNode.category,
+      category: coerceLocalizedRequired(manifestNode.category, "uncategorised"),
 
-    description: coerceOptional(manifestNode.description),
+      description: coerceLocalizedOptional(manifestNode.description),
 
     tags: sanitizeTags(manifestNode.tags),
 

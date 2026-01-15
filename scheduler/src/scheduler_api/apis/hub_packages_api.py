@@ -29,6 +29,7 @@ from pydantic import Field, StrictBytes, StrictStr
 from typing import List, Optional, Tuple, Union
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
+from scheduler_api.models.hub_local_package_publish_request import HubLocalPackagePublishRequest
 from scheduler_api.models.hub_package_detail import HubPackageDetail
 from scheduler_api.models.hub_package_install_request import HubPackageInstallRequest
 from scheduler_api.models.hub_package_install_response import HubPackageInstallResponse
@@ -96,8 +97,32 @@ async def publish_hub_package(
     return await BaseHubPackagesApi.subclasses[0]().publish_hub_package(file, visibility, summary, readme, tags)
 
 
+@router.post(
+    "/api/v1/hub/packages/local",
+    responses={
+        201: {"model": HubPackageVersionDetail, "description": "Created"},
+        400: {"model": Error, "description": "Invalid input"},
+        401: {"model": Error, "description": "Authentication required or credentials invalid"},
+        403: {"model": Error, "description": "Authenticated but lacks required permissions"},
+        409: {"model": Error, "description": "Conflict (e.g., idempotency-key reuse with different body)"},
+    },
+    tags=["HubPackages"],
+    summary="Publish a local package to Hub",
+    response_model_by_alias=True,
+)
+async def publish_hub_package_local(
+    hub_local_package_publish_request: HubLocalPackagePublishRequest = Body(None, description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> HubPackageVersionDetail:
+    if not BaseHubPackagesApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseHubPackagesApi.subclasses[0]().publish_hub_package_local(hub_local_package_publish_request)
+
+
 @router.get(
-    "/api/v1/hub/packages/{packageName}",
+    "/api/v1/hub/packages/{owner}/{name}",
     responses={
         200: {"model": HubPackageDetail, "description": "OK"},
         404: {"model": Error, "description": "Resource not found"},
@@ -107,18 +132,19 @@ async def publish_hub_package(
     response_model_by_alias=True,
 )
 async def get_hub_package(
-    packageName: StrictStr = Path(..., description=""),
+    owner: StrictStr = Path(..., description=""),
+    name: StrictStr = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
     ),
 ) -> HubPackageDetail:
     if not BaseHubPackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseHubPackagesApi.subclasses[0]().get_hub_package(packageName)
+    return await BaseHubPackagesApi.subclasses[0]().get_hub_package(owner, name)
 
 
 @router.get(
-    "/api/v1/hub/packages/{packageName}/versions/{version}",
+    "/api/v1/hub/packages/{owner}/{name}/versions/{version}",
     responses={
         200: {"model": HubPackageVersionDetail, "description": "OK"},
         404: {"model": Error, "description": "Resource not found"},
@@ -128,7 +154,8 @@ async def get_hub_package(
     response_model_by_alias=True,
 )
 async def get_hub_package_version(
-    packageName: StrictStr = Path(..., description=""),
+    owner: StrictStr = Path(..., description=""),
+    name: StrictStr = Path(..., description=""),
     version: StrictStr = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -136,11 +163,11 @@ async def get_hub_package_version(
 ) -> HubPackageVersionDetail:
     if not BaseHubPackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseHubPackagesApi.subclasses[0]().get_hub_package_version(packageName, version)
+    return await BaseHubPackagesApi.subclasses[0]().get_hub_package_version(owner, name, version)
 
 
 @router.get(
-    "/api/v1/hub/packages/{packageName}/archive",
+    "/api/v1/hub/packages/{owner}/{name}/archive",
     responses={
         200: {"model": Any, "description": "OK"},
         404: {"model": Error, "description": "Resource not found"},
@@ -150,7 +177,8 @@ async def get_hub_package_version(
     response_model_by_alias=True,
 )
 async def download_hub_package_archive(
-    packageName: StrictStr = Path(..., description=""),
+    owner: StrictStr = Path(..., description=""),
+    name: StrictStr = Path(..., description=""),
     version: Annotated[Optional[StrictStr], Field(description="Optional version to download")] = Query(None, description="Optional version to download", alias="version"),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -158,11 +186,11 @@ async def download_hub_package_archive(
 ) -> Any:
     if not BaseHubPackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseHubPackagesApi.subclasses[0]().download_hub_package_archive(packageName, version)
+    return await BaseHubPackagesApi.subclasses[0]().download_hub_package_archive(owner, name, version)
 
 
 @router.post(
-    "/api/v1/hub/packages/{packageName}/install",
+    "/api/v1/hub/packages/{owner}/{name}/install",
     responses={
         200: {"model": HubPackageInstallResponse, "description": "OK"},
         404: {"model": Error, "description": "Resource not found"},
@@ -172,7 +200,8 @@ async def download_hub_package_archive(
     response_model_by_alias=True,
 )
 async def install_hub_package(
-    packageName: StrictStr = Path(..., description=""),
+    owner: StrictStr = Path(..., description=""),
+    name: StrictStr = Path(..., description=""),
     hub_package_install_request: Optional[HubPackageInstallRequest] = Body(None, description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth
@@ -180,4 +209,27 @@ async def install_hub_package(
 ) -> HubPackageInstallResponse:
     if not BaseHubPackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BaseHubPackagesApi.subclasses[0]().install_hub_package(packageName, hub_package_install_request)
+    return await BaseHubPackagesApi.subclasses[0]().install_hub_package(owner, name, hub_package_install_request)
+
+
+@router.post(
+    "/api/v1/hub/packages/{owner}/{name}/uninstall",
+    responses={
+        200: {"model": HubPackageInstallResponse, "description": "OK"},
+        404: {"model": Error, "description": "Resource not found"},
+    },
+    tags=["HubPackages"],
+    summary="Uninstall hub package from the local catalog",
+    response_model_by_alias=True,
+)
+async def uninstall_hub_package(
+    owner: StrictStr = Path(..., description=""),
+    name: StrictStr = Path(..., description=""),
+    hub_package_install_request: Optional[HubPackageInstallRequest] = Body(None, description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth
+    ),
+) -> HubPackageInstallResponse:
+    if not BaseHubPackagesApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseHubPackagesApi.subclasses[0]().uninstall_hub_package(owner, name, hub_package_install_request)

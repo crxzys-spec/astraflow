@@ -20,9 +20,10 @@ import json
 
 
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
+from scheduler_api.models.localized_text import LocalizedText
 from scheduler_api.models.manifest_adapter import ManifestAdapter
 from scheduler_api.models.manifest_hooks import ManifestHooks
 from scheduler_api.models.manifest_node import ManifestNode
@@ -42,7 +43,8 @@ class PackageManifest(BaseModel):
     schema_version: Annotated[str, Field(strict=True)] = Field(description="Manifest schema version (semver).", alias="schemaVersion")
     name: Annotated[str, Field(strict=True)] = Field(description="Package identifier (lowercase with dots/underscores).")
     version: Annotated[str, Field(strict=True)] = Field(description="Package version in semver format.")
-    description: StrictStr = Field(description="Short summary of the package.")
+    display_name: Optional[LocalizedText] = Field(default=None, alias="displayName")
+    description: LocalizedText
     adapters: Annotated[List[ManifestAdapter], Field(min_length=1)]
     python: ManifestPythonConfig
     nodes: Annotated[List[ManifestNode], Field(min_length=1)]
@@ -50,7 +52,7 @@ class PackageManifest(BaseModel):
     resources: Optional[List[ManifestResource]] = None
     hooks: Optional[ManifestHooks] = None
     signature: Optional[ManifestSignature] = None
-    __properties: ClassVar[List[str]] = ["schemaVersion", "name", "version", "description", "adapters", "python", "nodes", "requirements", "resources", "hooks", "signature"]
+    __properties: ClassVar[List[str]] = ["schemaVersion", "name", "version", "displayName", "description", "adapters", "python", "nodes", "requirements", "resources", "hooks", "signature"]
 
     @field_validator('schema_version')
     def schema_version_validate_regular_expression(cls, value):
@@ -110,6 +112,12 @@ class PackageManifest(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of display_name
+        if self.display_name:
+            _dict['displayName'] = self.display_name.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of description
+        if self.description:
+            _dict['description'] = self.description.to_dict()
         # override the default output from pydantic by calling `to_dict()` of each item in adapters (list)
         _items = []
         if self.adapters:
@@ -158,7 +166,8 @@ class PackageManifest(BaseModel):
             "schemaVersion": obj.get("schemaVersion"),
             "name": obj.get("name"),
             "version": obj.get("version"),
-            "description": obj.get("description"),
+            "displayName": LocalizedText.from_dict(obj.get("displayName")) if obj.get("displayName") is not None else None,
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "adapters": [ManifestAdapter.from_dict(_item) for _item in obj.get("adapters")] if obj.get("adapters") is not None else None,
             "python": ManifestPythonConfig.from_dict(obj.get("python")) if obj.get("python") is not None else None,
             "nodes": [ManifestNode.from_dict(_item) for _item in obj.get("nodes")] if obj.get("nodes") is not None else None,

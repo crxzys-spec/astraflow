@@ -1,0 +1,606 @@
+{
+  "nav": {
+    "workflows": "Workflows",
+    "hubLibrary": "Hub Library",
+    "packageCenter": "Package Center",
+    "builder": "Builder",
+    "localWorkflows": "Local Workflows"
+  },
+  "auth": {
+    "personalPanel": "Personal Panel",
+    "myPackages": "My Packages",
+    "adminConsole": "Admin Console",
+    "logout": "Logout",
+    "checkingSession": "Checking session...",
+    "adminAccessRequired": "Admin Access Required",
+    "adminAccessHint": "You need the admin role to view this section."
+  },
+  "admin": {
+    "title": "Admin",
+    "subtitle": "Manage accounts & compliance",
+    "users": "Users",
+    "auditLog": "Audit Log",
+    "workers": "Workers",
+    "eyebrow": "Administration",
+    "roles": {
+      "admin": {
+        "label": "Admin",
+        "helper": "Full access to scheduler and user management."
+      },
+      "editor": {
+        "label": "Workflow editor",
+        "helper": "Create and update workflows, start runs."
+      },
+      "viewer": {
+        "label": "Workflow viewer",
+        "helper": "Read-only access to workflow definitions."
+      },
+      "runViewer": {
+        "label": "Run viewer",
+        "helper": "Inspect run telemetry without editing workflows."
+      }
+    },
+    "usersPage": {
+      "accessDeniedTitle": "User Management",
+      "accessDeniedMessage": "Only administrators can provision accounts. Contact your AstraFlow administrator to request access.",
+      "title": "User Management",
+      "subtitle": "Manage accounts, roles, and passwords across the platform.",
+      "actions": {
+        "createUser": "Create User",
+        "refreshing": "Refreshing...",
+        "manage": "Manage"
+      },
+      "table": {
+        "username": "Username",
+        "displayName": "Display name",
+        "roles": "Roles",
+        "status": "Status",
+        "loading": "Loading users...",
+        "empty": "No users found. Use \"Create User\" to add one."
+      },
+      "roles": {
+        "none": "None"
+      },
+      "status": {
+        "active": "Active",
+        "disabled": "Disabled"
+      },
+      "messages": {
+        "loadError": "Unable to load users.",
+        "createSuccess": "User '{{username}}' created successfully.",
+        "createError": "Unable to create user.",
+        "passwordRequired": "New password is required.",
+        "fallbackUser": "user",
+        "passwordUpdated": "Password updated for '{{username}}'.",
+        "passwordResetError": "Unable to reset password.",
+        "roleAssigned": "Role assigned successfully.",
+        "roleAssignError": "Unable to assign role.",
+        "roleRemoved": "Role removed successfully.",
+        "roleRemoveError": "Unable to remove role.",
+        "statusUpdated": "Account status updated.",
+        "statusUpdateError": "Unable to update status."
+      },
+      "createModal": {
+        "title": "Create User",
+        "username": "Username",
+        "usernamePlaceholder": "username",
+        "displayName": "Display name",
+        "displayNamePlaceholder": "Display name",
+        "password": "Temporary password",
+        "passwordPlaceholder": "********",
+        "rolesLabel": "Initial roles (optional)",
+        "creating": "Creating..."
+      },
+      "manageModal": {
+        "title": "Manage {{name}}",
+        "summary": "Username: {{username}} - Roles: {{roles}}",
+        "statusLabel": "Status:",
+        "disableAccount": "Disable Account",
+        "enableAccount": "Enable Account",
+        "resetPassword": "Reset password",
+        "newPasswordPlaceholder": "New password",
+        "updating": "Updating...",
+        "updatePassword": "Update Password"
+      }
+    },
+    "auditLogPage": {
+      "accessDeniedTitle": "Audit Events",
+      "accessDeniedMessage": "Only administrators can view the audit trail. Contact your AstraFlow admin to request access.",
+      "title": "Audit Events",
+      "subtitle": "Latest privileged operations captured by the scheduler.",
+      "filters": {
+        "action": "Action",
+        "actorId": "Actor ID",
+        "targetType": "Target Type",
+        "clear": "Clear",
+        "apply": "Apply Filters"
+      },
+      "messages": {
+        "loadError": "Unable to load audit events: {{message}}",
+        "loading": "Loading audit events...",
+        "emptyFiltered": "No audit events match the selected filters.",
+        "empty": "No audit events recorded yet.",
+        "loadingMore": "Loading...",
+        "loadMore": "Load More"
+      },
+      "table": {
+        "time": "Time",
+        "action": "Action",
+        "actor": "Actor",
+        "target": "Target",
+        "metadata": "Metadata"
+      }
+    },
+    "workersPage": {
+      "accessDeniedTitle": "Worker Fleet",
+      "accessDeniedMessage": "Only administrators can view connected workers.",
+      "title": "Worker Fleet",
+      "subtitle": "Inspect connection health, queues, and installed packages.",
+      "actions": {
+        "clearFilters": "Clear Filters",
+        "refreshing": "Refreshing..."
+      },
+      "stats": {
+        "total": "Total",
+        "connected": "Connected",
+        "registered": "Registered",
+        "healthy": "Healthy"
+      },
+      "filters": {
+        "search": "Search",
+        "searchPlaceholder": "worker name, host, tenant",
+        "queue": "Queue",
+        "queuePlaceholder": "default",
+        "connection": "Connection",
+        "health": "Health",
+        "package": "Package",
+        "packagePlaceholder": "package name",
+        "packageStatus": "Package Status",
+        "all": "All",
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "healthy": "Healthy",
+        "unhealthy": "Unhealthy or unknown"
+      },
+      "packageStatus": {
+        "installed": "Installed",
+        "installing": "Installing",
+        "uninstalling": "Uninstalling",
+        "removed": "Removed",
+        "failed": "Failed",
+        "missing": "Missing",
+        "unknown": "Unknown"
+      },
+      "messages": {
+        "loadError": "Unable to load workers: {{message}}",
+        "loading": "Loading workers...",
+        "empty": "No workers match the current filters.",
+        "noQueues": "No queues",
+        "noPackages": "No packages"
+      },
+      "values": {
+        "unknownHost": "unknown host",
+        "unknownVersion": "unknown version",
+        "defaultTenant": "default",
+        "unknownInstance": "instance unknown"
+      },
+      "status": {
+        "connected": "Connected",
+        "offline": "Offline",
+        "registered": "Registered",
+        "unregistered": "Unregistered",
+        "healthy": "Healthy",
+        "unhealthy": "Unhealthy",
+        "unknown": "Unknown"
+      },
+      "table": {
+        "worker": "Worker",
+        "status": "Status",
+        "heartbeat": "Heartbeat",
+        "queues": "Queues",
+        "packages": "Packages",
+        "metrics": "Metrics"
+      },
+      "metrics": {
+        "cpu": "CPU",
+        "mem": "Mem",
+        "disk": "Disk",
+        "inflight": "Inflight",
+        "latency": "Latency"
+      },
+      "age": {
+        "justNow": "just now",
+        "seconds": "{{count}}s ago",
+        "minutes": "{{count}}m ago",
+        "hours": "{{count}}h ago",
+        "days": "{{count}}d ago"
+      }
+    }
+  },
+  "account": {
+    "kicker": "Personal Console",
+    "title": "Account",
+    "subtitle": "Manage your profile and personal resources.",
+    "stats": {
+      "resources": "Resources",
+      "packages": "Packages",
+      "roles": "Roles"
+    },
+    "menu": {
+      "profile": "Personal Panel",
+      "resources": "Resource Center",
+      "packages": "Package Vault"
+    },
+    "profile": {
+      "eyebrow": "Profile",
+      "title": "Identity & Access",
+      "subtitle": "Update your display name and review the access assigned to your account.",
+      "displayName": "Display name",
+      "username": "Username",
+      "userId": "User id",
+      "roles": "Roles",
+      "fallbackDisplayName": "AstraFlow User",
+      "fallbackUsername": "unknown",
+      "fallbackUserId": "-",
+      "status": {
+        "label": "Status",
+        "active": "Active",
+        "disabled": "Disabled",
+        "checking": "Checking..."
+      },
+      "actions": {
+        "save": "Save changes",
+        "saving": "Saving..."
+      },
+      "messages": {
+        "loadError": "Unable to load profile.",
+        "displayNameRequired": "Display name is required.",
+        "updated": "Profile updated.",
+        "updateError": "Unable to update profile.",
+        "empty": "No profile loaded."
+      }
+    },
+    "resources": {
+      "eyebrow": "Resources",
+      "title": "Resource Library",
+      "subtitle": "Upload files, manage key-value assets, and preview stored artifacts.",
+      "upload": {
+        "title": "Upload files",
+        "subtitle": "Drag & drop or click to browse.",
+        "provider": "Provider",
+        "defaultProvider": "Default provider",
+        "uploading": "Uploading...",
+        "status": {
+          "queued": "Queued",
+          "failed": "Failed"
+        },
+        "remove": "Remove"
+      },
+      "kv": {
+        "title": "Key-value resource",
+        "subtitle": "Store secrets and configuration pairs without uploading files.",
+        "resourceName": "Resource name",
+        "resourceNamePlaceholder": "key-values.json",
+        "key": "Key",
+        "value": "Value",
+        "keyPrimaryPlaceholder": "OPENAI_API_KEY",
+        "keyPlaceholder": "KEY",
+        "valuePlaceholder": "Value",
+        "removeRow": "Remove",
+        "addRow": "Add row",
+        "create": "Create resource",
+        "hint": "Uses the provider selected above."
+      },
+      "filters": {
+        "search": "Search",
+        "searchPlaceholder": "filename or id",
+        "provider": "Provider",
+        "allProviders": "All providers",
+        "type": "Type",
+        "allTypes": "All types"
+      },
+      "actions": {
+        "refreshing": "Refreshing...",
+        "download": "Download",
+        "delete": "Delete"
+      },
+      "messages": {
+        "loadError": "Unable to load resources.",
+        "deleteConfirm": "Delete this resource?",
+        "deleteError": "Unable to delete resource.",
+        "uploadFailed": "Upload failed.",
+        "duplicateKeys": "Duplicate keys: {{keys}}",
+        "kvMissing": "Add at least one key-value pair.",
+        "previewFailed": "Failed to load preview.",
+        "loading": "Loading resources...",
+        "empty": "No resources found."
+      },
+      "table": {
+        "file": "File",
+        "resourceId": "Resource Id",
+        "provider": "Provider",
+        "type": "Type",
+        "size": "Size",
+        "created": "Created",
+        "actions": "Actions"
+      },
+      "preview": {
+        "loading": "Loading",
+        "show": "Preview",
+        "hide": "Hide",
+        "loadingDetail": "Loading preview...",
+        "altFallback": "preview"
+      }
+    },
+    "packages": {
+      "eyebrow": "Packages",
+      "title": "Package Vault",
+      "subtitle": "Manage secrets and permissions required by your packages.",
+      "listTitle": "Packages",
+      "listSubtitle": "Select a package to manage access.",
+      "actions": {
+        "refreshing": "Refreshing..."
+      },
+      "messages": {
+        "loadError": "Unable to load packages.",
+        "requirementsError": "Unable to load package requirements.",
+        "loading": "Loading packages...",
+        "empty": "No packages found.",
+        "selectPackage": "Select a package from the list to configure its access.",
+        "loadingRequirements": "Loading package requirements...",
+        "noRequirements": "This package does not request vault entries or permissions."
+      },
+      "latest": "latest",
+      "requirement": {
+        "required": "Required",
+        "optional": "Optional"
+      },
+      "vault": {
+        "title": "Vault entries",
+        "subtitle": "Secrets and config stored per package.",
+        "actions": {
+          "save": "Save",
+          "saving": "Saving...",
+          "remove": "Remove"
+        },
+        "jsonPlaceholder": "{}",
+        "messages": {
+          "loadError": "Unable to load vault entries.",
+          "missingRequired": "Missing required entries: {{keys}}",
+          "updated": "Vault entries updated.",
+          "updateError": "Unable to update vault.",
+          "deleted": "Vault entry deleted.",
+          "deleteError": "Unable to delete vault entry."
+        }
+      },
+      "permissions": {
+        "title": "Permissions",
+        "subtitle": "Grant packages access to resource types.",
+        "defaultAction": "read",
+        "actionsLabel": "Actions: {{actions}}",
+        "actions": {
+          "grant": "Grant",
+          "revoke": "Revoke"
+        },
+        "messages": {
+          "loadError": "Unable to load permissions.",
+          "granted": "Permission granted.",
+          "grantError": "Unable to grant permission.",
+          "revoked": "Permission revoked.",
+          "revokeError": "Unable to revoke permission."
+        }
+      }
+    }
+  },
+  "login": {
+    "loadingSession": "Loading session...",
+    "welcomeBack": "Welcome back",
+    "subtitle": "Sign in with your AstraFlow account",
+    "username": "Username",
+    "password": "Password",
+    "signIn": "Sign In",
+    "signingIn": "Signing in...",
+    "loginFailed": "Login failed",
+    "needAccount": "Need an account? Ask your AstraFlow administrator.",
+    "devTokenDetected": "Dev token detected - login will persist your JWT."
+  },
+  "common": {
+    "create": "Create",
+    "openHub": "Open Hub",
+    "retry": "Retry",
+    "dismiss": "Dismiss",
+    "id": "ID",
+    "local": "Local",
+    "unassigned": "Unassigned",
+    "language": "Language",
+    "refresh": "Refresh",
+    "pageNotFound": "Page not found.",
+    "unknownError": "Unknown error"
+  },
+  "workflows": {
+    "libraryTitle": "Workflow Library",
+    "librarySubtitle": "Manage local workflows and open them in the interactive builder.",
+    "stats": {
+      "totalLabel": "Total",
+      "totalSublabel": "Local workflows",
+      "ownersLabel": "Owners",
+      "ownersSublabel": "Maintainers",
+      "tagsLabel": "Tags",
+      "tagsSublabel": "Categories"
+    },
+    "hubHint": "Looking for shared workflows?",
+    "browseHub": "Browse on Hub",
+    "loading": "Loading local workflows...",
+    "loadFailed": "Unable to load workflows: {{message}}",
+    "empty": "No local workflows found yet.",
+    "snapshotPending": "Snapshot pending",
+    "snapshotHint": "Run the workflow to capture a preview.",
+    "localWorkflow": "Local workflow",
+    "noDescription": "No description yet.",
+    "noTags": "No tags yet",
+    "moreTags": "+{{count}} more",
+    "openBuilder": "Open Builder",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "deleteConfirm": "Delete workflow \"{{name}}\"?",
+    "deleteSuccess": "Deleted {{name}}.",
+    "deleteFailed": "Failed to delete workflow.",
+    "deletePermission": "You need workflow.editor access to delete workflows."
+  },
+  "hubWorkflows": {
+    "libraryTitle": "Hub Library",
+    "librarySubtitle": "Browse shared workflows on Hub and import them into your local workspace.",
+    "stats": {
+      "totalLabel": "Total",
+      "totalSublabel": "Hub workflows",
+      "ownersLabel": "Owners",
+      "ownersSublabel": "Maintainers",
+      "tagsLabel": "Tags",
+      "tagsSublabel": "Categories"
+    },
+    "loading": "Loading hub workflows...",
+    "loadFailed": "Unable to load workflows: {{message}}",
+    "empty": "No hub workflows found yet.",
+    "importError": "Unable to import workflow: {{message}}",
+    "import": "Import",
+    "importing": "Importing...",
+    "viewInHub": "View in Hub",
+    "openHub": "Open Hub",
+    "localWorkflows": "Local Workflows",
+    "previewTitle": "Preview on Hub",
+    "previewSubtitle": "Open Hub for full snapshots and history.",
+    "hubWorkflow": "Hub workflow",
+    "noDescription": "No description yet.",
+    "importFailed": "Failed to import workflow.",
+    "importPermission": "You need workflow.editor access to import workflows."
+  },
+  "runs": {
+    "title": "Runs",
+    "subtitle": "Most recent execution attempts",
+    "noPermission": "You do not have permission to view run telemetry.",
+    "noPermissionDetail": "Please request the run.viewer or workflow.editor role.",
+    "loading": "Loading runs...",
+    "loadFailed": "Failed to load runs: {{message}}",
+    "showMiddleware": "Show middleware runs only",
+    "noRuns": "No runs yet.",
+    "table": {
+      "runId": "Run ID",
+      "status": "Status",
+      "clientId": "Client ID",
+      "started": "Started",
+      "finished": "Finished",
+      "actions": "Actions"
+    },
+    "stop": "Stop"
+  },
+  "packages": {
+    "eyebrow": "Packages",
+    "heading": {
+      "public": "Package Center",
+      "mine": "Hub Account Packages",
+      "local": "Installed Packages"
+    },
+    "subheading": {
+      "public": "Discover hub packages and install them into your workspace.",
+      "mine": "Review packages owned by the hub account linked to this scheduler.",
+      "local": "Review packages available in this workspace."
+    },
+    "stats": {
+      "public": "Public",
+      "hubAccount": "Hub account",
+      "installed": "Installed",
+      "locked": "Locked",
+      "unavailable": "Unavailable",
+      "loading": "..."
+    },
+    "tabs": {
+      "discover": "Discover",
+      "hubAccount": "Hub account",
+      "installed": "Installed"
+    },
+    "actions": {
+      "publishPackage": "Publish package",
+      "createWorkflow": "Create Workflow",
+      "createWorkflowTitle": "Create a workflow to publish",
+      "install": "Install",
+      "update": "Update",
+      "installed": "Installed",
+      "installing": "Installing...",
+      "viewInHub": "View in Hub",
+      "uninstall": "Uninstall",
+      "uninstalling": "Uninstalling..."
+    },
+    "permissions": {
+      "install": "You need workflow.editor access to install packages.",
+      "uninstall": "You need workflow.editor access to uninstall packages.",
+      "viewMine": "You need workflow.viewer or workflow.editor access to view hub account packages.",
+      "viewLocal": "You need workflow.viewer or workflow.editor access to view local packages.",
+      "tabRequiresViewer": "Requires workflow.viewer access."
+    },
+    "errors": {
+      "missingOwner": "Hub package owner is missing.",
+      "localManaged": "Local packages are managed in the workspace and cannot be removed here.",
+      "install": "Failed to install package.",
+      "uninstall": "Failed to uninstall package.",
+      "publish": "Failed to publish package.",
+      "loadLocal": "Failed to load local packages.",
+      "loadHub": "Unable to load hub packages: {{message}}",
+      "loadAccount": "Unable to load hub account: {{message}}",
+      "loadAccountFallback": "Failed to load hub account.",
+      "loadMine": "Unable to load packages: {{message}}"
+    },
+    "loading": {
+      "hubPackages": "Loading hub packages...",
+      "hubAccount": "Loading hub account...",
+      "myPackages": "Loading your packages...",
+      "localPackages": "Loading local packages..."
+    },
+    "empty": {
+      "public": "No hub packages available yet.",
+      "mine": "No packages owned by this hub account yet.",
+      "local": "No local packages installed yet.",
+      "noAccount": "Hub access is not configured for this workspace yet."
+    },
+    "card": {
+      "previewHubTitle": "Preview on Hub",
+      "previewHubSubtitle": "Readme and versions are available on Hub.",
+      "previewLocalTitle": "Installed locally",
+      "previewLocalSubtitle": "Available to all workflows in this workspace.",
+      "hubPackage": "Package",
+      "localPackage": "Local package",
+      "descriptionFallback": "No description provided.",
+      "localDescriptionFallback": "Installed in this workspace.",
+      "linkedDescription": "Linked to hub as {{name}}@{{version}}.",
+      "signatureLabel": "Package"
+    },
+    "visibility": {
+      "public": "Public",
+      "private": "Private",
+      "internal": "Internal",
+      "local": "Local"
+    },
+    "latest": "latest",
+    "localVersion": "local",
+    "installSuccess": "Installed {{name}}@{{version}}.",
+    "uninstallSuccess": "Uninstalled {{name}}@{{version}}.",
+    "allVersions": "all",
+    "publish": {
+      "title": "Publish package to Hub",
+      "subtitle": "Publish an installed package from this workspace.",
+      "close": "Close publish modal",
+      "packageLabel": "Package",
+      "versionLabel": "Version",
+      "visibilityLabel": "Visibility",
+      "tagsLabel": "Tags (comma separated)",
+      "summaryLabel": "Summary",
+      "readmeLabel": "Readme (optional)",
+      "noneReady": "No local packages ready to publish.",
+      "selectPackage": "Select a local package to publish.",
+      "selectVersion": "Select a package version to publish.",
+      "success": "Published {{name}}@{{version}}.",
+      "cancel": "Cancel",
+      "publish": "Publish",
+      "publishing": "Publishing..."
+    }
+  }
+}

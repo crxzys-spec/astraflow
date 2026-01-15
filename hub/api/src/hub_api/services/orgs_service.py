@@ -3,18 +3,28 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 
 from hub_api.repo.audit import record_audit_event
+from hub_api.repo.common import _now
+from hub_api.repo.accounts import get_account
 from hub_api.repo.orgs import (
     add_org_member,
+    create_org_invite,
     create_organization,
+    get_org_invite,
     get_organization,
     get_org_role,
+    list_org_invites,
     list_organizations,
     list_org_members,
+    list_user_invites,
     remove_org_member,
+    update_org_invite_status,
     update_organization,
 )
 from hub_api.models.organization import Organization
 from hub_api.models.organization_create_request import OrganizationCreateRequest
+from hub_api.models.organization_invite import OrganizationInvite
+from hub_api.models.organization_invite_create_request import OrganizationInviteCreateRequest
+from hub_api.models.organization_invite_list import OrganizationInviteList
 from hub_api.models.organization_list import OrganizationList
 from hub_api.models.organization_member import OrganizationMember
 from hub_api.models.organization_member_list import OrganizationMemberList
@@ -47,6 +57,10 @@ def _require_org_admin(org_id: str, actor_id: str) -> None:
 
 def _role_value(role) -> str:
     return role.value if hasattr(role, "value") else str(role)
+
+
+def _invite_from_record(record: dict) -> OrganizationInvite:
+    return OrganizationInvite.from_dict(record)
 
 
 class OrgsService:
@@ -190,5 +204,126 @@ class OrgsService:
             metadata={
                 "userId": userId,
             },
+        )
+        return None
+
+    async def list_organization_invites(self, orgId: str) -> OrganizationInviteList:
+        actor_id = require_actor()
+        _get_org_or_404(orgId)
+        _require_org_admin(orgId, actor_id)
+        invites = [_invite_from_record(record) for record in list_org_invites(orgId)]
+        return OrganizationInviteList(items=invites)
+
+    async def list_account_invites(self) -> OrganizationInviteList:
+        actor_id = require_actor()
+        invites = [_invite_from_record(record) for record in list_user_invites(actor_id)]
+        return OrganizationInviteList(items=invites)
+
+    async def create_organization_invite(
+        self,
+        orgId: str,
+        organization_invite_create_request: OrganizationInviteCreateRequest,
+    ) -> OrganizationInvite:
+        actor_id = require_actor()
+        _get_org_or_404(orgId)
+        _require_org_admin(orgId, actor_id)
+        user_id = None
+        role = None
+        expires_at = None
+        payload = organization_invite_create_request
+        if isinstance(payload, dict):
+            user_id = payload.get("userId") or payload.get("user_id")
+            role = payload.get("role")
+            expires_at = payload.get("expiresAt") or payload.get("expires_at")
+        else:
+            user_id = getattr(payload, "user_id", None) or getattr(payload, "userId", None)
+            role = getattr(payload, "role", None)
+            expires_at = getattr(payload, "expires_at", None) or getattr(payload, "expiresAt", None)
+        if not user_id:
+            raise HTTPException(status_code=400, detail="userId is required.")
+        if get_account(user_id) is None:
+            raise HTTPException(status_code=404, detail="Not Found")
+        role = _role_value(role) if role is not None else "member"
+        invite = create_org_invite(
+            org_id=orgId,
+            invited_by=actor_id,
+            invitee_id=user_id,
+            role=role,
+            expires_at=expires_at,
+        )
+        record_audit_event(
+            action="org.invite.create",
+            actor_id=actor_id,
+            target_type="org",
+            target_id=orgId,
+            metadata={
+                "inviteId": invite.get("id"),
+                "userId": user_id,
+                "role": role,
+            },
+        )
+        return _invite_from_record(invite)
+
+    async def revoke_organization_invite(self, orgId: str, inviteId: str) -> None:
+        actor_id = require_actor()
+        _get_org_or_404(orgId)
+        _require_org_admin(orgId, actor_id)
+        invite = get_org_invite(inviteId)
+        if not invite or invite.get("orgId") != orgId:
+            raise HTTPException(status_code=404, detail="Not Found")
+        update_org_invite_status(inviteId, "revoked", _now())
+        record_audit_event(
+            action="org.invite.revoke",
+            actor_id=actor_id,
+            target_type="org",
+            target_id=orgId,
+            metadata={"inviteId": inviteId},
+        )
+        return None
+
+    async def accept_organization_invite(self, orgId: str, inviteId: str) -> OrganizationMember:
+        actor_id = require_actor()
+        invite = get_org_invite(inviteId)
+        if not invite or invite.get("orgId") != orgId:
+            raise HTTPException(status_code=404, detail="Not Found")
+        if invite.get("userId") != actor_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        if invite.get("status") != "pending":
+            raise HTTPException(status_code=400, detail="Invite is not pending.")
+        expires_at = invite.get("expiresAt")
+        if expires_at and expires_at < _now():
+            update_org_invite_status(inviteId, "expired", _now())
+            raise HTTPException(status_code=400, detail="Invite expired.")
+        member = add_org_member(orgId, actor_id, invite.get("role") or "member")
+        update_org_invite_status(inviteId, "accepted", _now())
+        record_audit_event(
+            action="org.invite.accept",
+            actor_id=actor_id,
+            target_type="org",
+            target_id=orgId,
+            metadata={"inviteId": inviteId},
+        )
+        return OrganizationMember.from_dict(member)
+
+    async def decline_organization_invite(self, orgId: str, inviteId: str) -> None:
+        actor_id = require_actor()
+        invite = get_org_invite(inviteId)
+        if not invite or invite.get("orgId") != orgId:
+            raise HTTPException(status_code=404, detail="Not Found")
+        if invite.get("userId") != actor_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        if invite.get("status") != "pending":
+            raise HTTPException(status_code=400, detail="Invite is not pending.")
+        expires_at = invite.get("expiresAt")
+        if expires_at and expires_at < _now():
+            update_org_invite_status(inviteId, "expired", _now())
+            raise HTTPException(status_code=400, detail="Invite expired.")
+        update_org_invite_status(inviteId, "declined", _now())
+        record_audit_event(
+            action="org.invite.decline",
+            actor_id=actor_id,
+            target_type="org",
+            target_id=orgId,
+            metadata={"inviteId": inviteId},
         )
         return None

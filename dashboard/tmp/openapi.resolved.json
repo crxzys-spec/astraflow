@@ -28,9 +28,6 @@
       "name": "Packages"
     },
     {
-      "name": "PublishedPackages"
-    },
-    {
       "name": "WorkflowPackages"
     },
     {
@@ -58,13 +55,13 @@
       "name": "Catalog"
     },
     {
-      "name": "Registry"
-    },
-    {
       "name": "HubPackages"
     },
     {
       "name": "HubWorkflows"
+    },
+    {
+      "name": "HubAccount"
     }
   ],
   "paths": {
@@ -1378,551 +1375,6 @@
         }
       }
     },
-    "/api/v1/published-packages": {
-      "get": {
-        "tags": [
-          "PublishedPackages"
-        ],
-        "summary": "List published packages",
-        "operationId": "listPublishedPackages",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PackageList"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "PublishedPackages"
-        ],
-        "summary": "Upload a published package archive",
-        "operationId": "uploadPublishedPackage",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "file"
-                ],
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "format": "binary"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Package-Archive-Sha256": {
-                "description": "SHA256 of the stored package archive",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PackageDetail"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "409": {
-            "$ref": "#/components/responses/Conflict"
-          }
-        }
-      }
-    },
-    "/api/v1/published-packages/gc": {
-      "post": {
-        "tags": [
-          "PublishedPackages"
-        ],
-        "summary": "Garbage collect published package versions",
-        "operationId": "gcPublishedPackages",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PublishedPackageGcRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublishedPackageGcResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          }
-        }
-      }
-    },
-    "/api/v1/published-packages/{packageName}": {
-      "get": {
-        "tags": [
-          "PublishedPackages"
-        ],
-        "summary": "Get published package detail",
-        "operationId": "getPublishedPackage",
-        "parameters": [
-          {
-            "name": "packageName",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "query",
-            "required": false,
-            "description": "Specific package version to retrieve. Defaults to the latest available version.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Package-Archive-Sha256": {
-                "description": "SHA256 of the stored package archive",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PackageDetail"
-                }
-              }
-            }
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/api/v1/published-packages/{packageName}/registry": {
-      "get": {
-        "tags": [
-          "PublishedPackages"
-        ],
-        "summary": "Get published package registry metadata",
-        "operationId": "getPublishedPackageRegistry",
-        "parameters": [
-          {
-            "name": "packageName",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublishedPackageRegistry"
-                }
-              }
-            }
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/api/v1/published-packages/{packageName}/archive": {
-      "get": {
-        "tags": [
-          "PublishedPackages"
-        ],
-        "summary": "Download published package archive",
-        "operationId": "downloadPublishedPackage",
-        "parameters": [
-          {
-            "name": "packageName",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "query",
-            "required": false,
-            "description": "Specific package version to retrieve. Defaults to the latest available version.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Package-Archive-Sha256": {
-                "description": "SHA256 of the stored package archive",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/zip": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              }
-            }
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/api/v1/published-packages/{packageName}/reserve": {
-      "post": {
-        "tags": [
-          "PublishedPackages"
-        ],
-        "summary": "Reserve a published package name",
-        "operationId": "reservePublishedPackage",
-        "parameters": [
-          {
-            "name": "packageName",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PublishedPackageReserveRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublishedPackageRegistry"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "409": {
-            "$ref": "#/components/responses/Conflict"
-          }
-        }
-      }
-    },
-    "/api/v1/published-packages/{packageName}/versions/{version}": {
-      "patch": {
-        "tags": [
-          "PublishedPackages"
-        ],
-        "summary": "Set published package version status",
-        "operationId": "setPublishedPackageVersionStatus",
-        "parameters": [
-          {
-            "name": "packageName",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PublishedPackageStatusRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PackageDetail"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/api/v1/published-packages/{packageName}/tags/{tag}": {
-      "put": {
-        "tags": [
-          "PublishedPackages"
-        ],
-        "summary": "Set published package dist-tag",
-        "operationId": "setPublishedPackageTag",
-        "parameters": [
-          {
-            "name": "packageName",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "tag",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PublishedPackageTagRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "Updated"
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "PublishedPackages"
-        ],
-        "summary": "Delete published package dist-tag",
-        "operationId": "deletePublishedPackageTag",
-        "parameters": [
-          {
-            "name": "packageName",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "tag",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Deleted"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/api/v1/published-packages/{packageName}/visibility": {
-      "patch": {
-        "tags": [
-          "PublishedPackages"
-        ],
-        "summary": "Update published package visibility",
-        "operationId": "updatePublishedPackageVisibility",
-        "parameters": [
-          {
-            "name": "packageName",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PublishedPackageVisibilityRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublishedPackageRegistry"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/api/v1/published-packages/{packageName}/transfer": {
-      "post": {
-        "tags": [
-          "PublishedPackages"
-        ],
-        "summary": "Transfer published package ownership",
-        "operationId": "transferPublishedPackage",
-        "parameters": [
-          {
-            "name": "packageName",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PublishedPackageTransferRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublishedPackageRegistry"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
     "/api/v1/catalog/nodes/search": {
       "get": {
         "tags": [
@@ -1963,114 +1415,6 @@
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
-          }
-        }
-      }
-    },
-    "/api/v1/registry/account": {
-      "get": {
-        "tags": [
-          "Registry"
-        ],
-        "summary": "Get linked registry account",
-        "operationId": "getRegistryAccount",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RegistryAccountLink"
-                }
-              }
-            }
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Registry"
-        ],
-        "summary": "Link registry account",
-        "operationId": "linkRegistryAccount",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegistryAccountLinkRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RegistryAccountLink"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Registry"
-        ],
-        "summary": "Unlink registry account",
-        "operationId": "unlinkRegistryAccount",
-        "responses": {
-          "204": {
-            "description": "Deleted"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/api/v1/registry/workflows/import": {
-      "post": {
-        "tags": [
-          "Registry"
-        ],
-        "summary": "Import a registry workflow into the platform",
-        "operationId": "importRegistryWorkflow",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegistryWorkflowImportRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RegistryWorkflowImportResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -2184,7 +1528,80 @@
         }
       }
     },
-    "/api/v1/hub/packages/{packageName}": {
+    "/api/v1/hub/packages/local": {
+      "post": {
+        "tags": [
+          "HubPackages"
+        ],
+        "summary": "Publish a local package to Hub",
+        "operationId": "publishHubPackageLocal",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HubLocalPackagePublishRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubPackageVersionDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/hub/account": {
+      "get": {
+        "tags": [
+          "HubAccount"
+        ],
+        "summary": "Get hub account profile via scheduler proxy",
+        "operationId": "getHubAccount",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubAccount"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/hub/packages/{owner}/{name}": {
       "get": {
         "tags": [
           "HubPackages"
@@ -2193,7 +1610,15 @@
         "operationId": "getHubPackage",
         "parameters": [
           {
-            "name": "packageName",
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
             "in": "path",
             "required": true,
             "schema": {
@@ -2218,7 +1643,7 @@
         }
       }
     },
-    "/api/v1/hub/packages/{packageName}/versions/{version}": {
+    "/api/v1/hub/packages/{owner}/{name}/versions/{version}": {
       "get": {
         "tags": [
           "HubPackages"
@@ -2227,7 +1652,15 @@
         "operationId": "getHubPackageVersion",
         "parameters": [
           {
-            "name": "packageName",
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
             "in": "path",
             "required": true,
             "schema": {
@@ -2260,7 +1693,7 @@
         }
       }
     },
-    "/api/v1/hub/packages/{packageName}/archive": {
+    "/api/v1/hub/packages/{owner}/{name}/archive": {
       "get": {
         "tags": [
           "HubPackages"
@@ -2269,7 +1702,15 @@
         "operationId": "downloadHubPackageArchive",
         "parameters": [
           {
-            "name": "packageName",
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
             "in": "path",
             "required": true,
             "schema": {
@@ -2303,7 +1744,7 @@
         }
       }
     },
-    "/api/v1/hub/packages/{packageName}/install": {
+    "/api/v1/hub/packages/{owner}/{name}/install": {
       "post": {
         "tags": [
           "HubPackages"
@@ -2312,7 +1753,67 @@
         "operationId": "installHubPackage",
         "parameters": [
           {
-            "name": "packageName",
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HubPackageInstallRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubPackageInstallResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/hub/packages/{owner}/{name}/uninstall": {
+      "post": {
+        "tags": [
+          "HubPackages"
+        ],
+        "summary": "Uninstall hub package from the local catalog",
+        "operationId": "uninstallHubPackage",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
             "in": "path",
             "required": true,
             "schema": {
@@ -2449,6 +1950,49 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/hub/workflows/local": {
+      "post": {
+        "tags": [
+          "HubWorkflows"
+        ],
+        "summary": "Publish a local workflow to Hub",
+        "operationId": "publishHubWorkflowLocal",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HubLocalWorkflowPublishRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubWorkflowPublishResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
           }
         }
       }
@@ -3985,7 +3529,7 @@
             "type": "string"
           },
           "description": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "latestVersion": {
             "type": "string"
@@ -3999,19 +3543,19 @@
               "type": "string"
             }
           },
-          "distTags": {
-            "$ref": "#/components/schemas/PackageDistTags"
-          },
           "ownerId": {
             "type": "string",
             "nullable": true
           },
-          "visibility": {
-            "$ref": "#/components/schemas/PublishedPackageVisibility",
+          "hub": {
+            "$ref": "#/components/schemas/PackageHubMeta",
             "nullable": true
           },
-          "state": {
-            "$ref": "#/components/schemas/PublishedPackageState",
+          "hubVersions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
             "nullable": true
           }
         }
@@ -4040,227 +3584,46 @@
           "manifest": {
             "$ref": "#/components/schemas/PackageManifest"
           },
-          "status": {
-            "$ref": "#/components/schemas/PackageVersionStatus"
+          "hub": {
+            "$ref": "#/components/schemas/PackageHubMeta",
+            "nullable": true
+          }
+        }
+      },
+      "PackageHubMeta": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "hubName",
+          "hubVersion"
+        ],
+        "properties": {
+          "hubName": {
+            "type": "string"
           },
-          "distTags": {
-            "$ref": "#/components/schemas/PackageDistTags"
+          "hubVersion": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "ownerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "visibility": {
+            "type": "string",
+            "nullable": true
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "archiveSha256": {
             "type": "string",
             "nullable": true
-          },
-          "archiveSizeBytes": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "ownerId": {
-            "type": "string",
-            "nullable": true
-          },
-          "visibility": {
-            "$ref": "#/components/schemas/PublishedPackageVisibility",
-            "nullable": true
-          },
-          "state": {
-            "$ref": "#/components/schemas/PublishedPackageState",
-            "nullable": true
-          }
-        }
-      },
-      "PackageVersionStatus": {
-        "type": "string",
-        "enum": [
-          "active",
-          "deprecated",
-          "yanked"
-        ]
-      },
-      "PackageDistTags": {
-        "type": "object",
-        "additionalProperties": {
-          "type": "string"
-        }
-      },
-      "PublishedPackageVisibility": {
-        "type": "string",
-        "enum": [
-          "private",
-          "internal",
-          "public"
-        ]
-      },
-      "PublishedPackageState": {
-        "type": "string",
-        "enum": [
-          "reserved",
-          "active"
-        ]
-      },
-      "PublishedPackageRegistry": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "name",
-          "ownerId",
-          "visibility",
-          "state",
-          "createdAt",
-          "updatedAt"
-        ],
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "ownerId": {
-            "type": "string"
-          },
-          "visibility": {
-            "$ref": "#/components/schemas/PublishedPackageVisibility"
-          },
-          "state": {
-            "$ref": "#/components/schemas/PublishedPackageState"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "createdBy": {
-            "type": "string",
-            "nullable": true
-          },
-          "updatedBy": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "PublishedPackageGcRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "packageName": {
-            "type": "string",
-            "description": "Limit garbage collection to a specific package."
-          },
-          "maxVersions": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Override the max versions to keep per package."
-          },
-          "dryRun": {
-            "type": "boolean",
-            "description": "When true, report the versions that would be removed without deleting them."
-          }
-        }
-      },
-      "PublishedPackageGcItem": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "name",
-          "version"
-        ],
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "version": {
-            "type": "string"
-          },
-          "sizeBytes": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "archivePath": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "PublishedPackageGcResult": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "items",
-          "totalBytes"
-        ],
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PublishedPackageGcItem"
-            }
-          },
-          "totalBytes": {
-            "type": "integer",
-            "format": "int64"
-          }
-        }
-      },
-      "PublishedPackageReserveRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "visibility": {
-            "$ref": "#/components/schemas/PublishedPackageVisibility",
-            "description": "Desired visibility (private/internal/public)."
-          }
-        }
-      },
-      "PublishedPackageVisibilityRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "visibility"
-        ],
-        "properties": {
-          "visibility": {
-            "$ref": "#/components/schemas/PublishedPackageVisibility",
-            "description": "Desired visibility (private/internal/public)."
-          }
-        }
-      },
-      "PublishedPackageTransferRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "newOwnerId"
-        ],
-        "properties": {
-          "newOwnerId": {
-            "type": "string"
-          }
-        }
-      },
-      "PublishedPackageTagRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "version"
-        ],
-        "properties": {
-          "version": {
-            "type": "string",
-            "description": "Package version to associate with the tag."
-          }
-        }
-      },
-      "PublishedPackageStatusRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "status"
-        ],
-        "properties": {
-          "status": {
-            "$ref": "#/components/schemas/PackageVersionStatus"
           }
         }
       },
@@ -4446,6 +3809,20 @@
           }
         }
       },
+      "LocalizedText": {
+        "description": "Plain text or a locale map (e.g. {\"en\":\"...\",\"zh-CN\":\"...\"}).",
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        ]
+      },
       "PackageManifest": {
         "type": "object",
         "additionalProperties": false,
@@ -4474,8 +3851,12 @@
             "description": "Package version in semver format.",
             "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z\\.-]+)?$"
           },
+          "displayName": {
+            "$ref": "#/components/schemas/LocalizedText",
+            "description": "Optional human-readable package name."
+          },
           "description": {
-            "type": "string",
+            "$ref": "#/components/schemas/LocalizedText",
             "description": "Short summary of the package."
           },
           "adapters": {
@@ -4600,13 +3981,13 @@
             ]
           },
           "category": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "label": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "description": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "tags": {
             "type": "array",
@@ -4685,10 +4066,10 @@
             "type": "string"
           },
           "label": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "description": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "binding": {
             "$ref": "#/components/schemas/ManifestBinding"
@@ -4843,7 +4224,7 @@
             "default": true
           },
           "description": {
-            "type": "string",
+            "$ref": "#/components/schemas/LocalizedText",
             "description": "Human-readable explanation of why the permission is needed."
           },
           "metadata": {
@@ -4866,7 +4247,7 @@
             "description": "Stable key used to store and retrieve the vault value."
           },
           "label": {
-            "type": "string",
+            "$ref": "#/components/schemas/LocalizedText",
             "description": "Display label for the vault entry."
           },
           "type": {
@@ -5124,7 +4505,7 @@
             "description": "Group/category shown in the builder palette."
           },
           "label": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "description": {
             "type": "string",
@@ -6407,7 +5788,7 @@
               "url": {
                 "type": "string",
                 "format": "uri",
-                "description": "Optional archive URL; defaults to the published package archive."
+                "description": "Package archive URL to install from."
               },
               "sha256": {
                 "type": "string",
@@ -6416,7 +5797,9 @@
             },
             "required": [
               "type",
-              "name"
+              "name",
+              "version",
+              "url"
             ]
           },
           {
@@ -7049,124 +6432,6 @@
           }
         }
       },
-      "RegistryPackageDependency": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "name",
-          "version"
-        ],
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "version": {
-            "type": "string"
-          }
-        }
-      },
-      "RegistryAccountLink": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "userId",
-          "registryUserId"
-        ],
-        "properties": {
-          "userId": {
-            "type": "string"
-          },
-          "registryUserId": {
-            "type": "string"
-          },
-          "registryUsername": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "RegistryAccountLinkRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "registryUserId"
-        ],
-        "properties": {
-          "registryUserId": {
-            "type": "string"
-          },
-          "registryUsername": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
-      "RegistryWorkflowImportRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "packageId"
-        ],
-        "properties": {
-          "packageId": {
-            "type": "string",
-            "description": "Registry workflow package id."
-          },
-          "versionId": {
-            "type": "string",
-            "description": "Specific registry version id to import."
-          },
-          "version": {
-            "type": "string",
-            "description": "Version string to import when versionId is omitted."
-          },
-          "name": {
-            "type": "string",
-            "description": "Optional override for the imported workflow name."
-          }
-        }
-      },
-      "RegistryWorkflowImportResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "workflowId",
-          "packageId",
-          "versionId",
-          "dependencies",
-          "pulledPackages"
-        ],
-        "properties": {
-          "workflowId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "packageId": {
-            "type": "string"
-          },
-          "versionId": {
-            "type": "string"
-          },
-          "dependencies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/RegistryPackageDependency"
-            }
-          },
-          "pulledPackages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/RegistryPackageDependency"
-            }
-          },
-          "missingPackages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/RegistryPackageDependency"
-            }
-          }
-        }
-      },
       "WorkflowPreview": {
         "type": "object",
         "additionalProperties": false,
@@ -7211,16 +6476,16 @@
             "type": "string"
           },
           "label": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "description": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "role": {
             "type": "string"
           },
           "category": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "tags": {
             "type": "array",
@@ -7307,7 +6572,7 @@
             "nullable": true
           },
           "description": {
-            "type": "string",
+            "$ref": "#/components/schemas/LocalizedText",
             "nullable": true
           },
           "tags": {
@@ -7346,7 +6611,7 @@
             "type": "string"
           },
           "description": {
-            "type": "string",
+            "$ref": "#/components/schemas/LocalizedText",
             "nullable": true
           },
           "readme": {
@@ -7388,6 +6653,30 @@
           },
           "visibility": {
             "$ref": "#/components/schemas/HubVisibility",
+            "nullable": true
+          }
+        }
+      },
+      "HubAccount": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "username"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
             "nullable": true
           }
         }
@@ -7487,6 +6776,36 @@
           "file": {
             "type": "string",
             "format": "binary"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/HubVisibility"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "readme": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "HubLocalPackagePublishRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string",
+            "description": "Optional package version; defaults to latest local version."
           },
           "visibility": {
             "$ref": "#/components/schemas/HubVisibility"
@@ -7719,6 +7038,43 @@
           },
           "definition": {
             "$ref": "#/components/schemas/HubWorkflowDefinition"
+          }
+        }
+      },
+      "HubLocalWorkflowPublishRequest": {
+        "type": "object",
+        "required": [
+          "workflowId",
+          "version"
+        ],
+        "properties": {
+          "workflowId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "description": "Optional override for the workflow name."
+          },
+          "version": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/HubVisibility"
+          },
+          "previewImage": {
+            "type": "string"
           }
         }
       },

@@ -3,11 +3,9 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 
 from hub_api.repo.audit import record_audit_event
-from hub_api.repo.tokens import (
-    create_token,
-    list_tokens,
-    revoke_token,
-)
+from hub_api.repo.accounts import get_account
+from hub_api.repo.orgs import get_organization, get_org_role
+from hub_api.repo.tokens import create_token, list_tokens, revoke_token
 from hub_api.repo.packages import get_package_record
 from hub_api.models.access_token import AccessToken
 from hub_api.models.access_token_create_request import AccessTokenCreateRequest
@@ -16,11 +14,44 @@ from hub_api.security_api import get_current_scopes, is_admin, require_actor
 from hub_api.services.permissions import get_package_role_for_user
 
 
+def _normalize(value: str | None) -> str:
+    return value.lower().strip() if value else ""
+
+
 def _scope_values(scopes) -> list[str]:
     values = []
     for scope in scopes or []:
         values.append(scope.value if hasattr(scope, "value") else str(scope))
     return values
+
+
+def _split_package_name(value: str) -> tuple[str | None, str]:
+    raw = value.strip()
+    if "/" in raw:
+        owner, name = raw.split("/", 1)
+        if owner and name:
+            return owner, name
+    return None, raw
+
+
+def _resolve_owner_identifier(owner: str) -> str:
+    account = get_account(owner)
+    if account:
+        return account["id"]
+    org = get_organization(owner)
+    if org:
+        return org["id"]
+    raise HTTPException(status_code=404, detail="Not Found")
+
+
+def _resolve_owner_namespace(owner_id: str) -> str:
+    account = get_account(owner_id) or {}
+    if account:
+        return account.get("username") or owner_id
+    org = get_organization(owner_id)
+    if org:
+        return org.get("slug") or org.get("id") or owner_id
+    return owner_id
 
 
 def _token_from_record(record: dict, include_secret: bool) -> AccessToken:
@@ -51,18 +82,37 @@ class TokensService:
         if "admin" not in current_scopes and not set(requested_scopes).issubset(current_scopes):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
         package_name = access_token_create_request.package_name
+        org_id = getattr(access_token_create_request, "org_id", None)
+        if org_id:
+            org = get_organization(org_id)
+            if not org:
+                raise HTTPException(status_code=404, detail="Not Found")
+            if not is_admin() and get_org_role(org_id, actor_id) not in ("owner", "admin"):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        resolved_package_name = package_name
         if package_name:
-            package_record = get_package_record(package_name)
+            owner_hint, package_only = _split_package_name(package_name)
+            if owner_hint:
+                owner_id = _resolve_owner_identifier(owner_hint)
+            elif org_id:
+                owner_id = org_id
+            else:
+                owner_id = actor_id
+            if org_id and _normalize(owner_id) != _normalize(org_id):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+            package_record = get_package_record(owner_id, package_only)
             if not package_record:
                 raise HTTPException(status_code=404, detail="Not Found")
-            role = get_package_role_for_user(package_name, actor_id)
-            if role not in ("maintainer", "owner") and not is_admin():
+            role = get_package_role_for_user(owner_id, package_only, actor_id)
+            if role not in ("write", "maintainer", "owner") and not is_admin():
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+            resolved_package_name = f"{_resolve_owner_namespace(owner_id)}/{package_only}"
         token = create_token(
             owner_id=actor_id,
             label=access_token_create_request.label,
             scopes=requested_scopes,
-            package_name=package_name,
+            package_name=resolved_package_name,
+            org_id=org_id,
             expires_at=access_token_create_request.expires_at,
         )
         record_audit_event(
@@ -72,7 +122,8 @@ class TokensService:
             target_id=token.get("id"),
             metadata={
                 "scopes": requested_scopes,
-                "packageName": package_name,
+                "packageName": resolved_package_name,
+                "orgId": org_id,
                 "label": access_token_create_request.label,
             },
         )

@@ -21,8 +21,11 @@ class PackageIndexRecord(Base):
     __table_args__ = (
         Index("ix_package_index_name", "name"),
         Index("ix_package_index_source", "source"),
+        Index("ix_package_index_owner_id", "owner_id"),
+        Index("ix_package_index_owner_name", "owner_id", "name"),
     )
 
+    owner_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     name: Mapped[str] = mapped_column(String(128), primary_key=True)
     version: Mapped[str] = mapped_column(String(32), primary_key=True)
     source: Mapped[str] = mapped_column(String(32), primary_key=True, default="local")
@@ -33,7 +36,6 @@ class PackageIndexRecord(Base):
     archive_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     archive_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     archive_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    owner_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

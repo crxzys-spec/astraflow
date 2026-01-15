@@ -5,7 +5,16 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, JSON, String, Integer, Text, UniqueConstraint
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    JSON,
+    String,
+    Integer,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -41,11 +50,16 @@ class HubToken(Base):
         ForeignKey("hub_users.id", ondelete="CASCADE"),
         index=True,
     )
+    org_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
     label: Mapped[str] = mapped_column(String(128))
     scopes: Mapped[list[str]] = mapped_column(JSON)
     package_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    created_ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    created_user_agent: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used_ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    last_used_user_agent: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     token: Mapped[str] = mapped_column(String(128), unique=True, index=True)
 
@@ -54,15 +68,22 @@ class HubToken(Base):
 
 class HubPackage(Base):
     __tablename__ = "hub_packages"
+    __table_args__ = (
+        UniqueConstraint(
+            "owner_id",
+            "name_normalized",
+            name="uq_hub_package_owner_name",
+        ),
+    )
 
+    owner_id: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), primary_key=True)
-    name_normalized: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    name_normalized: Mapped[str] = mapped_column(String(255), index=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     readme: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     tags: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
     dist_tags: Mapped[Optional[dict[str, str]]] = mapped_column(JSON, nullable=True)
     latest_version: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    owner_id: Mapped[str] = mapped_column(String(64), index=True)
     owner_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     visibility: Mapped[str] = mapped_column(String(32), default="public")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
@@ -77,12 +98,16 @@ class HubPackage(Base):
 
 class HubPackageVersion(Base):
     __tablename__ = "hub_package_versions"
-
-    package_name: Mapped[str] = mapped_column(
-        String(255),
-        ForeignKey("hub_packages.name", ondelete="CASCADE"),
-        primary_key=True,
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["owner_id", "package_name"],
+            ["hub_packages.owner_id", "hub_packages.name"],
+            ondelete="CASCADE",
+        ),
     )
+
+    owner_id: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
+    package_name: Mapped[str] = mapped_column(String(255), primary_key=True)
     version: Mapped[str] = mapped_column(String(64), primary_key=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     readme: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -90,7 +115,6 @@ class HubPackageVersion(Base):
     archive_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     archive_size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     archive_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-    owner_id: Mapped[str] = mapped_column(String(64), index=True)
     owner_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     visibility: Mapped[str] = mapped_column(String(32), default="public")
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
@@ -161,6 +185,11 @@ class HubOrganization(Base):
         back_populates="organization",
         cascade="all, delete-orphan",
     )
+    invites: Mapped[list["HubOrganizationInvite"]] = relationship(
+        "HubOrganizationInvite",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
     teams: Mapped[list["HubTeam"]] = relationship(
         "HubTeam",
         back_populates="organization",
@@ -183,6 +212,30 @@ class HubOrganizationMember(Base):
     organization: Mapped[HubOrganization] = relationship(
         "HubOrganization",
         back_populates="members",
+    )
+
+
+class HubOrganizationInvite(Base):
+    __tablename__ = "hub_org_invites"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    org_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("hub_orgs.id", ondelete="CASCADE"),
+        index=True,
+    )
+    invited_by: Mapped[str] = mapped_column(String(64))
+    invitee_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    invitee_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    role: Mapped[str] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(32), default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    organization: Mapped[HubOrganization] = relationship(
+        "HubOrganization",
+        back_populates="invites",
     )
 
 
@@ -229,17 +282,43 @@ class HubPackagePermission(Base):
     __tablename__ = "hub_package_permissions"
     __table_args__ = (
         UniqueConstraint(
+            "owner_id",
             "package_name",
             "subject_type",
             "subject_id",
             name="uq_hub_package_permission",
         ),
+        ForeignKeyConstraint(
+            ["owner_id", "package_name"],
+            ["hub_packages.owner_id", "hub_packages.name"],
+            ondelete="CASCADE",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    package_name: Mapped[str] = mapped_column(
-        String(255),
-        ForeignKey("hub_packages.name", ondelete="CASCADE"),
+    owner_id: Mapped[str] = mapped_column(String(64), index=True)
+    package_name: Mapped[str] = mapped_column(String(255), index=True)
+    subject_type: Mapped[str] = mapped_column(String(32))
+    subject_id: Mapped[str] = mapped_column(String(64))
+    role: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class HubWorkflowPermission(Base):
+    __tablename__ = "hub_workflow_permissions"
+    __table_args__ = (
+        UniqueConstraint(
+            "workflow_id",
+            "subject_type",
+            "subject_id",
+            name="uq_hub_workflow_permission",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("hub_workflows.id", ondelete="CASCADE"),
         index=True,
     )
     subject_type: Mapped[str] = mapped_column(String(32))

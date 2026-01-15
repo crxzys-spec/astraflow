@@ -11,7 +11,6 @@ tags:
 - name: Auth
 - name: Workflows
 - name: Packages
-- name: PublishedPackages
 - name: WorkflowPackages
 - name: Resources
 - name: PackagePermissions
@@ -21,9 +20,9 @@ tags:
 - name: Audit
 - name: Users
 - name: Catalog
-- name: Registry
 - name: HubPackages
 - name: HubWorkflows
+- name: HubAccount
 paths:
   /api/v1/auth/login:
     $ref: ./paths/auth-login.yaml
@@ -79,44 +78,28 @@ paths:
     $ref: ./paths/packages.yaml
   /api/v1/packages/{packageName}:
     $ref: ./paths/package-by-name.yaml
-  /api/v1/published-packages:
-    $ref: ./paths/published-packages.yaml
-  /api/v1/published-packages/gc:
-    $ref: ./paths/published-packages-gc.yaml
-  /api/v1/published-packages/{packageName}:
-    $ref: ./paths/published-package-by-name.yaml
-  /api/v1/published-packages/{packageName}/registry:
-    $ref: ./paths/published-package-registry.yaml
-  /api/v1/published-packages/{packageName}/archive:
-    $ref: ./paths/published-package-archive.yaml
-  /api/v1/published-packages/{packageName}/reserve:
-    $ref: ./paths/published-package-reserve.yaml
-  /api/v1/published-packages/{packageName}/versions/{version}:
-    $ref: ./paths/published-package-version.yaml
-  /api/v1/published-packages/{packageName}/tags/{tag}:
-    $ref: ./paths/published-package-tag.yaml
-  /api/v1/published-packages/{packageName}/visibility:
-    $ref: ./paths/published-package-visibility.yaml
-  /api/v1/published-packages/{packageName}/transfer:
-    $ref: ./paths/published-package-transfer.yaml
   /api/v1/catalog/nodes/search:
     $ref: ./paths/catalog-nodes-search.yaml
-  /api/v1/registry/account:
-    $ref: ./paths/registry-account.yaml
-  /api/v1/registry/workflows/import:
-    $ref: ./paths/registry-workflows-import.yaml
   /api/v1/hub/packages:
     $ref: ./paths/hub-packages.yaml
-  /api/v1/hub/packages/{packageName}:
+  /api/v1/hub/packages/local:
+    $ref: ./paths/hub-packages-local.yaml
+  /api/v1/hub/account:
+    $ref: ./paths/hub-account.yaml
+  /api/v1/hub/packages/{owner}/{name}:
     $ref: ./paths/hub-package-by-name.yaml
-  /api/v1/hub/packages/{packageName}/versions/{version}:
+  /api/v1/hub/packages/{owner}/{name}/versions/{version}:
     $ref: ./paths/hub-package-version.yaml
-  /api/v1/hub/packages/{packageName}/archive:
+  /api/v1/hub/packages/{owner}/{name}/archive:
     $ref: ./paths/hub-package-archive.yaml
-  /api/v1/hub/packages/{packageName}/install:
+  /api/v1/hub/packages/{owner}/{name}/install:
     $ref: ./paths/hub-package-install.yaml
+  /api/v1/hub/packages/{owner}/{name}/uninstall:
+    $ref: ./paths/hub-package-uninstall.yaml
   /api/v1/hub/workflows:
     $ref: ./paths/hub-workflows.yaml
+  /api/v1/hub/workflows/local:
+    $ref: ./paths/hub-workflows-local.yaml
   /api/v1/hub/workflows/{workflowId}:
     $ref: ./paths/hub-workflow-by-id.yaml
   /api/v1/hub/workflows/{workflowId}/versions:

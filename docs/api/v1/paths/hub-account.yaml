@@ -1,0 +1,17 @@
+get:
+  tags: [HubAccount]
+  summary: Get hub account profile via scheduler proxy
+  operationId: getHubAccount
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/HubAccount'
+    '401':
+      $ref: '../components/responses.yaml#/Unauthorized'
+    '403':
+      $ref: '../components/responses.yaml#/Forbidden'
+    '400':
+      $ref: '../components/responses.yaml#/BadRequest'

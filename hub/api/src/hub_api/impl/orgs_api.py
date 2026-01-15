@@ -3,6 +3,9 @@ from __future__ import annotations
 from hub_api.apis.orgs_api_base import BaseOrgsApi
 from hub_api.models.organization import Organization
 from hub_api.models.organization_create_request import OrganizationCreateRequest
+from hub_api.models.organization_invite import OrganizationInvite
+from hub_api.models.organization_invite_create_request import OrganizationInviteCreateRequest
+from hub_api.models.organization_invite_list import OrganizationInviteList
 from hub_api.models.organization_list import OrganizationList
 from hub_api.models.organization_member import OrganizationMember
 from hub_api.models.organization_member_list import OrganizationMemberList
@@ -55,3 +58,37 @@ class OrgsApiImpl(BaseOrgsApi):
         userId: str,
     ) -> None:
         return await _service.remove_organization_member(orgId, userId)
+
+    async def list_organization_invites(
+        self,
+        orgId: str,
+    ) -> OrganizationInviteList:
+        return await _service.list_organization_invites(orgId)
+
+    async def create_organization_invite(
+        self,
+        orgId: str,
+        organization_invite_create_request: OrganizationInviteCreateRequest,
+    ) -> OrganizationInvite:
+        return await _service.create_organization_invite(orgId, organization_invite_create_request)
+
+    async def revoke_organization_invite(
+        self,
+        orgId: str,
+        inviteId: str,
+    ) -> None:
+        return await _service.revoke_organization_invite(orgId, inviteId)
+
+    async def accept_organization_invite(
+        self,
+        orgId: str,
+        inviteId: str,
+    ) -> OrganizationMember:
+        return await _service.accept_organization_invite(orgId, inviteId)
+
+    async def decline_organization_invite(
+        self,
+        orgId: str,
+        inviteId: str,
+    ) -> None:
+        return await _service.decline_organization_invite(orgId, inviteId)

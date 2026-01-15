@@ -23,6 +23,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from scheduler_api.models.ui_binding import UIBinding
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -33,7 +34,7 @@ class UIWidget(BaseModel):
     UIWidget
     """ # noqa: E501
     key: StrictStr
-    label: StrictStr
+    label: LocalizedText
     component: StrictStr = Field(description="string|number|enum|json...")
     binding: UIBinding
     options: Optional[Dict[str, Any]] = None
@@ -92,11 +93,10 @@ class UIWidget(BaseModel):
 
         _obj = cls.model_validate({
             "key": obj.get("key"),
-            "label": obj.get("label"),
+            "label": LocalizedText.from_dict(obj.get("label")) if obj.get("label") is not None else None,
             "component": obj.get("component"),
             "binding": UIBinding.from_dict(obj.get("binding")) if obj.get("binding") is not None else None,
             "options": obj.get("options")
         })
         return _obj
-
 

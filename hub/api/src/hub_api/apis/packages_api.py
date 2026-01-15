@@ -94,17 +94,18 @@ async def publish_package(
     summary: Optional[StrictStr] = Form(None, description=""),
     readme: Optional[StrictStr] = Form(None, description=""),
     tags: Optional[List[StrictStr]] = Form(None, description=""),
+    owner_id: Optional[StrictStr] = Form(None, description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth, scopes=["publish"]
     ),
 ) -> PackageVersionDetail:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePackagesApi.subclasses[0]().publish_package(file, visibility, summary, readme, tags)
+    return await BasePackagesApi.subclasses[0]().publish_package(file, visibility, summary, readme, tags, owner_id)
 
 
 @router.get(
-    "/api/v1/packages/{name}",
+    "/api/v1/packages/{owner}/{name}",
     responses={
         200: {"model": HubPackageDetail, "description": "OK"},
         404: {"model": Error, "description": "Not Found"},
@@ -114,6 +115,7 @@ async def publish_package(
     response_model_by_alias=True,
 )
 async def get_package(
+    owner: StrictStr = Path(..., description=""),
     name: StrictStr = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth, scopes=[]
@@ -121,11 +123,35 @@ async def get_package(
 ) -> HubPackageDetail:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePackagesApi.subclasses[0]().get_package(name)
+    return await BasePackagesApi.subclasses[0]().get_package(owner, name)
+
+
+@router.delete(
+    "/api/v1/packages/{owner}/{name}",
+    responses={
+        204: {"description": "Deleted"},
+        401: {"model": Error, "description": "Unauthorized"},
+        403: {"model": Error, "description": "Forbidden"},
+        404: {"model": Error, "description": "Not Found"},
+    },
+    tags=["Packages"],
+    summary="Delete package",
+    response_model_by_alias=True,
+)
+async def delete_package(
+    owner: StrictStr = Path(..., description=""),
+    name: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth, scopes=["publish"]
+    ),
+) -> None:
+    if not BasePackagesApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BasePackagesApi.subclasses[0]().delete_package(owner, name)
 
 
 @router.post(
-    "/api/v1/packages/{name}/reserve",
+    "/api/v1/packages/{owner}/{name}/reserve",
     responses={
         200: {"model": PackageRegistry, "description": "OK"},
         400: {"model": Error, "description": "Invalid input"},
@@ -138,6 +164,7 @@ async def get_package(
     response_model_by_alias=True,
 )
 async def reserve_package(
+    owner: StrictStr = Path(..., description=""),
     name: StrictStr = Path(..., description=""),
     package_reserve_request: Optional[PackageReserveRequest] = Body(None, description=""),
     token_bearerAuth: TokenModel = Security(
@@ -146,11 +173,11 @@ async def reserve_package(
 ) -> PackageRegistry:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePackagesApi.subclasses[0]().reserve_package(name, package_reserve_request)
+    return await BasePackagesApi.subclasses[0]().reserve_package(owner, name, package_reserve_request)
 
 
 @router.get(
-    "/api/v1/packages/{name}/versions/{version}",
+    "/api/v1/packages/{owner}/{name}/versions/{version}",
     responses={
         200: {"model": PackageVersionDetail, "description": "OK"},
         404: {"model": Error, "description": "Not Found"},
@@ -160,6 +187,7 @@ async def reserve_package(
     response_model_by_alias=True,
 )
 async def get_package_version(
+    owner: StrictStr = Path(..., description=""),
     name: StrictStr = Path(..., description=""),
     version: StrictStr = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
@@ -168,11 +196,11 @@ async def get_package_version(
 ) -> PackageVersionDetail:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePackagesApi.subclasses[0]().get_package_version(name, version)
+    return await BasePackagesApi.subclasses[0]().get_package_version(owner, name, version)
 
 
 @router.get(
-    "/api/v1/packages/{name}/archive",
+    "/api/v1/packages/{owner}/{name}/archive",
     responses={
         200: {"model": Any, "description": "OK"},
         404: {"model": Error, "description": "Not Found"},
@@ -182,6 +210,7 @@ async def get_package_version(
     response_model_by_alias=True,
 )
 async def download_package_archive(
+    owner: StrictStr = Path(..., description=""),
     name: StrictStr = Path(..., description=""),
     version: Annotated[Optional[StrictStr], Field(description="Optional version to download")] = Query(None, description="Optional version to download", alias="version"),
     token_bearerAuth: TokenModel = Security(
@@ -190,11 +219,11 @@ async def download_package_archive(
 ) -> Any:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePackagesApi.subclasses[0]().download_package_archive(name, version)
+    return await BasePackagesApi.subclasses[0]().download_package_archive(owner, name, version)
 
 
 @router.put(
-    "/api/v1/packages/{name}/tags/{tag}",
+    "/api/v1/packages/{owner}/{name}/tags/{tag}",
     responses={
         204: {"description": "Updated"},
         400: {"model": Error, "description": "Invalid input"},
@@ -207,6 +236,7 @@ async def download_package_archive(
     response_model_by_alias=True,
 )
 async def set_package_tag(
+    owner: StrictStr = Path(..., description=""),
     name: StrictStr = Path(..., description=""),
     tag: StrictStr = Path(..., description=""),
     package_tag_request: PackageTagRequest = Body(None, description=""),
@@ -216,11 +246,11 @@ async def set_package_tag(
 ) -> None:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePackagesApi.subclasses[0]().set_package_tag(name, tag, package_tag_request)
+    return await BasePackagesApi.subclasses[0]().set_package_tag(owner, name, tag, package_tag_request)
 
 
 @router.delete(
-    "/api/v1/packages/{name}/tags/{tag}",
+    "/api/v1/packages/{owner}/{name}/tags/{tag}",
     responses={
         204: {"description": "Deleted"},
         401: {"model": Error, "description": "Unauthorized"},
@@ -232,6 +262,7 @@ async def set_package_tag(
     response_model_by_alias=True,
 )
 async def delete_package_tag(
+    owner: StrictStr = Path(..., description=""),
     name: StrictStr = Path(..., description=""),
     tag: StrictStr = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
@@ -240,11 +271,11 @@ async def delete_package_tag(
 ) -> None:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePackagesApi.subclasses[0]().delete_package_tag(name, tag)
+    return await BasePackagesApi.subclasses[0]().delete_package_tag(owner, name, tag)
 
 
 @router.patch(
-    "/api/v1/packages/{name}/visibility",
+    "/api/v1/packages/{owner}/{name}/visibility",
     responses={
         200: {"model": PackageRegistry, "description": "OK"},
         400: {"model": Error, "description": "Invalid input"},
@@ -257,6 +288,7 @@ async def delete_package_tag(
     response_model_by_alias=True,
 )
 async def update_package_visibility(
+    owner: StrictStr = Path(..., description=""),
     name: StrictStr = Path(..., description=""),
     package_visibility_request: PackageVisibilityRequest = Body(None, description=""),
     token_bearerAuth: TokenModel = Security(
@@ -265,11 +297,11 @@ async def update_package_visibility(
 ) -> PackageRegistry:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePackagesApi.subclasses[0]().update_package_visibility(name, package_visibility_request)
+    return await BasePackagesApi.subclasses[0]().update_package_visibility(owner, name, package_visibility_request)
 
 
 @router.post(
-    "/api/v1/packages/{name}/transfer",
+    "/api/v1/packages/{owner}/{name}/transfer",
     responses={
         200: {"model": PackageRegistry, "description": "OK"},
         400: {"model": Error, "description": "Invalid input"},
@@ -282,6 +314,7 @@ async def update_package_visibility(
     response_model_by_alias=True,
 )
 async def transfer_package(
+    owner: StrictStr = Path(..., description=""),
     name: StrictStr = Path(..., description=""),
     package_transfer_request: PackageTransferRequest = Body(None, description=""),
     token_bearerAuth: TokenModel = Security(
@@ -290,11 +323,11 @@ async def transfer_package(
 ) -> PackageRegistry:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePackagesApi.subclasses[0]().transfer_package(name, package_transfer_request)
+    return await BasePackagesApi.subclasses[0]().transfer_package(owner, name, package_transfer_request)
 
 
 @router.get(
-    "/api/v1/packages/{name}/permissions",
+    "/api/v1/packages/{owner}/{name}/permissions",
     responses={
         200: {"model": PackagePermissionList, "description": "OK"},
         401: {"model": Error, "description": "Unauthorized"},
@@ -306,6 +339,7 @@ async def transfer_package(
     response_model_by_alias=True,
 )
 async def list_package_permissions(
+    owner: StrictStr = Path(..., description=""),
     name: StrictStr = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
         get_token_bearerAuth, scopes=["publish"]
@@ -313,11 +347,11 @@ async def list_package_permissions(
 ) -> PackagePermissionList:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePackagesApi.subclasses[0]().list_package_permissions(name)
+    return await BasePackagesApi.subclasses[0]().list_package_permissions(owner, name)
 
 
 @router.post(
-    "/api/v1/packages/{name}/permissions",
+    "/api/v1/packages/{owner}/{name}/permissions",
     responses={
         201: {"model": PackagePermission, "description": "Created"},
         400: {"model": Error, "description": "Invalid input"},
@@ -329,6 +363,7 @@ async def list_package_permissions(
     response_model_by_alias=True,
 )
 async def add_package_permission(
+    owner: StrictStr = Path(..., description=""),
     name: StrictStr = Path(..., description=""),
     package_permission_create_request: PackagePermissionCreateRequest = Body(None, description=""),
     token_bearerAuth: TokenModel = Security(
@@ -337,11 +372,11 @@ async def add_package_permission(
 ) -> PackagePermission:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePackagesApi.subclasses[0]().add_package_permission(name, package_permission_create_request)
+    return await BasePackagesApi.subclasses[0]().add_package_permission(owner, name, package_permission_create_request)
 
 
 @router.delete(
-    "/api/v1/packages/{name}/permissions/{permissionId}",
+    "/api/v1/packages/{owner}/{name}/permissions/{permissionId}",
     responses={
         204: {"description": "Deleted"},
         401: {"model": Error, "description": "Unauthorized"},
@@ -353,6 +388,7 @@ async def add_package_permission(
     response_model_by_alias=True,
 )
 async def delete_package_permission(
+    owner: StrictStr = Path(..., description=""),
     name: StrictStr = Path(..., description=""),
     permissionId: StrictStr = Path(..., description=""),
     token_bearerAuth: TokenModel = Security(
@@ -361,11 +397,11 @@ async def delete_package_permission(
 ) -> None:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePackagesApi.subclasses[0]().delete_package_permission(name, permissionId)
+    return await BasePackagesApi.subclasses[0]().delete_package_permission(owner, name, permissionId)
 
 
 @router.patch(
-    "/api/v1/packages/{name}/permissions/{permissionId}",
+    "/api/v1/packages/{owner}/{name}/permissions/{permissionId}",
     responses={
         200: {"model": PackagePermission, "description": "OK"},
         400: {"model": Error, "description": "Invalid input"},
@@ -378,6 +414,7 @@ async def delete_package_permission(
     response_model_by_alias=True,
 )
 async def update_package_permission(
+    owner: StrictStr = Path(..., description=""),
     name: StrictStr = Path(..., description=""),
     permissionId: StrictStr = Path(..., description=""),
     package_permission_update_request: PackagePermissionUpdateRequest = Body(None, description=""),
@@ -387,4 +424,4 @@ async def update_package_permission(
 ) -> PackagePermission:
     if not BasePackagesApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
-    return await BasePackagesApi.subclasses[0]().update_package_permission(name, permissionId, package_permission_update_request)
+    return await BasePackagesApi.subclasses[0]().update_package_permission(owner, name, permissionId, package_permission_update_request)

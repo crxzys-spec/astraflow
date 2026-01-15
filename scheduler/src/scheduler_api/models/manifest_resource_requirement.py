@@ -22,6 +22,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -35,7 +36,7 @@ class ManifestResourceRequirement(BaseModel):
     type: StrictStr
     actions: Optional[List[StrictStr]] = None
     required: Optional[StrictBool] = True
-    description: Optional[StrictStr] = None
+    description: Optional[LocalizedText] = None
     metadata: Optional[Dict[str, Any]] = None
     __properties: ClassVar[List[str]] = ["key", "type", "actions", "required", "description", "metadata"]
 
@@ -76,6 +77,9 @@ class ManifestResourceRequirement(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of description
+        if self.description:
+            _dict['description'] = self.description.to_dict()
         return _dict
 
     @classmethod
@@ -92,9 +96,8 @@ class ManifestResourceRequirement(BaseModel):
             "type": obj.get("type"),
             "actions": obj.get("actions"),
             "required": obj.get("required") if obj.get("required") is not None else True,
-            "description": obj.get("description"),
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "metadata": obj.get("metadata")
         })
         return _obj
-
 

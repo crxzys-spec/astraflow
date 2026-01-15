@@ -20,8 +20,6 @@ src/hub_api/apis/orgs_api.py
 src/hub_api/apis/orgs_api_base.py
 src/hub_api/apis/packages_api.py
 src/hub_api/apis/packages_api_base.py
-src/hub_api/apis/teams_api.py
-src/hub_api/apis/teams_api_base.py
 src/hub_api/apis/tokens_api.py
 src/hub_api/apis/tokens_api_base.py
 src/hub_api/apis/workflows_api.py
@@ -33,6 +31,7 @@ src/hub_api/models/access_token.py
 src/hub_api/models/access_token_create_request.py
 src/hub_api/models/access_token_list.py
 src/hub_api/models/account.py
+src/hub_api/models/account_update_request.py
 src/hub_api/models/audit_event.py
 src/hub_api/models/audit_event_list.py
 src/hub_api/models/auth_login_request.py
@@ -49,6 +48,10 @@ src/hub_api/models/hub_workflow_summary.py
 src/hub_api/models/node_package.py
 src/hub_api/models/organization.py
 src/hub_api/models/organization_create_request.py
+src/hub_api/models/organization_invite.py
+src/hub_api/models/organization_invite_create_request.py
+src/hub_api/models/organization_invite_list.py
+src/hub_api/models/organization_invite_status.py
 src/hub_api/models/organization_list.py
 src/hub_api/models/organization_member.py
 src/hub_api/models/organization_member_list.py
@@ -70,13 +73,6 @@ src/hub_api/models/package_transfer_request.py
 src/hub_api/models/package_version_detail.py
 src/hub_api/models/package_visibility_request.py
 src/hub_api/models/page_meta.py
-src/hub_api/models/team.py
-src/hub_api/models/team_create_request.py
-src/hub_api/models/team_list.py
-src/hub_api/models/team_member.py
-src/hub_api/models/team_member_list.py
-src/hub_api/models/team_member_request.py
-src/hub_api/models/team_update_request.py
 src/hub_api/models/token_scope.py
 src/hub_api/models/visibility.py
 src/hub_api/models/workflow_definition.py
@@ -85,6 +81,12 @@ src/hub_api/models/workflow_list_response.py
 src/hub_api/models/workflow_metadata.py
 src/hub_api/models/workflow_node.py
 src/hub_api/models/workflow_node_position.py
+src/hub_api/models/workflow_permission.py
+src/hub_api/models/workflow_permission_create_request.py
+src/hub_api/models/workflow_permission_list.py
+src/hub_api/models/workflow_permission_role.py
+src/hub_api/models/workflow_permission_subject_type.py
+src/hub_api/models/workflow_permission_update_request.py
 src/hub_api/models/workflow_publish_request.py
 src/hub_api/models/workflow_publish_response.py
 src/hub_api/models/workflow_subgraph.py

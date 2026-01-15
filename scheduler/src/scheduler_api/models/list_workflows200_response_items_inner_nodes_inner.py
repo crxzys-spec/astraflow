@@ -28,6 +28,7 @@ from scheduler_api.models.list_workflows200_response_items_inner_nodes_inner_ui 
 from scheduler_api.models.object import object
 from scheduler_api.models.start_run_request_workflow_nodes_inner_package import StartRunRequestWorkflowNodesInnerPackage
 from scheduler_api.models.start_run_request_workflow_nodes_inner_schema import StartRunRequestWorkflowNodesInnerSchema
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -41,9 +42,9 @@ class ListWorkflows200ResponseItemsInnerNodesInner(object):
     type: StrictStr = Field(description="e.g. \"playwright.open_page\"")
     package: StartRunRequestWorkflowNodesInnerPackage
     status: StrictStr = Field(description="Node lifecycle state.")
-    category: StrictStr = Field(description="Group/category shown in the builder palette.")
-    label: StrictStr
-    description: Optional[StrictStr] = Field(default=None, description="Longer description of the node behaviour.")
+    category: LocalizedText = Field(description="Group/category shown in the builder palette.")
+    label: LocalizedText
+    description: Optional[LocalizedText] = Field(default=None, description="Longer description of the node behaviour.")
     tags: Optional[List[StrictStr]] = Field(default=None, description="Keywords for search/filter.")
     position: ListWorkflows200ResponseItemsInnerNodesInnerPosition
     parameters: Optional[Dict[str, Any]] = Field(default=None, description="Default parameter payload seeded from the manifest schema.")
@@ -136,9 +137,9 @@ class ListWorkflows200ResponseItemsInnerNodesInner(object):
             "type": obj.get("type"),
             "package": StartRunRequestWorkflowNodesInnerPackage.from_dict(obj.get("package")) if obj.get("package") is not None else None,
             "status": obj.get("status"),
-            "category": obj.get("category"),
-            "label": obj.get("label"),
-            "description": obj.get("description"),
+            "category": LocalizedText.from_dict(obj.get("category")) if obj.get("category") is not None else None,
+            "label": LocalizedText.from_dict(obj.get("label")) if obj.get("label") is not None else None,
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "tags": obj.get("tags"),
             "position": ListWorkflows200ResponseItemsInnerNodesInnerPosition.from_dict(obj.get("position")) if obj.get("position") is not None else None,
             "parameters": obj.get("parameters"),
@@ -153,5 +154,4 @@ class ListWorkflows200ResponseItemsInnerNodesInner(object):
                 _obj.additional_properties[_key] = obj.get(_key)
 
         return _obj
-
 

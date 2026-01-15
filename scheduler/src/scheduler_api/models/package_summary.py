@@ -22,8 +22,8 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from scheduler_api.models.published_package_state import PublishedPackageState
-from scheduler_api.models.published_package_visibility import PublishedPackageVisibility
+from scheduler_api.models.localized_text import LocalizedText
+from scheduler_api.models.package_hub_meta import PackageHubMeta
 try:
     from typing import Self
 except ImportError:
@@ -34,15 +34,14 @@ class PackageSummary(BaseModel):
     PackageSummary
     """ # noqa: E501
     name: StrictStr
-    description: Optional[StrictStr] = None
+    description: Optional[LocalizedText] = None
     latest_version: Optional[StrictStr] = Field(default=None, alias="latestVersion")
     default_version: Optional[StrictStr] = Field(default=None, alias="defaultVersion")
     versions: List[StrictStr]
-    dist_tags: Optional[Dict[str, StrictStr]] = Field(default=None, alias="distTags")
     owner_id: Optional[StrictStr] = Field(default=None, alias="ownerId")
-    visibility: Optional[PublishedPackageVisibility] = None
-    state: Optional[PublishedPackageState] = None
-    __properties: ClassVar[List[str]] = ["name", "description", "latestVersion", "defaultVersion", "versions", "distTags", "ownerId", "visibility", "state"]
+    hub: Optional[PackageHubMeta] = None
+    hub_versions: Optional[List[StrictStr]] = Field(default=None, alias="hubVersions")
+    __properties: ClassVar[List[str]] = ["name", "description", "latestVersion", "defaultVersion", "versions", "ownerId", "hub", "hubVersions"]
 
     model_config = {
         "populate_by_name": True,
@@ -81,10 +80,21 @@ class PackageSummary(BaseModel):
             },
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of description
+        if self.description:
+            _dict['description'] = self.description.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of hub
+        if self.hub:
+            _dict['hub'] = self.hub.to_dict()
         # set to None if owner_id (nullable) is None
         # and model_fields_set contains the field
         if self.owner_id is None and "owner_id" in self.model_fields_set:
             _dict['ownerId'] = None
+
+        # set to None if hub_versions (nullable) is None
+        # and model_fields_set contains the field
+        if self.hub_versions is None and "hub_versions" in self.model_fields_set:
+            _dict['hubVersions'] = None
 
         return _dict
 
@@ -99,14 +109,13 @@ class PackageSummary(BaseModel):
 
         _obj = cls.model_validate({
             "name": obj.get("name"),
-            "description": obj.get("description"),
+            "description": LocalizedText.from_dict(obj.get("description")) if obj.get("description") is not None else None,
             "latestVersion": obj.get("latestVersion"),
             "defaultVersion": obj.get("defaultVersion"),
             "versions": obj.get("versions"),
-            "distTags": obj.get("distTags"),
             "ownerId": obj.get("ownerId"),
-            "visibility": obj.get("visibility"),
-            "state": obj.get("state")
+            "hub": PackageHubMeta.from_dict(obj.get("hub")) if obj.get("hub") is not None else None,
+            "hubVersions": obj.get("hubVersions")
         })
         return _obj
 

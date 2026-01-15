@@ -4,6 +4,7 @@ from scheduler_api.apis.hub_workflows_api_base import BaseHubWorkflowsApi
 from scheduler_api.auth.roles import WORKFLOW_EDIT_ROLES, WORKFLOW_VIEW_ROLES, require_roles
 from scheduler_api.config.settings import get_api_settings
 from scheduler_api.http.errors import bad_request, forbidden, not_found
+from scheduler_api.models.hub_local_workflow_publish_request import HubLocalWorkflowPublishRequest
 from scheduler_api.models.hub_workflow_detail import HubWorkflowDetail
 from scheduler_api.models.hub_workflow_import_request import HubWorkflowImportRequest
 from scheduler_api.models.hub_workflow_import_response import HubWorkflowImportResponse
@@ -25,6 +26,37 @@ from scheduler_api.service.hub_imports import (
     hub_import_service,
 )
 from scheduler_api.service.workflow_dependencies import WorkflowPackageDependency, extract_package_dependencies
+from scheduler_api.service.workflows import (
+    WorkflowCorruptedError,
+    WorkflowNotFoundError,
+    WorkflowPermissionError,
+    WorkflowService,
+)
+
+
+def _resolve_localized_text(value: object | None, fallback: str = "") -> str:
+    if hasattr(value, "root"):
+        value = value.root
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        normalized = {
+            str(key).lower().replace("_", "-"): entry
+            for key, entry in value.items()
+            if isinstance(entry, str)
+        }
+        default_entry = normalized.get("default")
+        if default_entry:
+            return default_entry
+        for candidate in ("en-us", "en", "zh-cn", "zh", "ja", "ko"):
+            entry = normalized.get(candidate)
+            if entry:
+                return entry
+        for key in sorted(normalized.keys()):
+            entry = normalized.get(key)
+            if entry:
+                return entry
+    return fallback
 
 
 class HubWorkflowsApiImpl(BaseHubWorkflowsApi):
@@ -77,6 +109,54 @@ class HubWorkflowsApiImpl(BaseHubWorkflowsApi):
         except HubClientError as exc:
             raise bad_request(str(exc), error="hub_request_failed") from exc
         return HubWorkflowPublishResponse.from_dict(payload)
+
+    async def publish_hub_workflow_local(
+        self,
+        hub_local_workflow_publish_request: HubLocalWorkflowPublishRequest,
+    ) -> HubWorkflowPublishResponse:
+        token = require_roles(*WORKFLOW_EDIT_ROLES)
+        if hub_local_workflow_publish_request is None:
+            raise bad_request("Publish payload is required.")
+        workflow_id = hub_local_workflow_publish_request.workflow_id
+        version = hub_local_workflow_publish_request.version
+        if not workflow_id:
+            raise bad_request("workflowId is required.")
+        if not version:
+            raise bad_request("version is required.")
+        workflows = WorkflowService()
+        is_admin = "admin" in (token.roles or [])
+        owner_id = None if is_admin else token.sub
+        try:
+            workflow = workflows.get_workflow(
+                workflow_id,
+                owner_id=owner_id,
+                is_admin=is_admin,
+            )
+        except WorkflowNotFoundError as exc:
+            raise not_found(str(exc), error="workflow_not_found") from exc
+        except WorkflowPermissionError as exc:
+            raise forbidden(str(exc), error="workflow_forbidden") from exc
+        except WorkflowCorruptedError as exc:
+            raise bad_request(str(exc), error="workflow_corrupted") from exc
+
+        metadata = workflow.metadata
+        publish_request = HubWorkflowPublishRequest(
+            workflow_id=workflow_id,
+            name=hub_local_workflow_publish_request.name
+            or _resolve_localized_text(metadata.name, workflow_id),
+            version=version,
+            summary=hub_local_workflow_publish_request.summary,
+            description=hub_local_workflow_publish_request.description
+            or _resolve_localized_text(metadata.description),
+            tags=hub_local_workflow_publish_request.tags
+            or workflow.tags
+            or metadata.tags,
+            visibility=hub_local_workflow_publish_request.visibility,
+            preview_image=hub_local_workflow_publish_request.preview_image
+            or workflow.preview_image,
+            definition=workflow.to_dict(),
+        )
+        return await self.publish_hub_workflow(publish_request)
 
     async def get_hub_workflow(self, workflowId: str) -> HubWorkflowDetail:
         require_roles(*WORKFLOW_VIEW_ROLES)

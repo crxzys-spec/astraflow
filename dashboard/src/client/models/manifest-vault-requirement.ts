@@ -13,16 +13,16 @@
  */
 
 
+// May contain unused imports in some cases
+// @ts-ignore
+import type { LocalizedText } from './localized-text';
 
 export interface ManifestVaultRequirement {
     /**
      * Stable key used to store and retrieve the vault value.
      */
     'key': string;
-    /**
-     * Display label for the vault entry.
-     */
-    'label'?: string;
+    'label'?: LocalizedText;
     /**
      * Vault value type (secret, string, json).
      */

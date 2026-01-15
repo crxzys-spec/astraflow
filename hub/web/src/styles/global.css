@@ -18,6 +18,11 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 body {
   margin: 0;
   background: var(--hub-bg);
@@ -32,7 +37,7 @@ a {
 }
 
 #app {
-  min-height: 100vh;
+  min-height: 100%;
 }
 
 ::selection {
@@ -128,4 +133,46 @@ a {
 .auth-dialog .el-button--primary:hover,
 .auth-dialog .el-button--primary:focus {
   background: linear-gradient(130deg, #62e6da, #4cc0ff);
+}
+
+
+.account-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(10, 16, 28, 0.85);
+  border: 1px solid rgba(120, 160, 220, 0.35);
+  color: var(--hub-text);
+  cursor: pointer;
+}
+
+.account-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #041018;
+  background: linear-gradient(135deg, rgba(79, 209, 197, 0.95), rgba(86, 120, 255, 0.85));
+  box-shadow: 0 10px 24px rgba(79, 209, 197, 0.3);
+}
+
+.account-stack {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.account-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.account-meta {
+  font-size: 10px;
+  color: var(--hub-muted);
 }

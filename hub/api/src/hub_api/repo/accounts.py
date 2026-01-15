@@ -26,3 +26,26 @@ def get_account(user_id: str) -> dict[str, Any] | None:
         if record is not None:
             return _account_from_model(record)
     return _USERS.get(user_id)
+
+
+def update_account(
+    user_id: str,
+    *,
+    display_name: str | None,
+    email: str | None,
+) -> dict[str, Any] | None:
+    with SessionLocal() as session:
+        record = session.get(HubUser, user_id)
+        if record is None:
+            return None
+        updated = False
+        if display_name is not None and display_name != record.display_name:
+            record.display_name = display_name
+            updated = True
+        if email is not None and email != record.email:
+            record.email = email
+            updated = True
+        if updated:
+            session.commit()
+            session.refresh(record)
+        return _account_from_model(record)

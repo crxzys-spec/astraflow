@@ -5,8 +5,10 @@ import { getClientSessionId } from "../lib/clientSession";
 import { useAuthStore } from "@store/authSlice";
 import { useToolbarStore } from "../features/builder/hooks/useToolbar";
 import { useRuns, useRunsStore } from "../store";
+import { useTranslation } from "react-i18next";
 
 export const RunsPage = () => {
+  const { t, i18n } = useTranslation();
   const canViewRuns = useAuthStore((state) =>
     state.hasRole(["admin", "run.viewer", "workflow.editor"])
   );
@@ -55,11 +57,11 @@ export const RunsPage = () => {
               <path d="M16 8a6 6 0 0 0-9.9-3.5L4 8" />
             </svg>
           </span>
-          Refresh
+          {t("common.refresh")}
         </button>
       </div>
     );
-  }, [canViewRuns, refetch]);
+  }, [canViewRuns, i18n.language, refetch, t]);
 
   useEffect(() => {
     setToolbar(toolbarContent);
@@ -73,23 +75,27 @@ export const RunsPage = () => {
   if (!canViewRuns) {
     return (
       <div className="card">
-        <h2>Runs</h2>
+        <h2>{t("runs.title")}</h2>
         <p className="text-subtle">
-          You do not have permission to view run telemetry. Please request the run.viewer or workflow.editor role.
+          {t("runs.noPermission")} {t("runs.noPermissionDetail")}
         </p>
       </div>
     );
   }
 
   if (status === "loading") {
-    return <p>Loading runs...</p>;
+    return <p>{t("runs.loading")}</p>;
   }
 
   if (status === "error") {
     return (
       <div className="card">
-        <p className="error">Failed to load runs: {(error as Error).message}</p>
-        <button onClick={() => refetch()} className="btn">Retry</button>
+        <p className="error">
+          {t("runs.loadFailed", { message: (error as Error).message || t("common.unknownError") })}
+        </p>
+        <button onClick={() => refetch()} className="btn">
+          {t("common.retry")}
+        </button>
       </div>
     );
   }
@@ -98,8 +104,8 @@ export const RunsPage = () => {
     <div className="card">
       <header className="card__header">
         <div>
-          <h2>Runs</h2>
-          <p className="text-subtle">Most recent execution attempts</p>
+          <h2>{t("runs.title")}</h2>
+          <p className="text-subtle">{t("runs.subtitle")}</p>
         </div>
         <div className="run-detail__toggle">
           <input
@@ -108,21 +114,21 @@ export const RunsPage = () => {
             checked={showMiddlewareOnly}
             onChange={(event) => setShowMiddlewareOnly(event.target.checked)}
           />
-          <label htmlFor="middleware-filter">Show middleware runs only</label>
+          <label htmlFor="middleware-filter">{t("runs.showMiddleware")}</label>
         </div>
       </header>
       {(showMiddlewareOnly ? filteredRuns : runs).length === 0 ? (
-        <p>No runs yet.</p>
+        <p>{t("runs.noRuns")}</p>
       ) : (
         <table className="data-table">
           <thead>
             <tr>
-              <th>Run ID</th>
-              <th>Status</th>
-              <th>Client ID</th>
-              <th>Started</th>
-              <th>Finished</th>
-              <th>Actions</th>
+              <th>{t("runs.table.runId")}</th>
+              <th>{t("runs.table.status")}</th>
+              <th>{t("runs.table.clientId")}</th>
+              <th>{t("runs.table.started")}</th>
+              <th>{t("runs.table.finished")}</th>
+              <th>{t("runs.table.actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -156,7 +162,7 @@ export const RunsPage = () => {
                       }}
                       disabled={cancellingId === run.runId}
                     >
-                      Stop
+                      {t("runs.stop")}
                     </button>
                   ) : (
                     "-"

@@ -1,8 +1,9 @@
 import type {
+  LocalizedText,
   ManifestNode,
-  NodeUI,
-  UIPort,
-  UIWidget,
+  NodeUI as ApiNodeUI,
+  UIPort as ApiUIPort,
+  UIWidget as ApiUIWidget,
   WorkflowSubgraph,
   RunArtifact,
   Workflow as ApiWorkflow,
@@ -23,6 +24,14 @@ export type WorkflowSubgraphMetadata = ApiWorkflowSubgraphMetadata;
 export type WorkflowNodeState = ApiWorkflowNodeState;
 export type ManifestNodeTemplate = ManifestNode;
 export type RunArtifactModel = RunArtifact;
+
+export type LocalizedUIPort = Omit<ApiUIPort, "label"> & { label: LocalizedText };
+export type LocalizedUIWidget = Omit<ApiUIWidget, "label"> & { label: LocalizedText };
+export type LocalizedNodeUI = Omit<ApiNodeUI, "inputPorts" | "outputPorts" | "widgets"> & {
+  inputPorts?: LocalizedUIPort[];
+  outputPorts?: LocalizedUIPort[];
+  widgets?: LocalizedUIWidget[];
+};
 
 export interface WorkflowDraft {
 
@@ -50,12 +59,12 @@ export interface WorkflowDraft {
 
 export interface WorkflowMiddlewareDraft {
   id: string;
-  label: string;
+  label: LocalizedText;
   role?: "middleware";
   nodeKind: string;
   status?: string;
-  category?: string;
-  description?: string;
+  category?: LocalizedText;
+  description?: LocalizedText;
   tags?: string[];
   packageName?: string;
   packageVersion?: string;
@@ -64,7 +73,7 @@ export interface WorkflowMiddlewareDraft {
   parameters: Record<string, unknown>;
   results: Record<string, unknown>;
   schema?: WorkflowNodeSchema;
-  ui?: NodeUI;
+  ui?: LocalizedNodeUI;
   resources?: WorkflowResourceBinding[];
   affinity?: Record<string, unknown>;
   concurrencyKey?: string;
@@ -76,12 +85,12 @@ export interface WorkflowMiddlewareDraft {
 
 export interface WorkflowNodeDraft {
   id: string;
-  label: string;
+  label: LocalizedText;
   role?: "node" | "container" | "middleware";
   nodeKind: string;
   status?: string;
-  category?: string;
-  description?: string;
+  category?: LocalizedText;
+  description?: LocalizedText;
   tags?: string[];
   packageName?: string;
   packageVersion?: string;
@@ -90,7 +99,7 @@ export interface WorkflowNodeDraft {
   parameters: Record<string, unknown>;
   results: Record<string, unknown>;
   schema?: WorkflowNodeSchema;
-  ui?: NodeUI;
+  ui?: LocalizedNodeUI;
   position: XYPosition;
   layout?: WorkflowNodeLayout;
   dependencies: string[];
@@ -273,9 +282,9 @@ export interface WorkflowStoreActions {
 export type WorkflowStore = WorkflowStoreState & WorkflowStoreActions;
 
 
-export type NodeWidgetDefinition = UIWidget;
+export type NodeWidgetDefinition = LocalizedUIWidget;
 
-export type NodePortDefinition = UIPort;
+export type NodePortDefinition = LocalizedUIPort;
 
 
 

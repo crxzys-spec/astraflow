@@ -1,9 +1,10 @@
 import type { WorkflowGraphScope, WorkflowSubgraphDraftEntry, WorkflowMetadata } from "../types";
+import { resolveLocalizedText, type LocalizedText } from "../../../lib/manifestText";
 
 interface GraphSwitcherProps {
   activeGraph: WorkflowGraphScope;
   subgraphs: WorkflowSubgraphDraftEntry[];
-  workflowName?: string;
+  workflowName?: LocalizedText;
   workflowId?: string;
   canEdit?: boolean;
   onSelect: (scope: WorkflowGraphScope) => void;
@@ -27,6 +28,9 @@ const GraphSwitcher = ({
 }: GraphSwitcherProps) => {
   const mainActive = activeGraph.type === "root";
   const metadata = workflowMetadata;
+  const displayWorkflowName = resolveLocalizedText(workflowName) ?? "Untitled workflow";
+  const displayWorkflowDescription =
+    resolveLocalizedText(metadata?.description) ?? "Add a short summary to describe this workflow.";
   return (
     <div className="graph-switcher">
       <div className="graph-switcher__section">
@@ -47,7 +51,7 @@ const GraphSwitcher = ({
             <div className="graph-switcher__option-head">
               <div>
                 <span className="graph-switcher__eyebrow">PRIMARY WORKFLOW</span>
-                <strong>{workflowName ?? "Untitled workflow"}</strong>
+                <strong>{displayWorkflowName}</strong>
               </div>
               {canEdit && (
                 <button
@@ -69,7 +73,7 @@ const GraphSwitcher = ({
               )}
             </div>
             <p className="graph-switcher__helper">
-              {metadata?.description || "Add a short summary to describe this workflow."}
+              {displayWorkflowDescription}
             </p>
             <p className="graph-switcher__helper">Drag nodes from the catalog to build the main flow.</p>
           </div>
@@ -87,8 +91,10 @@ const GraphSwitcher = ({
           <div className="graph-switcher__list">
             {subgraphs.map((entry) => {
               const isActive = activeGraph.type === "subgraph" && activeGraph.subgraphId === entry.id;
-              const label = entry.definition.metadata?.name ?? entry.definition.id;
-              const description = entry.metadata?.description ?? entry.definition.metadata?.description;
+              const label =
+                resolveLocalizedText(entry.definition.metadata?.name) ?? entry.definition.id;
+              const description =
+                resolveLocalizedText(entry.metadata?.description ?? entry.definition.metadata?.description);
               const nodeCount = Object.keys(entry.definition.nodes).length;
               return (
                 <div

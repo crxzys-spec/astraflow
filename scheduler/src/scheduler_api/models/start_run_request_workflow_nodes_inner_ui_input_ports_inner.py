@@ -23,6 +23,7 @@ import json
 from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List
 from scheduler_api.models.start_run_request_workflow_nodes_inner_ui_input_ports_inner_binding import StartRunRequestWorkflowNodesInnerUiInputPortsInnerBinding
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -33,7 +34,7 @@ class StartRunRequestWorkflowNodesInnerUiInputPortsInner(BaseModel):
     StartRunRequestWorkflowNodesInnerUiInputPortsInner
     """ # noqa: E501
     key: StrictStr
-    label: StrictStr
+    label: LocalizedText
     binding: StartRunRequestWorkflowNodesInnerUiInputPortsInnerBinding
     __properties: ClassVar[List[str]] = ["key", "label", "binding"]
 
@@ -90,9 +91,8 @@ class StartRunRequestWorkflowNodesInnerUiInputPortsInner(BaseModel):
 
         _obj = cls.model_validate({
             "key": obj.get("key"),
-            "label": obj.get("label"),
+            "label": LocalizedText.from_dict(obj.get("label")) if obj.get("label") is not None else None,
             "binding": StartRunRequestWorkflowNodesInnerUiInputPortsInnerBinding.from_dict(obj.get("binding")) if obj.get("binding") is not None else None
         })
         return _obj
-
 

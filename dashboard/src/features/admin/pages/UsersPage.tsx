@@ -1,5 +1,6 @@
 ﻿import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { CreateUserRequest } from "../../../client/models";
 import type { UserSummary } from "../../../client/models";
 import { useAuthStore } from "@store/authSlice";
@@ -13,6 +14,7 @@ import {
 } from "../../../services/users";
 import { useAsyncAction } from "../../../hooks/useAsyncAction";
 import { toApiError, type ApiError } from "../../../api/fetcher";
+import { resolveApiErrorMessage } from "../../../lib/apiErrors";
 
 type CreateUserForm = Omit<CreateUserRequest, "roles"> & { roles: string[] };
 
@@ -23,26 +25,18 @@ const INITIAL_CREATE_FORM: CreateUserForm = {
   roles: [],
 };
 
-const ROLE_OPTIONS: { id: string; label: string; helper: string }[] = [
-  { id: "admin", label: "Admin", helper: "Full access to scheduler and user management." },
-  { id: "workflow.editor", label: "Workflow editor", helper: "Create and update workflows, start runs." },
-  { id: "workflow.viewer", label: "Workflow viewer", helper: "Read-only access to workflow definitions." },
-  { id: "run.viewer", label: "Run viewer", helper: "Inspect run telemetry without editing workflows." },
-];
-
-const getErrorMessage = (error: any, fallback: string) => {
-  const detail = error?.response?.data?.detail;
-  const detailMessage =
-    typeof detail === "string"
-      ? detail
-      : detail && typeof detail === "object" && "message" in detail
-        ? (detail as { message?: string }).message
-        : undefined;
-  return error?.response?.data?.message || detailMessage || error?.message || fallback;
-};
+const getErrorMessage = (error: unknown, fallback: string) =>
+  resolveApiErrorMessage(error, fallback);
 
 const UsersPage = () => {
   const isAdmin = useAuthStore((state) => state.hasRole(["admin"]));
+  const { t } = useTranslation();
+  const roleOptions: { id: string; label: string; helper: string }[] = [
+    { id: "admin", label: t("admin.roles.admin.label"), helper: t("admin.roles.admin.helper") },
+    { id: "workflow.editor", label: t("admin.roles.editor.label"), helper: t("admin.roles.editor.helper") },
+    { id: "workflow.viewer", label: t("admin.roles.viewer.label"), helper: t("admin.roles.viewer.helper") },
+    { id: "run.viewer", label: t("admin.roles.runViewer.label"), helper: t("admin.roles.runViewer.helper") },
+  ];
 
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState<CreateUserForm>(INITIAL_CREATE_FORM);
@@ -107,10 +101,8 @@ const UsersPage = () => {
     return (
       <div className="admin-view">
         <div className="card stack admin-panel">
-          <h2>User Management</h2>
-          <p className="text-subtle">
-            Only administrators can provision accounts. Contact your AstraFlow administrator to request access.
-          </p>
+          <h2>{t("admin.usersPage.accessDeniedTitle")}</h2>
+          <p className="text-subtle">{t("admin.usersPage.accessDeniedMessage")}</p>
         </div>
       </div>
     );
@@ -131,13 +123,13 @@ const UsersPage = () => {
     };
     createUserMutation.mutate(payload, {
       onSuccess: (response) => {
-        setFeedback({ type: "info", message: `User '${response.username}' created successfully.` });
+        setFeedback({ type: "info", message: t("admin.usersPage.messages.createSuccess", { username: response.username }) });
         setCreateForm(INITIAL_CREATE_FORM);
         setCreateModalOpen(false);
         void fetchUsers();
       },
       onError: (error: any) => {
-        setFeedback({ type: "error", message: getErrorMessage(error, "Unable to create user.") });
+        setFeedback({ type: "error", message: getErrorMessage(error, t("admin.usersPage.messages.createError")) });
       },
     });
   };
@@ -149,7 +141,7 @@ const UsersPage = () => {
     }
     const password = newPassword.trim();
     if (!password) {
-      setFeedback({ type: "error", message: "New password is required." });
+      setFeedback({ type: "error", message: t("admin.usersPage.messages.passwordRequired") });
       return;
     }
     setFeedback(null);
@@ -157,12 +149,12 @@ const UsersPage = () => {
       { userId: selectedUser.userId, password },
       {
         onSuccess: () => {
-          const username = selectedUser?.username ?? "user";
-          setFeedback({ type: "info", message: `Password updated for '${username}'.` });
+          const username = selectedUser?.username ?? t("admin.usersPage.messages.fallbackUser");
+          setFeedback({ type: "info", message: t("admin.usersPage.messages.passwordUpdated", { username }) });
           setNewPassword("");
         },
         onError: (error: any) => {
-          setFeedback({ type: "error", message: getErrorMessage(error, "Unable to reset password.") });
+          setFeedback({ type: "error", message: getErrorMessage(error, t("admin.usersPage.messages.passwordResetError")) });
         },
       },
     );
@@ -185,11 +177,11 @@ const UsersPage = () => {
         { userId: selectedUser.userId, role: roleName },
         {
           onSuccess: () => {
-            setFeedback({ type: "info", message: "Role assigned successfully." });
+            setFeedback({ type: "info", message: t("admin.usersPage.messages.roleAssigned") });
             void fetchUsers();
           },
           onError: (error: any) => {
-            setFeedback({ type: "error", message: getErrorMessage(error, "Unable to assign role.") });
+            setFeedback({ type: "error", message: getErrorMessage(error, t("admin.usersPage.messages.roleAssignError")) });
           },
         },
       );
@@ -198,11 +190,11 @@ const UsersPage = () => {
         { userId: selectedUser.userId, role: roleName },
         {
           onSuccess: () => {
-            setFeedback({ type: "info", message: "Role removed successfully." });
+            setFeedback({ type: "info", message: t("admin.usersPage.messages.roleRemoved") });
             void fetchUsers();
           },
           onError: (error: any) => {
-            setFeedback({ type: "error", message: getErrorMessage(error, "Unable to remove role.") });
+            setFeedback({ type: "error", message: getErrorMessage(error, t("admin.usersPage.messages.roleRemoveError")) });
           },
         },
       );
@@ -218,11 +210,11 @@ const UsersPage = () => {
       { userId: selectedUser.userId, isActive: nextActive },
       {
         onSuccess: () => {
-          setFeedback({ type: "info", message: "Account status updated." });
+          setFeedback({ type: "info", message: t("admin.usersPage.messages.statusUpdated") });
           void fetchUsers();
         },
         onError: (error: any) => {
-          setFeedback({ type: "error", message: getErrorMessage(error, "Unable to update status.") });
+          setFeedback({ type: "error", message: getErrorMessage(error, t("admin.usersPage.messages.statusUpdateError")) });
         },
       },
     );
@@ -247,18 +239,16 @@ const UsersPage = () => {
       <div className="card stack admin-user-card admin-panel">
         <header className="card__header admin-panel__header">
           <div>
-            <span className="admin-panel__eyebrow">Administration</span>
-            <h2>User Management</h2>
-            <p className="text-subtle admin-panel__description">
-              Manage accounts, roles, and passwords across the platform.
-            </p>
+            <span className="admin-panel__eyebrow">{t("admin.eyebrow")}</span>
+            <h2>{t("admin.usersPage.title")}</h2>
+            <p className="text-subtle admin-panel__description">{t("admin.usersPage.subtitle")}</p>
           </div>
           <div className="users-layout__actions">
             <button className="btn btn--ghost" type="button" onClick={() => setCreateModalOpen(true)}>
-              Create User
+              {t("admin.usersPage.actions.createUser")}
             </button>
             <button className="btn" type="button" onClick={() => void fetchUsers()} disabled={usersStatus === "loading"}>
-              {usersStatus === "loading" ? "Refreshing..." : "Refresh"}
+              {usersStatus === "loading" ? t("admin.usersPage.actions.refreshing") : t("common.refresh")}
             </button>
           </div>
         </header>
@@ -270,7 +260,7 @@ const UsersPage = () => {
         )}
         {usersStatus === "error" && (
           <div className="users-feedback users-feedback--error">
-            {usersError?.message ?? "Unable to load users."}
+            {usersError?.message ?? t("admin.usersPage.messages.loadError")}
           </div>
         )}
 
@@ -279,31 +269,31 @@ const UsersPage = () => {
             <table className="data-table users-table admin-table">
               <thead>
                 <tr>
-                  <th>Username</th>
-                  <th>Display name</th>
-                  <th>Roles</th>
-                  <th>Status</th>
+                  <th>{t("admin.usersPage.table.username")}</th>
+                  <th>{t("admin.usersPage.table.displayName")}</th>
+                  <th>{t("admin.usersPage.table.roles")}</th>
+                  <th>{t("admin.usersPage.table.status")}</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
                 {usersStatus === "loading" ? (
                   <tr>
-                    <td colSpan={4}>Loading users...</td>
+                    <td colSpan={4}>{t("admin.usersPage.table.loading")}</td>
                   </tr>
                 ) : users.length === 0 ? (
                   <tr>
-                    <td colSpan={4}>No users found. Use "Create User" to add one.</td>
+                    <td colSpan={4}>{t("admin.usersPage.table.empty")}</td>
                   </tr>
                 ) : (
                   users.map((user) => (
                     <tr key={user.userId}>
                       <td>{user.username}</td>
                       <td>{user.displayName}</td>
-                      <td>{user.roles.join(", ") || "None"}</td>
+                      <td>{user.roles.join(", ") || t("admin.usersPage.roles.none")}</td>
                       <td>
                         <span className={`badge ${user.isActive ? "badge--success" : "badge--muted"}`}>
-                          {user.isActive ? "Active" : "Disabled"}
+                          {user.isActive ? t("admin.usersPage.status.active") : t("admin.usersPage.status.disabled")}
                         </span>
                       </td>
                       <td className="users-table__actions admin-table__actions">
@@ -316,7 +306,7 @@ const UsersPage = () => {
                             setNewPassword("");
                           }}
                         >
-                          Manage
+                          {t("admin.usersPage.actions.manage")}
                         </button>
                       </td>
                     </tr>
@@ -333,46 +323,46 @@ const UsersPage = () => {
           <div className="modal__backdrop" onClick={closeCreateModal} />
           <div className="modal__panel card stack">
             <header className="modal__header">
-              <h3>Create User</h3>
+              <h3>{t("admin.usersPage.createModal.title")}</h3>
               <button className="btn btn--ghost" type="button" onClick={closeCreateModal}>
-                Close
+                {t("common.dismiss")}
               </button>
             </header>
             <form className="stack" onSubmit={handleCreateSubmit}>
               <label className="stack">
-                <span>Username</span>
+                <span>{t("admin.usersPage.createModal.username")}</span>
                 <input
               type="text"
               value={createForm.username}
               onChange={(evt) => setCreateForm((prev) => ({ ...prev, username: evt.target.value }))}
-              placeholder="username"
+              placeholder={t("admin.usersPage.createModal.usernamePlaceholder")}
               required
             />
           </label>
           <label className="stack">
-            <span>Display name</span>
+            <span>{t("admin.usersPage.createModal.displayName")}</span>
             <input
               type="text"
               value={createForm.displayName}
               onChange={(evt) => setCreateForm((prev) => ({ ...prev, displayName: evt.target.value }))}
-              placeholder="Display name"
+              placeholder={t("admin.usersPage.createModal.displayNamePlaceholder")}
               required
             />
           </label>
               <label className="stack">
-                <span>Temporary password</span>
+                <span>{t("admin.usersPage.createModal.password")}</span>
                 <input
                   type="password"
                   value={createForm.password}
                   onChange={(evt) => setCreateForm((prev) => ({ ...prev, password: evt.target.value }))}
-                  placeholder="********"
+                  placeholder={t("admin.usersPage.createModal.passwordPlaceholder")}
                   required
                 />
               </label>
               <fieldset className="stack users-role-fieldset">
-                <legend>Initial roles (optional)</legend>
+                <legend>{t("admin.usersPage.createModal.rolesLabel")}</legend>
                 <div className="users-role-grid">
-                  {ROLE_OPTIONS.map((role) => (
+                  {roleOptions.map((role) => (
                     <label key={role.id} className="users-role-option">
                       <input
                         type="checkbox"
@@ -388,7 +378,7 @@ const UsersPage = () => {
                 </div>
               </fieldset>
               <button className="btn btn--primary" type="submit" disabled={disableCreate}>
-                {createUserMutation.isPending ? "Creating..." : "Create User"}
+                {createUserMutation.isPending ? t("admin.usersPage.createModal.creating") : t("admin.usersPage.actions.createUser")}
               </button>
             </form>
           </div>
@@ -401,19 +391,22 @@ const UsersPage = () => {
           <div className="modal__panel card stack">
             <header className="modal__header">
               <div>
-                <h3>Manage {selectedUser.displayName}</h3>
+                <h3>{t("admin.usersPage.manageModal.title", { name: selectedUser.displayName })}</h3>
                 <p className="text-subtle">
-                  Username: {selectedUser.username} - Roles: {selectedUser.roles.join(", ") || "None"}
+                  {t("admin.usersPage.manageModal.summary", {
+                    username: selectedUser.username,
+                    roles: selectedUser.roles.join(", ") || t("admin.usersPage.roles.none"),
+                  })}
                 </p>
                 <p className="text-subtle">
-                  Status:{" "}
+                  {t("admin.usersPage.manageModal.statusLabel")}{" "}
                   <span className={`badge ${selectedUser.isActive ? "badge--success" : "badge--muted"}`}>
-                    {selectedUser.isActive ? "Active" : "Disabled"}
+                    {selectedUser.isActive ? t("admin.usersPage.status.active") : t("admin.usersPage.status.disabled")}
                   </span>
                 </p>
               </div>
               <button className="btn btn--ghost" type="button" onClick={closeManageModal}>
-                Close
+                {t("common.dismiss")}
               </button>
             </header>
             <button
@@ -422,11 +415,13 @@ const UsersPage = () => {
               onClick={() => handleStatusToggle(!selectedUser.isActive)}
               disabled={updateStatusMutation.isPending}
             >
-              {selectedUser.isActive ? "Disable Account" : "Enable Account"}
+              {selectedUser.isActive
+                ? t("admin.usersPage.manageModal.disableAccount")
+                : t("admin.usersPage.manageModal.enableAccount")}
             </button>
 
             <div className="users-role-grid">
-              {ROLE_OPTIONS.map((role) => {
+              {roleOptions.map((role) => {
                 const assigned = selectedUser.roles.includes(role.id);
                 const pending = addRoleMutation.isPending || removeRoleMutation.isPending;
                 return (
@@ -448,16 +443,18 @@ const UsersPage = () => {
 
             <form className="stack users-password-form" onSubmit={handlePasswordReset}>
               <label className="stack">
-                <span>Reset password</span>
+                <span>{t("admin.usersPage.manageModal.resetPassword")}</span>
               <input
                   type="password"
                   value={newPassword}
                   onChange={(evt) => setNewPassword(evt.target.value)}
-                  placeholder="New password"
+                  placeholder={t("admin.usersPage.manageModal.newPasswordPlaceholder")}
                 />
               </label>
               <button className="btn" type="submit" disabled={disableReset}>
-                {resetPasswordMutation.isPending ? "Updating..." : "Update Password"}
+                {resetPasswordMutation.isPending
+                  ? t("admin.usersPage.manageModal.updating")
+                  : t("admin.usersPage.manageModal.updatePassword")}
               </button>
             </form>
           </div>

@@ -17,11 +17,11 @@
 export interface WorkerCommandOneOf2 {
     'type': WorkerCommandOneOf2TypeEnum;
     'name': string;
-    'version'?: string;
+    'version': string;
     /**
-     * Optional archive URL; defaults to the published package archive.
+     * Package archive URL to install from.
      */
-    'url'?: string;
+    'url': string;
     /**
      * Optional SHA-256 checksum of the archive.
      */

@@ -28,6 +28,9 @@ from typing import Any
 from hub_api.models.error import Error
 from hub_api.models.organization import Organization
 from hub_api.models.organization_create_request import OrganizationCreateRequest
+from hub_api.models.organization_invite import OrganizationInvite
+from hub_api.models.organization_invite_create_request import OrganizationInviteCreateRequest
+from hub_api.models.organization_invite_list import OrganizationInviteList
 from hub_api.models.organization_list import OrganizationList
 from hub_api.models.organization_member import OrganizationMember
 from hub_api.models.organization_member_list import OrganizationMemberList
@@ -202,3 +205,125 @@ async def remove_organization_member(
     if not BaseOrgsApi.subclasses:
         raise HTTPException(status_code=500, detail="Not implemented")
     return await BaseOrgsApi.subclasses[0]().remove_organization_member(orgId, userId)
+
+
+@router.get(
+    "/api/v1/orgs/{orgId}/invites",
+    responses={
+        200: {"model": OrganizationInviteList, "description": "OK"},
+        401: {"model": Error, "description": "Unauthorized"},
+        403: {"model": Error, "description": "Forbidden"},
+        404: {"model": Error, "description": "Not Found"},
+    },
+    tags=["Orgs"],
+    summary="List organization invites",
+    response_model_by_alias=True,
+)
+async def list_organization_invites(
+    orgId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth, scopes=["publish"]
+    ),
+) -> OrganizationInviteList:
+    if not BaseOrgsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseOrgsApi.subclasses[0]().list_organization_invites(orgId)
+
+
+@router.post(
+    "/api/v1/orgs/{orgId}/invites",
+    responses={
+        201: {"model": OrganizationInvite, "description": "Created"},
+        400: {"model": Error, "description": "Invalid input"},
+        401: {"model": Error, "description": "Unauthorized"},
+        403: {"model": Error, "description": "Forbidden"},
+        404: {"model": Error, "description": "Not Found"},
+    },
+    tags=["Orgs"],
+    summary="Create organization invite",
+    response_model_by_alias=True,
+)
+async def create_organization_invite(
+    orgId: StrictStr = Path(..., description=""),
+    organization_invite_create_request: OrganizationInviteCreateRequest = Body(None, description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth, scopes=["publish"]
+    ),
+) -> OrganizationInvite:
+    if not BaseOrgsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseOrgsApi.subclasses[0]().create_organization_invite(orgId, organization_invite_create_request)
+
+
+@router.delete(
+    "/api/v1/orgs/{orgId}/invites/{inviteId}",
+    responses={
+        204: {"description": "Deleted"},
+        401: {"model": Error, "description": "Unauthorized"},
+        403: {"model": Error, "description": "Forbidden"},
+        404: {"model": Error, "description": "Not Found"},
+    },
+    tags=["Orgs"],
+    summary="Revoke organization invite",
+    response_model_by_alias=True,
+)
+async def revoke_organization_invite(
+    orgId: StrictStr = Path(..., description=""),
+    inviteId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth, scopes=["publish"]
+    ),
+) -> None:
+    if not BaseOrgsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseOrgsApi.subclasses[0]().revoke_organization_invite(orgId, inviteId)
+
+
+@router.post(
+    "/api/v1/orgs/{orgId}/invites/{inviteId}/accept",
+    responses={
+        200: {"model": OrganizationMember, "description": "OK"},
+        400: {"model": Error, "description": "Invalid input"},
+        401: {"model": Error, "description": "Unauthorized"},
+        403: {"model": Error, "description": "Forbidden"},
+        404: {"model": Error, "description": "Not Found"},
+    },
+    tags=["Orgs"],
+    summary="Accept organization invite",
+    response_model_by_alias=True,
+)
+async def accept_organization_invite(
+    orgId: StrictStr = Path(..., description=""),
+    inviteId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth, scopes=["read"]
+    ),
+) -> OrganizationMember:
+    if not BaseOrgsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseOrgsApi.subclasses[0]().accept_organization_invite(orgId, inviteId)
+
+
+@router.post(
+    "/api/v1/orgs/{orgId}/invites/{inviteId}/decline",
+    responses={
+        204: {"description": "Deleted"},
+        400: {"model": Error, "description": "Invalid input"},
+        401: {"model": Error, "description": "Unauthorized"},
+        403: {"model": Error, "description": "Forbidden"},
+        404: {"model": Error, "description": "Not Found"},
+    },
+    tags=["Orgs"],
+    summary="Decline organization invite",
+    response_model_by_alias=True,
+)
+async def decline_organization_invite(
+    orgId: StrictStr = Path(..., description=""),
+    inviteId: StrictStr = Path(..., description=""),
+    token_bearerAuth: TokenModel = Security(
+        get_token_bearerAuth, scopes=["read"]
+    ),
+) -> None:
+    if not BaseOrgsApi.subclasses:
+        raise HTTPException(status_code=500, detail="Not implemented")
+    return await BaseOrgsApi.subclasses[0]().decline_organization_invite(orgId, inviteId)

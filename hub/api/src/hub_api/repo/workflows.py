@@ -7,11 +7,83 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from hub_api.db.models import HubWorkflow, HubWorkflowVersion
+from hub_api.db.models import HubWorkflow, HubWorkflowPermission, HubWorkflowVersion
 from hub_api.db.session import SessionLocal
-from hub_api.repo.common import _now
+from hub_api.repo.common import _generate_id, _now
 
 DEFAULT_VISIBILITY = "public"
+
+
+def _workflow_permission_from_model(permission: HubWorkflowPermission) -> dict[str, Any]:
+    return {
+        "id": permission.id,
+        "workflowId": permission.workflow_id,
+        "subjectType": permission.subject_type,
+        "subjectId": permission.subject_id,
+        "role": permission.role,
+        "createdAt": permission.created_at,
+    }
+
+
+def list_workflow_permissions(workflow_id: str) -> list[dict[str, Any]]:
+    with SessionLocal() as session:
+        perms = session.execute(
+            select(HubWorkflowPermission).where(
+                HubWorkflowPermission.workflow_id == workflow_id
+            )
+        ).scalars().all()
+        return [_workflow_permission_from_model(perm) for perm in perms]
+
+
+def add_workflow_permission(
+    *,
+    workflow_id: str,
+    subject_type: str,
+    subject_id: str,
+    role: str,
+) -> dict[str, Any]:
+    with SessionLocal() as session:
+        permission = session.execute(
+            select(HubWorkflowPermission).where(
+                HubWorkflowPermission.workflow_id == workflow_id,
+                HubWorkflowPermission.subject_type == subject_type,
+                HubWorkflowPermission.subject_id == subject_id,
+            )
+        ).scalar_one_or_none()
+        if permission:
+            permission.role = role
+        else:
+            permission = HubWorkflowPermission(
+                id=_generate_id(),
+                workflow_id=workflow_id,
+                subject_type=subject_type,
+                subject_id=subject_id,
+                role=role,
+                created_at=_now(),
+            )
+            session.add(permission)
+        session.commit()
+        session.refresh(permission)
+        return _workflow_permission_from_model(permission)
+
+
+def update_workflow_permission(permission_id: str, role: str) -> dict[str, Any]:
+    with SessionLocal() as session:
+        permission = session.get(HubWorkflowPermission, permission_id)
+        if not permission:
+            raise ValueError("permission_not_found")
+        permission.role = role
+        session.commit()
+        session.refresh(permission)
+        return _workflow_permission_from_model(permission)
+
+
+def delete_workflow_permission(permission_id: str) -> None:
+    with SessionLocal() as session:
+        permission = session.get(HubWorkflowPermission, permission_id)
+        if permission:
+            session.delete(permission)
+            session.commit()
 
 def _workflow_record_from_model(
     workflow: HubWorkflow,
@@ -90,7 +162,10 @@ def publish_workflow_version(
     preview_image: str | None,
     dependencies: list[dict[str, Any]] | None,
     definition: dict[str, Any],
+    owner_id: str,
+    owner_name: str,
     publisher_id: str,
+    owner_subject_type: str = "user",
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     with SessionLocal() as session:
         workflow = None
@@ -105,8 +180,8 @@ def publish_workflow_version(
                 summary=summary,
                 description=description,
                 tags=tags,
-                owner_id=publisher_id,
-                owner_name=publisher_id,
+                owner_id=owner_id,
+                owner_name=owner_name,
                 updated_at=now,
                 created_at=now,
                 visibility=visibility,

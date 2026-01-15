@@ -3,9 +3,12 @@ import type {
   HubWorkflowImportRequest,
   HubWorkflowImportResponse,
   HubWorkflowListResponse,
+  HubWorkflowPublishRequest,
+  HubWorkflowPublishResponse,
   HubWorkflowSummary,
+  HubVisibility,
 } from "../client/models";
-import { createApi } from "../api/client";
+import { apiAxios, createApi } from "../api/client";
 import { apiRequest } from "../api/fetcher";
 
 const hubWorkflowsApi = createApi(HubWorkflowsApi);
@@ -65,7 +68,32 @@ export const importHubWorkflow = async (
   return response.data as HubWorkflowImportResponse;
 };
 
+export const publishHubWorkflow = async (
+  payload: HubWorkflowPublishRequest,
+): Promise<HubWorkflowPublishResponse> => {
+  const response = await apiRequest(() => hubWorkflowsApi.publishHubWorkflow(payload));
+  return response.data as HubWorkflowPublishResponse;
+};
+
+export type HubLocalWorkflowPublishPayload = {
+  workflowId: string;
+  version: string;
+  name?: string;
+  summary?: string;
+  description?: string;
+  tags?: string[];
+  visibility?: HubVisibility;
+};
+
+export const publishHubWorkflowLocal = async (
+  payload: HubLocalWorkflowPublishPayload,
+): Promise<HubWorkflowPublishResponse> => {
+  const response = await apiRequest(() => apiAxios.post("/api/v1/hub/workflows/local", payload));
+  return response.data as HubWorkflowPublishResponse;
+};
+
 export const hubWorkflowsGateway = {
   list: listHubWorkflows,
   import: importHubWorkflow,
+  publish: publishHubWorkflowLocal,
 };

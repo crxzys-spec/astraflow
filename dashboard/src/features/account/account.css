@@ -780,6 +780,18 @@
   font-weight: 600;
 }
 
+.account-package__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.account-package__owner {
+  font-size: 0.75rem;
+  color: rgba(148, 163, 184, 0.85);
+}
+
 .account-package__version {
   font-size: 0.75rem;
   color: rgba(148, 163, 184, 0.8);

@@ -21,8 +21,11 @@ class PackageDistTagRecord(Base):
     __table_args__ = (
         Index("ix_package_dist_tags_name", "name"),
         Index("ix_package_dist_tags_source", "source"),
+        Index("ix_package_dist_tags_owner_id", "owner_id"),
+        Index("ix_package_dist_tags_owner_name", "owner_id", "name"),
     )
 
+    owner_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     name: Mapped[str] = mapped_column(String(128), primary_key=True)
     tag: Mapped[str] = mapped_column(String(64), primary_key=True)
     source: Mapped[str] = mapped_column(String(32), primary_key=True, default="published")

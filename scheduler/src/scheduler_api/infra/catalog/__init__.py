@@ -1,4 +1,5 @@
 from .package_catalog import (
+    LOCAL_OWNER,
     PackageCatalog,
     PackageCatalogError,
     PackageNotFoundError,
@@ -11,5 +12,6 @@ __all__ = [
     "PackageCatalogError",
     "PackageNotFoundError",
     "PackageVersionNotFoundError",
+    "LOCAL_OWNER",
     "catalog",
 ]

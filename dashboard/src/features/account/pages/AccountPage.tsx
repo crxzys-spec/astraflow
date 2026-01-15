@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { accountGateway } from "../../../services/account";
 import { resourcesGateway } from "../../../services/resources";
 import { listPackages, getPackage } from "../../../services/packages";
@@ -14,6 +15,7 @@ import type {
   Resource,
   UserSummary,
 } from "../../../client/models";
+import { resolveLocalizedText } from "../../../lib/manifestText";
 import "../account.css";
 
 const formatResourceSize = (size?: number | null): string => {
@@ -46,6 +48,24 @@ const formatDate = (value?: string | Date | null): string => {
     return "-";
   }
   return date.toLocaleString();
+};
+
+const LOCAL_PACKAGE_OWNER = "local";
+
+const resolvePackageOwner = (pkg: PackageSummary) => {
+  const owner = (pkg.ownerId ?? "").trim();
+  if (!owner || owner === LOCAL_PACKAGE_OWNER) {
+    return null;
+  }
+  return owner;
+};
+
+const resolvePackageRef = (pkg: PackageSummary) => {
+  const owner = resolvePackageOwner(pkg);
+  if (!owner) {
+    return pkg.name;
+  }
+  return `${owner}/${pkg.name}`;
 };
 
 type UploadEntry = {
@@ -128,6 +148,7 @@ const createKvEntry = (): KeyValueEntry => ({
 });
 
 const AccountPage = () => {
+  const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const updateUser = useAuthStore((state) => state.updateUser);
   const [profile, setProfile] = useState<UserSummary | null>(user ?? null);
@@ -182,9 +203,9 @@ const AccountPage = () => {
       updateUser(data);
     } catch (error) {
       console.error("Failed to load profile", error);
-      setProfileStatus({ type: "error", message: "Unable to load profile." });
+      setProfileStatus({ type: "error", message: t("account.profile.messages.loadError") });
     }
-  }, [updateUser]);
+  }, [t, updateUser]);
 
   const loadResources = useCallback(
     async (searchValue?: string) => {
@@ -198,12 +219,12 @@ const AccountPage = () => {
         setResources(items);
       } catch (error) {
         console.error("Failed to load resources", error);
-        setResourceError("Unable to load resources.");
+        setResourceError(t("account.resources.messages.loadError"));
       } finally {
         setResourceLoading(false);
       }
     },
-    []
+    [t]
   );
 
   const loadPackages = useCallback(async () => {
@@ -211,22 +232,22 @@ const AccountPage = () => {
     setPackagesError(null);
     try {
       const items = await listPackages();
-      const sorted = [...items].sort((a, b) => a.name.localeCompare(b.name));
+      const sorted = [...items].sort((a, b) => resolvePackageRef(a).localeCompare(resolvePackageRef(b)));
       setPackages(sorted);
       setSelectedPackage((prev) => {
-        if (prev && sorted.some((item) => item.name === prev)) {
+        if (prev && sorted.some((item) => resolvePackageRef(item) === prev)) {
           return prev;
         }
-        return sorted[0]?.name ?? "";
+        return sorted[0] ? resolvePackageRef(sorted[0]) : "";
       });
     } catch (error) {
       console.error("Failed to load packages", error);
       setPackages([]);
-      setPackagesError("Unable to load packages.");
+      setPackagesError(t("account.packages.messages.loadError"));
     } finally {
       setPackagesLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const loadPackageDetail = useCallback(async (packageName: string) => {
     setPackageDetailLoading(true);
@@ -237,11 +258,11 @@ const AccountPage = () => {
     } catch (error) {
       console.error("Failed to load package detail", error);
       setPackageDetail(null);
-      setPackageDetailError("Unable to load package requirements.");
+      setPackageDetailError(t("account.packages.messages.requirementsError"));
     } finally {
       setPackageDetailLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const loadPackageVault = useCallback(async (packageName: string) => {
     setVaultLoading(true);
@@ -252,11 +273,11 @@ const AccountPage = () => {
     } catch (error) {
       console.error("Failed to load package vault", error);
       setVaultItems([]);
-      setVaultStatus({ type: "error", message: "Unable to load vault entries." });
+      setVaultStatus({ type: "error", message: t("account.packages.vault.messages.loadError") });
     } finally {
       setVaultLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const loadPackagePermissions = useCallback(async (packageName: string) => {
     setPermissionLoading(true);
@@ -267,11 +288,11 @@ const AccountPage = () => {
     } catch (error) {
       console.error("Failed to load package permissions", error);
       setPermissionItems([]);
-      setPermissionStatus({ type: "error", message: "Unable to load permissions." });
+      setPermissionStatus({ type: "error", message: t("account.packages.permissions.messages.loadError") });
     } finally {
       setPermissionLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadProfile();
@@ -349,7 +370,7 @@ const AccountPage = () => {
     }
     const nextName = displayName.trim();
     if (!nextName) {
-      setProfileStatus({ type: "error", message: "Display name is required." });
+      setProfileStatus({ type: "error", message: t("account.profile.messages.displayNameRequired") });
       return;
     }
     setSaving(true);
@@ -359,17 +380,17 @@ const AccountPage = () => {
       setProfile(updated);
       setDisplayName(updated.displayName);
       updateUser(updated);
-      setProfileStatus({ type: "success", message: "Profile updated." });
+      setProfileStatus({ type: "success", message: t("account.profile.messages.updated") });
     } catch (error) {
       console.error("Failed to update profile", error);
-      setProfileStatus({ type: "error", message: "Unable to update profile." });
+      setProfileStatus({ type: "error", message: t("account.profile.messages.updateError") });
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteResource = async (resourceId: string) => {
-    if (!window.confirm("Delete this resource?")) {
+    if (!window.confirm(t("account.resources.messages.deleteConfirm"))) {
       return;
     }
     try {
@@ -377,7 +398,7 @@ const AccountPage = () => {
       setResources((prev) => prev.filter((item) => item.resourceId !== resourceId));
     } catch (error) {
       console.error("Failed to delete resource", error);
-      setResourceError("Unable to delete resource.");
+      setResourceError(t("account.resources.messages.deleteError"));
     }
   };
 
@@ -437,7 +458,7 @@ const AccountPage = () => {
             uploadedAny = true;
           }
         } catch (error) {
-          const message = (error as { message?: string })?.message ?? "Upload failed.";
+          const message = (error as { message?: string })?.message ?? t("account.resources.messages.uploadFailed");
           updateUploadEntry(key, { status: "error", error: message });
           setUploadError(message);
         }
@@ -448,7 +469,7 @@ const AccountPage = () => {
       }
       return uploadedAny;
     },
-    [loadResources, resourceSearch, uploadProvider, uploading],
+    [loadResources, resourceSearch, t, uploadProvider, uploading],
   );
 
   const handleUploadInput = (event: ChangeEvent<HTMLInputElement>) => {
@@ -501,11 +522,11 @@ const AccountPage = () => {
   const handleCreateKeyValueResource = async () => {
     const payload = buildKvPayload(kvEntries);
     if (payload.duplicates.length) {
-      setUploadError(`Duplicate keys: ${payload.duplicates.join(", ")}`);
+      setUploadError(t("account.resources.messages.duplicateKeys", { keys: payload.duplicates.join(", ") }));
       return;
     }
     if (!payload.json || !payload.keys.length) {
-      setUploadError("Add at least one key-value pair.");
+      setUploadError(t("account.resources.messages.kvMissing"));
       return;
     }
     const filename = resolveKvFilename(kvResourceName);
@@ -568,7 +589,7 @@ const AccountPage = () => {
       if (isAbortError(error)) {
         return;
       }
-      const message = (error as { message?: string })?.message ?? "Failed to load preview.";
+      const message = (error as { message?: string })?.message ?? t("account.resources.messages.previewFailed");
       setPreviewEntry(resourceId, { status: "error", kind, error: message });
     } finally {
       previewControllersRef.current.delete(resourceId);
@@ -586,7 +607,9 @@ const AccountPage = () => {
     if (missingRequired.length) {
       setVaultStatus({
         type: "error",
-        message: `Missing required entries: ${missingRequired.map((item) => item.key).join(", ")}`,
+        message: t("account.packages.vault.messages.missingRequired", {
+          keys: missingRequired.map((item) => item.key).join(", "),
+        }),
       });
       return;
     }
@@ -617,10 +640,10 @@ const AccountPage = () => {
         await Promise.all(deleteKeys.map((key) => packageAccessGateway.deleteVaultItem(selectedPackage, key)));
       }
       await loadPackageVault(selectedPackage);
-      setVaultStatus({ type: "success", message: "Vault entries updated." });
+      setVaultStatus({ type: "success", message: t("account.packages.vault.messages.updated") });
     } catch (error) {
       console.error("Failed to update vault", error);
-      setVaultStatus({ type: "error", message: "Unable to update vault." });
+      setVaultStatus({ type: "error", message: t("account.packages.vault.messages.updateError") });
     } finally {
       setVaultLoading(false);
     }
@@ -635,10 +658,10 @@ const AccountPage = () => {
     try {
       await packageAccessGateway.deleteVaultItem(selectedPackage, key);
       await loadPackageVault(selectedPackage);
-      setVaultStatus({ type: "success", message: "Vault entry deleted." });
+      setVaultStatus({ type: "success", message: t("account.packages.vault.messages.deleted") });
     } catch (error) {
       console.error("Failed to delete vault entry", error);
-      setVaultStatus({ type: "error", message: "Unable to delete vault entry." });
+      setVaultStatus({ type: "error", message: t("account.packages.vault.messages.deleteError") });
     } finally {
       setVaultLoading(false);
     }
@@ -659,10 +682,10 @@ const AccountPage = () => {
         actions: requirement.actions ?? ["read"],
       });
       await loadPackagePermissions(selectedPackage);
-      setPermissionStatus({ type: "success", message: "Permission granted." });
+      setPermissionStatus({ type: "success", message: t("account.packages.permissions.messages.granted") });
     } catch (error) {
       console.error("Failed to grant permission", error);
-      setPermissionStatus({ type: "error", message: "Unable to grant permission." });
+      setPermissionStatus({ type: "error", message: t("account.packages.permissions.messages.grantError") });
     } finally {
       setPermissionLoading(false);
     }
@@ -677,10 +700,10 @@ const AccountPage = () => {
     try {
       await packageAccessGateway.deletePermission(permission.permissionId);
       await loadPackagePermissions(selectedPackage);
-      setPermissionStatus({ type: "success", message: "Permission revoked." });
+      setPermissionStatus({ type: "success", message: t("account.packages.permissions.messages.revoked") });
     } catch (error) {
       console.error("Failed to revoke permission", error);
-      setPermissionStatus({ type: "error", message: "Unable to revoke permission." });
+      setPermissionStatus({ type: "error", message: t("account.packages.permissions.messages.revokeError") });
     } finally {
       setPermissionLoading(false);
     }
@@ -715,8 +738,13 @@ const AccountPage = () => {
     return new Map(permissionItems.map((item) => [item.permissionKey, item]));
   }, [permissionItems]);
   const selectedPackageSummary = useMemo(() => {
-    return packages.find((item) => item.name === selectedPackage) ?? null;
+    return packages.find((item) => resolvePackageRef(item) === selectedPackage) ?? null;
   }, [packages, selectedPackage]);
+  const selectedPackageOwner = useMemo(
+    () => (selectedPackageSummary ? resolvePackageOwner(selectedPackageSummary) : null),
+    [selectedPackageSummary],
+  );
+  const selectedPackageDescription = resolveLocalizedText(selectedPackageSummary?.description);
 
   useEffect(() => {
     if (!selectedPackage) {
@@ -749,11 +777,15 @@ const AccountPage = () => {
   }, [resources, providerFilter, typeFilter]);
 
   const hasProfileChanges = Boolean(profile && displayName.trim() && displayName.trim() !== profile.displayName);
-  const displayNameLabel = profile?.displayName || "AstraFlow User";
-  const usernameLabel = profile?.username || "unknown";
-  const userIdLabel = profile?.userId || "-";
+  const displayNameLabel = profile?.displayName || t("account.profile.fallbackDisplayName");
+  const usernameLabel = profile?.username || t("account.profile.fallbackUsername");
+  const userIdLabel = profile?.userId || t("account.profile.fallbackUserId");
   const roleCountLabel = profile ? `${profile.roles.length}` : "-";
-  const statusLabel = profile ? (profile.isActive ? "Active" : "Disabled") : "Checking...";
+  const statusLabel = profile
+    ? profile.isActive
+      ? t("account.profile.status.active")
+      : t("account.profile.status.disabled")
+    : t("account.profile.status.checking");
   const statusClass = profile ? (profile.isActive ? "is-active" : "is-disabled") : "is-unknown";
   const resourceCountLabel = resourceLoading ? "..." : resourceError ? "-" : `${resources.length}`;
   const packagesLoaded =
@@ -774,9 +806,9 @@ const AccountPage = () => {
     <div className="account-page">
       <div className="account-header">
         <div className="account-header__intro">
-          <span className="account-kicker">Personal Console</span>
-          <h2>Account</h2>
-          <p className="text-subtle">Manage your profile and personal resources.</p>
+          <span className="account-kicker">{t("account.kicker")}</span>
+          <h2>{t("account.title")}</h2>
+          <p className="text-subtle">{t("account.subtitle")}</p>
         </div>
         <div className="account-hero">
           <div className="account-hero__profile">
@@ -788,7 +820,7 @@ const AccountPage = () => {
               <div className="account-hero__meta">
                 <span>@{usernameLabel}</span>
                 <span className="account-hero__dot" aria-hidden="true" />
-                <span>ID {userIdLabel}</span>
+                <span>{t("common.id")} {userIdLabel}</span>
               </div>
               <div className={`account-hero__status ${statusClass}`}>
                 <span className="account-hero__status-dot" aria-hidden="true" />
@@ -798,15 +830,15 @@ const AccountPage = () => {
           </div>
           <div className="account-hero__stats">
             <div className="account-hero__stat">
-              <span className="account-hero__stat-label">Resources</span>
+              <span className="account-hero__stat-label">{t("account.stats.resources")}</span>
               <span className="account-hero__stat-value">{resourceCountLabel}</span>
             </div>
             <div className="account-hero__stat">
-              <span className="account-hero__stat-label">Packages</span>
+              <span className="account-hero__stat-label">{t("account.stats.packages")}</span>
               <span className="account-hero__stat-value">{packagesCountLabel}</span>
             </div>
             <div className="account-hero__stat">
-              <span className="account-hero__stat-label">Roles</span>
+              <span className="account-hero__stat-label">{t("account.stats.roles")}</span>
               <span className="account-hero__stat-value">{roleCountLabel}</span>
             </div>
           </div>
@@ -821,21 +853,21 @@ const AccountPage = () => {
               className={`account-menu__button${activeSection === "profile" ? " is-active" : ""}`}
               onClick={() => setActiveSection("profile")}
             >
-              Personal Panel
+              {t("account.menu.profile")}
             </button>
             <button
               type="button"
               className={`account-menu__button${activeSection === "resources" ? " is-active" : ""}`}
               onClick={() => setActiveSection("resources")}
             >
-              Resource Center
+              {t("account.menu.resources")}
             </button>
             <button
               type="button"
               className={`account-menu__button${activeSection === "packages" ? " is-active" : ""}`}
               onClick={() => setActiveSection("packages")}
             >
-              Package Vault
+              {t("account.menu.packages")}
             </button>
           </nav>
         </aside>
@@ -845,17 +877,15 @@ const AccountPage = () => {
             <div className="card account-section account-section--profile">
               <header className="card__header account-section__header">
                 <div>
-                  <span className="account-section__eyebrow">Profile</span>
-                  <h3>Identity &amp; Access</h3>
-                  <p className="text-subtle account-section__description">
-                    Update your display name and review the access assigned to your account.
-                  </p>
+                  <span className="account-section__eyebrow">{t("account.profile.eyebrow")}</span>
+                  <h3>{t("account.profile.title")}</h3>
+                  <p className="text-subtle account-section__description">{t("account.profile.subtitle")}</p>
                 </div>
               </header>
               {profile ? (
                 <div className="stack">
                   <div className="account-field">
-                    <span className="account-field__label">Display name</span>
+                    <span className="account-field__label">{t("account.profile.displayName")}</span>
                     <input
                       type="text"
                       value={displayName}
@@ -863,15 +893,15 @@ const AccountPage = () => {
                     />
                   </div>
                   <div className="account-field">
-                    <span className="account-field__label">Username</span>
+                    <span className="account-field__label">{t("account.profile.username")}</span>
                     <div className="account__mono">{profile.username}</div>
                   </div>
                   <div className="account-field">
-                    <span className="account-field__label">User id</span>
+                    <span className="account-field__label">{t("account.profile.userId")}</span>
                     <div className="account__mono">{profile.userId}</div>
                   </div>
                   <div className="account-field">
-                    <span className="account-field__label">Roles</span>
+                    <span className="account-field__label">{t("account.profile.roles")}</span>
                     <div className="account-inline">
                       {profile.roles.map((role) => (
                         <span key={role} className="account-pill account-pill--muted">
@@ -881,9 +911,11 @@ const AccountPage = () => {
                     </div>
                   </div>
                   <div className="account-field">
-                    <span className="account-field__label">Status</span>
+                    <span className="account-field__label">{t("account.profile.status.label")}</span>
                     <div className={`account-status ${profile.isActive ? "" : "account-status--error"}`}>
-                      {profile.isActive ? "Active" : "Disabled"}
+                      {profile.isActive
+                        ? t("account.profile.status.active")
+                        : t("account.profile.status.disabled")}
                     </div>
                   </div>
                   <div className="account-actions">
@@ -893,10 +925,10 @@ const AccountPage = () => {
                       onClick={handleSaveProfile}
                       disabled={saving || !hasProfileChanges}
                     >
-                      {saving ? "Saving..." : "Save changes"}
+                      {saving ? t("account.profile.actions.saving") : t("account.profile.actions.save")}
                     </button>
                     <button type="button" className="btn btn--ghost" onClick={loadProfile}>
-                      Refresh
+                      {t("common.refresh")}
                     </button>
                   </div>
                   {profileStatus.type !== "idle" && (
@@ -910,7 +942,7 @@ const AccountPage = () => {
                   )}
                 </div>
               ) : (
-                <p className="text-subtle">No profile loaded.</p>
+                <p className="text-subtle">{t("account.profile.messages.empty")}</p>
               )}
             </div>
           )}
@@ -919,11 +951,9 @@ const AccountPage = () => {
             <div className="card account-section account-section--resources">
               <header className="card__header account-section__header">
                 <div>
-                  <span className="account-section__eyebrow">Resources</span>
-                  <h3>Resource Library</h3>
-                  <p className="text-subtle account-section__description">
-                    Upload files, manage key-value assets, and preview stored artifacts.
-                  </p>
+                  <span className="account-section__eyebrow">{t("account.resources.eyebrow")}</span>
+                  <h3>{t("account.resources.title")}</h3>
+                  <p className="text-subtle account-section__description">{t("account.resources.subtitle")}</p>
                 </div>
               </header>
               <div className="stack">
@@ -937,18 +967,18 @@ const AccountPage = () => {
                         onChange={handleUploadInput}
                         disabled={uploading}
                       />
-                      <span className="account-upload-title">Upload files</span>
-                      <span className="account-upload-subtitle">Drag &amp; drop or click to browse.</span>
+                      <span className="account-upload-title">{t("account.resources.upload.title")}</span>
+                      <span className="account-upload-subtitle">{t("account.resources.upload.subtitle")}</span>
                     </label>
                     <div className="account-upload-options">
                       <label className="account-field account-resource-upload__field">
-                        <span className="account-field__label">Provider</span>
+                        <span className="account-field__label">{t("account.resources.upload.provider")}</span>
                         <select
                           value={uploadProvider}
                           onChange={(event) => setUploadProvider(event.target.value)}
                           disabled={uploading}
                         >
-                          <option value="default">Default provider</option>
+                          <option value="default">{t("account.resources.upload.defaultProvider")}</option>
                           {uploadProviderOptions.map((provider) => (
                             <option key={provider} value={provider}>
                               {provider}
@@ -956,33 +986,33 @@ const AccountPage = () => {
                           ))}
                         </select>
                       </label>
-                      {uploading && <span className="account-upload-status">Uploading...</span>}
+                      {uploading && <span className="account-upload-status">{t("account.resources.upload.uploading")}</span>}
                     </div>
                   </div>
                   <div className="account-kv-resource">
                     <div className="account-kv-resource__header">
                       <div>
-                        <h4>Key-value resource</h4>
-                        <p className="text-subtle">Store secrets and configuration pairs without uploading files.</p>
+                        <h4>{t("account.resources.kv.title")}</h4>
+                        <p className="text-subtle">{t("account.resources.kv.subtitle")}</p>
                       </div>
                       <span className="account-kv-resource__size">{formatBytes(kvResourceSize)}</span>
                     </div>
                     <div className="account-kv-resource__meta">
                       <label className="account-field">
-                        <span className="account-field__label">Resource name</span>
+                        <span className="account-field__label">{t("account.resources.kv.resourceName")}</span>
                         <input
                           type="text"
                           value={kvResourceName}
                           onChange={(event) => setKvResourceName(event.target.value)}
-                          placeholder="key-values.json"
+                          placeholder={t("account.resources.kv.resourceNamePlaceholder")}
                           disabled={uploading}
                         />
                       </label>
                     </div>
                     <div className="account-kv-resource__table">
                       <div className="account-kv-resource__row account-kv-resource__row--header">
-                        <span>Key</span>
-                        <span>Value</span>
+                        <span>{t("account.resources.kv.key")}</span>
+                        <span>{t("account.resources.kv.value")}</span>
                         <span />
                       </div>
                       {kvEntries.map((entry, index) => (
@@ -992,7 +1022,11 @@ const AccountPage = () => {
                             type="text"
                             value={entry.key}
                             onChange={(event) => updateKvEntry(entry.id, { key: event.target.value })}
-                            placeholder={index === 0 ? "OPENAI_API_KEY" : "KEY"}
+                            placeholder={
+                              index === 0
+                                ? t("account.resources.kv.keyPrimaryPlaceholder")
+                                : t("account.resources.kv.keyPlaceholder")
+                            }
                             disabled={uploading}
                           />
                           <textarea
@@ -1000,7 +1034,7 @@ const AccountPage = () => {
                             rows={2}
                             value={entry.value}
                             onChange={(event) => updateKvEntry(entry.id, { value: event.target.value })}
-                            placeholder="Value"
+                            placeholder={t("account.resources.kv.valuePlaceholder")}
                             disabled={uploading}
                           />
                           {kvEntries.length > 1 ? (
@@ -1010,7 +1044,7 @@ const AccountPage = () => {
                               onClick={() => handleRemoveKvEntry(entry.id)}
                               disabled={uploading}
                             >
-                              Remove
+                              {t("account.resources.kv.removeRow")}
                             </button>
                           ) : (
                             <span className="account-kv-resource__spacer" />
@@ -1020,7 +1054,7 @@ const AccountPage = () => {
                     </div>
                     {kvPayload.duplicates.length > 0 && (
                       <p className="account-kv-resource__warning">
-                        Duplicate keys: {kvPayload.duplicates.join(", ")}
+                        {t("account.resources.messages.duplicateKeys", { keys: kvPayload.duplicates.join(", ") })}
                       </p>
                     )}
                     <div className="account-kv-resource__actions">
@@ -1030,7 +1064,7 @@ const AccountPage = () => {
                         onClick={handleAddKvEntry}
                         disabled={uploading}
                       >
-                        Add row
+                        {t("account.resources.kv.addRow")}
                       </button>
                       <button
                         type="button"
@@ -1038,10 +1072,10 @@ const AccountPage = () => {
                         onClick={handleCreateKeyValueResource}
                         disabled={uploading || !kvPayload.keys.length || kvPayload.duplicates.length > 0}
                       >
-                        Create resource
+                        {t("account.resources.kv.create")}
                       </button>
                     </div>
-                    <p className="account-kv-resource__hint">Uses the provider selected above.</p>
+                    <p className="account-kv-resource__hint">{t("account.resources.kv.hint")}</p>
                   </div>
                   {uploadError && <p className="error">{uploadError}</p>}
                   {uploadEntries.length > 0 && (
@@ -1050,9 +1084,9 @@ const AccountPage = () => {
                         const progressPct = Math.round(Math.min(100, Math.max(0, entry.progress * 100)));
                         const statusLabel =
                           entry.status === "error"
-                            ? "Failed"
+                            ? t("account.resources.upload.status.failed")
                             : entry.status === "queued"
-                              ? "Queued"
+                              ? t("account.resources.upload.status.queued")
                               : `${progressPct}%`;
                         return (
                           <li key={entry.key} className="account-upload-item">
@@ -1066,7 +1100,7 @@ const AccountPage = () => {
                                   className="btn btn--ghost"
                                   onClick={() => handleDismissUpload(entry.key)}
                                 >
-                                  Remove
+                                  {t("account.resources.upload.remove")}
                                 </button>
                               )}
                             </div>
@@ -1082,67 +1116,67 @@ const AccountPage = () => {
                 </div>
 
                 <div className="account-resource-panel">
-                  <div className="account-resource-toolbar">
-                    <div className="account-resource-filters">
-                      <label className="account-field">
-                        <span className="account-field__label">Search</span>
-                        <input
-                          type="text"
-                          placeholder="filename or id"
-                          value={resourceSearch}
-                          onChange={(event) => setResourceSearch(event.target.value)}
-                        />
-                      </label>
-                      <label className="account-field">
-                        <span className="account-field__label">Provider</span>
-                        <select value={providerFilter} onChange={(event) => setProviderFilter(event.target.value)}>
-                          {providerOptions.map((provider) => (
-                            <option key={provider} value={provider}>
-                              {provider === "all" ? "All providers" : provider}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="account-field">
-                        <span className="account-field__label">Type</span>
-                        <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                          {typeOptions.map((type) => (
-                            <option key={type} value={type}>
-                              {type === "all" ? "All types" : type}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                    <div className="account-resource-toolbar">
+                      <div className="account-resource-filters">
+                        <label className="account-field">
+                          <span className="account-field__label">{t("account.resources.filters.search")}</span>
+                          <input
+                            type="text"
+                            placeholder={t("account.resources.filters.searchPlaceholder")}
+                            value={resourceSearch}
+                            onChange={(event) => setResourceSearch(event.target.value)}
+                          />
+                        </label>
+                        <label className="account-field">
+                          <span className="account-field__label">{t("account.resources.filters.provider")}</span>
+                          <select value={providerFilter} onChange={(event) => setProviderFilter(event.target.value)}>
+                            {providerOptions.map((provider) => (
+                              <option key={provider} value={provider}>
+                                {provider === "all" ? t("account.resources.filters.allProviders") : provider}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="account-field">
+                          <span className="account-field__label">{t("account.resources.filters.type")}</span>
+                          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                            {typeOptions.map((type) => (
+                              <option key={type} value={type}>
+                                {type === "all" ? t("account.resources.filters.allTypes") : type}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <div className="account-actions">
+                        <button
+                          type="button"
+                          className="btn btn--ghost"
+                          onClick={() => loadResources(resourceSearch)}
+                          disabled={resourceLoading}
+                        >
+                          {resourceLoading ? t("account.resources.actions.refreshing") : t("common.refresh")}
+                        </button>
+                      </div>
                     </div>
-                    <div className="account-actions">
-                      <button
-                        type="button"
-                        className="btn btn--ghost"
-                        onClick={() => loadResources(resourceSearch)}
-                        disabled={resourceLoading}
-                      >
-                        {resourceLoading ? "Refreshing..." : "Refresh"}
-                      </button>
-                    </div>
-                  </div>
 
                   <div className="account-resource-table-wrap">
                     {resourceError && <p className="error">{resourceError}</p>}
-                    {resourceLoading && <p className="text-subtle">Loading resources...</p>}
+                    {resourceLoading && <p className="text-subtle">{t("account.resources.messages.loading")}</p>}
                     {!resourceLoading && filteredResources.length === 0 && (
-                      <p className="text-subtle">No resources found.</p>
+                      <p className="text-subtle">{t("account.resources.messages.empty")}</p>
                     )}
                     {!resourceLoading && filteredResources.length > 0 && (
                       <table className="data-table account-resource-table">
                         <thead>
                           <tr>
-                            <th>File</th>
-                            <th>Resource Id</th>
-                            <th>Provider</th>
-                            <th>Type</th>
-                            <th>Size</th>
-                            <th>Created</th>
-                            <th>Actions</th>
+                            <th>{t("account.resources.table.file")}</th>
+                            <th>{t("account.resources.table.resourceId")}</th>
+                            <th>{t("account.resources.table.provider")}</th>
+                            <th>{t("account.resources.table.type")}</th>
+                            <th>{t("account.resources.table.size")}</th>
+                            <th>{t("account.resources.table.created")}</th>
+                            <th>{t("account.resources.table.actions")}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1170,7 +1204,11 @@ const AccountPage = () => {
                                           }`}
                                           onClick={() => handleTogglePreview(resource)}
                                         >
-                                          {preview?.status === "loading" ? "Loading" : preview ? "Hide" : "Preview"}
+                                          {preview?.status === "loading"
+                                            ? t("account.resources.preview.loading")
+                                            : preview
+                                              ? t("account.resources.preview.hide")
+                                              : t("account.resources.preview.show")}
                                         </button>
                                       )}
                                       <button
@@ -1180,14 +1218,14 @@ const AccountPage = () => {
                                           resourcesGateway.download(resource.resourceId, resource.filename ?? undefined)
                                         }
                                       >
-                                        Download
+                                        {t("account.resources.actions.download")}
                                       </button>
                                       <button
                                         type="button"
                                         className="btn btn--ghost"
                                         onClick={() => handleDeleteResource(resource.resourceId)}
                                       >
-                                        Delete
+                                        {t("account.resources.actions.delete")}
                                       </button>
                                     </div>
                                   </td>
@@ -1196,12 +1234,15 @@ const AccountPage = () => {
                                   <tr className="account-resource-preview-row">
                                     <td colSpan={7}>
                                       <div className="account-resource-preview">
-                                        {preview.status === "loading" && <span>Loading preview...</span>}
+                                        {preview.status === "loading" && <span>{t("account.resources.preview.loadingDetail")}</span>}
                                         {preview.status === "error" && (
                                           <span className="account-resource-preview__error">{preview.error}</span>
                                         )}
                                         {preview.status === "ready" && preview.url && preview.kind === "image" && (
-                                          <img src={preview.url} alt={resource.filename ?? "preview"} />
+                                          <img
+                                            src={preview.url}
+                                            alt={resource.filename ?? t("account.resources.preview.altFallback")}
+                                          />
                                         )}
                                         {preview.status === "ready" && preview.url && preview.kind === "video" && (
                                           <video src={preview.url} controls preload="metadata" />
@@ -1228,19 +1269,17 @@ const AccountPage = () => {
             <div className="card account-section account-section--packages">
               <header className="card__header account-section__header">
                 <div>
-                  <span className="account-section__eyebrow">Packages</span>
-                  <h3>Package Vault</h3>
-                  <p className="text-subtle account-section__description">
-                    Manage secrets and permissions required by your packages.
-                  </p>
+                  <span className="account-section__eyebrow">{t("account.packages.eyebrow")}</span>
+                  <h3>{t("account.packages.title")}</h3>
+                  <p className="text-subtle account-section__description">{t("account.packages.subtitle")}</p>
                 </div>
               </header>
               <div className="account-package">
                 <aside className="account-package__sidebar">
                   <div className="account-package__sidebar-header">
                     <div>
-                      <h4>Packages</h4>
-                      <p className="text-subtle">Select a package to manage access.</p>
+                      <h4>{t("account.packages.listTitle")}</h4>
+                      <p className="text-subtle">{t("account.packages.listSubtitle")}</p>
                     </div>
                     <button
                       type="button"
@@ -1248,25 +1287,30 @@ const AccountPage = () => {
                       onClick={loadPackages}
                       disabled={packagesLoading}
                     >
-                      {packagesLoading ? "Refreshing..." : "Refresh"}
+                      {packagesLoading ? t("account.packages.actions.refreshing") : t("common.refresh")}
                     </button>
                   </div>
                   {packagesError && <p className="error">{packagesError}</p>}
-                  {packagesLoading && <p className="text-subtle">Loading packages...</p>}
+                  {packagesLoading && <p className="text-subtle">{t("account.packages.messages.loading")}</p>}
                   {!packagesLoading && packages.length === 0 && (
-                    <p className="text-subtle">No packages found.</p>
+                    <p className="text-subtle">{t("account.packages.messages.empty")}</p>
                   )}
                   <div className="account-package__list">
                     {packages.map((pkg) => {
                       const version = pkg.defaultVersion || pkg.latestVersion || "latest";
+                      const packageRef = resolvePackageRef(pkg);
+                      const ownerLabel = resolvePackageOwner(pkg);
                       return (
                         <button
-                          key={pkg.name}
+                          key={packageRef}
                           type="button"
-                          className={`account-package__item${selectedPackage === pkg.name ? " is-active" : ""}`}
-                          onClick={() => setSelectedPackage(pkg.name)}
+                          className={`account-package__item${selectedPackage === packageRef ? " is-active" : ""}`}
+                          onClick={() => setSelectedPackage(packageRef)}
                         >
-                          <span className="account-package__name">{pkg.name}</span>
+                          <span className="account-package__identity">
+                            <span className="account-package__name">{pkg.name}</span>
+                            {ownerLabel && <span className="account-package__owner">@{ownerLabel}</span>}
+                          </span>
                           <span className="account-package__version">{version}</span>
                         </button>
                       );
@@ -1275,37 +1319,40 @@ const AccountPage = () => {
                 </aside>
                 <div className="account-package__content">
                   {!selectedPackage && (
-                    <p className="text-subtle">Select a package from the list to configure its access.</p>
+                    <p className="text-subtle">{t("account.packages.messages.selectPackage")}</p>
                   )}
                   {selectedPackage && (
                     <div className="stack">
                       <div className="account-package__header">
                         <div>
-                          <h4>{selectedPackage}</h4>
-                          {selectedPackageSummary?.description && (
-                            <p className="text-subtle">{selectedPackageSummary.description}</p>
+                          <h4>{selectedPackageSummary?.name ?? selectedPackage}</h4>
+                          {selectedPackageOwner && <p className="text-subtle">@{selectedPackageOwner}</p>}
+                          {selectedPackageDescription && (
+                            <p className="text-subtle">{selectedPackageDescription}</p>
                           )}
                         </div>
                         <span className="account-pill account-pill--muted">
                           {selectedPackageSummary?.defaultVersion ||
                             selectedPackageSummary?.latestVersion ||
-                            "latest"}
+                            t("account.packages.latest")}
                         </span>
                       </div>
-                      {packageDetailLoading && <p className="text-subtle">Loading package requirements...</p>}
+                      {packageDetailLoading && (
+                        <p className="text-subtle">{t("account.packages.messages.loadingRequirements")}</p>
+                      )}
                       {packageDetailError && <p className="error">{packageDetailError}</p>}
                       {!packageDetailLoading &&
                         !packageDetailError &&
                         vaultRequirements.length === 0 &&
                         permissionRequirements.length === 0 && (
-                          <p className="text-subtle">This package does not request vault entries or permissions.</p>
+                          <p className="text-subtle">{t("account.packages.messages.noRequirements")}</p>
                         )}
                       {vaultRequirements.length > 0 && (
                         <div className="account-package__panel">
                           <div className="account-package__panel-header">
                             <div>
-                              <h4>Vault entries</h4>
-                              <p className="text-subtle">Secrets and config stored per package.</p>
+                              <h4>{t("account.packages.vault.title")}</h4>
+                              <p className="text-subtle">{t("account.packages.vault.subtitle")}</p>
                             </div>
                             <div className="account-actions">
                               <button
@@ -1314,7 +1361,9 @@ const AccountPage = () => {
                                 onClick={handleSaveVault}
                                 disabled={vaultLoading}
                               >
-                                {vaultLoading ? "Saving..." : "Save"}
+                                {vaultLoading
+                                  ? t("account.packages.vault.actions.saving")
+                                  : t("account.packages.vault.actions.save")}
                               </button>
                               <button
                                 type="button"
@@ -1322,7 +1371,7 @@ const AccountPage = () => {
                                 onClick={() => loadPackageVault(selectedPackage)}
                                 disabled={vaultLoading}
                               >
-                                Refresh
+                                {t("common.refresh")}
                               </button>
                             </div>
                           </div>
@@ -1333,6 +1382,8 @@ const AccountPage = () => {
                               const isSecret = requirement.type?.toLowerCase() === "secret";
                               const isJson = requirement.type?.toLowerCase() === "json";
                               const isRequired = requirement.required !== false;
+                              const requirementLabel = resolveLocalizedText(requirement.label);
+                              const requirementDescription = resolveLocalizedText(requirement.description);
                               return (
                                 <div key={requirement.key} className="account-package__row">
                                   <div className="account-package__meta">
@@ -1344,14 +1395,16 @@ const AccountPage = () => {
                                           isRequired ? "" : "account-pill--muted"
                                         }`}
                                       >
-                                        {isRequired ? "Required" : "Optional"}
+                                        {isRequired
+                                          ? t("account.packages.requirement.required")
+                                          : t("account.packages.requirement.optional")}
                                       </span>
                                     </div>
-                                    {requirement.label && requirement.label !== requirement.key && (
-                                      <div className="account-package__label">{requirement.label}</div>
+                                    {requirementLabel && requirementLabel !== requirement.key && (
+                                      <div className="account-package__label">{requirementLabel}</div>
                                     )}
-                                    {requirement.description && (
-                                      <p className="text-subtle">{requirement.description}</p>
+                                    {requirementDescription && (
+                                      <p className="text-subtle">{requirementDescription}</p>
                                     )}
                                   </div>
                                   <div className="account-package__input">
@@ -1359,7 +1412,7 @@ const AccountPage = () => {
                                       <textarea
                                         rows={3}
                                         value={value}
-                                        placeholder="{}"
+                                        placeholder={t("account.packages.vault.jsonPlaceholder")}
                                         onChange={(event) =>
                                           setVaultDrafts((prev) => ({
                                             ...prev,
@@ -1389,7 +1442,7 @@ const AccountPage = () => {
                                         onClick={() => handleDeleteVaultItem(requirement.key)}
                                         disabled={vaultLoading}
                                       >
-                                        Remove
+                                        {t("account.packages.vault.actions.remove")}
                                       </button>
                                     )}
                                   </div>
@@ -1412,8 +1465,8 @@ const AccountPage = () => {
                         <div className="account-package__panel">
                           <div className="account-package__panel-header">
                             <div>
-                              <h4>Permissions</h4>
-                              <p className="text-subtle">Grant packages access to resource types.</p>
+                              <h4>{t("account.packages.permissions.title")}</h4>
+                              <p className="text-subtle">{t("account.packages.permissions.subtitle")}</p>
                             </div>
                             <button
                               type="button"
@@ -1421,7 +1474,7 @@ const AccountPage = () => {
                               onClick={() => loadPackagePermissions(selectedPackage)}
                               disabled={permissionLoading}
                             >
-                              Refresh
+                              {t("common.refresh")}
                             </button>
                           </div>
                           <div className="account-package__rows">
@@ -1430,9 +1483,10 @@ const AccountPage = () => {
                               const actions =
                                 requirement.actions && requirement.actions.length
                                   ? requirement.actions.join(", ")
-                                  : "read";
+                                  : t("account.packages.permissions.defaultAction");
                               const types = requirement.types?.join(", ") ?? "-";
                               const isRequired = requirement.required !== false;
+                              const requirementDescription = resolveLocalizedText(requirement.description);
                               return (
                                 <div key={requirement.key} className="account-package__row">
                                   <div className="account-package__meta">
@@ -1444,13 +1498,17 @@ const AccountPage = () => {
                                           isRequired ? "" : "account-pill--muted"
                                         }`}
                                       >
-                                        {isRequired ? "Required" : "Optional"}
+                                        {isRequired
+                                          ? t("account.packages.requirement.required")
+                                          : t("account.packages.requirement.optional")}
                                       </span>
                                     </div>
-                                    {requirement.description && (
-                                      <p className="text-subtle">{requirement.description}</p>
+                                    {requirementDescription && (
+                                      <p className="text-subtle">{requirementDescription}</p>
                                     )}
-                                    <div className="account-package__hint">Actions: {actions}</div>
+                                    <div className="account-package__hint">
+                                      {t("account.packages.permissions.actionsLabel", { actions })}
+                                    </div>
                                   </div>
                                   <div className="account-package__actions">
                                     {granted ? (
@@ -1460,7 +1518,7 @@ const AccountPage = () => {
                                         onClick={() => handleRevokePermission(granted)}
                                         disabled={permissionLoading}
                                       >
-                                        Revoke
+                                        {t("account.packages.permissions.actions.revoke")}
                                       </button>
                                     ) : (
                                       <button
@@ -1469,7 +1527,7 @@ const AccountPage = () => {
                                         onClick={() => handleGrantPermission(requirement)}
                                         disabled={permissionLoading}
                                       >
-                                        Grant
+                                        {t("account.packages.permissions.actions.grant")}
                                       </button>
                                     )}
                                   </div>

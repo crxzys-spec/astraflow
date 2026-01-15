@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from scheduler_api.config.settings import get_api_settings
 from scheduler_api.db.models import PackageDistTagRecord, PackageIndexRecord
 from scheduler_api.db.session import run_in_session
+from scheduler_api.infra.catalog import LOCAL_OWNER
 from scheduler_api.infra.catalog.package_catalog import _version_key
 from scheduler_api.repo.package_dist_tags import PackageDistTagRepository
 from scheduler_api.repo.package_index import PackageIndexRepository
@@ -67,6 +68,7 @@ class PublishedPackageQuotaError(PackageIndexError):
 
 @dataclass(frozen=True)
 class PackageGcItem:
+    owner_id: str
     name: str
     version: str
     size_bytes: int | None
@@ -74,6 +76,7 @@ class PackageGcItem:
 
     def to_dict(self) -> dict[str, object]:
         return {
+            "ownerId": self.owner_id,
             "name": self.name,
             "version": self.version,
             "sizeBytes": self.size_bytes,
@@ -82,12 +85,37 @@ class PackageGcItem:
 
 
 def _serialize_manifest(manifest: PackageManifest) -> str:
-    payload = manifest.model_dump(by_alias=True, exclude_none=True)
+    payload = manifest.model_dump(by_alias=True, exclude_none=True, mode="json")
     return json.dumps(payload, ensure_ascii=True, sort_keys=True)
 
 
 def _hash_manifest(manifest_json: str) -> str:
     return hashlib.sha256(manifest_json.encode("utf-8")).hexdigest()
+
+
+def _resolve_localized_text(value: object | None, fallback: str) -> str:
+    if hasattr(value, "root"):
+        value = value.root
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        normalized = {
+            str(key).lower().replace("_", "-"): entry
+            for key, entry in value.items()
+            if isinstance(entry, str)
+        }
+        default_entry = normalized.get("default")
+        if default_entry:
+            return default_entry
+        for candidate in ("en-us", "en", "zh-cn", "zh", "ja", "ko"):
+            entry = normalized.get(candidate)
+            if entry:
+                return entry
+        for key in sorted(normalized.keys()):
+            entry = normalized.get(key)
+            if entry:
+                return entry
+    return fallback
 
 
 def _hash_file(path: Path) -> str:
@@ -98,8 +126,29 @@ def _hash_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _normalize_owner_id(owner_id: str | None) -> str:
+    return owner_id or LOCAL_OWNER
+
+
+def _resolve_owner_id(records: Iterable[PackageIndexRecord], owner_id: str | None) -> str:
+    owners = {_normalize_owner_id(record.owner_id) for record in records}
+    if not owners:
+        return _normalize_owner_id(owner_id)
+    if owner_id:
+        if owner_id not in owners:
+            raise PublishedPackageNotFoundError(
+                f"Package owner '{owner_id}' not found."
+            )
+        return owner_id
+    if LOCAL_OWNER in owners:
+        return LOCAL_OWNER
+    if len(owners) == 1:
+        return owners.pop()
+    raise PublishedPackageOwnershipError("Package owner is required.")
+
+
 def _resolve_owner(records: Iterable[PackageIndexRecord], owner_id: str) -> None:
-    owners = {record.owner_id for record in records if record.owner_id}
+    owners = {_normalize_owner_id(record.owner_id) for record in records}
     if not owners:
         return
     if len(owners) > 1:
@@ -115,7 +164,8 @@ def _resolve_owner(records: Iterable[PackageIndexRecord], owner_id: str) -> None
 def _resolve_archive_path(record: PackageIndexRecord, packages_root: Path) -> Path:
     if record.archive_path:
         return packages_root / record.archive_path
-    return packages_root / record.name / record.version / PACKAGE_ARCHIVE_NAME
+    owner_id = _normalize_owner_id(record.owner_id)
+    return packages_root / owner_id / record.name / record.version / PACKAGE_ARCHIVE_NAME
 
 
 def _resolve_archive_size(
@@ -183,18 +233,22 @@ class PackageIndexService:
         def _list(session: Session) -> list[dict[str, object]]:
             records = self._repo.list_by_source(source=self._source, session=session)
             tag_records = self._tag_repo.list_by_source(source=self._source, session=session)
-            tags_by_name: dict[str, dict[str, str]] = {}
+            tags_by_name: dict[tuple[str, str], dict[str, str]] = {}
             for tag_record in tag_records:
-                tags_by_name.setdefault(tag_record.name, {})[tag_record.tag] = tag_record.version
-            grouped: dict[str, list[PackageIndexRecord]] = {}
+                owner_id = _normalize_owner_id(tag_record.owner_id)
+                tags_by_name.setdefault((owner_id, tag_record.name), {})[
+                    tag_record.tag
+                ] = tag_record.version
+            grouped: dict[tuple[str, str], list[PackageIndexRecord]] = {}
             for record in records:
-                grouped.setdefault(record.name, []).append(record)
+                owner_id = _normalize_owner_id(record.owner_id)
+                grouped.setdefault((owner_id, record.name), []).append(record)
 
             summaries: list[dict[str, object]] = []
-            for name, items in grouped.items():
+            for (owner_id, name), items in grouped.items():
                 versions = sorted((item.version for item in items), key=_version_key, reverse=True)
                 latest = max(items, key=lambda item: _version_key(item.version))
-                dist_tags = tags_by_name.get(name, {})
+                dist_tags = tags_by_name.get((owner_id, name), {})
                 default_version = dist_tags.get("latest") or (versions[0] if versions else None)
                 summaries.append(
                     {
@@ -203,28 +257,46 @@ class PackageIndexService:
                         "latestVersion": versions[0] if versions else None,
                         "defaultVersion": default_version,
                         "versions": versions,
+                        "ownerId": owner_id,
                         "distTags": dist_tags,
                     }
                 )
-            summaries.sort(key=lambda item: item["name"])
+            summaries.sort(key=lambda item: (item.get("name"), item.get("ownerId")))
             return summaries
 
         return run_in_session(_list)
 
-    def get_package_detail(self, name: str, version: str | None = None) -> dict[str, object]:
+    def get_package_detail(
+        self,
+        name: str,
+        version: str | None = None,
+        *,
+        owner_id: str | None = None,
+    ) -> dict[str, object]:
         def _get(session: Session) -> dict[str, object]:
             records = self._repo.list_by_name(name=name, source=self._source, session=session)
             if not records:
                 raise PublishedPackageNotFoundError(f"Package '{name}' not found")
-            versions = sorted((record.version for record in records), key=_version_key, reverse=True)
+            resolved_owner = _resolve_owner_id(records, owner_id)
+            owner_records = [
+                record
+                for record in records
+                if _normalize_owner_id(record.owner_id) == resolved_owner
+            ]
+            versions = sorted(
+                (record.version for record in owner_records),
+                key=_version_key,
+                reverse=True,
+            )
             tag_records = self._tag_repo.list_by_name(
                 name=name,
                 source=self._source,
                 session=session,
+                owner_id=resolved_owner,
             )
             dist_tags = {record.tag: record.version for record in tag_records}
             target_version = version or dist_tags.get("latest") or versions[0]
-            record = next((item for item in records if item.version == target_version), None)
+            record = next((item for item in owner_records if item.version == target_version), None)
             if record is None:
                 raise PublishedPackageVersionNotFoundError(
                     f"Package '{name}' has no version '{target_version}'"
@@ -232,6 +304,7 @@ class PackageIndexService:
             archive_size = _resolve_archive_size(record, self._packages_root, session)
             return {
                 "name": name,
+                "ownerId": resolved_owner,
                 "version": target_version,
                 "availableVersions": versions,
                 "manifest": json.loads(record.manifest_json),
@@ -255,7 +328,9 @@ class PackageIndexService:
         manifest_hash = _hash_manifest(manifest_json)
         archive_sha256 = _hash_file(archive_path)
         archive_size_bytes = archive_path.stat().st_size
-        archive_rel_path = str(Path(manifest.name) / manifest.version / PACKAGE_ARCHIVE_NAME)
+        archive_rel_path = str(
+            Path(owner_id) / manifest.name / manifest.version / PACKAGE_ARCHIVE_NAME
+        )
         now = datetime.now(timezone.utc)
 
         def _register(session: Session) -> None:
@@ -265,17 +340,26 @@ class PackageIndexService:
                 session=session,
             )
             if existing_versions:
-                _resolve_owner(existing_versions, owner_id)
-                for record in existing_versions:
-                    if record.owner_id is None:
+                legacy_records = [record for record in existing_versions if record.owner_id is None]
+                owner_records = [
+                    record
+                    for record in existing_versions
+                    if _normalize_owner_id(record.owner_id) == owner_id
+                ]
+                if legacy_records and not owner_records:
+                    for record in legacy_records:
                         record.owner_id = owner_id
                         session.add(record)
+                    owner_records = legacy_records
+                if owner_records:
+                    _resolve_owner(owner_records, owner_id)
 
             existing = self._repo.get_by_name_version(
                 name=manifest.name,
                 version=manifest.version,
                 source=self._source,
                 session=session,
+                owner_id=owner_id,
             )
             if existing:
                 raise PublishedPackageAlreadyExistsError(
@@ -287,7 +371,9 @@ class PackageIndexService:
                     version=manifest.version,
                     source=self._source,
                     schema_version=manifest.schemaVersion,
-                    description=manifest.description,
+                    description=_resolve_localized_text(
+                        manifest.description, manifest.name
+                    ),
                     manifest_json=manifest_json,
                     manifest_hash=manifest_hash,
                     archive_path=archive_rel_path,
@@ -305,6 +391,7 @@ class PackageIndexService:
                 tag="latest",
                 source=self._source,
                 session=session,
+                owner_id=owner_id,
             )
             if tag_record:
                 tag_record.version = manifest.version
@@ -313,6 +400,7 @@ class PackageIndexService:
             else:
                 session.add(
                     PackageDistTagRecord(
+                        owner_id=owner_id,
                         name=manifest.name,
                         tag="latest",
                         source=self._source,
@@ -323,7 +411,7 @@ class PackageIndexService:
                 )
 
         run_in_session(_register)
-        return self.get_package_detail(manifest.name, manifest.version)
+        return self.get_package_detail(manifest.name, manifest.version, owner_id=owner_id)
 
     def ensure_storage_quota(
         self,
@@ -349,7 +437,8 @@ class PackageIndexService:
                 if owner_bytes + incoming_bytes > owner_limit:
                     raise PublishedPackageQuotaError("Owner storage quota exceeded.")
             if package_limit > 0:
-                package_records = self._repo.list_by_name(
+                package_records = self._repo.list_by_owner_name(
+                    owner_id=owner_id,
                     name=name,
                     source=self._source,
                     session=session,
@@ -373,7 +462,12 @@ class PackageIndexService:
         now = datetime.now(timezone.utc)
 
         def _set(session: Session) -> None:
-            records = self._repo.list_by_name(name=name, source=self._source, session=session)
+            records = self._repo.list_by_owner_name(
+                owner_id=owner_id,
+                name=name,
+                source=self._source,
+                session=session,
+            )
             if not records:
                 raise PublishedPackageNotFoundError(f"Package '{name}' not found")
             _resolve_owner(records, owner_id)
@@ -387,7 +481,7 @@ class PackageIndexService:
             session.add(record)
 
         run_in_session(_set)
-        return self.get_package_detail(name, version)
+        return self.get_package_detail(name, version, owner_id=owner_id)
 
     def set_dist_tag(
         self,
@@ -400,7 +494,12 @@ class PackageIndexService:
         now = datetime.now(timezone.utc)
 
         def _set(session: Session) -> None:
-            records = self._repo.list_by_name(name=name, source=self._source, session=session)
+            records = self._repo.list_by_owner_name(
+                owner_id=owner_id,
+                name=name,
+                source=self._source,
+                session=session,
+            )
             if not records:
                 raise PublishedPackageNotFoundError(f"Package '{name}' not found")
             _resolve_owner(records, owner_id)
@@ -409,6 +508,7 @@ class PackageIndexService:
                 version=version,
                 source=self._source,
                 session=session,
+                owner_id=owner_id,
             )
             if existing_version is None:
                 raise PublishedPackageVersionNotFoundError(
@@ -419,6 +519,7 @@ class PackageIndexService:
                 tag=tag,
                 source=self._source,
                 session=session,
+                owner_id=owner_id,
             )
             if tag_record:
                 tag_record.version = version
@@ -427,6 +528,7 @@ class PackageIndexService:
             else:
                 session.add(
                     PackageDistTagRecord(
+                        owner_id=owner_id,
                         name=name,
                         tag=tag,
                         source=self._source,
@@ -446,7 +548,12 @@ class PackageIndexService:
         owner_id: str,
     ) -> None:
         def _delete(session: Session) -> None:
-            records = self._repo.list_by_name(name=name, source=self._source, session=session)
+            records = self._repo.list_by_owner_name(
+                owner_id=owner_id,
+                name=name,
+                source=self._source,
+                session=session,
+            )
             if not records:
                 raise PublishedPackageNotFoundError(f"Package '{name}' not found")
             _resolve_owner(records, owner_id)
@@ -455,6 +562,7 @@ class PackageIndexService:
                 tag=tag,
                 source=self._source,
                 session=session,
+                owner_id=owner_id,
             )
             if tag_record is None:
                 raise PublishedPackageTagNotFoundError(
@@ -464,14 +572,21 @@ class PackageIndexService:
 
         run_in_session(_delete)
 
-    def get_archive_path(self, name: str, version: str | None = None) -> tuple[Path, str | None, str]:
-        detail = self.get_package_detail(name, version)
+    def get_archive_path(
+        self,
+        name: str,
+        version: str | None = None,
+        *,
+        owner_id: str | None = None,
+    ) -> tuple[Path, str | None, str]:
+        detail = self.get_package_detail(name, version, owner_id=owner_id)
         archive_path = detail.get("archivePath")
         resolved_version = str(detail.get("version") or "")
+        resolved_owner = str(detail.get("ownerId") or owner_id or LOCAL_OWNER)
         if archive_path:
             path = self._packages_root / archive_path
         else:
-            path = self._packages_root / name / resolved_version / PACKAGE_ARCHIVE_NAME
+            path = self._packages_root / resolved_owner / name / resolved_version / PACKAGE_ARCHIVE_NAME
         return path, detail.get("archiveSha256"), resolved_version
 
     def gc_packages(
@@ -480,6 +595,7 @@ class PackageIndexService:
         package_name: str | None,
         max_versions: int | None,
         dry_run: bool,
+        owner_id: str | None = None,
     ) -> tuple[list[PackageGcItem], int]:
         settings = get_api_settings()
         limit = int(settings.published_packages_max_versions_per_package)
@@ -489,26 +605,39 @@ class PackageIndexService:
             return [], 0
 
         def _gc(session: Session) -> tuple[list[PackageGcItem], int, list[Path]]:
-            records = (
-                self._repo.list_by_name(name=package_name, source=self._source, session=session)
-                if package_name
-                else self._repo.list_by_source(source=self._source, session=session)
-            )
-            grouped: dict[str, list[PackageIndexRecord]] = {}
+            if package_name:
+                records = self._repo.list_by_name(
+                    name=package_name,
+                    source=self._source,
+                    session=session,
+                    owner_id=owner_id,
+                )
+            elif owner_id:
+                records = self._repo.list_by_owner(
+                    owner_id=owner_id,
+                    source=self._source,
+                    session=session,
+                )
+            else:
+                records = self._repo.list_by_source(source=self._source, session=session)
+
+            grouped: dict[tuple[str, str], list[PackageIndexRecord]] = {}
             for record in records:
-                grouped.setdefault(record.name, []).append(record)
+                resolved_owner = _normalize_owner_id(record.owner_id)
+                grouped.setdefault((resolved_owner, record.name), []).append(record)
 
             removed: list[PackageGcItem] = []
             removed_paths: list[Path] = []
             total_bytes = 0
             now = datetime.now(timezone.utc)
 
-            for name, items in grouped.items():
+            for (resolved_owner, name), items in grouped.items():
                 versions_sorted = sorted(items, key=lambda item: _version_key(item.version), reverse=True)
                 tag_records = self._tag_repo.list_by_name(
                     name=name,
                     source=self._source,
                     session=session,
+                    owner_id=resolved_owner,
                 )
                 tagged_versions = {record.version for record in tag_records}
                 keep_versions = {record.version for record in versions_sorted[:limit]}
@@ -523,6 +652,7 @@ class PackageIndexService:
                     total_bytes += size_bytes or 0
                     removed.append(
                         PackageGcItem(
+                            owner_id=resolved_owner,
                             name=record.name,
                             version=record.version,
                             size_bytes=size_bytes,
@@ -554,6 +684,7 @@ class PackageIndexService:
                         else:
                             session.add(
                                 PackageDistTagRecord(
+                                    owner_id=resolved_owner,
                                     name=name,
                                     tag="latest",
                                     source=self._source,

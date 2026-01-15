@@ -35,8 +35,8 @@ class PackagePermissionRole(str, Enum):
     allowed enum values
     """
     OWNER = 'owner'
-    MAINTAINER = 'maintainer'
-    READER = 'reader'
+    WRITE = 'write'
+    READ = 'read'
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:

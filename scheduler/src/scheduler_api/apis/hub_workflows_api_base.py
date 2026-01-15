@@ -6,6 +6,7 @@ from pydantic import Field, StrictStr
 from typing import Any, Dict, Optional
 from typing_extensions import Annotated
 from scheduler_api.models.error import Error
+from scheduler_api.models.hub_local_workflow_publish_request import HubLocalWorkflowPublishRequest
 from scheduler_api.models.hub_workflow_detail import HubWorkflowDetail
 from scheduler_api.models.hub_workflow_import_request import HubWorkflowImportRequest
 from scheduler_api.models.hub_workflow_import_response import HubWorkflowImportResponse
@@ -36,6 +37,13 @@ class BaseHubWorkflowsApi:
     async def publish_hub_workflow(
         self,
         hub_workflow_publish_request: HubWorkflowPublishRequest,
+    ) -> HubWorkflowPublishResponse:
+        ...
+
+
+    async def publish_hub_workflow_local(
+        self,
+        hub_local_workflow_publish_request: HubLocalWorkflowPublishRequest,
     ) -> HubWorkflowPublishResponse:
         ...
 

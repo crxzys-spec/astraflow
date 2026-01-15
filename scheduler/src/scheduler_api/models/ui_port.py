@@ -23,6 +23,7 @@ import json
 from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List
 from scheduler_api.models.ui_binding import UIBinding
+from scheduler_api.models.localized_text import LocalizedText
 try:
     from typing import Self
 except ImportError:
@@ -33,7 +34,7 @@ class UIPort(BaseModel):
     UIPort
     """ # noqa: E501
     key: StrictStr
-    label: StrictStr
+    label: LocalizedText
     binding: UIBinding
     __properties: ClassVar[List[str]] = ["key", "label", "binding"]
 
@@ -90,9 +91,8 @@ class UIPort(BaseModel):
 
         _obj = cls.model_validate({
             "key": obj.get("key"),
-            "label": obj.get("label"),
+            "label": LocalizedText.from_dict(obj.get("label")) if obj.get("label") is not None else None,
             "binding": UIBinding.from_dict(obj.get("binding")) if obj.get("binding") is not None else None
         })
         return _obj
-
 

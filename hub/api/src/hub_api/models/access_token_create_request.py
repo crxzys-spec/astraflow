@@ -36,8 +36,9 @@ class AccessTokenCreateRequest(BaseModel):
     label: StrictStr
     scopes: List[TokenScope]
     package_name: Optional[StrictStr] = Field(default=None, alias="packageName")
+    org_id: Optional[StrictStr] = Field(default=None, alias="orgId")
     expires_at: Optional[datetime] = Field(default=None, alias="expiresAt")
-    __properties: ClassVar[List[str]] = ["label", "scopes", "packageName", "expiresAt"]
+    __properties: ClassVar[List[str]] = ["label", "scopes", "packageName", "orgId", "expiresAt"]
 
     model_config = {
         "populate_by_name": True,
@@ -91,6 +92,7 @@ class AccessTokenCreateRequest(BaseModel):
             "label": obj.get("label"),
             "scopes": obj.get("scopes"),
             "packageName": obj.get("packageName"),
+            "orgId": obj.get("orgId"),
             "expiresAt": obj.get("expiresAt")
         })
         return _obj

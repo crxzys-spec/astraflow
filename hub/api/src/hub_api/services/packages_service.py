@@ -11,9 +11,11 @@ from fastapi import HTTPException, UploadFile, status
 from fastapi.responses import Response
 
 from hub_api.repo.audit import record_audit_event
+from hub_api.repo.orgs import get_organization, get_org_role, is_user_in_org
 from hub_api.repo.packages import (
     DEFAULT_VISIBILITY,
     add_package_permission,
+    delete_package_record,
     delete_package_permission,
     delete_package_tag_record,
     get_package_record,
@@ -46,6 +48,7 @@ from hub_api.models.page_meta import PageMeta
 from hub_api.models.visibility import Visibility
 from hub_api.security_api import (
     get_current_actor,
+    get_current_org_id,
     get_current_token_value,
     is_admin,
     require_actor,
@@ -54,11 +57,39 @@ from hub_api.services.permissions import get_package_role_for_user
 from hub_api.storage import resolve_storage_path
 
 
-_ROLE_RANK = {"reader": 1, "maintainer": 2, "owner": 3}
+_ROLE_RANK = {
+    "read": 1,
+    "reader": 1,
+    "write": 2,
+    "maintainer": 2,
+    "owner": 3,
+}
 
 
 def _normalize(value: str | None) -> str:
     return value.lower().strip() if value else ""
+
+
+def _resolve_localized_text(value: object | None, fallback: str | None = None) -> str | None:
+    if hasattr(value, "root"):
+        value = value.root
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        normalized = {
+            str(key).lower().replace("_", "-"): entry
+            for key, entry in value.items()
+            if isinstance(entry, str)
+        }
+        for candidate in ("en-us", "en", "zh-cn", "zh", "ja", "ko"):
+            entry = normalized.get(candidate)
+            if entry:
+                return entry
+        for key in sorted(normalized.keys()):
+            entry = normalized.get(key)
+            if entry:
+                return entry
+    return fallback
 
 
 def _enum_value(value) -> str:
@@ -98,6 +129,15 @@ def _match_owner(record: dict, owner: str) -> bool:
     if isinstance(owner_name, str) and owner_name.lower() == owner_lower:
         return True
     return False
+
+
+def _split_package_name(value: str) -> tuple[str | None, str]:
+    raw = value.strip()
+    if "/" in raw:
+        owner, name = raw.split("/", 1)
+        if owner and name:
+            return owner, name
+    return None, raw
 
 
 def _paginate(items: list[dict], page: int, page_size: int) -> tuple[list[dict], PageMeta]:
@@ -211,25 +251,130 @@ def _read_manifest(archive_bytes: bytes) -> dict:
 
 def _actor_display_name(actor_id: str) -> str:
     record = get_account(actor_id) or {}
-    return record.get("displayName") or record.get("username") or actor_id
+    if record:
+        return record.get("displayName") or record.get("username") or actor_id
+    org = get_organization(actor_id)
+    if org:
+        return org.get("name") or org.get("id") or actor_id
+    return actor_id
 
 
-def _ensure_token_package(name: str) -> None:
+def _is_org_admin(org_id: str, actor_id: str) -> bool:
+    role = get_org_role(org_id, actor_id)
+    return role in ("owner", "admin")
+
+
+def _resolve_target_owner(actor_id: str, requested_owner_id: str | None) -> tuple[str, str]:
+    token_org_id = get_current_org_id()
+    if token_org_id:
+        if requested_owner_id and _normalize(requested_owner_id) != _normalize(token_org_id):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        return token_org_id, "org"
+    if requested_owner_id and _normalize(requested_owner_id) != _normalize(actor_id):
+        target_owner_id, owner_subject = _resolve_owner_identifier(requested_owner_id)
+        if owner_subject == "org":
+            if not _is_org_admin(target_owner_id, actor_id) and not is_admin():
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        elif target_owner_id != actor_id and not is_admin():
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        return target_owner_id, owner_subject
+    return actor_id, "user"
+
+
+def _resolve_owner_identifier(owner: str) -> tuple[str, str]:
+    account = get_account(owner)
+    if account:
+        return account["id"], "user"
+    org = get_organization(owner)
+    if org:
+        return org["id"], "org"
+    raise HTTPException(status_code=404, detail="Owner not found")
+
+
+def _resolve_owner_namespace(owner_id: str) -> str:
+    account = get_account(owner_id) or {}
+    if account:
+        return account.get("username") or owner_id
+    org = get_organization(owner_id)
+    if org:
+        return org.get("slug") or org.get("id") or owner_id
+    return owner_id
+
+
+def _resolve_package_identity(
+    raw_name: str,
+    *,
+    actor_id: str | None,
+    allow_fallback: bool,
+) -> tuple[str, str]:
+    owner_hint, package_name = _split_package_name(raw_name)
+    if owner_hint:
+        owner_id, _ = _resolve_owner_identifier(owner_hint)
+        return owner_id, package_name
+    if not allow_fallback:
+        raise HTTPException(status_code=409, detail="Package owner is required.")
+    candidates = [
+        record
+        for record in list_packages()
+        if _normalize(record.get("name")) == _normalize(package_name)
+        and _can_view_package(record, actor_id)
+    ]
+    if not candidates:
+        raise HTTPException(status_code=404, detail="Not Found")
+    if len(candidates) > 1:
+        raise HTTPException(status_code=409, detail="Package owner is required.")
+    owner_id = candidates[0].get("ownerId")
+    if not owner_id:
+        raise HTTPException(status_code=404, detail="Not Found")
+    return str(owner_id), package_name
+
+
+def _resolve_name_for_owner(raw_name: str, owner_id: str) -> str:
+    owner_hint, package_name = _split_package_name(raw_name)
+    if owner_hint:
+        resolved_id, _ = _resolve_owner_identifier(owner_hint)
+        if _normalize(resolved_id) != _normalize(owner_id):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    return package_name
+
+
+def _package_target_id(owner_id: str, name: str) -> str:
+    return f"{_resolve_owner_namespace(owner_id)}/{name}"
+
+
+def _ensure_token_package(owner_id: str, name: str) -> None:
     token_value = get_current_token_value()
     if not token_value:
         return
     token_record = get_token_record(token_value)
     if not token_record:
         return
-    package_name = token_record.get("packageName")
-    if package_name and _normalize(package_name) != _normalize(name):
+    token_org_id = get_current_org_id()
+    if token_org_id and _normalize(token_org_id) != _normalize(owner_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    package_name = token_record.get("packageName")
+    if package_name:
+        normalized = _normalize(package_name)
+        owner_namespace = _normalize(_resolve_owner_namespace(owner_id))
+        owner_id_normalized = _normalize(owner_id)
+        expected = {
+            _normalize(name),
+            _normalize(f"{owner_namespace}/{name}"),
+            _normalize(f"{owner_id_normalized}/{name}"),
+        }
+        if normalized not in expected:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
 
-def _require_package_role(package_name: str, actor_id: str, required_role: str) -> str:
+def _require_package_role(
+    owner_id: str,
+    package_name: str,
+    actor_id: str,
+    required_role: str,
+) -> str:
     if is_admin():
         return "admin"
-    role = get_package_role_for_user(package_name, actor_id)
+    role = get_package_role_for_user(owner_id, package_name, actor_id)
     if role is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     if _ROLE_RANK.get(role, 0) < _ROLE_RANK.get(required_role, 0):
@@ -245,9 +390,13 @@ def _can_view_package(record: dict, actor_id: str | None) -> bool:
         return True
     if not actor_id:
         return False
+    owner_id = record.get("ownerId") or ""
     if visibility == "internal":
+        if is_user_in_org(actor_id, owner_id):
+            return True
+    if _is_org_admin(owner_id, actor_id):
         return True
-    return get_package_role_for_user(record.get("name", ""), actor_id) is not None
+    return get_package_role_for_user(owner_id, record.get("name", ""), actor_id) is not None
 
 
 def _require_package_access(record: dict | None, actor_id: str | None) -> dict:
@@ -309,8 +458,10 @@ class PackagesService:
         summary: str | None,
         readme: str | None,
         tags: list[str] | None,
+        owner_id: str | None = None,
     ) -> PackageVersionDetail:
         actor_id = require_actor()
+        target_owner_id, owner_subject_type = _resolve_target_owner(actor_id, owner_id)
         if file is None:
             raise HTTPException(status_code=400, detail="Package archive is required.")
         archive_bytes = await file.read()
@@ -323,11 +474,10 @@ class PackagesService:
             raise HTTPException(status_code=400, detail="Manifest must include name and version.")
         if not name.strip() or not version.strip():
             raise HTTPException(status_code=400, detail="Manifest must include name and version.")
+        package_name = _resolve_name_for_owner(name, target_owner_id)
         _ensure_valid_version(version)
-        _ensure_token_package(name)
-        description = summary or manifest.get("description")
-        if not isinstance(description, str):
-            description = None
+        _ensure_token_package(target_owner_id, package_name)
+        description = summary or _resolve_localized_text(manifest.get("description"))
         readme_value = readme if isinstance(readme, str) and readme else manifest.get("readme")
         if not isinstance(readme_value, str):
             readme_value = None
@@ -340,18 +490,19 @@ class PackagesService:
         size_bytes = len(archive_bytes)
         visibility_value = _visibility_value(visibility)
 
-        record = get_package_record(name)
+        record = get_package_record(target_owner_id, package_name)
         if record:
-            _require_package_role(name, actor_id, "maintainer")
-            owner_id = record.get("ownerId")
-            owner_name = record.get("ownerName")
+            _require_package_role(target_owner_id, package_name, actor_id, "write")
+            owner_id = record.get("ownerId") or target_owner_id
+            owner_name = record.get("ownerName") or _actor_display_name(owner_id)
+            owner_subject_type = "org" if get_organization(owner_id) else "user"
         else:
-            owner_id = actor_id
-            owner_name = _actor_display_name(actor_id)
+            owner_id = target_owner_id
+            owner_name = _actor_display_name(owner_id)
 
         try:
             _, version_record = publish_package_version(
-                name=name,
+                name=package_name,
                 version=version,
                 description=description,
                 readme=readme_value,
@@ -363,6 +514,7 @@ class PackagesService:
                 archive_bytes=archive_bytes,
                 archive_sha256=sha256,
                 archive_size_bytes=size_bytes,
+                owner_subject_type=owner_subject_type,
             )
         except ValueError as exc:
             if str(exc) == "package_version_exists":
@@ -374,7 +526,7 @@ class PackagesService:
             action="package.publish",
             actor_id=actor_id,
             target_type="package",
-            target_id=name,
+            target_id=_package_target_id(owner_id, package_name),
             metadata={
                 "version": version,
                 "visibility": visibility_value,
@@ -386,7 +538,15 @@ class PackagesService:
         self,
         name: str,
     ) -> HubPackageDetail:
-        record = _require_package_access(get_package_record(name), get_current_actor())
+        owner_id, package_name = _resolve_package_identity(
+            name,
+            actor_id=get_current_actor(),
+            allow_fallback=True,
+        )
+        record = _require_package_access(
+            get_package_record(owner_id, package_name),
+            get_current_actor(),
+        )
         return _detail_from_record(record)
 
     async def reserve_package(
@@ -395,19 +555,28 @@ class PackagesService:
         package_reserve_request: PackageReserveRequest | None,
     ) -> PackageRegistry:
         actor_id = require_actor()
-        _ensure_token_package(name)
-        record = get_package_record(name)
+        requested_owner_id = None
+        if package_reserve_request is not None:
+            requested_owner_id = getattr(package_reserve_request, "owner_id", None)
+        target_owner_id, owner_subject_type = _resolve_target_owner(
+            actor_id,
+            requested_owner_id,
+        )
+        package_name = _resolve_name_for_owner(name, target_owner_id)
+        _ensure_token_package(target_owner_id, package_name)
+        record = get_package_record(target_owner_id, package_name)
         if record:
-            _require_package_role(name, actor_id, "owner")
+            _require_package_role(target_owner_id, package_name, actor_id, "owner")
             return _registry_from_record(record)
         visibility_value = DEFAULT_VISIBILITY
         if package_reserve_request and package_reserve_request.visibility:
             visibility_value = _visibility_value(package_reserve_request.visibility)
         record = reserve_package_record(
-            name=name,
-            owner_id=actor_id,
-            owner_name=_actor_display_name(actor_id),
+            name=package_name,
+            owner_id=target_owner_id,
+            owner_name=_actor_display_name(target_owner_id),
             visibility=visibility_value,
+            owner_subject_type=owner_subject_type,
         )
         return _registry_from_record(record)
 
@@ -416,7 +585,15 @@ class PackagesService:
         name: str,
         version: str,
     ) -> PackageVersionDetail:
-        record = _require_package_access(get_package_record(name), get_current_actor())
+        owner_id, package_name = _resolve_package_identity(
+            name,
+            actor_id=get_current_actor(),
+            allow_fallback=True,
+        )
+        record = _require_package_access(
+            get_package_record(owner_id, package_name),
+            get_current_actor(),
+        )
         version_record = record.get("versions", {}).get(version)
         if version_record is None:
             raise HTTPException(status_code=404, detail="Not Found")
@@ -427,11 +604,19 @@ class PackagesService:
         name: str,
         version: str | None,
     ) -> Response:
-        record = _require_package_access(get_package_record(name), get_current_actor())
+        owner_id, package_name = _resolve_package_identity(
+            name,
+            actor_id=get_current_actor(),
+            allow_fallback=True,
+        )
+        record = _require_package_access(
+            get_package_record(owner_id, package_name),
+            get_current_actor(),
+        )
         version_value = version or record.get("latestVersion")
         if not version_value:
             raise HTTPException(status_code=404, detail="Not Found")
-        version_record = get_package_version_record(name, version_value)
+        version_record = get_package_version_record(owner_id, package_name, version_value)
         archive_path_value = version_record.get("archivePath") if version_record else None
         if not archive_path_value:
             raise HTTPException(status_code=404, detail="Not Found")
@@ -452,14 +637,19 @@ class PackagesService:
         package_tag_request: PackageTagRequest,
     ) -> None:
         actor_id = require_actor()
-        _ensure_token_package(name)
-        _require_package_role(name, actor_id, "owner")
+        owner_id, package_name = _resolve_package_identity(
+            name,
+            actor_id=actor_id,
+            allow_fallback=True,
+        )
+        _ensure_token_package(owner_id, package_name)
+        _require_package_role(owner_id, package_name, actor_id, "owner")
         if package_tag_request is None or not package_tag_request.version:
             raise HTTPException(status_code=400, detail="Tag version is required.")
-        record = get_package_record(name) or {}
+        record = get_package_record(owner_id, package_name) or {}
         prev_version = (record.get("distTags") or {}).get(tag)
         try:
-            set_package_tag_record(name, tag, package_tag_request.version)
+            set_package_tag_record(owner_id, package_name, tag, package_tag_request.version)
         except ValueError as exc:
             if str(exc) == "package_version_not_found":
                 raise HTTPException(status_code=404, detail="Not Found") from exc
@@ -468,7 +658,7 @@ class PackagesService:
             action="package.tag.set",
             actor_id=actor_id,
             target_type="package",
-            target_id=name,
+            target_id=_package_target_id(owner_id, package_name),
             metadata={
                 "tag": tag,
                 "version": package_tag_request.version,
@@ -483,22 +673,80 @@ class PackagesService:
         tag: str,
     ) -> None:
         actor_id = require_actor()
-        _ensure_token_package(name)
-        _require_package_role(name, actor_id, "owner")
-        record = get_package_record(name) or {}
+        owner_id, package_name = _resolve_package_identity(
+            name,
+            actor_id=actor_id,
+            allow_fallback=True,
+        )
+        _ensure_token_package(owner_id, package_name)
+        _require_package_role(owner_id, package_name, actor_id, "owner")
+        record = get_package_record(owner_id, package_name) or {}
         prev_version = (record.get("distTags") or {}).get(tag)
         try:
-            delete_package_tag_record(name, tag)
+            delete_package_tag_record(owner_id, package_name, tag)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail="Not Found") from exc
         record_audit_event(
             action="package.tag.delete",
             actor_id=actor_id,
             target_type="package",
-            target_id=name,
+            target_id=_package_target_id(owner_id, package_name),
             metadata={
                 "tag": tag,
                 "previousVersion": prev_version,
+            },
+        )
+        return None
+
+    async def delete_package(
+        self,
+        name: str,
+    ) -> None:
+        actor_id = require_actor()
+        owner_id, package_name = _resolve_package_identity(
+            name,
+            actor_id=actor_id,
+            allow_fallback=False,
+        )
+        _ensure_token_package(owner_id, package_name)
+        _require_package_role(owner_id, package_name, actor_id, "owner")
+        record = get_package_record(owner_id, package_name)
+        if not record:
+            raise HTTPException(status_code=404, detail="Not Found")
+        versions = record.get("versions") or {}
+        archive_paths = []
+        version_meta = []
+        for version_key, version_record in versions.items():
+            if not isinstance(version_record, dict):
+                continue
+            archive_path_value = version_record.get("archivePath")
+            if archive_path_value:
+                archive_paths.append(resolve_storage_path(str(archive_path_value)))
+            version_meta.append(
+                {
+                    "version": version_key,
+                    "archiveSha256": version_record.get("archiveSha256"),
+                    "archiveSizeBytes": version_record.get("archiveSizeBytes"),
+                    "archivePath": archive_path_value,
+                }
+            )
+        delete_package_record(owner_id, package_name)
+        delete_failures: list[str] = []
+        for archive_path in archive_paths:
+            try:
+                if archive_path.is_file():
+                    archive_path.unlink()
+            except Exception:
+                delete_failures.append(str(archive_path))
+        record_audit_event(
+            action="package.delete",
+            actor_id=actor_id,
+            target_type="package",
+            target_id=_package_target_id(owner_id, package_name),
+            metadata={
+                "versions": version_meta,
+                "visibility": record.get("visibility"),
+                "deleteFailures": delete_failures,
             },
         )
         return None
@@ -509,13 +757,19 @@ class PackagesService:
         package_visibility_request: PackageVisibilityRequest,
     ) -> PackageRegistry:
         actor_id = require_actor()
-        _ensure_token_package(name)
-        _require_package_role(name, actor_id, "owner")
+        owner_id, package_name = _resolve_package_identity(
+            name,
+            actor_id=actor_id,
+            allow_fallback=True,
+        )
+        _ensure_token_package(owner_id, package_name)
+        _require_package_role(owner_id, package_name, actor_id, "owner")
         if package_visibility_request is None or not package_visibility_request.visibility:
             raise HTTPException(status_code=400, detail="Visibility is required.")
         try:
             record = update_package_visibility_record(
-                name,
+                owner_id,
+                package_name,
                 _visibility_value(package_visibility_request.visibility),
             )
         except ValueError as exc:
@@ -524,7 +778,7 @@ class PackagesService:
             action="package.visibility.update",
             actor_id=actor_id,
             target_type="package",
-            target_id=name,
+            target_id=_package_target_id(owner_id, package_name),
             metadata={
                 "visibility": record.get("visibility"),
             },
@@ -537,21 +791,29 @@ class PackagesService:
         package_transfer_request: PackageTransferRequest,
     ) -> PackageRegistry:
         actor_id = require_actor()
-        _ensure_token_package(name)
-        _require_package_role(name, actor_id, "owner")
+        owner_id, package_name = _resolve_package_identity(
+            name,
+            actor_id=actor_id,
+            allow_fallback=False,
+        )
+        _ensure_token_package(owner_id, package_name)
+        _require_package_role(owner_id, package_name, actor_id, "owner")
         if package_transfer_request is None or not package_transfer_request.new_owner_id:
             raise HTTPException(status_code=400, detail="newOwnerId is required.")
         new_owner_id = package_transfer_request.new_owner_id
         new_owner_name = _actor_display_name(new_owner_id)
         try:
             record = transfer_package_record(
-                name,
+                owner_id,
+                package_name,
                 new_owner_id,
                 new_owner_name,
             )
         except ValueError as exc:
+            if str(exc) == "package_owner_mismatch":
+                raise HTTPException(status_code=409, detail="Package ownership conflict.") from exc
             raise HTTPException(status_code=404, detail="Not Found") from exc
-        permissions = list_package_permissions(name)
+        permissions = list_package_permissions(owner_id, package_name)
         if not any(
             perm.get("subjectType") == "user"
             and perm.get("subjectId") == new_owner_id
@@ -559,7 +821,8 @@ class PackagesService:
             for perm in permissions
         ):
             add_package_permission(
-                package_name=name,
+                owner_id=new_owner_id,
+                package_name=package_name,
                 subject_type="user",
                 subject_id=new_owner_id,
                 role="owner",
@@ -568,7 +831,7 @@ class PackagesService:
             action="package.transfer",
             actor_id=actor_id,
             target_type="package",
-            target_id=name,
+            target_id=_package_target_id(owner_id, package_name),
             metadata={
                 "newOwnerId": new_owner_id,
                 "newOwnerName": new_owner_name,
@@ -581,13 +844,18 @@ class PackagesService:
         name: str,
     ) -> PackagePermissionList:
         actor_id = require_actor()
-        _ensure_token_package(name)
-        if not get_package_record(name):
+        owner_id, package_name = _resolve_package_identity(
+            name,
+            actor_id=actor_id,
+            allow_fallback=True,
+        )
+        _ensure_token_package(owner_id, package_name)
+        if not get_package_record(owner_id, package_name):
             raise HTTPException(status_code=404, detail="Not Found")
-        _require_package_role(name, actor_id, "owner")
+        _require_package_role(owner_id, package_name, actor_id, "owner")
         permissions = [
             _permission_from_record(record)
-            for record in list_package_permissions(name)
+            for record in list_package_permissions(owner_id, package_name)
         ]
         return PackagePermissionList(items=permissions)
 
@@ -597,14 +865,20 @@ class PackagesService:
         package_permission_create_request: PackagePermissionCreateRequest,
     ) -> PackagePermission:
         actor_id = require_actor()
-        _ensure_token_package(name)
-        if not get_package_record(name):
+        owner_id, package_name = _resolve_package_identity(
+            name,
+            actor_id=actor_id,
+            allow_fallback=True,
+        )
+        _ensure_token_package(owner_id, package_name)
+        if not get_package_record(owner_id, package_name):
             raise HTTPException(status_code=404, detail="Not Found")
-        _require_package_role(name, actor_id, "owner")
+        _require_package_role(owner_id, package_name, actor_id, "owner")
         if package_permission_create_request is None:
             raise HTTPException(status_code=400, detail="Payload is required.")
         permission = add_package_permission(
-            package_name=name,
+            owner_id=owner_id,
+            package_name=package_name,
             subject_type=_enum_value(package_permission_create_request.subject_type),
             subject_id=package_permission_create_request.subject_id,
             role=_enum_value(package_permission_create_request.role),
@@ -613,7 +887,7 @@ class PackagesService:
             action="package.permission.add",
             actor_id=actor_id,
             target_type="package",
-            target_id=name,
+            target_id=_package_target_id(owner_id, package_name),
             metadata={
                 "permissionId": permission.get("id"),
                 "subjectType": permission.get("subjectType"),
@@ -629,11 +903,16 @@ class PackagesService:
         permissionId: str,
     ) -> None:
         actor_id = require_actor()
-        _ensure_token_package(name)
-        if not get_package_record(name):
+        owner_id, package_name = _resolve_package_identity(
+            name,
+            actor_id=actor_id,
+            allow_fallback=True,
+        )
+        _ensure_token_package(owner_id, package_name)
+        if not get_package_record(owner_id, package_name):
             raise HTTPException(status_code=404, detail="Not Found")
-        _require_package_role(name, actor_id, "owner")
-        permissions = list_package_permissions(name)
+        _require_package_role(owner_id, package_name, actor_id, "owner")
+        permissions = list_package_permissions(owner_id, package_name)
         permission_record = next(
             (permission for permission in permissions if permission.get("id") == permissionId),
             None,
@@ -645,7 +924,7 @@ class PackagesService:
             action="package.permission.remove",
             actor_id=actor_id,
             target_type="package",
-            target_id=name,
+            target_id=_package_target_id(owner_id, package_name),
             metadata={
                 "permissionId": permissionId,
                 "subjectType": permission_record.get("subjectType"),
@@ -662,13 +941,18 @@ class PackagesService:
         package_permission_update_request: PackagePermissionUpdateRequest,
     ) -> PackagePermission:
         actor_id = require_actor()
-        _ensure_token_package(name)
-        if not get_package_record(name):
+        owner_id, package_name = _resolve_package_identity(
+            name,
+            actor_id=actor_id,
+            allow_fallback=True,
+        )
+        _ensure_token_package(owner_id, package_name)
+        if not get_package_record(owner_id, package_name):
             raise HTTPException(status_code=404, detail="Not Found")
-        _require_package_role(name, actor_id, "owner")
+        _require_package_role(owner_id, package_name, actor_id, "owner")
         if package_permission_update_request is None:
             raise HTTPException(status_code=400, detail="Payload is required.")
-        permissions = list_package_permissions(name)
+        permissions = list_package_permissions(owner_id, package_name)
         if not any(permission.get("id") == permissionId for permission in permissions):
             raise HTTPException(status_code=404, detail="Not Found")
         try:
@@ -682,7 +966,7 @@ class PackagesService:
             action="package.permission.update",
             actor_id=actor_id,
             target_type="package",
-            target_id=name,
+            target_id=_package_target_id(owner_id, package_name),
             metadata={
                 "permissionId": permission.get("id"),
                 "subjectType": permission.get("subjectType"),

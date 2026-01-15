@@ -1,0 +1,606 @@
+{
+  "nav": {
+    "workflows": "워크플로",
+    "hubLibrary": "Hub 라이브러리",
+    "packageCenter": "패키지 센터",
+    "builder": "빌더",
+    "localWorkflows": "로컬 워크플로"
+  },
+  "auth": {
+    "personalPanel": "개인 패널",
+    "myPackages": "내 패키지",
+    "adminConsole": "관리 콘솔",
+    "logout": "로그아웃",
+    "checkingSession": "세션 확인 중…",
+    "adminAccessRequired": "관리자 권한이 필요합니다",
+    "adminAccessHint": "이 섹션을 보려면 관리자 역할이 필요합니다."
+  },
+  "admin": {
+    "title": "관리",
+    "subtitle": "계정 및 컴플라이언스 관리",
+    "users": "사용자",
+    "auditLog": "감사 로그",
+    "workers": "워커",
+    "eyebrow": "관리",
+    "roles": {
+      "admin": {
+        "label": "관리자",
+        "helper": "스케줄러와 사용자 관리에 대한 전체 접근."
+      },
+      "editor": {
+        "label": "워크플로 편집자",
+        "helper": "워크플로를 생성/업데이트하고 실행을 시작합니다."
+      },
+      "viewer": {
+        "label": "워크플로 뷰어",
+        "helper": "워크플로 정의에 대한 읽기 전용 접근."
+      },
+      "runViewer": {
+        "label": "실행 뷰어",
+        "helper": "워크플로를 편집하지 않고 실행 텔레메트리를 확인합니다."
+      }
+    },
+    "usersPage": {
+      "accessDeniedTitle": "사용자 관리",
+      "accessDeniedMessage": "관리자만 계정을 생성할 수 있습니다. AstraFlow 관리자에게 접근을 요청하세요.",
+      "title": "사용자 관리",
+      "subtitle": "플랫폼 전반의 계정, 역할, 비밀번호를 관리합니다.",
+      "actions": {
+        "createUser": "사용자 생성",
+        "refreshing": "새로고침 중…",
+        "manage": "관리"
+      },
+      "table": {
+        "username": "사용자 이름",
+        "displayName": "표시 이름",
+        "roles": "역할",
+        "status": "상태",
+        "loading": "사용자 로딩 중…",
+        "empty": "사용자가 없습니다. \"사용자 생성\"으로 추가하세요."
+      },
+      "roles": {
+        "none": "없음"
+      },
+      "status": {
+        "active": "활성",
+        "disabled": "비활성"
+      },
+      "messages": {
+        "loadError": "사용자를 불러오지 못했습니다.",
+        "createSuccess": "사용자 \"{{username}}\"을(를) 생성했습니다.",
+        "createError": "사용자를 생성할 수 없습니다.",
+        "passwordRequired": "새 비밀번호가 필요합니다.",
+        "fallbackUser": "사용자",
+        "passwordUpdated": "\"{{username}}\"의 비밀번호가 업데이트되었습니다.",
+        "passwordResetError": "비밀번호를 재설정할 수 없습니다.",
+        "roleAssigned": "역할이 부여되었습니다.",
+        "roleAssignError": "역할을 부여할 수 없습니다.",
+        "roleRemoved": "역할이 제거되었습니다.",
+        "roleRemoveError": "역할을 제거할 수 없습니다.",
+        "statusUpdated": "계정 상태가 업데이트되었습니다.",
+        "statusUpdateError": "상태를 업데이트할 수 없습니다."
+      },
+      "createModal": {
+        "title": "사용자 생성",
+        "username": "사용자 이름",
+        "usernamePlaceholder": "username",
+        "displayName": "표시 이름",
+        "displayNamePlaceholder": "표시 이름",
+        "password": "임시 비밀번호",
+        "passwordPlaceholder": "********",
+        "rolesLabel": "초기 역할(선택)",
+        "creating": "생성 중…"
+      },
+      "manageModal": {
+        "title": "{{name}} 관리",
+        "summary": "사용자 이름: {{username}} - 역할: {{roles}}",
+        "statusLabel": "상태:",
+        "disableAccount": "계정 비활성화",
+        "enableAccount": "계정 활성화",
+        "resetPassword": "비밀번호 재설정",
+        "newPasswordPlaceholder": "새 비밀번호",
+        "updating": "업데이트 중…",
+        "updatePassword": "비밀번호 업데이트"
+      }
+    },
+    "auditLogPage": {
+      "accessDeniedTitle": "감사 이벤트",
+      "accessDeniedMessage": "감사 로그는 관리자만 볼 수 있습니다. AstraFlow 관리자에게 접근을 요청하세요.",
+      "title": "감사 이벤트",
+      "subtitle": "스케줄러가 기록한 최신 특권 작업입니다.",
+      "filters": {
+        "action": "작업",
+        "actorId": "행위자 ID",
+        "targetType": "대상 유형",
+        "clear": "지우기",
+        "apply": "필터 적용"
+      },
+      "messages": {
+        "loadError": "감사 이벤트를 불러올 수 없습니다: {{message}}",
+        "loading": "감사 이벤트 로딩 중…",
+        "emptyFiltered": "선택한 필터와 일치하는 감사 이벤트가 없습니다.",
+        "empty": "아직 감사 이벤트가 없습니다.",
+        "loadingMore": "로딩 중…",
+        "loadMore": "더 불러오기"
+      },
+      "table": {
+        "time": "시간",
+        "action": "작업",
+        "actor": "행위자",
+        "target": "대상",
+        "metadata": "메타데이터"
+      }
+    },
+    "workersPage": {
+      "accessDeniedTitle": "워커 플릿",
+      "accessDeniedMessage": "연결된 워커는 관리자만 볼 수 있습니다.",
+      "title": "워커 플릿",
+      "subtitle": "연결 상태, 큐, 설치된 패키지를 확인합니다.",
+      "actions": {
+        "clearFilters": "필터 지우기",
+        "refreshing": "새로고침 중…"
+      },
+      "stats": {
+        "total": "총계",
+        "connected": "연결됨",
+        "registered": "등록됨",
+        "healthy": "정상"
+      },
+      "filters": {
+        "search": "검색",
+        "searchPlaceholder": "워커 이름, 호스트, 테넌트",
+        "queue": "큐",
+        "queuePlaceholder": "default",
+        "connection": "연결",
+        "health": "상태",
+        "package": "패키지",
+        "packagePlaceholder": "패키지 이름",
+        "packageStatus": "패키지 상태",
+        "all": "전체",
+        "connected": "연결됨",
+        "disconnected": "연결 끊김",
+        "healthy": "정상",
+        "unhealthy": "비정상 또는 알 수 없음"
+      },
+      "packageStatus": {
+        "installed": "설치됨",
+        "installing": "설치 중",
+        "uninstalling": "제거 중",
+        "removed": "제거됨",
+        "failed": "실패",
+        "missing": "누락",
+        "unknown": "알 수 없음"
+      },
+      "messages": {
+        "loadError": "워커를 불러올 수 없습니다: {{message}}",
+        "loading": "워커 로딩 중…",
+        "empty": "현재 필터와 일치하는 워커가 없습니다.",
+        "noQueues": "큐 없음",
+        "noPackages": "패키지 없음"
+      },
+      "values": {
+        "unknownHost": "알 수 없는 호스트",
+        "unknownVersion": "알 수 없는 버전",
+        "defaultTenant": "기본",
+        "unknownInstance": "인스턴스 알 수 없음"
+      },
+      "status": {
+        "connected": "연결됨",
+        "offline": "오프라인",
+        "registered": "등록됨",
+        "unregistered": "미등록",
+        "healthy": "정상",
+        "unhealthy": "비정상",
+        "unknown": "알 수 없음"
+      },
+      "table": {
+        "worker": "워커",
+        "status": "상태",
+        "heartbeat": "하트비트",
+        "queues": "큐",
+        "packages": "패키지",
+        "metrics": "메트릭"
+      },
+      "metrics": {
+        "cpu": "CPU",
+        "mem": "메모리",
+        "disk": "디스크",
+        "inflight": "진행 중",
+        "latency": "지연"
+      },
+      "age": {
+        "justNow": "방금",
+        "seconds": "{{count}}초 전",
+        "minutes": "{{count}}분 전",
+        "hours": "{{count}}시간 전",
+        "days": "{{count}}일 전"
+      }
+    }
+  },
+  "account": {
+    "kicker": "개인 콘솔",
+    "title": "계정",
+    "subtitle": "프로필과 개인 리소스를 관리합니다.",
+    "stats": {
+      "resources": "리소스",
+      "packages": "패키지",
+      "roles": "역할"
+    },
+    "menu": {
+      "profile": "개인 패널",
+      "resources": "리소스 센터",
+      "packages": "패키지 보관소"
+    },
+    "profile": {
+      "eyebrow": "프로필",
+      "title": "아이덴티티 및 접근",
+      "subtitle": "표시 이름을 업데이트하고 계정에 할당된 접근을 확인합니다.",
+      "displayName": "표시 이름",
+      "username": "사용자 이름",
+      "userId": "사용자 ID",
+      "roles": "역할",
+      "fallbackDisplayName": "AstraFlow 사용자",
+      "fallbackUsername": "알 수 없음",
+      "fallbackUserId": "-",
+      "status": {
+        "label": "상태",
+        "active": "활성",
+        "disabled": "비활성",
+        "checking": "확인 중…"
+      },
+      "actions": {
+        "save": "변경 사항 저장",
+        "saving": "저장 중…"
+      },
+      "messages": {
+        "loadError": "프로필을 불러올 수 없습니다.",
+        "displayNameRequired": "표시 이름이 필요합니다.",
+        "updated": "프로필이 업데이트되었습니다.",
+        "updateError": "프로필을 업데이트할 수 없습니다.",
+        "empty": "프로필이 로드되지 않았습니다."
+      }
+    },
+    "resources": {
+      "eyebrow": "리소스",
+      "title": "리소스 라이브러리",
+      "subtitle": "파일 업로드, 키-값 자산 관리, 저장된 아티팩트 미리보기.",
+      "upload": {
+        "title": "파일 업로드",
+        "subtitle": "드래그 앤 드롭 또는 클릭하여 찾아보기.",
+        "provider": "제공자",
+        "defaultProvider": "기본 제공자",
+        "uploading": "업로드 중…",
+        "status": {
+          "queued": "대기 중",
+          "failed": "실패"
+        },
+        "remove": "제거"
+      },
+      "kv": {
+        "title": "키-값 리소스",
+        "subtitle": "파일을 업로드하지 않고 시크릿과 설정을 저장합니다.",
+        "resourceName": "리소스 이름",
+        "resourceNamePlaceholder": "key-values.json",
+        "key": "키",
+        "value": "값",
+        "keyPrimaryPlaceholder": "OPENAI_API_KEY",
+        "keyPlaceholder": "KEY",
+        "valuePlaceholder": "값",
+        "removeRow": "제거",
+        "addRow": "행 추가",
+        "create": "리소스 생성",
+        "hint": "위에서 선택한 제공자를 사용합니다."
+      },
+      "filters": {
+        "search": "검색",
+        "searchPlaceholder": "파일명 또는 ID",
+        "provider": "제공자",
+        "allProviders": "모든 제공자",
+        "type": "유형",
+        "allTypes": "모든 유형"
+      },
+      "actions": {
+        "refreshing": "새로고침 중…",
+        "download": "다운로드",
+        "delete": "삭제"
+      },
+      "messages": {
+        "loadError": "리소스를 불러오지 못했습니다.",
+        "deleteConfirm": "이 리소스를 삭제할까요?",
+        "deleteError": "리소스를 삭제할 수 없습니다.",
+        "uploadFailed": "업로드 실패.",
+        "duplicateKeys": "중복 키: {{keys}}",
+        "kvMissing": "최소 한 개의 키-값 쌍을 추가하세요.",
+        "previewFailed": "미리보기를 불러오지 못했습니다.",
+        "loading": "리소스 로딩 중…",
+        "empty": "리소스가 없습니다."
+      },
+      "table": {
+        "file": "파일",
+        "resourceId": "리소스 ID",
+        "provider": "제공자",
+        "type": "유형",
+        "size": "크기",
+        "created": "생성됨",
+        "actions": "작업"
+      },
+      "preview": {
+        "loading": "로딩 중",
+        "show": "미리보기",
+        "hide": "숨기기",
+        "loadingDetail": "미리보기 로딩 중…",
+        "altFallback": "미리보기"
+      }
+    },
+    "packages": {
+      "eyebrow": "패키지",
+      "title": "패키지 보관소",
+      "subtitle": "패키지에 필요한 시크릿과 권한을 관리합니다.",
+      "listTitle": "패키지",
+      "listSubtitle": "접근을 관리할 패키지를 선택하세요.",
+      "actions": {
+        "refreshing": "새로고침 중…"
+      },
+      "messages": {
+        "loadError": "패키지를 불러오지 못했습니다.",
+        "requirementsError": "패키지 요구 사항을 불러오지 못했습니다.",
+        "loading": "패키지 로딩 중…",
+        "empty": "패키지가 없습니다.",
+        "selectPackage": "목록에서 패키지를 선택해 접근을 구성하세요.",
+        "loadingRequirements": "패키지 요구 사항 로딩 중…",
+        "noRequirements": "이 패키지는 보관소 항목이나 권한을 요청하지 않습니다."
+      },
+      "latest": "최신",
+      "requirement": {
+        "required": "필수",
+        "optional": "선택"
+      },
+      "vault": {
+        "title": "보관소 항목",
+        "subtitle": "패키지별 시크릿과 설정.",
+        "actions": {
+          "save": "저장",
+          "saving": "저장 중…",
+          "remove": "제거"
+        },
+        "jsonPlaceholder": "{}",
+        "messages": {
+          "loadError": "보관소 항목을 불러오지 못했습니다.",
+          "missingRequired": "필수 항목이 누락되었습니다: {{keys}}",
+          "updated": "보관소 항목이 업데이트되었습니다.",
+          "updateError": "보관소를 업데이트할 수 없습니다.",
+          "deleted": "보관소 항목이 삭제되었습니다.",
+          "deleteError": "보관소 항목을 삭제할 수 없습니다."
+        }
+      },
+      "permissions": {
+        "title": "권한",
+        "subtitle": "패키지에 리소스 유형 접근을 부여합니다.",
+        "defaultAction": "읽기",
+        "actionsLabel": "작업: {{actions}}",
+        "actions": {
+          "grant": "부여",
+          "revoke": "해제"
+        },
+        "messages": {
+          "loadError": "권한을 불러오지 못했습니다.",
+          "granted": "권한이 부여되었습니다.",
+          "grantError": "권한을 부여할 수 없습니다.",
+          "revoked": "권한이 해제되었습니다.",
+          "revokeError": "권한을 해제할 수 없습니다."
+        }
+      }
+    }
+  },
+  "login": {
+    "loadingSession": "세션 로딩 중…",
+    "welcomeBack": "다시 오신 것을 환영합니다",
+    "subtitle": "AstraFlow 계정으로 로그인",
+    "username": "사용자 이름",
+    "password": "비밀번호",
+    "signIn": "로그인",
+    "signingIn": "로그인 중…",
+    "loginFailed": "로그인 실패",
+    "needAccount": "계정이 필요하신가요? AstraFlow 관리자에게 문의하세요.",
+    "devTokenDetected": "개발 토큰이 감지되었습니다 - 로그인 시 JWT가 유지됩니다."
+  },
+  "common": {
+    "create": "생성",
+    "openHub": "Hub 열기",
+    "retry": "재시도",
+    "dismiss": "닫기",
+    "id": "ID",
+    "local": "로컬",
+    "unassigned": "미할당",
+    "language": "언어",
+    "refresh": "새로고침",
+    "pageNotFound": "페이지를 찾을 수 없습니다.",
+    "unknownError": "알 수 없는 오류"
+  },
+  "workflows": {
+    "libraryTitle": "워크플로 라이브러리",
+    "librarySubtitle": "로컬 워크플로를 관리하고 인터랙티브 빌더에서 엽니다.",
+    "stats": {
+      "totalLabel": "총계",
+      "totalSublabel": "로컬 워크플로",
+      "ownersLabel": "소유자",
+      "ownersSublabel": "유지 관리자",
+      "tagsLabel": "태그",
+      "tagsSublabel": "카테고리"
+    },
+    "hubHint": "공유 워크플로를 찾고 계신가요?",
+    "browseHub": "Hub에서 보기",
+    "loading": "로컬 워크플로 로딩 중…",
+    "loadFailed": "워크플로를 불러오지 못했습니다: {{message}}",
+    "empty": "로컬 워크플로가 없습니다.",
+    "snapshotPending": "스냅샷 대기",
+    "snapshotHint": "워크플로를 실행해 미리보기를 생성하세요.",
+    "localWorkflow": "로컬 워크플로",
+    "noDescription": "설명이 아직 없습니다.",
+    "noTags": "태그가 아직 없습니다",
+    "moreTags": "+{{count}} 더 보기",
+    "openBuilder": "빌더 열기",
+    "delete": "삭제",
+    "deleting": "삭제 중…",
+    "deleteConfirm": "워크플로 \"{{name}}\"을(를) 삭제할까요?",
+    "deleteSuccess": "{{name}} 삭제됨.",
+    "deleteFailed": "워크플로 삭제에 실패했습니다.",
+    "deletePermission": "워크플로를 삭제하려면 workflow.editor 권한이 필요합니다."
+  },
+  "hubWorkflows": {
+    "libraryTitle": "Hub 라이브러리",
+    "librarySubtitle": "Hub에서 공유 워크플로를 찾아 로컬 워크스페이스로 가져옵니다.",
+    "stats": {
+      "totalLabel": "총계",
+      "totalSublabel": "Hub 워크플로",
+      "ownersLabel": "소유자",
+      "ownersSublabel": "유지 관리자",
+      "tagsLabel": "태그",
+      "tagsSublabel": "카테고리"
+    },
+    "loading": "Hub 워크플로 로딩 중…",
+    "loadFailed": "워크플로를 불러오지 못했습니다: {{message}}",
+    "empty": "Hub 워크플로가 없습니다.",
+    "importError": "워크플로 가져오기에 실패했습니다: {{message}}",
+    "import": "가져오기",
+    "importing": "가져오는 중…",
+    "viewInHub": "Hub에서 보기",
+    "openHub": "Hub 열기",
+    "localWorkflows": "로컬 워크플로",
+    "previewTitle": "Hub에서 미리보기",
+    "previewSubtitle": "Hub에서 전체 스냅샷과 기록을 확인하세요.",
+    "hubWorkflow": "Hub 워크플로",
+    "noDescription": "설명이 아직 없습니다.",
+    "importFailed": "워크플로 가져오기에 실패했습니다.",
+    "importPermission": "워크플로를 가져오려면 workflow.editor 권한이 필요합니다."
+  },
+  "runs": {
+    "title": "실행",
+    "subtitle": "최근 실행 기록",
+    "noPermission": "실행 텔레메트리를 볼 권한이 없습니다.",
+    "noPermissionDetail": "run.viewer 또는 workflow.editor 역할을 요청하세요.",
+    "loading": "실행 기록 로딩 중…",
+    "loadFailed": "실행 기록을 불러오지 못했습니다: {{message}}",
+    "showMiddleware": "미들웨어 실행만 표시",
+    "noRuns": "실행 기록이 없습니다.",
+    "table": {
+      "runId": "실행 ID",
+      "status": "상태",
+      "clientId": "클라이언트 ID",
+      "started": "시작",
+      "finished": "종료",
+      "actions": "동작"
+    },
+    "stop": "중지"
+  },
+  "packages": {
+    "eyebrow": "패키지",
+    "heading": {
+      "public": "패키지 센터",
+      "mine": "Hub 계정 패키지",
+      "local": "설치된 패키지"
+    },
+    "subheading": {
+      "public": "Hub 패키지를 찾아 워크스페이스에 설치합니다.",
+      "mine": "이 스케줄러에 연결된 Hub 계정이 소유한 패키지를 확인합니다.",
+      "local": "이 워크스페이스에서 사용 가능한 패키지를 확인합니다."
+    },
+    "stats": {
+      "public": "공개",
+      "hubAccount": "Hub 계정",
+      "installed": "설치됨",
+      "locked": "잠김",
+      "unavailable": "사용 불가",
+      "loading": "..."
+    },
+    "tabs": {
+      "discover": "탐색",
+      "hubAccount": "Hub 계정",
+      "installed": "설치됨"
+    },
+    "actions": {
+      "publishPackage": "패키지 게시",
+      "createWorkflow": "워크플로 생성",
+      "createWorkflowTitle": "게시용 워크플로 생성",
+      "install": "설치",
+      "update": "업데이트",
+      "installed": "설치됨",
+      "installing": "설치 중…",
+      "viewInHub": "Hub에서 보기",
+      "uninstall": "제거",
+      "uninstalling": "제거 중…"
+    },
+    "permissions": {
+      "install": "패키지를 설치하려면 workflow.editor 권한이 필요합니다.",
+      "uninstall": "패키지를 제거하려면 workflow.editor 권한이 필요합니다.",
+      "viewMine": "Hub 계정 패키지를 보려면 workflow.viewer 또는 workflow.editor 권한이 필요합니다.",
+      "viewLocal": "로컬 패키지를 보려면 workflow.viewer 또는 workflow.editor 권한이 필요합니다.",
+      "tabRequiresViewer": "workflow.viewer 권한이 필요합니다."
+    },
+    "errors": {
+      "missingOwner": "Hub 패키지 소유자가 없습니다.",
+      "localManaged": "로컬 패키지는 워크스페이스에서 관리되며 여기서 제거할 수 없습니다.",
+      "install": "패키지 설치에 실패했습니다.",
+      "uninstall": "패키지 제거에 실패했습니다.",
+      "publish": "패키지 게시에 실패했습니다.",
+      "loadLocal": "로컬 패키지를 불러오지 못했습니다.",
+      "loadHub": "Hub 패키지를 불러오지 못했습니다: {{message}}",
+      "loadAccount": "Hub 계정을 불러오지 못했습니다: {{message}}",
+      "loadAccountFallback": "Hub 계정 로드에 실패했습니다.",
+      "loadMine": "패키지를 불러오지 못했습니다: {{message}}"
+    },
+    "loading": {
+      "hubPackages": "Hub 패키지 로딩 중…",
+      "hubAccount": "Hub 계정 로딩 중…",
+      "myPackages": "패키지 로딩 중…",
+      "localPackages": "로컬 패키지 로딩 중…"
+    },
+    "empty": {
+      "public": "Hub 패키지가 아직 없습니다.",
+      "mine": "이 Hub 계정에 패키지가 없습니다.",
+      "local": "로컬 패키지가 없습니다.",
+      "noAccount": "이 워크스페이스에는 Hub 접근이 설정되어 있지 않습니다."
+    },
+    "card": {
+      "previewHubTitle": "Hub에서 미리보기",
+      "previewHubSubtitle": "README와 버전은 Hub에서 확인할 수 있습니다.",
+      "previewLocalTitle": "로컬에 설치됨",
+      "previewLocalSubtitle": "이 워크스페이스의 모든 워크플로에서 사용할 수 있습니다.",
+      "hubPackage": "패키지",
+      "localPackage": "로컬 패키지",
+      "descriptionFallback": "설명이 없습니다.",
+      "localDescriptionFallback": "이 워크스페이스에 설치됨.",
+      "linkedDescription": "Hub에 연결됨: {{name}}@{{version}}.",
+      "signatureLabel": "패키지"
+    },
+    "visibility": {
+      "public": "공개",
+      "private": "비공개",
+      "internal": "내부",
+      "local": "로컬"
+    },
+    "latest": "최신",
+    "localVersion": "로컬",
+    "installSuccess": "{{name}}@{{version}} 설치됨.",
+    "uninstallSuccess": "{{name}}@{{version}} 제거됨.",
+    "allVersions": "전체",
+    "publish": {
+      "title": "Hub에 패키지 게시",
+      "subtitle": "이 워크스페이스에 설치된 패키지를 게시합니다.",
+      "close": "게시 모달 닫기",
+      "packageLabel": "패키지",
+      "versionLabel": "버전",
+      "visibilityLabel": "가시성",
+      "tagsLabel": "태그(쉼표로 구분)",
+      "summaryLabel": "요약",
+      "readmeLabel": "Readme(선택 사항)",
+      "noneReady": "게시할 로컬 패키지가 없습니다.",
+      "selectPackage": "게시할 로컬 패키지를 선택하세요.",
+      "selectVersion": "게시할 버전을 선택하세요.",
+      "success": "{{name}}@{{version}} 게시됨.",
+      "cancel": "취소",
+      "publish": "게시",
+      "publishing": "게시 중…"
+    }
+  }
+}

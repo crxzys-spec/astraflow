@@ -9,6 +9,7 @@
 # Local runtime data
 var/
 scheduler/data/
+.env
 
 # Worker runtime caches
 worker/**/__pycache__/
